@@ -1,0 +1,572 @@
+[
+  {
+    "entity_id": "automation.da_yin_cuo_wu_tong_zhi_2",
+    "state": "on",
+    "friendly_name": "[打印] 打印错误通知",
+    "id": "printer_error_notification",
+    "last_triggered": "2026-03-23T15:40:56.014227+00:00",
+    "mode": "single",
+    "current": 0,
+    "restored": null
+  },
+  {
+    "entity_id": "automation.xi_tong_zhong_shu_wang_guan_xu_ni_shi_jian_bo_bao",
+    "state": "off",
+    "friendly_name": "[系统] 中枢网关虚拟事件播报",
+    "id": "virtual_event_broadcast",
+    "last_triggered": null,
+    "mode": "single",
+    "current": 0,
+    "restored": null
+  },
+  {
+    "entity_id": "automation.da_yin_ji_sheng_yu_shi_jian_bo_bao",
+    "state": "on",
+    "friendly_name": "[打印] 打印机剩余时间播报",
+    "id": "printer_remaining_time",
+    "last_triggered": "2026-03-23T16:14:58.443224+00:00",
+    "mode": "single",
+    "current": 0,
+    "restored": null
+  },
+  {
+    "entity_id": "automation.da_yin_wan_cheng_tong_zhi_2",
+    "state": "on",
+    "friendly_name": "[打印] FDM打印机打印完成通知",
+    "id": "printer_completion_notification",
+    "last_triggered": "2026-03-22T10:57:09.258238+00:00",
+    "mode": "single",
+    "current": 0,
+    "restored": null
+  },
+  {
+    "entity_id": "automation.da_hei_nu_da_yin_wan_cheng_pai_qi_2",
+    "state": "on",
+    "friendly_name": "[打印] 大黑奴打印完成排气",
+    "id": "daheinu_exhaust_fan",
+    "last_triggered": null,
+    "mode": "single",
+    "current": 0,
+    "restored": null
+  },
+  {
+    "entity_id": "automation.xiao_hei_nu_da_yin_wan_cheng_da_kai_pai_qi_2",
+    "state": "on",
+    "friendly_name": "[打印] 小黑奴打印完成打开排气",
+    "id": "xiaoheinu_exhaust_fan",
+    "last_triggered": null,
+    "mode": "single",
+    "current": 0,
+    "restored": null
+  },
+  {
+    "entity_id": "automation.ams_1shi_du_da_yu_50fa_tong_zhi_2",
+    "state": "on",
+    "friendly_name": "[打印] Ams 1湿度大于50发通知",
+    "id": "ams_humidity_notification",
+    "last_triggered": null,
+    "mode": "single",
+    "current": 0,
+    "restored": null
+  },
+  {
+    "entity_id": "automation.da_yin_a1_mini_ji_lu_kai_shi_dian_liang",
+    "state": "on",
+    "friendly_name": "[打印] A1 Mini 记录开始电量",
+    "id": "a1mini_record_start_energy",
+    "last_triggered": "2026-03-23T18:17:42.410648+00:00",
+    "mode": "single",
+    "current": 0,
+    "restored": null
+  },
+  {
+    "entity_id": "automation.da_yin_a1_mini_da_yin_li_shi_ji_lu",
+    "state": "on",
+    "friendly_name": "[打印] A1 Mini 打印历史记录",
+    "id": "printer_history_a1mini",
+    "last_triggered": null,
+    "mode": "single",
+    "current": 0,
+    "restored": null
+  },
+  {
+    "entity_id": "automation.da_yin_p2s_ji_lu_kai_shi_dian_liang",
+    "state": "on",
+    "friendly_name": "[打印] P2S 记录开始电量",
+    "id": "p2s_record_start_energy",
+    "last_triggered": "2026-03-24T01:29:31.609061+00:00",
+    "mode": "single",
+    "current": 0,
+    "restored": null
+  },
+  {
+    "entity_id": "automation.da_yin_p2s_da_yin_li_shi_ji_lu",
+    "state": "on",
+    "friendly_name": "[打印] P2S 打印历史记录",
+    "id": "printer_history_p2s",
+    "last_triggered": null,
+    "mode": "single",
+    "current": 0,
+    "restored": null
+  },
+  {
+    "entity_id": "automation.liang_deng_ke_ting_xi_ding_deng_liang_shi_chang_lei_jia_2",
+    "state": "on",
+    "friendly_name": "[亮灯] 客厅吸顶灯亮时长累加",
+    "id": "2e34025f7d1f4539b4fbd4146e376a14",
+    "last_triggered": "2026-03-24T05:44:30.346022+00:00",
+    "mode": "parallel",
+    "current": 0,
+    "restored": null
+  },
+  {
+    "entity_id": "automation.liang_deng_ke_ting_sha_fa_deng_liang_shi_chang_lei_jia_2",
+    "state": "on",
+    "friendly_name": "[亮灯] 客厅沙发灯亮时长累加",
+    "id": "601d9d56195b46f19fba46b5ad99aca9",
+    "last_triggered": "2026-03-24T00:30:20.374577+00:00",
+    "mode": "parallel",
+    "current": 0,
+    "restored": null
+  },
+  {
+    "entity_id": "automation.liang_deng_wo_shi_deng_liang_shi_chang_lei_jia_2",
+    "state": "on",
+    "friendly_name": "[亮灯] 卧室灯亮时长累加",
+    "id": "8c9a4f4db30042dab6c980956d1709e4",
+    "last_triggered": "2026-03-24T07:54:30.289148+00:00",
+    "mode": "parallel",
+    "current": 0,
+    "restored": null
+  },
+  {
+    "entity_id": "automation.liang_deng_wo_shi_deng_dai_liang_shi_chang_lei_jia_2",
+    "state": "on",
+    "friendly_name": "[亮灯] 卧室灯带亮时长累加",
+    "id": "52977129404f40d0bb5f6a0339a6cdf7",
+    "last_triggered": null,
+    "mode": "parallel",
+    "current": 0,
+    "restored": null
+  },
+  {
+    "entity_id": "automation.liang_deng_chu_fang_deng_liang_shi_chang_lei_jia_2",
+    "state": "on",
+    "friendly_name": "[亮灯] 厨房灯亮时长累加",
+    "id": "ab411c6f30ab440aa410b7d009ff659d",
+    "last_triggered": "2026-03-24T01:24:40.320701+00:00",
+    "mode": "parallel",
+    "current": 0,
+    "restored": null
+  },
+  {
+    "entity_id": "automation.liang_deng_can_ting_deng_liang_shi_chang_lei_jia_2",
+    "state": "on",
+    "friendly_name": "[亮灯] 餐厅灯亮时长累加",
+    "id": "7ed588590dbb46c38b96cce91750812b",
+    "last_triggered": "2026-03-24T03:43:50.408514+00:00",
+    "mode": "parallel",
+    "current": 0,
+    "restored": null
+  },
+  {
+    "entity_id": "automation.liang_deng_wei_sheng_jian_deng_liang_shi_chang_lei_jia_2",
+    "state": "on",
+    "friendly_name": "[亮灯] 卫生间灯亮时长累加",
+    "id": "62525e314737427ab64cef1c1052129a",
+    "last_triggered": "2026-03-23T21:26:20.103525+00:00",
+    "mode": "parallel",
+    "current": 0,
+    "restored": null
+  },
+  {
+    "entity_id": "automation.liang_deng_yu_ba_deng_liang_shi_chang_lei_jia_2",
+    "state": "on",
+    "friendly_name": "[亮灯] 浴霸灯亮时长累加",
+    "id": "6a20d96d82b6479f8a980cb4c51e0bcd",
+    "last_triggered": null,
+    "mode": "parallel",
+    "current": 0,
+    "restored": null
+  },
+  {
+    "entity_id": "automation.liang_deng_zou_lang_zou_dao_deng_liang_shi_chang_lei_jia_2",
+    "state": "on",
+    "friendly_name": "[亮灯] 走廊走道灯亮时长累加",
+    "id": "5b9fd3a9d4e345ce9c0a526f3fab0da1",
+    "last_triggered": "2026-03-24T03:32:10.443402+00:00",
+    "mode": "parallel",
+    "current": 0,
+    "restored": null
+  },
+  {
+    "entity_id": "automation.liang_deng_zou_lang_wei_sheng_jian_deng_liang_shi_chang_lei_jia_2",
+    "state": "on",
+    "friendly_name": "[亮灯] 走廊卫生间灯亮时长累加",
+    "id": "d5da3bed4a734ba9a52bf99bfaeefe86",
+    "last_triggered": "2026-03-24T01:32:20.430208+00:00",
+    "mode": "parallel",
+    "current": 0,
+    "restored": null
+  },
+  {
+    "entity_id": "automation.liang_deng_men_kou_tong_deng_liang_shi_chang_lei_jia_2",
+    "state": "on",
+    "friendly_name": "[亮灯] 门口筒灯亮时长累加",
+    "id": "e9f3c4dcc3364e7fba2a27ab3a2045f7",
+    "last_triggered": "2026-03-24T03:35:10.309645+00:00",
+    "mode": "parallel",
+    "current": 0,
+    "restored": null
+  },
+  {
+    "entity_id": "automation.liang_deng_mei_ri_zhong_zhi_suo_you_deng_liang_shi_chang_2",
+    "state": "on",
+    "friendly_name": "[亮灯] 每日重置所有灯亮时长",
+    "id": "82883509159345bdbc715990d3954e71",
+    "last_triggered": "2026-03-23T16:00:00.235489+00:00",
+    "mode": "single",
+    "current": 0,
+    "restored": null
+  },
+  {
+    "entity_id": "automation.bambu_lab_chao_mian_jian_ce_mi_jia_tong_zhi_ban",
+    "state": "on",
+    "friendly_name": "Bambu Lab - 炒面检测 (米家通知版)",
+    "id": "1774306560576",
+    "last_triggered": "2026-03-24T07:54:30.193502+00:00",
+    "mode": "single",
+    "current": 0,
+    "restored": null
+  },
+  {
+    "entity_id": "automation.xiao_hei_nu_da_yin_wan_cheng_da_kai_pai_qi",
+    "state": "unavailable",
+    "friendly_name": "小黑奴打印完成打开排气",
+    "id": "1770920667490",
+    "last_triggered": null,
+    "mode": null,
+    "current": null,
+    "restored": true
+  },
+  {
+    "entity_id": "automation.ams_1shi_du_da_yu_50fa_tong_zhi",
+    "state": "unavailable",
+    "friendly_name": "Ams 1湿度大于50发通知",
+    "id": "1770970222672",
+    "last_triggered": null,
+    "mode": null,
+    "current": null,
+    "restored": true
+  },
+  {
+    "entity_id": "automation.da_hei_nu_da_yin_wan_cheng_pai_qi",
+    "state": "unavailable",
+    "friendly_name": "大黑奴打印完成排气",
+    "id": "1770970728024",
+    "last_triggered": null,
+    "mode": null,
+    "current": null,
+    "restored": true
+  },
+  {
+    "entity_id": "automation.da_yin_wan_cheng_tong_zhi",
+    "state": "unavailable",
+    "friendly_name": "打印完成通知",
+    "id": "1771092349248",
+    "last_triggered": null,
+    "mode": null,
+    "current": null,
+    "restored": true
+  },
+  {
+    "entity_id": "automation.xiao_hei_nu_da_yin_sheng_yu_shi_jian_bo_bao",
+    "state": "unavailable",
+    "friendly_name": "打印机剩余时间播报",
+    "id": "1771094810421",
+    "last_triggered": null,
+    "mode": null,
+    "current": null,
+    "restored": true
+  },
+  {
+    "entity_id": "automation.da_yin_cuo_wu_tong_zhi",
+    "state": "unavailable",
+    "friendly_name": "打印错误通知",
+    "id": "1771099349065",
+    "last_triggered": null,
+    "mode": null,
+    "current": null,
+    "restored": true
+  },
+  {
+    "entity_id": "automation.lian_dong_biao_qian_da_kai_can_ting_deng_yi_sao_miao_kai_deng",
+    "state": "unavailable",
+    "friendly_name": "联动标签“打开餐厅灯”已扫描开灯",
+    "id": "1772030381241",
+    "last_triggered": null,
+    "mode": null,
+    "current": null,
+    "restored": true
+  },
+  {
+    "entity_id": "automation.lian_dong_biao_qian_pao_mian_dao_ji_shi_yi_sao_miao_san_fen_zhong_dao_ji_shi",
+    "state": "unavailable",
+    "friendly_name": "联动标签“泡面倒计时”已扫描三分钟倒计时",
+    "id": "1772041052994",
+    "last_triggered": null,
+    "mode": null,
+    "current": null,
+    "restored": true
+  },
+  {
+    "entity_id": "automation.ke_ting_xiao_ai_kong_xian_huo_zhe_zan_ting_jin_ru_xiu_mian",
+    "state": "unavailable",
+    "friendly_name": "客厅小爱空闲或者暂停进入休眠",
+    "id": "1772665717073",
+    "last_triggered": null,
+    "mode": null,
+    "current": null,
+    "restored": true
+  },
+  {
+    "entity_id": "automation.lian_dong_biao_qian_xiao_ai_bo_fang_xu_xiao_feng_si_shui_liu_nian_yi_sao_miao",
+    "state": "unavailable",
+    "friendly_name": "联动标签“小爱播放徐小凤似水流年”已扫描",
+    "id": "1773790891216",
+    "last_triggered": null,
+    "mode": null,
+    "current": null,
+    "restored": true
+  },
+  {
+    "entity_id": "automation.tong_ji_ke_ting_deng_liang_shi_chang",
+    "state": "unavailable",
+    "friendly_name": "统计客厅灯亮时长",
+    "id": "f148b5aec4a8428b9eb6fdb43f0d5144",
+    "last_triggered": null,
+    "mode": null,
+    "current": null,
+    "restored": true
+  },
+  {
+    "entity_id": "automation.tong_ji_wo_shi_deng_liang_shi_chang",
+    "state": "unavailable",
+    "friendly_name": "统计卧室灯亮时长",
+    "id": "365a0c4e1071487bba2202efec2ba81e",
+    "last_triggered": null,
+    "mode": null,
+    "current": null,
+    "restored": true
+  },
+  {
+    "entity_id": "automation.tong_ji_chu_fang_deng_liang_shi_chang",
+    "state": "unavailable",
+    "friendly_name": "统计厨房灯亮时长",
+    "id": "fd2d317cc22645d6a0248e47a0724b28",
+    "last_triggered": null,
+    "mode": null,
+    "current": null,
+    "restored": true
+  },
+  {
+    "entity_id": "automation.tong_ji_can_ting_deng_liang_shi_chang",
+    "state": "unavailable",
+    "friendly_name": "统计餐厅灯亮时长",
+    "id": "8dfa020a304c49589fd2cb2705aa4e1e",
+    "last_triggered": null,
+    "mode": null,
+    "current": null,
+    "restored": true
+  },
+  {
+    "entity_id": "automation.tong_ji_wei_sheng_jian_deng_liang_shi_chang",
+    "state": "unavailable",
+    "friendly_name": "统计卫生间灯亮时长",
+    "id": "cf20b8050d65450faf0a91fa574eeebd",
+    "last_triggered": null,
+    "mode": null,
+    "current": null,
+    "restored": true
+  },
+  {
+    "entity_id": "automation.tong_ji_zou_lang_deng_liang_shi_chang",
+    "state": "unavailable",
+    "friendly_name": "统计走廊灯亮时长",
+    "id": "3d17f2f98b0d4c9fb694e40f1eff6ca6",
+    "last_triggered": null,
+    "mode": null,
+    "current": null,
+    "restored": true
+  },
+  {
+    "entity_id": "automation.tong_ji_men_kou_deng_liang_shi_chang",
+    "state": "unavailable",
+    "friendly_name": "统计门口灯亮时长",
+    "id": "57a49ee526074dafa11c4e302b58bd42",
+    "last_triggered": null,
+    "mode": null,
+    "current": null,
+    "restored": true
+  },
+  {
+    "entity_id": "automation.zhong_zhi_deng_liang_shi_chang_tong_ji",
+    "state": "unavailable",
+    "friendly_name": "重置灯亮时长统计",
+    "id": "7bde6219178046e18d8d353158644b56",
+    "last_triggered": null,
+    "mode": null,
+    "current": null,
+    "restored": true
+  },
+  {
+    "entity_id": "automation.mei_xiao_shi_geng_xin_ren_zai_tong_ji",
+    "state": "unavailable",
+    "friendly_name": "每小时更新人在统计",
+    "id": "hourly_presence_update",
+    "last_triggered": null,
+    "mode": null,
+    "current": null,
+    "restored": true
+  },
+  {
+    "entity_id": "automation.da_yin_a1_minida_yin_kai_shi_ji_lu",
+    "state": "unavailable",
+    "friendly_name": "[打印] A1 Mini打印开始记录",
+    "id": "a1mini_print_start_record",
+    "last_triggered": null,
+    "mode": null,
+    "current": null,
+    "restored": true
+  },
+  {
+    "entity_id": "automation.da_yin_p2sda_yin_kai_shi_ji_lu",
+    "state": "unavailable",
+    "friendly_name": "[打印] P2S打印开始记录",
+    "id": "p2s_print_start_record",
+    "last_triggered": null,
+    "mode": null,
+    "current": null,
+    "restored": true
+  },
+  {
+    "entity_id": "automation.liang_deng_ke_ting_xi_ding_deng_liang_shi_chang_lei_jia",
+    "state": "unavailable",
+    "friendly_name": "[亮灯] 客厅吸顶灯亮时长累加",
+    "id": "3644f47ca8e14bb2936e1662c0da1632",
+    "last_triggered": null,
+    "mode": null,
+    "current": null,
+    "restored": true
+  },
+  {
+    "entity_id": "automation.liang_deng_ke_ting_sha_fa_deng_liang_shi_chang_lei_jia",
+    "state": "unavailable",
+    "friendly_name": "[亮灯] 客厅沙发灯亮时长累加",
+    "id": "e158757668fb4663a35988b71bd7a7cb",
+    "last_triggered": null,
+    "mode": null,
+    "current": null,
+    "restored": true
+  },
+  {
+    "entity_id": "automation.liang_deng_wo_shi_deng_liang_shi_chang_lei_jia",
+    "state": "unavailable",
+    "friendly_name": "[亮灯] 卧室灯亮时长累加",
+    "id": "151edc6401d3495faa0a8e4e9a65d44e",
+    "last_triggered": null,
+    "mode": null,
+    "current": null,
+    "restored": true
+  },
+  {
+    "entity_id": "automation.liang_deng_wo_shi_deng_dai_liang_shi_chang_lei_jia",
+    "state": "unavailable",
+    "friendly_name": "[亮灯] 卧室灯带亮时长累加",
+    "id": "e397e94cd55c45ac97ff6f26bb59bafd",
+    "last_triggered": null,
+    "mode": null,
+    "current": null,
+    "restored": true
+  },
+  {
+    "entity_id": "automation.liang_deng_chu_fang_deng_liang_shi_chang_lei_jia",
+    "state": "unavailable",
+    "friendly_name": "[亮灯] 厨房灯亮时长累加",
+    "id": "f4d8e62fda884f2fad32f08bf98aab2a",
+    "last_triggered": null,
+    "mode": null,
+    "current": null,
+    "restored": true
+  },
+  {
+    "entity_id": "automation.liang_deng_can_ting_deng_liang_shi_chang_lei_jia",
+    "state": "unavailable",
+    "friendly_name": "[亮灯] 餐厅灯亮时长累加",
+    "id": "14cf86b2d0cf432a8adb2b10baa19fa6",
+    "last_triggered": null,
+    "mode": null,
+    "current": null,
+    "restored": true
+  },
+  {
+    "entity_id": "automation.liang_deng_wei_sheng_jian_deng_liang_shi_chang_lei_jia",
+    "state": "unavailable",
+    "friendly_name": "[亮灯] 卫生间灯亮时长累加",
+    "id": "39a0f21ca6444893b07269ea8733a969",
+    "last_triggered": null,
+    "mode": null,
+    "current": null,
+    "restored": true
+  },
+  {
+    "entity_id": "automation.liang_deng_yu_ba_deng_liang_shi_chang_lei_jia",
+    "state": "unavailable",
+    "friendly_name": "[亮灯] 浴霸灯亮时长累加",
+    "id": "e32ac4da93c244178b667048ae666318",
+    "last_triggered": null,
+    "mode": null,
+    "current": null,
+    "restored": true
+  },
+  {
+    "entity_id": "automation.liang_deng_zou_lang_zou_dao_deng_liang_shi_chang_lei_jia",
+    "state": "unavailable",
+    "friendly_name": "[亮灯] 走廊走道灯亮时长累加",
+    "id": "e627244c3ae84d3d9749f4d362f75755",
+    "last_triggered": null,
+    "mode": null,
+    "current": null,
+    "restored": true
+  },
+  {
+    "entity_id": "automation.liang_deng_zou_lang_wei_sheng_jian_deng_liang_shi_chang_lei_jia",
+    "state": "unavailable",
+    "friendly_name": "[亮灯] 走廊卫生间灯亮时长累加",
+    "id": "a45ace5b173d4a21b24603f238b03bca",
+    "last_triggered": null,
+    "mode": null,
+    "current": null,
+    "restored": true
+  },
+  {
+    "entity_id": "automation.liang_deng_men_kou_tong_deng_liang_shi_chang_lei_jia",
+    "state": "unavailable",
+    "friendly_name": "[亮灯] 门口筒灯亮时长累加",
+    "id": "813fee17f9a24c3c87d8bb21ab08b198",
+    "last_triggered": null,
+    "mode": null,
+    "current": null,
+    "restored": true
+  },
+  {
+    "entity_id": "automation.liang_deng_mei_ri_zhong_zhi_suo_you_deng_liang_shi_chang",
+    "state": "unavailable",
+    "friendly_name": "[亮灯] 每日重置所有灯亮时长",
+    "id": "059fb68996c84a42aa636b3e95484992",
+    "last_triggered": null,
+    "mode": null,
+    "current": null,
+    "restored": true
+  }
+]

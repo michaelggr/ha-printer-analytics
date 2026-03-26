@@ -1,0 +1,331 @@
+﻿# 打印错误通知（A1 Mini 或 P2S 打印机错误，且客厅有人时语音播报）
+- id: "printer_error_notification"
+  alias: "打印错误通知"
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.a1mini_0300aa5a1600497_print_error
+      to: "on"
+    - platform: state
+      entity_id: binary_sensor.p2s_22e8bj5a2401765_print_error
+      to: "on"
+  condition:
+    - condition: state
+      entity_id: sensor.linp_cn_blt_3_1n20sdaek4k01_es4b_occupancy_status_p_2_1078
+      state: "有人"
+  action:
+    - service: notify.send_message
+      target:
+        entity_id: notify.xiaomi_cn_338143536_lx5a_play_text_a_5_1
+      data:
+        message: >
+          {% if trigger.entity_id == 'binary_sensor.a1mini_0300aa5a1600497_print_error' %}
+            注意，A1 Mini 打印机出现错误，请检查！
+          {% else %}
+            注意，P2S 打印机出现错误，请检查！
+          {% endif %}
+
+# 打印机剩余时间播报（语音播报）
+- id: "printer_remaining_time"
+  alias: "打印机剩余时间播报"
+  trigger:
+    - platform: state
+      entity_id: sensor.a1mini_0300aa5a1600497_remaining_time
+  condition:
+    - condition: template
+      value_template: "{{ trigger.to_state.state != 'unknown' and trigger.to_state.state | int > 0 }}"
+  action:
+    - service: notify.send_message
+      target:
+        entity_id: notify.xiaomi_cn_338143536_lx5a_play_text_a_5_1
+      data:
+        message: "当前打印剩余时间{{ states('sensor.a1mini_0300aa5a1600497_remaining_time') }}分钟"
+
+# 打印完成通知（仅在客厅有人时语音播报）
+- id: "printer_completion_notification"
+  alias: "打印完成通知"
+  trigger:
+    - platform: state
+      entity_id: sensor.a1mini_0300aa5a1600497_print_status
+      to: "完成"
+  condition:
+    - condition: state
+      entity_id: sensor.linp_cn_blt_3_1n20sdaek4k01_es4b_occupancy_status_p_2_1078
+      state: "有人"
+  action:
+    - service: notify.send_message
+      target:
+        entity_id: notify.xiaomi_cn_338143536_lx5a_play_text_a_5_1
+      data:
+        message: "3D打印已完成！"
+
+# 大黑奴打印完成排气
+- id: "daheinu_exhaust_fan"
+  alias: "大黑奴打印完成排气"
+  trigger:
+    - platform: state
+      entity_id: sensor.a1mini_0300aa5a1600497_print_status
+      to: "完成"
+  action:
+    - service: switch.turn_on
+      data:
+        entity_id: switch.exhaust_fan
+    - delay:
+        minutes: 10
+    - service: switch.turn_off
+      data:
+        entity_id: switch.exhaust_fan
+    - choose:
+        - conditions:
+            - condition: state
+              entity_id: sensor.linp_cn_blt_3_1n20sdaek4k01_es4b_occupancy_status_p_2_1078
+              state: "有人"
+          sequence:
+            - service: notify.send_message
+              target:
+                entity_id: notify.xiaomi_cn_338143536_lx5a_play_text_a_5_1
+              data:
+                message: "大黑奴打印完成，排气已开启！"
+
+# 小黑奴打印完成打开排气
+- id: "xiaoheinu_exhaust_fan"
+  alias: "小黑奴打印完成打开排气"
+  trigger:
+    - platform: state
+      entity_id: sensor.a1mini_0300aa5a1600497_print_status
+      to: "完成"
+  action:
+    - service: switch.turn_on
+      data:
+        entity_id: switch.exhaust_fan
+    - delay:
+        minutes: 10
+    - service: switch.turn_off
+      data:
+        entity_id: switch.exhaust_fan
+    - choose:
+        - conditions:
+            - condition: state
+              entity_id: sensor.linp_cn_blt_3_1n20sdaek4k01_es4b_occupancy_status_p_2_1078
+              state: "有人"
+          sequence:
+            - service: notify.send_message
+              target:
+                entity_id: notify.xiaomi_cn_338143536_lx5a_play_text_a_5_1
+              data:
+                message: "小黑奴打印完成，排气已开启！"
+
+# Ams 1湿度大于50发通知（语音播报）
+- id: "ams_humidity_notification"
+  alias: "Ams 1湿度大于50发通知"
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.p2s_22e8bj5a2401765_ams_1_humidity
+      above: 50
+  action:
+    - service: notify.send_message
+      target:
+        entity_id: notify.xiaomi_cn_338143536_lx5a_play_text_a_5_1
+      data:
+        message: "注意，AMS湿度大于50%，请检查！"
+
+# ==================== 灯亮时长统计自动化（每个灯单独统计） ====================
+# 每10秒自动累加
+
+# ==================== 客厅吸顶灯 ====================
+- alias: "客厅吸顶灯亮时长累加"
+  trigger:
+    - platform: time_pattern
+      seconds: "/10"
+  condition:
+    - condition: state
+      entity_id: light.jdjz_cn_857569251_jdjzu1_s_2_light
+      state: "on"
+  action:
+    - service: input_number.set_value
+      data:
+        value: "{{ states('input_number.light_jdjz_duration')|float(0) + 10 }}"
+      target:
+        entity_id: input_number.light_jdjz_duration
+
+# ==================== 客厅沙发灯 ====================
+- alias: "客厅沙发灯亮时长累加"
+  trigger:
+    - platform: time_pattern
+      seconds: "/10"
+  condition:
+    - condition: state
+      entity_id: light.lemesh_cn_1186971184_wy0c14_s_2_light
+      state: "on"
+  action:
+    - service: input_number.set_value
+      data:
+        value: "{{ states('input_number.light_sofa_duration')|float(0) + 10 }}"
+      target:
+        entity_id: input_number.light_sofa_duration
+
+# ==================== 卧室灯 ====================
+- alias: "卧室灯亮时长累加"
+  trigger:
+    - platform: time_pattern
+      seconds: "/10"
+  condition:
+    - condition: state
+      entity_id: light.ftd_cn_1124827030_dsplmp_s_2_light
+      state: "on"
+  action:
+    - service: input_number.set_value
+      data:
+        value: "{{ states('input_number.light_bedroom_duration')|float(0) + 10 }}"
+      target:
+        entity_id: input_number.light_bedroom_duration
+
+# ==================== 卧室灯带 ====================
+- alias: "卧室灯带亮时长累加"
+  trigger:
+    - platform: time_pattern
+      seconds: "/10"
+  condition:
+    - condition: state
+      entity_id: light.yeelink_cn_436301383_strip6_s_2_light
+      state: "on"
+  action:
+    - service: input_number.set_value
+      data:
+        value: "{{ states('input_number.light_bedroom_strip_duration')|float(0) + 10 }}"
+      target:
+        entity_id: input_number.light_bedroom_strip_duration
+
+# ==================== 厨房灯 ====================
+- alias: "厨房灯亮时长累加"
+  trigger:
+    - platform: time_pattern
+      seconds: "/10"
+  condition:
+    - condition: state
+      entity_id: light.linp_cn_1137697716_lp1bc_s_2_light
+      state: "on"
+  action:
+    - service: input_number.set_value
+      data:
+        value: "{{ states('input_number.light_kitchen_duration')|float(0) + 10 }}"
+      target:
+        entity_id: input_number.light_kitchen_duration
+
+# ==================== 餐厅灯 ====================
+- alias: "餐厅灯亮时长累加"
+  trigger:
+    - platform: time_pattern
+      seconds: "/10"
+  condition:
+    - condition: state
+      entity_id: light.lemesh_cn_1155789492_wy0c15_s_2_light
+      state: "on"
+  action:
+    - service: input_number.set_value
+      data:
+        value: "{{ states('input_number.light_dining_duration')|float(0) + 10 }}"
+      target:
+        entity_id: input_number.light_dining_duration
+
+# ==================== 卫生间灯 ====================
+- alias: "卫生间灯亮时长累加"
+  trigger:
+    - platform: time_pattern
+      seconds: "/10"
+  condition:
+    - condition: state
+      entity_id: light.linp_cn_1137691863_lp1bc_s_2_light
+      state: "on"
+  action:
+    - service: input_number.set_value
+      data:
+        value: "{{ states('input_number.light_bathroom_duration')|float(0) + 10 }}"
+      target:
+        entity_id: input_number.light_bathroom_duration
+
+# ==================== 浴霸灯 ====================
+- alias: "浴霸灯亮时长累加"
+  trigger:
+    - platform: time_pattern
+      seconds: "/10"
+  condition:
+    - condition: state
+      entity_id: light.yeelink_cn_942773473_v11_s_2_light
+      state: "on"
+  action:
+    - service: input_number.set_value
+      data:
+        value: "{{ states('input_number.light_yuba_duration')|float(0) + 10 }}"
+      target:
+        entity_id: input_number.light_yuba_duration
+
+# ==================== 走廊走道灯 ====================
+- alias: "走廊走道灯亮时长累加"
+  trigger:
+    - platform: time_pattern
+      seconds: "/10"
+  condition:
+    - condition: state
+      entity_id: light.giot_cn_1188250021_v8ssm_s_2_light
+      state: "on"
+  action:
+    - service: input_number.set_value
+      data:
+        value: "{{ states('input_number.light_hallway_main_duration')|float(0) + 10 }}"
+      target:
+        entity_id: input_number.light_hallway_main_duration
+
+# ==================== 走廊卫生间灯 ====================
+- alias: "走廊卫生间灯亮时长累加"
+  trigger:
+    - platform: time_pattern
+      seconds: "/10"
+  condition:
+    - condition: state
+      entity_id: light.linp_cn_2023072411_ld6bcw_s_2_light
+      state: "on"
+  action:
+    - service: input_number.set_value
+      data:
+        value: "{{ states('input_number.light_hallway_bath_duration')|float(0) + 10 }}"
+      target:
+        entity_id: input_number.light_hallway_bath_duration
+
+# ==================== 门口筒灯 ====================
+- alias: "门口筒灯亮时长累加"
+  trigger:
+    - platform: time_pattern
+      seconds: "/10"
+  condition:
+    - condition: state
+      entity_id: light.linp_cn_2079761645_ld6bcw_s_2_light
+      state: "on"
+  action:
+    - service: input_number.set_value
+      data:
+        value: "{{ states('input_number.light_doorway_duration')|float(0) + 10 }}"
+      target:
+        entity_id: input_number.light_doorway_duration
+
+# ==================== 每日重置所有灯亮时长 ====================
+- alias: "每日重置所有灯亮时长"
+  trigger:
+    - platform: time
+      at: "00:00:00"
+  action:
+    - service: input_number.set_value
+      data:
+        value: 0
+      target:
+        entity_id:
+          - input_number.light_jdjz_duration
+          - input_number.light_sofa_duration
+          - input_number.light_bedroom_duration
+          - input_number.light_bedroom_strip_duration
+          - input_number.light_kitchen_duration
+          - input_number.light_dining_duration
+          - input_number.light_bathroom_duration
+          - input_number.light_yuba_duration
+          - input_number.light_hallway_main_duration
+          - input_number.light_hallway_bath_duration
+          - input_number.light_doorway_duration

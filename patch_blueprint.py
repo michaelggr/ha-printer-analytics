@@ -1,0 +1,10 @@
+﻿from pathlib import Path
+path = Path('remote_spaghetti.yaml')
+text = path.read_text(encoding='utf-8')
+text = text.replace('service: number.set_value', 'service: input_number.set_value')
+text = text.replace('entity_id: number.bambu_lab_p1_spaghetti_detection_', 'entity_id: input_number.bambu_lab_p1_spaghetti_detection_')
+text = text.replace('number.bambu_lab_p1_spaghetti_detection_', 'input_number.bambu_lab_p1_spaghetti_detection_')
+text = text.replace("states('number.", "states('input_number.")
+text = text.replace('states("number.', 'states("input_number.')
+text = text.replace('below: 30', 'below: 15', 1)
+path.write_text(text, encoding='utf-8')

@@ -1,0 +1,15 @@
+﻿# 传感器数据更新自动化
+- alias: "更新功率传感器数据"
+  trigger:
+    - platform: time_pattern
+      seconds: "/30"
+  action:
+    - service: shell_command.update_sensors
+
+- alias: "每小时更新人在统计"
+  trigger:
+    - platform: time_pattern
+      hours: "*"
+      minutes: 0
+  action:
+    - service: shell_command.update_presence_stats
