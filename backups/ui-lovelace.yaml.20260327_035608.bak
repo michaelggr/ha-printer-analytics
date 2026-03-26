@@ -1176,19 +1176,17 @@ views:
 
       - type: markdown
         content: |
-          {% set total_sec = states('sensor.total_lights_all_time_duration_seconds_v2')|float(0) %}
+          {% set total_sec = states('sensor.quan_wu_deng_guang_zong_liang_deng_shi_chang')|float(0) %}
           {% set total_h = (total_sec / 3600) %}
-          {% set year_h_raw = states('sensor.total_lights_yearly_duration_hours_v2')|float(0) %}
-          {% set today_h_raw = states('sensor.total_lights_hs_daily_duration_hours_v2')|float(0) %}
-          {% set month_h_raw = states('sensor.total_lights_hs_monthly_duration_hours_v2')|float(0) %}
-          {% set week_h_raw = states('sensor.total_lights_hs_weekly_duration_hours_v2')|float(0) %}
-          {% set year_h = [year_h_raw, total_h]|min %}
-          {% set month_h = [month_h_raw, year_h]|min %}
-          {% set week_h = [week_h_raw, month_h]|min %}
-          {% set today_h = [today_h_raw, week_h]|min %}
+          {% set year_sec_raw = states('sensor.quan_wu_nian_liang_deng_zong_shi_chang')|float(0) %}
+          {% set month_sec_raw = states('sensor.quan_wu_yue_liang_deng_zong_shi_chang')|float(0) %}
+          {% set week_sec_raw = states('sensor.quan_wu_zhou_liang_deng_zong_shi_chang')|float(0) %}
+          {% set year_h = [year_sec_raw / 3600, total_h]|min %}
+          {% set month_h = [month_sec_raw / 3600, year_h]|min %}
+          {% set week_h = [week_sec_raw / 3600, month_h]|min %}
           | 今日 | 本周 | 本月 | 本年 | 总计 |
           | --- | --- | --- | --- | --- |
-          | {{ today_h|round(2) }} 小时 | {{ week_h|round(2) }} 小时 | {{ month_h|round(2) }} 小时 | {{ (year_h / 24)|round(2) }} 天 | {{ (total_h / 24)|round(2) }} 天 |
+          | {{ states('sensor.quan_wu_deng_guang_zong_liang_deng_shi_chang_fen_zhong') }} 分钟 | {{ week_h|round(2) }} 小时 | {{ month_h|round(2) }} 小时 | {{ (year_h / 24)|round(2) }} 天 | {{ (total_h / 24)|round(2) }} 天 |
 
       - type: heading
         heading: 全屋趋势对比
@@ -1201,28 +1199,28 @@ views:
           - type: history-graph
             title: 每天亮灯
             entities:
-              - entity: sensor.total_lights_hs_daily_duration_hours_v2
+              - entity: sensor.quan_wu_deng_guang_ri_liang_deng_shi_chang_xiao_shi
                 name: 每天
             hours_to_show: 168
             refresh_interval: 300
           - type: history-graph
             title: 每周亮灯
             entities:
-              - entity: sensor.total_lights_hs_weekly_duration_hours_v2
+              - entity: sensor.quan_wu_zhou_liang_deng_zong_shi_chang
                 name: 每周
             hours_to_show: 2160
             refresh_interval: 1800
           - type: history-graph
             title: 每月亮灯
             entities:
-              - entity: sensor.total_lights_hs_monthly_duration_hours_v2
+              - entity: sensor.quan_wu_yue_liang_deng_zong_shi_chang
                 name: 每月
             hours_to_show: 8760
             refresh_interval: 3600
           - type: history-graph
             title: 每年亮灯
             entities:
-              - entity: sensor.total_lights_yearly_duration_hours_v2
+              - entity: sensor.quan_wu_nian_liang_deng_zong_shi_chang
                 name: 每年
             hours_to_show: 8760
             refresh_interval: 3600
@@ -1238,180 +1236,180 @@ views:
       - type: entities
         entities:
           - type: custom:multiple-entity-row
-            entity: light.jdjz_cn_857569251_jdjzu1_s_2_light
+            entity: sensor.ke_ting_xi_ding_deng_liang_deng_shi_chang
             name: 客厅吸顶
             icon: mdi:ceiling-light
             show_state: false
             entities:
-              - entity: sensor.light_jdjz_today_on_hours
+              - entity: sensor.ke_ting_xi_ding_deng_jin_ri_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_jdjz_week_on_hours
+              - entity: sensor.ke_ting_xi_ding_deng_ben_zhou_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_jdjz_month_on_hours
+              - entity: sensor.ke_ting_xi_ding_deng_ben_yue_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_jdjz_yearly_duration_hours_v2
+              - entity: sensor.ke_ting_xi_ding_deng_ben_nian_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_jdjz_total_duration_hours_v2
+              - entity: sensor.ke_ting_xi_ding_deng_suo_you_shi_jian_liang_deng_zong_shi_chang
                 name: false
           - type: custom:multiple-entity-row
-            entity: light.lemesh_cn_1186971184_wy0c14_s_2_light
+            entity: sensor.ke_ting_sha_fa_deng_liang_deng_shi_chang
             name: 客厅沙发
             icon: mdi:floor-lamp
             show_state: false
             entities:
-              - entity: sensor.light_sofa_today_on_hours
+              - entity: sensor.ke_ting_sha_fa_deng_jin_ri_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_sofa_week_on_hours
+              - entity: sensor.ke_ting_sha_fa_deng_ben_zhou_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_sofa_month_on_hours
+              - entity: sensor.ke_ting_sha_fa_deng_ben_yue_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_sofa_yearly_duration_hours_v2
+              - entity: sensor.ke_ting_sha_fa_deng_ben_nian_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_sofa_total_duration_hours_v2
+              - entity: sensor.ke_ting_sha_fa_deng_suo_you_shi_jian_liang_deng_zong_shi_chang
                 name: false
           - type: custom:multiple-entity-row
-            entity: light.ftd_cn_1124827030_dsplmp_s_2_light
+            entity: sensor.wo_shi_deng_liang_deng_shi_chang
             name: 卧室灯
             icon: mdi:lightbulb
             show_state: false
             entities:
-              - entity: sensor.light_bedroom_today_on_hours
+              - entity: sensor.wo_shi_deng_jin_ri_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_bedroom_week_on_hours
+              - entity: sensor.wo_shi_deng_ben_zhou_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_bedroom_month_on_hours
+              - entity: sensor.wo_shi_deng_ben_yue_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_bedroom_yearly_duration_hours_v2
+              - entity: sensor.wo_shi_deng_ben_nian_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_bedroom_total_duration_hours_v2
+              - entity: sensor.wo_shi_deng_suo_you_shi_jian_liang_deng_zong_shi_chang
                 name: false
           - type: custom:multiple-entity-row
-            entity: light.yeelink_cn_436301383_strip6_s_2_light
+            entity: sensor.wo_shi_deng_dai_liang_deng_shi_chang
             name: 卧室灯带
             icon: mdi:led-strip-variant
             show_state: false
             entities:
-              - entity: sensor.light_bedroom_strip_today_on_hours
+              - entity: sensor.wo_shi_deng_dai_jin_ri_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_bedroom_strip_week_on_hours
+              - entity: sensor.wo_shi_deng_dai_ben_zhou_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_bedroom_strip_month_on_hours
+              - entity: sensor.wo_shi_deng_dai_ben_yue_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_bedroom_strip_yearly_duration_hours_v2
+              - entity: sensor.wo_shi_deng_dai_ben_nian_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_bedroom_strip_total_duration_hours_v2
+              - entity: sensor.wo_shi_deng_dai_suo_you_shi_jian_liang_deng_zong_shi_chang
                 name: false
           - type: custom:multiple-entity-row
-            entity: light.linp_cn_1137697716_lp1bc_s_2_light
+            entity: sensor.chu_fang_deng_liang_deng_shi_chang
             name: 厨房灯
             icon: mdi:ceiling-light-multiple
             show_state: false
             entities:
-              - entity: sensor.light_kitchen_today_on_hours
+              - entity: sensor.chu_fang_deng_jin_ri_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_kitchen_week_on_hours
+              - entity: sensor.chu_fang_deng_ben_zhou_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_kitchen_month_on_hours
+              - entity: sensor.chu_fang_deng_ben_yue_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_kitchen_yearly_duration_hours_v2
+              - entity: sensor.chu_fang_deng_ben_nian_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_kitchen_total_duration_hours_v2
+              - entity: sensor.chu_fang_deng_suo_you_shi_jian_liang_deng_zong_shi_chang
                 name: false
           - type: custom:multiple-entity-row
-            entity: light.lemesh_cn_1155789492_wy0c15_s_2_light
+            entity: sensor.can_ting_deng_liang_deng_shi_chang
             name: 餐厅灯
             icon: mdi:ceiling-light-multiple-outline
             show_state: false
             entities:
-              - entity: sensor.light_dining_today_on_hours
+              - entity: sensor.can_ting_deng_jin_ri_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_dining_week_on_hours
+              - entity: sensor.can_ting_deng_ben_zhou_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_dining_month_on_hours
+              - entity: sensor.can_ting_deng_ben_yue_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_dining_yearly_duration_hours_v2
+              - entity: sensor.can_ting_deng_ben_nian_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_dining_total_duration_hours_v2
+              - entity: sensor.can_ting_deng_suo_you_shi_jian_liang_deng_zong_shi_chang
                 name: false
           - type: custom:multiple-entity-row
-            entity: light.linp_cn_1137691863_lp1bc_s_2_light
+            entity: sensor.wei_sheng_jian_deng_liang_deng_shi_chang
             name: 卫生间灯
             icon: mdi:vanity-light
             show_state: false
             entities:
-              - entity: sensor.light_bathroom_today_on_hours
+              - entity: sensor.wei_sheng_jian_deng_jin_ri_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_bathroom_week_on_hours
+              - entity: sensor.wei_sheng_jian_deng_ben_zhou_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_bathroom_month_on_hours
+              - entity: sensor.wei_sheng_jian_deng_ben_yue_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_bathroom_yearly_duration_hours_v2
+              - entity: sensor.wei_sheng_jian_deng_ben_nian_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_bathroom_total_duration_hours_v2
+              - entity: sensor.wei_sheng_jian_deng_suo_you_shi_jian_liang_deng_zong_shi_chang
                 name: false
           - type: custom:multiple-entity-row
-            entity: light.yeelink_cn_942773473_v11_s_2_light
+            entity: sensor.yu_ba_deng_liang_deng_shi_chang
             name: 浴霸灯
             icon: mdi:heat-wave
             show_state: false
             entities:
-              - entity: sensor.light_yuba_today_on_hours
+              - entity: sensor.yu_ba_deng_jin_ri_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_yuba_week_on_hours
+              - entity: sensor.yu_ba_deng_ben_zhou_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_yuba_month_on_hours
+              - entity: sensor.yu_ba_deng_ben_yue_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_yuba_yearly_duration_hours_v2
+              - entity: sensor.yu_ba_deng_ben_nian_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_yuba_total_duration_hours_v2
+              - entity: sensor.yu_ba_deng_suo_you_shi_jian_liang_deng_zong_shi_chang
                 name: false
           - type: custom:multiple-entity-row
-            entity: light.giot_cn_1188250021_v8ssm_s_2_light
+            entity: sensor.zou_lang_zou_dao_deng_liang_deng_shi_chang
             name: 走廊走道
             icon: mdi:track-light
             show_state: false
             entities:
-              - entity: sensor.light_hallway_main_today_on_hours
+              - entity: sensor.zou_lang_zou_dao_deng_jin_ri_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_hallway_main_week_on_hours
+              - entity: sensor.zou_lang_zou_dao_deng_ben_zhou_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_hallway_main_month_on_hours
+              - entity: sensor.zou_lang_zou_dao_deng_ben_yue_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_hallway_main_yearly_duration_hours_v2
+              - entity: sensor.zou_lang_zou_dao_deng_ben_nian_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_hallway_main_total_duration_hours_v2
+              - entity: sensor.zou_lang_zou_dao_deng_suo_you_shi_jian_liang_deng_zong_shi_chang
                 name: false
           - type: custom:multiple-entity-row
-            entity: light.linp_cn_2023072411_ld6bcw_s_2_light
+            entity: sensor.zou_lang_wei_sheng_jian_deng_liang_deng_shi_chang
             name: 走廊卫灯
             icon: mdi:wall-sconce-flat-variant
             show_state: false
             entities:
-              - entity: sensor.light_hallway_bath_today_on_hours
+              - entity: sensor.zou_lang_wei_sheng_jian_deng_jin_ri_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_hallway_bath_week_on_hours
+              - entity: sensor.zou_lang_wei_sheng_jian_deng_ben_zhou_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_hallway_bath_month_on_hours
+              - entity: sensor.zou_lang_wei_sheng_jian_deng_ben_yue_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_hallway_bath_yearly_duration_hours_v2
+              - entity: sensor.zou_lang_wei_sheng_jian_deng_ben_nian_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_hallway_bath_total_duration_hours_v2
+              - entity: sensor.zou_lang_wei_sheng_jian_deng_suo_you_shi_jian_liang_deng_zong_shi_chang
                 name: false
           - type: custom:multiple-entity-row
-            entity: light.linp_cn_2079761645_ld6bcw_s_2_light
+            entity: sensor.men_kou_tong_deng_liang_deng_shi_chang
             name: 门口筒灯
             icon: mdi:spotlight-beam
             show_state: false
             entities:
-              - entity: sensor.light_doorway_today_on_hours
+              - entity: sensor.men_kou_tong_deng_jin_ri_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_doorway_week_on_hours
+              - entity: sensor.men_kou_tong_deng_ben_zhou_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_doorway_month_on_hours
+              - entity: sensor.men_kou_tong_deng_ben_yue_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_doorway_yearly_duration_hours_v2
+              - entity: sensor.men_kou_tong_deng_ben_nian_liang_deng_zong_shi_chang
                 name: false
-              - entity: sensor.light_doorway_total_duration_hours_v2
+              - entity: sensor.men_kou_tong_deng_suo_you_shi_jian_liang_deng_zong_shi_chang
                 name: false
 
       - type: button
@@ -1495,7 +1493,4 @@ views:
         tap_action:
           action: navigate
           navigation_path: /lovelace/print-history
-
-
-
 
