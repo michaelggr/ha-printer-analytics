@@ -1,0 +1,502 @@
+﻿- id: printer_error_notification
+  alias: '[打印] 打印错误通知'
+  mode: single
+  trigger:
+  - platform: state
+    entity_id: binary_sensor.a1mini_0300aa5a1600497_print_error
+    to: 'on'
+  - platform: state
+    entity_id: binary_sensor.p2s_22e8bj5a2401765_print_error
+    to: 'on'
+  condition:
+  - condition: state
+    entity_id: sensor.linp_cn_blt_3_1n20sdaek4k01_es4b_occupancy_status_p_2_1078
+    state: 鏈変汉
+  action:
+  - service: notify.send_message
+    target:
+      entity_id: notify.xiaomi_cn_338143536_lx5a_play_text_a_5_1
+    data:
+      message: "{% if trigger.entity_id == 'binary_sensor.a1mini_0300aa5a1600497_print_error'
+        %}\n  娉ㄦ剰锛孉1 Mini 鎵撳嵃鏈哄嚭鐜伴敊璇紝璇锋鏌ワ紒\n{% else %}\n  娉ㄦ剰锛孭2S 鎵撳嵃鏈哄嚭鐜伴敊璇紝璇锋鏌ワ紒\n{% endif
+        %}\n"
+- id: virtual_event_broadcast
+  alias: '[系统] 中枢网关虚拟事件播报'
+  mode: single
+  trigger:
+  - platform: event
+    event_type: state_changed
+    event_data:
+      entity_id: event.xiaomi_cn_1175403807_hub1_virtual_event_e_4_1
+  condition:
+  - condition: template
+    value_template: '{{ trigger.to_state.state not in [''unavailable'', ''unknown'',
+      ''''] }}'
+  action:
+  - service: notify.send_message
+    target:
+      entity_id: notify.xiaomi_cn_338143536_lx5a_play_text_a_5_1
+    data:
+      message: 铏氭嫙浜嬩欢鍙戠敓锛歿{ trigger.to_state.state }}
+- id: printer_remaining_time
+  alias: '[打印] 打印机剩余时间播报'
+  mode: single
+  trigger:
+  - platform: state
+    entity_id: event.xiaomi_cn_1175403807_hub1_virtual_event_e_4_1
+  condition:
+  - condition: template
+    value_template: '{{ state_attr(''event.xiaomi_cn_1175403807_hub1_virtual_event_e_4_1'',
+      ''浜嬩欢鍚嶇О'') == ''鎵撳嵃鍓╀綑鏃堕棿'' }}'
+  action:
+  - service: notify.send_message
+    target:
+      entity_id: notify.xiaomi_cn_338143536_lx5a_play_text_a_5_1
+    data:
+      message: "{% set a1mini = states('sensor.a1mini_0300aa5a1600497_remaining_time')
+        %} {% set p2s = states('sensor.p2s_22e8bj5a2401765_remaining_time') %} {%
+        set now = now() %}\n{% macro format_time(hours, mins) %}\n  {% if hours >
+        0 and mins > 0 %}\n    {{ hours }}灏忔椂{{ mins }}鍒嗛挓\n  {% elif hours > 0 %}\n
+        \   {{ hours }}灏忔椂\n  {% elif mins > 0 %}\n    {{ mins }}鍒嗛挓\n  {% else %}\n
+        \   鍗冲皢瀹屾垚\n  {% endif %}\n{% endmacro %}\n{% macro get_completion_time(remaining)
+        %}\n  {% if remaining != 'unknown' %}\n    {{ (now + timedelta(hours=remaining
+        | float(0))).strftime('%H:%M') }}\n  {% else %}\n    鏈煡\n  {% endif %}\n{%
+        endmacro %}\n{% set a1mini_hours = a1mini | float(0) | int %} {% set a1mini_mins
+        = ((a1mini | float(0) - a1mini_hours) * 60) | int %} {% set p2s_hours = p2s
+        | float(0) | int %} {% set p2s_mins = ((p2s | float(0) - p2s_hours) * 60)
+        | int %}\n{% if a1mini != 'unknown' and a1mini | float > 0 and p2s != 'unknown'
+        and p2s | float > 0 %}\n  鎵撳嵃涓紝灏忛粦濂村墿浣檣{ format_time(a1mini_hours, a1mini_mins)
+        }}锛岄璁{ get_completion_time(a1mini) }}瀹屾垚锛涘ぇ榛戝ゴ鍓╀綑{{ format_time(p2s_hours, p2s_mins)
+        }}锛岄璁{ get_completion_time(p2s) }}瀹屾垚銆俓n{% elif a1mini != 'unknown' and a1mini
+        | float > 0 %}\n  鎵撳嵃涓紝灏忛粦濂村墿浣檣{ format_time(a1mini_hours, a1mini_mins) }}锛岄璁{
+        get_completion_time(a1mini) }}瀹屾垚銆俓n{% elif p2s != 'unknown' and p2s | float
+        > 0 %}\n  鎵撳嵃涓紝澶ч粦濂村墿浣檣{ format_time(p2s_hours, p2s_mins) }}锛岄璁{ get_completion_time(p2s)
+        }}瀹屾垚銆俓n{% else %}\n  褰撳墠娌℃湁姝ｅ湪杩涜鐨勬墦鍗颁换鍔°€俓n{% endif %}\n"
+- id: printer_completion_notification
+  alias: '[打印] FDM 打印机打印完成通知'
+  mode: single
+  trigger:
+  - platform: state
+    entity_id: sensor.a1mini_0300aa5a1600497_print_status
+    to: 瀹屾垚
+  - platform: state
+    entity_id: sensor.p2s_22e8bj5a2401765_print_status
+    to: 瀹屾垚
+  condition:
+  - condition: state
+    entity_id: sensor.linp_cn_blt_3_1n20sdaek4k01_es4b_occupancy_status_p_2_1078
+    state: 鏈変汉
+  action:
+  - service: notify.send_message
+    target:
+      entity_id: notify.xiaomi_cn_338143536_lx5a_play_text_a_5_1
+    data:
+      message: "{% if trigger.entity_id == 'sensor.a1mini_0300aa5a1600497_print_status'
+        %}\n  {% set start = states('sensor.a1mini_0300aa5a1600497_start_time') %}\n
+        \ {% if start != 'unknown' %}\n    {% set start_ts = as_timestamp(start) %}\n
+        \   {% set now_ts = as_timestamp(now()) %}\n    {% set duration_min = ((now_ts
+        - start_ts) / 60) | int %}\n    {% set hours = (duration_min / 60) | int %}\n
+        \   {% set mins = duration_min % 60 %}\n    {% if hours > 0 %}\n      灏忛粦濂存墦鍗板凡瀹屾垚锛佺敤鏃秢{
+        hours }}灏忔椂{{ mins }}鍒嗛挓銆傚紑濮嬫帓姘?0鍒嗛挓銆俓n    {% else %}\n      灏忛粦濂存墦鍗板凡瀹屾垚锛佺敤鏃秢{ mins
+        }}鍒嗛挓銆傚紑濮嬫帓姘?0鍒嗛挓銆俓n    {% endif %}\n  {% else %}\n    灏忛粦濂存墦鍗板凡瀹屾垚锛佸紑濮嬫帓姘?0鍒嗛挓銆俓n  {%
+        endif %}\n{% else %}\n  {% set start = states('sensor.p2s_22e8bj5a2401765_start_time')
+        %}\n  {% if start != 'unknown' %}\n    {% set start_ts = as_timestamp(start)
+        %}\n    {% set now_ts = as_timestamp(now()) %}\n    {% set duration_min =
+        ((now_ts - start_ts) / 60) | int %}\n    {% set hours = (duration_min / 60)
+        | int %}\n    {% set mins = duration_min % 60 %}\n    {% if hours > 0 %}\n
+        \     澶ч粦濂存墦鍗板凡瀹屾垚锛佺敤鏃秢{ hours }}灏忔椂{{ mins }}鍒嗛挓銆傚紑濮嬫帓姘?0鍒嗛挓銆俓n    {% else %}\n      澶ч粦濂存墦鍗板凡瀹屾垚锛佺敤鏃秢{
+        mins }}鍒嗛挓銆傚紑濮嬫帓姘?0鍒嗛挓銆俓n    {% endif %}\n  {% else %}\n    澶ч粦濂存墦鍗板凡瀹屾垚锛佸紑濮嬫帓姘?0鍒嗛挓銆俓n
+        \ {% endif %}\n{% endif %}\n"
+- id: daheinu_exhaust_fan
+  alias: '[打印] 大黑奴打印完成排气'
+  mode: single
+  trigger:
+  - platform: state
+    entity_id: sensor.p2s_22e8bj5a2401765_print_status
+    to: 瀹屾垚
+  action:
+  - service: switch.turn_on
+    data:
+      entity_id: switch.sixwgh_cn_1200175237_v8icm1_on_p_2_1
+  - delay:
+      minutes: 10
+  - service: switch.turn_off
+    data:
+      entity_id: switch.sixwgh_cn_1200175237_v8icm1_on_p_2_1
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: sensor.linp_cn_blt_3_1n20sdaek4k01_es4b_occupancy_status_p_2_1078
+        state: 鏈変汉
+      sequence:
+      - service: notify.send_message
+        target:
+          entity_id: notify.xiaomi_cn_338143536_lx5a_play_text_a_5_1
+        data:
+          message: 澶ч粦濂存帓姘斿畬鎴愶紒
+- id: xiaoheinu_exhaust_fan
+  alias: '[打印] 小黑奴打印完成打开排气'
+  mode: single
+  trigger:
+  - platform: state
+    entity_id: sensor.a1mini_0300aa5a1600497_print_status
+    to: 瀹屾垚
+  action:
+  - service: switch.turn_on
+    data:
+      entity_id: switch.giot_cn_1164778814_v8icm_on_p_2_1
+  - delay:
+      minutes: 10
+  - service: switch.turn_off
+    data:
+      entity_id: switch.giot_cn_1164778814_v8icm_on_p_2_1
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: sensor.linp_cn_blt_3_1n20sdaek4k01_es4b_occupancy_status_p_2_1078
+        state: 鏈変汉
+      sequence:
+      - service: notify.send_message
+        target:
+          entity_id: notify.xiaomi_cn_338143536_lx5a_play_text_a_5_1
+        data:
+          message: 灏忛粦濂存帓姘斿畬鎴愶紒
+- id: ams_humidity_notification
+  alias: '[打印] AMS 1 湿度大于 50 通知'
+  mode: single
+  trigger:
+  - platform: numeric_state
+    entity_id: sensor.p2s_22e8bj5a2401765_ams_1_humidity
+    above: 50
+  action:
+  - service: notify.send_message
+    target:
+      entity_id: notify.xiaomi_cn_338143536_lx5a_play_text_a_5_1
+    data:
+      message: 娉ㄦ剰锛孉MS婀垮害澶т簬50%锛岃妫€鏌ワ紒
+- id: a1mini_record_start_energy
+  alias: '[打印] A1 Mini 记录开始电量'
+  mode: single
+  trigger:
+  - platform: state
+    entity_id: sensor.a1mini_0300aa5a1600497_print_status
+    to: running
+  action:
+  - service: input_text.set_value
+    target:
+      entity_id: input_text.a1mini_start_energy
+    data:
+      value: '{{ states(''sensor.giot_cn_1164778814_v8icm_power_consumption_p_4_1'')
+        | float(0) }}'
+- id: printer_history_a1mini
+  alias: '[打印] A1 Mini 打印历史记录'
+  mode: single
+  trigger:
+  - platform: state
+    entity_id: sensor.a1mini_0300aa5a1600497_print_status
+    to:
+    - 澶辫触
+    - 瀹屾垚
+  action:
+  - service: homeassistant.set_state
+    target:
+      entity_id: sensor.a1mini_print_history
+    data:
+      state: '{{ now().strftime(''%Y-%m-%d %H:%M:%S'') }}'
+      attributes:
+        history: "{% set history = state_attr('sensor.a1mini_print_history', 'history')
+          | default('[]') | from_json %} {% set now = now().strftime('%Y-%m-%d %H:%M:%S')
+          %} {% set status = trigger.to_state.state %} {% set progress = states('sensor.a1mini_0300aa5a1600497_print_progress')
+          | float(0) %} {% set total_weight = states('sensor.a1mini_0300aa5a1600497_print_weight')
+          | float(0) %} {% set total_length = states('sensor.a1mini_0300aa5a1600497_print_length')
+          | float(0) %} {% set active_tray = states('sensor.a1mini_0300aa5a1600497_active_tray')
+          %} {% set filament_type = state_attr('sensor.a1mini_0300aa5a1600497_active_tray',
+          'type') %} {% set color = state_attr('sensor.a1mini_0300aa5a1600497_active_tray',
+          'color') %} {% set usage_weight = (total_weight * progress / 100) | round(2)
+          %} {% set usage_length = (total_length * progress / 100) | round(2) %} {%
+          set start_energy = states('input_text.a1mini_start_energy') | float(0) %}
+          {% set end_energy = states('sensor.giot_cn_1164778814_v8icm_power_consumption_p_4_1')
+          | float(0) %} {% set energy = (end_energy - start_energy) | round(2) %}
+          {% set new_record = {\n  'time': now,\n  'status': status,\n  'progress':
+          progress | int,\n  'material': filament_type or 'Unknown',\n  'color': color
+          or '#FFFFFF',\n  'total_weight': total_weight,\n  'usage_weight': usage_weight,\n
+          \ 'total_length': total_length,\n  'usage_length': usage_length,\n  'energy':
+          energy | round(2)\n} %} {% set new_history = [new_record] + history %} {{
+          new_history[:50] | to_json }}\n"
+- id: p2s_record_start_energy
+  alias: '[打印] P2S 记录开始电量'
+  mode: single
+  trigger:
+  - platform: state
+    entity_id: sensor.p2s_22e8bj5a2401765_print_status
+    to: running
+  action:
+  - service: input_text.set_value
+    target:
+      entity_id: input_text.p2s_start_energy
+    data:
+      value: '{{ states(''sensor.sixwgh_cn_1200175237_v8icm1_power_consumption_p_4_1'')
+        | float(0) }}'
+- id: printer_history_p2s
+  alias: '[打印] P2S 打印历史记录'
+  mode: single
+  trigger:
+  - platform: state
+    entity_id: sensor.p2s_22e8bj5a2401765_print_status
+    to:
+    - 澶辫触
+    - 瀹屾垚
+  action:
+  - service: homeassistant.set_state
+    target:
+      entity_id: sensor.p2s_print_history
+    data:
+      state: '{{ now().strftime(''%Y-%m-%d %H:%M:%S'') }}'
+      attributes:
+        history: "{% set history = state_attr('sensor.p2s_print_history', 'history')
+          | default('[]') | from_json %} {% set now = now().strftime('%Y-%m-%d %H:%M:%S')
+          %} {% set status = trigger.to_state.state %} {% set progress = states('sensor.p2s_22e8bj5a2401765_print_progress')
+          | float(0) %} {% set total_weight = states('sensor.p2s_22e8bj5a2401765_print_weight')
+          | float(0) %} {% set total_length = states('sensor.p2s_22e8bj5a2401765_print_length')
+          | float(0) %} {% set active_tray = states('sensor.p2s_22e8bj5a2401765_active_tray')
+          %} {% set filament_type = state_attr('sensor.p2s_22e8bj5a2401765_active_tray',
+          'type') %} {% set color = state_attr('sensor.p2s_22e8bj5a2401765_active_tray',
+          'color') %} {% set usage_weight = (total_weight * progress / 100) | round(2)
+          %} {% set usage_length = (total_length * progress / 100) | round(2) %} {%
+          set start_energy = states('input_text.p2s_start_energy') | float(0) %} {%
+          set end_energy = states('sensor.sixwgh_cn_1200175237_v8icm1_power_consumption_p_4_1')
+          | float(0) %} {% set energy = (end_energy - start_energy) | round(2) %}
+          {% set new_record = {\n  'time': now,\n  'status': status,\n  'progress':
+          progress | int,\n  'material': filament_type or 'Unknown',\n  'color': color
+          or '#FFFFFF',\n  'total_weight': total_weight,\n  'usage_weight': usage_weight,\n
+          \ 'total_length': total_length,\n  'usage_length': usage_length,\n  'energy':
+          energy | round(2)\n} %} {% set new_history = [new_record] + history %} {{
+          new_history[:50] | to_json }}\n"
+- alias: '[亮灯] 客厅吸顶灯亮灯时长累计'
+  mode: parallel
+  trigger:
+  - platform: time_pattern
+    seconds: /10
+  condition:
+  - condition: state
+    entity_id: light.jdjz_cn_857569251_jdjzu1_s_2_light
+    state: 'on'
+  action:
+  - service: input_number.set_value
+    data:
+      value: '{{ states(''input_number.light_jdjz_duration'')|float(0) + 10 }}'
+    target:
+      entity_id: input_number.light_jdjz_duration
+  id: 2e34025f7d1f4539b4fbd4146e376a14
+- alias: '[亮灯] 客厅沙发灯亮灯时长累计'
+  mode: parallel
+  trigger:
+  - platform: time_pattern
+    seconds: /10
+  condition:
+  - condition: state
+    entity_id: light.lemesh_cn_1186971184_wy0c14_s_2_light
+    state: 'on'
+  action:
+  - service: input_number.set_value
+    data:
+      value: '{{ states(''input_number.light_sofa_duration'')|float(0) + 10 }}'
+    target:
+      entity_id: input_number.light_sofa_duration
+  id: 601d9d56195b46f19fba46b5ad99aca9
+- alias: '[亮灯] 卧室灯亮灯时长累计'
+  mode: parallel
+  trigger:
+  - platform: time_pattern
+    seconds: /10
+  condition:
+  - condition: state
+    entity_id: light.ftd_cn_1124827030_dsplmp_s_2_light
+    state: 'on'
+  action:
+  - service: input_number.set_value
+    data:
+      value: '{{ states(''input_number.light_bedroom_duration'')|float(0) + 10 }}'
+    target:
+      entity_id: input_number.light_bedroom_duration
+  id: 8c9a4f4db30042dab6c980956d1709e4
+- alias: '[亮灯] 卧室灯带亮灯时长累计'
+  mode: parallel
+  trigger:
+  - platform: time_pattern
+    seconds: /10
+  condition:
+  - condition: state
+    entity_id: light.yeelink_cn_436301383_strip6_s_2_light
+    state: 'on'
+  action:
+  - service: input_number.set_value
+    data:
+      value: '{{ states(''input_number.light_bedroom_strip_duration'')|float(0) +
+        10 }}'
+    target:
+      entity_id: input_number.light_bedroom_strip_duration
+  id: 52977129404f40d0bb5f6a0339a6cdf7
+- alias: '[亮灯] 厨房灯亮灯时长累计'
+  mode: parallel
+  trigger:
+  - platform: time_pattern
+    seconds: /10
+  condition:
+  - condition: state
+    entity_id: light.linp_cn_1137697716_lp1bc_s_2_light
+    state: 'on'
+  action:
+  - service: input_number.set_value
+    data:
+      value: '{{ states(''input_number.light_kitchen_duration'')|float(0) + 10 }}'
+    target:
+      entity_id: input_number.light_kitchen_duration
+  id: ab411c6f30ab440aa410b7d009ff659d
+- alias: '[亮灯] 餐厅灯亮灯时长累计'
+  mode: parallel
+  trigger:
+  - platform: time_pattern
+    seconds: /10
+  condition:
+  - condition: state
+    entity_id: light.lemesh_cn_1155789492_wy0c15_s_2_light
+    state: 'on'
+  action:
+  - service: input_number.set_value
+    data:
+      value: '{{ states(''input_number.light_dining_duration'')|float(0) + 10 }}'
+    target:
+      entity_id: input_number.light_dining_duration
+  id: 7ed588590dbb46c38b96cce91750812b
+- alias: '[亮灯] 卫生间灯亮灯时长累计'
+  mode: parallel
+  trigger:
+  - platform: time_pattern
+    seconds: /10
+  condition:
+  - condition: state
+    entity_id: light.linp_cn_1137691863_lp1bc_s_2_light
+    state: 'on'
+  action:
+  - service: input_number.set_value
+    data:
+      value: '{{ states(''input_number.light_bathroom_duration'')|float(0) + 10 }}'
+    target:
+      entity_id: input_number.light_bathroom_duration
+  id: 62525e314737427ab64cef1c1052129a
+- alias: '[亮灯] 浴霸灯亮灯时长累计'
+  mode: parallel
+  trigger:
+  - platform: time_pattern
+    seconds: /10
+  condition:
+  - condition: state
+    entity_id: light.yeelink_cn_942773473_v11_s_2_light
+    state: 'on'
+  action:
+  - service: input_number.set_value
+    data:
+      value: '{{ states(''input_number.light_yuba_duration'')|float(0) + 10 }}'
+    target:
+      entity_id: input_number.light_yuba_duration
+  id: 6a20d96d82b6479f8a980cb4c51e0bcd
+- alias: '[亮灯] 走廊走道灯亮灯时长累计'
+  mode: parallel
+  trigger:
+  - platform: time_pattern
+    seconds: /10
+  condition:
+  - condition: state
+    entity_id: light.giot_cn_1188250021_v8ssm_s_2_light
+    state: 'on'
+  action:
+  - service: input_number.set_value
+    data:
+      value: '{{ states(''input_number.light_hallway_main_duration'')|float(0) + 10
+        }}'
+    target:
+      entity_id: input_number.light_hallway_main_duration
+  id: 5b9fd3a9d4e345ce9c0a526f3fab0da1
+- alias: '[亮灯] 走廊卫生间灯亮灯时长累计'
+  mode: parallel
+  trigger:
+  - platform: time_pattern
+    seconds: /10
+  condition:
+  - condition: state
+    entity_id: light.linp_cn_2023072411_ld6bcw_s_2_light
+    state: 'on'
+  action:
+  - service: input_number.set_value
+    data:
+      value: '{{ states(''input_number.light_hallway_bath_duration'')|float(0) + 10
+        }}'
+    target:
+      entity_id: input_number.light_hallway_bath_duration
+  id: d5da3bed4a734ba9a52bf99bfaeefe86
+- alias: '[亮灯] 门口筒灯亮灯时长累计'
+  mode: parallel
+  trigger:
+  - platform: time_pattern
+    seconds: /10
+  condition:
+  - condition: state
+    entity_id: light.linp_cn_2079761645_ld6bcw_s_2_light
+    state: 'on'
+  action:
+  - service: input_number.set_value
+    data:
+      value: '{{ states(''input_number.light_doorway_duration'')|float(0) + 10 }}'
+    target:
+      entity_id: input_number.light_doorway_duration
+  id: e9f3c4dcc3364e7fba2a27ab3a2045f7
+- alias: '[亮灯] 每日重置所有灯亮灯时长'
+  mode: single
+  trigger:
+  - platform: time
+    at: 00:00:00
+  action:
+  - service: input_number.set_value
+    data:
+      value: 0
+    target:
+      entity_id:
+      - input_number.light_jdjz_duration
+      - input_number.light_sofa_duration
+      - input_number.light_bedroom_duration
+      - input_number.light_bedroom_strip_duration
+      - input_number.light_kitchen_duration
+      - input_number.light_dining_duration
+      - input_number.light_bathroom_duration
+      - input_number.light_yuba_duration
+      - input_number.light_hallway_main_duration
+      - input_number.light_hallway_bath_duration
+      - input_number.light_doorway_duration
+  id: 82883509159345bdbc715990d3954e71
+- id: '1774306560576'
+  alias: 'Bambu Lab - 炒面检测 (米家通知版)'
+  description: ''
+  use_blueprint:
+    path: spaghetti_detection_xiaomi.yaml
+    input:
+      xiaomi_gateway_virtual_event: notify.xiaomi_cn_1175403807_hub1_emit_virtual_event_a_4_1
+      alert_channels:
+      - virtual_event
+      - notify_message
+      notify_message_target: notify.xiaomi_cn_338143536_lx5a_play_text_a_5_1
+      notify_message_text: 小黑奴炒面暂停打印请检查
+      printer_print_status_sensor: sensor.a1mini_0300aa5a1600497_print_status
+      printer_current_stage_sensor: sensor.a1mini_0300aa5a1600497_current_stage
+      printer_start_time_sensor: sensor.a1mini_0300aa5a1600497_start_time
+      printer_camera: image.a1mini_0300aa5a1600497_camera
+      enable_image_quality_check: false
+      max_image_age: 180
+      camera_refresh_service: image.update
+      printer_pause_button: button.a1mini_0300aa5a1600497_pause_printing
+      printer_resume_button: button.a1mini_0300aa5a1600497_resume_printing
+      printer_stop_button: button.a1mini_0300aa5a1600497_stop_printing
+      printer_chamber_light: light.a1mini_0300aa5a1600497_chamber_light
+      virtual_event_name: spaghetti_detected
+
+

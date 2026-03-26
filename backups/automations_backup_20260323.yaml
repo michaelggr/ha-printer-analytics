@@ -1,0 +1,87 @@
+﻿        value: 0
+
+
+# ==================== 打印相关自动化 ====================
+
+# 打印错误通知
+- alias: "打印错误通知"
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.a1mini_0300aa5a1600497_print_error
+      to: "on"
+  action:
+    - service: notify.mobile_app_your_phone
+      data:
+        title: "打印错误通知"
+        message: "3D 打印机出现错误，请检查！"
+
+# 打印机剩余时间播报
+- alias: "打印机剩余时间播报"
+  trigger:
+    - platform: state
+      entity_id: sensor.a1mini_0300aa5a1600497_remaining_time
+  condition:
+    - condition: template
+      value_template: "{{ trigger.to_state.state != 'unknown' and trigger.to_state.state | int > 0 }}"
+  action:
+    - service: notify.mobile_app_your_phone
+      data:
+        title: "打印剩余时间"
+        message: "当前打印剩余时间：{{ states('sensor.a1mini_0300aa5a1600497_remaining_time') }} 分钟"
+
+# 打印完成通知
+- alias: "打印完成通知"
+  trigger:
+    - platform: state
+      entity_id: sensor.a1mini_0300aa5a1600497_print_status
+      to: "完成"
+  action:
+    - service: notify.mobile_app_your_phone
+      data:
+        title: "打印完成通知"
+        message: "3D 打印已完成！"
+
+# 大黑奴打印完成排气
+- alias: "大黑奴打印完成排气"
+  trigger:
+    - platform: state
+      entity_id: sensor.a1mini_0300aa5a1600497_print_status
+      to: "完成"
+  action:
+    - service: switch.turn_on
+      data:
+        entity_id: switch.exhaust_fan
+    - delay:
+        minutes: 10
+    - service: switch.turn_off
+      data:
+        entity_id: switch.exhaust_fan
+
+# 小黑奴打印完成打开排气
+- alias: "小黑奴打印完成打开排气"
+  trigger:
+    - platform: state
+      entity_id: sensor.a1mini_0300aa5a1600497_print_status
+      to: "完成"
+  action:
+    - service: switch.turn_on
+      data:
+        entity_id: switch.exhaust_fan
+    - delay:
+        minutes: 10
+    - service: switch.turn_off
+      data:
+        entity_id: switch.exhaust_fan
+
+# Ams 1湿度大于50发通知
+- alias: "Ams 1湿度大于50发通知"
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.ams_1_humidity
+      above: 50
+  action:
+    - service: notify.mobile_app_your_phone
+      data:
+        title: "AMS 湿度警告"
+        message: "AMS 1 湿度大于 50%，请注意！"
+

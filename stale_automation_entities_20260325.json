@@ -1,0 +1,200 @@
+﻿[
+    {
+        "entity_id":  "automation.ams_1shi_du_da_yu_50fa_tong_zhi",
+        "friendly_name":  "Ams 1æ¹¿åº¦å¤§äº50åéç¥",
+        "id":  "1770970222672",
+        "last_triggered":  null
+    },
+    {
+        "entity_id":  "automation.da_hei_nu_da_yin_wan_cheng_pai_qi",
+        "friendly_name":  "å¤§é»å¥´æå°å®æææ°",
+        "id":  "1770970728024",
+        "last_triggered":  null
+    },
+    {
+        "entity_id":  "automation.da_yin_a1_minida_yin_kai_shi_ji_lu",
+        "friendly_name":  "[æå°] A1 Miniæå°å¼å§è®°å½",
+        "id":  "a1mini_print_start_record",
+        "last_triggered":  null
+    },
+    {
+        "entity_id":  "automation.da_yin_cuo_wu_tong_zhi",
+        "friendly_name":  "æå°éè¯¯éç¥",
+        "id":  "1771099349065",
+        "last_triggered":  null
+    },
+    {
+        "entity_id":  "automation.da_yin_p2sda_yin_kai_shi_ji_lu",
+        "friendly_name":  "[æå°] P2Sæå°å¼å§è®°å½",
+        "id":  "p2s_print_start_record",
+        "last_triggered":  null
+    },
+    {
+        "entity_id":  "automation.da_yin_wan_cheng_tong_zhi",
+        "friendly_name":  "æå°å®æéç¥",
+        "id":  "1771092349248",
+        "last_triggered":  null
+    },
+    {
+        "entity_id":  "automation.ke_ting_xiao_ai_kong_xian_huo_zhe_zan_ting_jin_ru_xiu_mian",
+        "friendly_name":  "å®¢å\u0085å°ç±ç©ºé²æè\u0085æåè¿å\u0085¥ä¼ç ",
+        "id":  "1772665717073",
+        "last_triggered":  null
+    },
+    {
+        "entity_id":  "automation.lian_dong_biao_qian_da_kai_can_ting_deng_yi_sao_miao_kai_deng",
+        "friendly_name":  "èå¨æ ç­¾âæå¼é¤å\u0085ç¯âå·²æ«æå¼ç¯",
+        "id":  "1772030381241",
+        "last_triggered":  null
+    },
+    {
+        "entity_id":  "automation.lian_dong_biao_qian_pao_mian_dao_ji_shi_yi_sao_miao_san_fen_zhong_dao_ji_shi",
+        "friendly_name":  "èå¨æ ç­¾âæ³¡é¢åè®¡æ¶âå·²æ«æä¸åéåè®¡æ¶",
+        "id":  "1772041052994",
+        "last_triggered":  null
+    },
+    {
+        "entity_id":  "automation.lian_dong_biao_qian_xiao_ai_bo_fang_xu_xiao_feng_si_shui_liu_nian_yi_sao_miao",
+        "friendly_name":  "èå¨æ ç­¾âå°ç±æ­æ¾å¾å°å¤ä¼¼æ°´æµå¹´âå·²æ«æ",
+        "id":  "1773790891216",
+        "last_triggered":  null
+    },
+    {
+        "entity_id":  "automation.liang_deng_can_ting_deng_liang_shi_chang_lei_jia",
+        "friendly_name":  "[äº®ç¯] é¤å\u0085ç¯äº®æ¶é¿ç´¯å ",
+        "id":  "14cf86b2d0cf432a8adb2b10baa19fa6",
+        "last_triggered":  null
+    },
+    {
+        "entity_id":  "automation.liang_deng_chu_fang_deng_liang_shi_chang_lei_jia",
+        "friendly_name":  "[äº®ç¯] å¨æ¿ç¯äº®æ¶é¿ç´¯å ",
+        "id":  "f4d8e62fda884f2fad32f08bf98aab2a",
+        "last_triggered":  null
+    },
+    {
+        "entity_id":  "automation.liang_deng_ke_ting_sha_fa_deng_liang_shi_chang_lei_jia",
+        "friendly_name":  "[äº®ç¯] å®¢å\u0085æ²åç¯äº®æ¶é¿ç´¯å ",
+        "id":  "e158757668fb4663a35988b71bd7a7cb",
+        "last_triggered":  null
+    },
+    {
+        "entity_id":  "automation.liang_deng_ke_ting_xi_ding_deng_liang_shi_chang_lei_jia",
+        "friendly_name":  "[äº®ç¯] å®¢å\u0085å¸é¡¶ç¯äº®æ¶é¿ç´¯å ",
+        "id":  "3644f47ca8e14bb2936e1662c0da1632",
+        "last_triggered":  null
+    },
+    {
+        "entity_id":  "automation.liang_deng_mei_ri_zhong_zhi_suo_you_deng_liang_shi_chang",
+        "friendly_name":  "[äº®ç¯] æ¯æ¥éç½®ææç¯äº®æ¶é¿",
+        "id":  "059fb68996c84a42aa636b3e95484992",
+        "last_triggered":  null
+    },
+    {
+        "entity_id":  "automation.liang_deng_men_kou_tong_deng_liang_shi_chang_lei_jia",
+        "friendly_name":  "[äº®ç¯] é¨å£ç­ç¯äº®æ¶é¿ç´¯å ",
+        "id":  "813fee17f9a24c3c87d8bb21ab08b198",
+        "last_triggered":  null
+    },
+    {
+        "entity_id":  "automation.liang_deng_wei_sheng_jian_deng_liang_shi_chang_lei_jia",
+        "friendly_name":  "[äº®ç¯] å«çé´ç¯äº®æ¶é¿ç´¯å ",
+        "id":  "39a0f21ca6444893b07269ea8733a969",
+        "last_triggered":  null
+    },
+    {
+        "entity_id":  "automation.liang_deng_wo_shi_deng_dai_liang_shi_chang_lei_jia",
+        "friendly_name":  "[äº®ç¯] å§å®¤ç¯å¸¦äº®æ¶é¿ç´¯å ",
+        "id":  "e397e94cd55c45ac97ff6f26bb59bafd",
+        "last_triggered":  null
+    },
+    {
+        "entity_id":  "automation.liang_deng_wo_shi_deng_liang_shi_chang_lei_jia",
+        "friendly_name":  "[äº®ç¯] å§å®¤ç¯äº®æ¶é¿ç´¯å ",
+        "id":  "151edc6401d3495faa0a8e4e9a65d44e",
+        "last_triggered":  null
+    },
+    {
+        "entity_id":  "automation.liang_deng_yu_ba_deng_liang_shi_chang_lei_jia",
+        "friendly_name":  "[äº®ç¯] æµ´é¸ç¯äº®æ¶é¿ç´¯å ",
+        "id":  "e32ac4da93c244178b667048ae666318",
+        "last_triggered":  null
+    },
+    {
+        "entity_id":  "automation.liang_deng_zou_lang_wei_sheng_jian_deng_liang_shi_chang_lei_jia",
+        "friendly_name":  "[äº®ç¯] èµ°å»å«çé´ç¯äº®æ¶é¿ç´¯å ",
+        "id":  "a45ace5b173d4a21b24603f238b03bca",
+        "last_triggered":  null
+    },
+    {
+        "entity_id":  "automation.liang_deng_zou_lang_zou_dao_deng_liang_shi_chang_lei_jia",
+        "friendly_name":  "[äº®ç¯] èµ°å»èµ°éç¯äº®æ¶é¿ç´¯å ",
+        "id":  "e627244c3ae84d3d9749f4d362f75755",
+        "last_triggered":  null
+    },
+    {
+        "entity_id":  "automation.mei_xiao_shi_geng_xin_ren_zai_tong_ji",
+        "friendly_name":  "æ¯å°æ¶æ´æ°äººå¨ç»è®¡",
+        "id":  "hourly_presence_update",
+        "last_triggered":  null
+    },
+    {
+        "entity_id":  "automation.tong_ji_can_ting_deng_liang_shi_chang",
+        "friendly_name":  "ç»è®¡é¤å\u0085ç¯äº®æ¶é¿",
+        "id":  "8dfa020a304c49589fd2cb2705aa4e1e",
+        "last_triggered":  null
+    },
+    {
+        "entity_id":  "automation.tong_ji_chu_fang_deng_liang_shi_chang",
+        "friendly_name":  "ç»è®¡å¨æ¿ç¯äº®æ¶é¿",
+        "id":  "fd2d317cc22645d6a0248e47a0724b28",
+        "last_triggered":  null
+    },
+    {
+        "entity_id":  "automation.tong_ji_ke_ting_deng_liang_shi_chang",
+        "friendly_name":  "ç»è®¡å®¢å\u0085ç¯äº®æ¶é¿",
+        "id":  "f148b5aec4a8428b9eb6fdb43f0d5144",
+        "last_triggered":  null
+    },
+    {
+        "entity_id":  "automation.tong_ji_men_kou_deng_liang_shi_chang",
+        "friendly_name":  "ç»è®¡é¨å£ç¯äº®æ¶é¿",
+        "id":  "57a49ee526074dafa11c4e302b58bd42",
+        "last_triggered":  null
+    },
+    {
+        "entity_id":  "automation.tong_ji_wei_sheng_jian_deng_liang_shi_chang",
+        "friendly_name":  "ç»è®¡å«çé´ç¯äº®æ¶é¿",
+        "id":  "cf20b8050d65450faf0a91fa574eeebd",
+        "last_triggered":  null
+    },
+    {
+        "entity_id":  "automation.tong_ji_wo_shi_deng_liang_shi_chang",
+        "friendly_name":  "ç»è®¡å§å®¤ç¯äº®æ¶é¿",
+        "id":  "365a0c4e1071487bba2202efec2ba81e",
+        "last_triggered":  null
+    },
+    {
+        "entity_id":  "automation.tong_ji_zou_lang_deng_liang_shi_chang",
+        "friendly_name":  "ç»è®¡èµ°å»ç¯äº®æ¶é¿",
+        "id":  "3d17f2f98b0d4c9fb694e40f1eff6ca6",
+        "last_triggered":  null
+    },
+    {
+        "entity_id":  "automation.xiao_hei_nu_da_yin_sheng_yu_shi_jian_bo_bao",
+        "friendly_name":  "æå°æºå©ä½æ¶é´æ­æ¥",
+        "id":  "1771094810421",
+        "last_triggered":  null
+    },
+    {
+        "entity_id":  "automation.xiao_hei_nu_da_yin_wan_cheng_da_kai_pai_qi",
+        "friendly_name":  "å°é»å¥´æå°å®ææå¼ææ°",
+        "id":  "1770920667490",
+        "last_triggered":  null
+    },
+    {
+        "entity_id":  "automation.zhong_zhi_deng_liang_shi_chang_tong_ji",
+        "friendly_name":  "éç½®ç¯äº®æ¶é¿ç»è®¡",
+        "id":  "7bde6219178046e18d8d353158644b56",
+        "last_triggered":  null
+    }
+]

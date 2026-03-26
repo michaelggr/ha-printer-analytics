@@ -1,0 +1,432 @@
+blueprint:
+  name: Bambu Lab - 炒面检测
+  description: 基于 Obico ML 的打印失败检测。检测到失败时通过 Telegram 发送带图警报，并支持远程暂停/停止打印。
+  domain: automation
+  input:
+    telegram_bot_entry:
+      name: Telegram 机器人
+      description: 请指定用于发送通知和接收控制指令的机器人（必须配置为 Polling 模式）。
+      selector:
+        config_entry:
+          integration: telegram_bot
+    public_home_assistant_host:
+      name: Home Assistant 公网地址
+      description: Telegram 服务器通过此地址获取图片 (必须 HTTPS)。
+      default: https://ha.example.com
+    internal_home_assistant_host:
+      name: Home Assistant 内网地址
+      description: 用于本地容器高速拉取图片。
+      default: http://192.168.101.194:8123
+    obico_host:
+      name: Obico ML API Host
+      default: http://192.168.101.236:3333
+    obico_auth_token:
+      name: Obico ML API Auth Token
+      default: example_token
+    detection_frequency:
+      name: 检测频率
+      default: /10
+      selector:
+        select:
+          options:
+          - label: 每 10 秒
+            value: /10
+          - label: 每 30 秒
+            value: /30
+          - label: 每 60 秒
+            value: /59
+          multiple: false
+          mode: dropdown
+          sort: false
+          custom_value: false
+    auto_turn_on_light:
+      name: 自动开灯
+      description: 检测时若机箱灯关闭，是否自动打开以辅助摄像头。
+      default: true
+      selector:
+        boolean: {}
+    failure_action:
+      name: 失败动作
+      description: 确认炒面后，打印机执行的动作。
+      default: pause
+      selector:
+        select:
+          options:
+          - label: 暂停打印 (推荐)
+            value: pause
+          - label: 停止打印
+            value: stop
+          - label: 仅警告
+            value: warn
+          multiple: false
+          mode: dropdown
+          sort: false
+          custom_value: false
+    printer_print_status_sensor:
+      name: 打印状态 (Print Status)
+      selector:
+        entity:
+          filter:
+          - integration: bambu_lab
+            domain:
+            - sensor
+          multiple: false
+          reorder: false
+    printer_current_stage_sensor:
+      name: 当前阶段 (Current Stage)
+      selector:
+        entity:
+          filter:
+          - integration: bambu_lab
+            domain:
+            - sensor
+          multiple: false
+          reorder: false
+    printer_camera:
+      name: 摄像头 (Camera)
+      selector:
+        entity:
+          filter:
+          - domain:
+            - camera
+          multiple: false
+          reorder: false
+    printer_pause_button:
+      name: 暂停按钮
+      selector:
+        entity:
+          filter:
+          - integration: bambu_lab
+            domain:
+            - button
+          multiple: false
+          reorder: false
+    printer_resume_button:
+      name: 恢复按钮
+      selector:
+        entity:
+          filter:
+          - integration: bambu_lab
+            domain:
+            - button
+          multiple: false
+          reorder: false
+    printer_stop_button:
+      name: 停止按钮
+      selector:
+        entity:
+          filter:
+          - integration: bambu_lab
+            domain:
+            - button
+          multiple: false
+          reorder: false
+    printer_chamber_light:
+      name: 机箱灯
+      selector:
+        entity:
+          filter:
+          - integration: bambu_lab
+            domain:
+            - light
+          multiple: false
+          reorder: false
+  source_url: https://github.com/Shattered217/spaghetti_detection/blob/main/spaghetti_detection.yaml
+variables:
+  TG_BOT_ID: !input telegram_bot_entry
+  PUBLIC_HA_HOST_VAR: !input public_home_assistant_host
+  INTERNAL_HA_HOST_VAR: !input internal_home_assistant_host
+  PRINTER_CAMERA_VAR: !input printer_camera
+  FAILURE_ACTION_VAR: !input failure_action
+  DETECTION_FREQUENCY_VAR: !input detection_frequency
+  AUTO_LIGHT_VAR: !input auto_turn_on_light
+mode: single
+max_exceeded: silent
+trigger:
+- platform: state
+  entity_id:
+  - !input printer_current_stage_sensor
+  to: printing
+  id: BAMBU_LAB_PRINTER_STAGE_CHANGE
+- platform: time_pattern
+  id: BAMBU_LAB_DETECTION_TRIGGER
+  seconds: !input detection_frequency
+- platform: event
+  event_type: telegram_callback
+  id: TG_CALLBACK_EVENT
+action:
+- choose:
+  - conditions:
+    - condition: trigger
+      id: BAMBU_LAB_PRINTER_STAGE_CHANGE
+    sequence:
+    - service: number.set_value
+      data:
+        value: 0
+      target:
+        entity_id:
+        - number.bambu_lab_p1_spaghetti_detection_current_frame_number
+        - number.bambu_lab_p1_spaghetti_detection_ewm_mean
+        - number.bambu_lab_p1_spaghetti_detection_rolling_mean_short
+        - number.bambu_lab_p1_spaghetti_detection_rolling_mean_long
+        - number.bambu_lab_p1_spaghetti_detection_normalized_p
+        - number.bambu_lab_p1_spaghetti_detection_adjusted_ewm_mean
+        - number.bambu_lab_p1_spaghetti_detection_p_sum
+    - if:
+      - condition: template
+        value_template: '{{ is_state(printer_chamber_light, ''off'') and AUTO_LIGHT_VAR
+          }}'
+      then:
+      - service: light.turn_on
+        target:
+          entity_id: !input printer_chamber_light
+  - conditions:
+    - condition: trigger
+      id: TG_CALLBACK_EVENT
+    sequence:
+    - service: telegram_bot.answer_callback_query
+      data:
+        config_entry_id: '{{ TG_BOT_ID }}'
+        callback_query_id: '{{ trigger.event.data.id }}'
+        message: 指令处理中...
+    - choose:
+      - conditions:
+        - condition: template
+          value_template: '{{ ''bambu_pause'' in trigger.event.data.data }}'
+        sequence:
+        - service: button.press
+          target:
+            entity_id: !input printer_pause_button
+        - service: telegram_bot.send_message
+          data:
+            config_entry_id: '{{ TG_BOT_ID }}'
+            target: '{{ trigger.event.data.user_id }}'
+            message: ⏸️ 已执行暂停
+      - conditions:
+        - condition: template
+          value_template: '{{ ''bambu_resume'' in trigger.event.data.data }}'
+        sequence:
+        - service: button.press
+          target:
+            entity_id: !input printer_resume_button
+        - service: telegram_bot.send_message
+          data:
+            config_entry_id: '{{ TG_BOT_ID }}'
+            target: '{{ trigger.event.data.user_id }}'
+            message: ▶️ 已执行恢复
+      - conditions:
+        - condition: template
+          value_template: '{{ ''bambu_stop'' in trigger.event.data.data }}'
+        sequence:
+        - service: button.press
+          target:
+            entity_id: !input printer_stop_button
+        - service: telegram_bot.send_message
+          data:
+            config_entry_id: '{{ TG_BOT_ID }}'
+            target: '{{ trigger.event.data.user_id }}'
+            message: ⏹️ 已执行停止
+  - conditions:
+    - condition: trigger
+      id: BAMBU_LAB_DETECTION_TRIGGER
+    sequence:
+    - if:
+      - condition: template
+        value_template: '{{ not is_state(printer_print_status_sensor, ''running'')
+          }}'
+      then:
+      - stop: Printer is not running.
+    - if:
+      - condition: template
+        value_template: '{{ is_state(printer_chamber_light, ''off'') and AUTO_LIGHT_VAR
+          }}'
+      then:
+      - service: light.turn_on
+        target:
+          entity_id: !input printer_chamber_light
+    - service: bambu_lab_p1_spaghetti_detection.predict
+      data:
+        obico_host: !input obico_host
+        obico_auth_token: !input obico_auth_token
+        image_url: '{{ INTERNAL_HA_HOST_VAR }}{{ state_attr(PRINTER_CAMERA_VAR, ''entity_picture'')
+          }}'
+      response_variable: result
+    - service: number.set_value
+      data:
+        value: '{{ result.result.detections | map(attribute=1) | sum | float }}'
+      target:
+        entity_id: number.bambu_lab_p1_spaghetti_detection_p_sum
+    - service: number.set_value
+      data:
+        value: '{{ states(''number.bambu_lab_p1_spaghetti_detection_current_frame_number'')
+          | float + 1 }}'
+      target:
+        entity_id: number.bambu_lab_p1_spaghetti_detection_current_frame_number
+    - service: number.set_value
+      data:
+        value: '{{ states(''number.bambu_lab_p1_spaghetti_detection_lifetime_frame_number'')
+          | float + 1 }}'
+      target:
+        entity_id: number.bambu_lab_p1_spaghetti_detection_lifetime_frame_number
+    - service: number.set_value
+      data:
+        value: '{{ (states(''number.bambu_lab_p1_spaghetti_detection_p_sum'') | float)
+          * (2 / (12 + 1)) + (states(''number.bambu_lab_p1_spaghetti_detection_ewm_mean'')
+          | float) * (1 - (2 / (12 + 1))) }}'
+      target:
+        entity_id: number.bambu_lab_p1_spaghetti_detection_ewm_mean
+    - service: number.set_value
+      data:
+        value: '{{ (states(''number.bambu_lab_p1_spaghetti_detection_rolling_mean_short'')
+          | float) + ((states(''number.bambu_lab_p1_spaghetti_detection_p_sum'') |
+          float) - (states(''number.bambu_lab_p1_spaghetti_detection_rolling_mean_short'')
+          | float)) / (310 if 310 <= (states(''number.bambu_lab_p1_spaghetti_detection_current_frame_number'')
+          | float) else (states(''number.bambu_lab_p1_spaghetti_detection_current_frame_number'')
+          | float) + 1) }}'
+      target:
+        entity_id: number.bambu_lab_p1_spaghetti_detection_rolling_mean_short
+    - service: number.set_value
+      data:
+        value: '{{ (states(''number.bambu_lab_p1_spaghetti_detection_rolling_mean_long'')
+          | float) + ((states(''number.bambu_lab_p1_spaghetti_detection_p_sum'') |
+          float) - (states(''number.bambu_lab_p1_spaghetti_detection_rolling_mean_long'')
+          | float)) / (7200 if 7200 <= (states(''number.bambu_lab_p1_spaghetti_detection_lifetime_frame_number'')
+          | float) else (states(''number.bambu_lab_p1_spaghetti_detection_lifetime_frame_number'')
+          | float) + 1) }}'
+      target:
+        entity_id: number.bambu_lab_p1_spaghetti_detection_rolling_mean_long
+    - if:
+      - condition: numeric_state
+        entity_id: number.bambu_lab_p1_spaghetti_detection_current_frame_number
+        below: 30
+      then:
+      - stop: Warming up logic
+    - service: number.set_value
+      data:
+        value: '{{ (states(''number.bambu_lab_p1_spaghetti_detection_ewm_mean'') |
+          float) - (states(''number.bambu_lab_p1_spaghetti_detection_rolling_mean_long'')
+          | float) }}'
+      target:
+        entity_id: number.bambu_lab_p1_spaghetti_detection_adjusted_ewm_mean
+    - service: number.set_value
+      data:
+        value: '{{ ((states(''number.bambu_lab_p1_spaghetti_detection_rolling_mean_short'')
+          | float) - (states(''number.bambu_lab_p1_spaghetti_detection_rolling_mean_long'')
+          | float)) * 3.8 }}'
+      target:
+        entity_id: number.bambu_lab_p1_spaghetti_detection_rolling_mean_diff
+    - service: number.set_value
+      data:
+        value: '{{ min(0.78, max(0.33, (states(''number.bambu_lab_p1_spaghetti_detection_rolling_mean_diff'')
+          | float))) }}'
+      target:
+        entity_id: number.bambu_lab_p1_spaghetti_detection_thresh_warning
+    - service: number.set_value
+      data:
+        value: '{{ (states(''number.bambu_lab_p1_spaghetti_detection_thresh_warning'')
+          | float) * 1.75 }}'
+      target:
+        entity_id: number.bambu_lab_p1_spaghetti_detection_thresh_failure
+    - service: number.set_value
+      data:
+        value: '{{ (states(''number.bambu_lab_p1_spaghetti_detection_ewm_mean'') |
+          float) - (states(''number.bambu_lab_p1_spaghetti_detection_rolling_mean_long'')
+          | float) }}'
+      target:
+        entity_id: number.bambu_lab_p1_spaghetti_detection_p
+    - choose:
+      - conditions:
+        - condition: numeric_state
+          entity_id: number.bambu_lab_p1_spaghetti_detection_p
+          above: number.bambu_lab_p1_spaghetti_detection_thresh_failure
+        sequence:
+        - service: number.set_value
+          data:
+            value: '{{ min(1.0, max(2.0 / 3.0, ((((states(''number.bambu_lab_p1_spaghetti_detection_p'')
+              | float) - (states(''number.bambu_lab_p1_spaghetti_detection_thresh_failure'')
+              | float)) * (1.0 - 2.0 / 3.0)) / ((states(''number.bambu_lab_p1_spaghetti_detection_thresh_failure'')
+              | float) * 1.5 - (states(''number.bambu_lab_p1_spaghetti_detection_thresh_failure'')
+              | float))) + 2.0 / 3.0)) }}'
+          target:
+            entity_id: number.bambu_lab_p1_spaghetti_detection_normalized_p
+      - conditions:
+        - condition: numeric_state
+          entity_id: number.bambu_lab_p1_spaghetti_detection_p
+          above: number.bambu_lab_p1_spaghetti_detection_thresh_warning
+        sequence:
+        - service: number.set_value
+          data:
+            value: '{{ min(2.0 / 3.0, max(1.0 / 3.0, ((((states(''number.bambu_lab_p1_spaghetti_detection_p'')
+              | float) - (states(''number.bambu_lab_p1_spaghetti_detection_thresh_warning'')
+              | float)) * (2.0 / 3.0 - 1.0 / 3.0)) / ((states(''number.bambu_lab_p1_spaghetti_detection_thresh_failure'')
+              | float) - (states(''number.bambu_lab_p1_spaghetti_detection_thresh_warning'')
+              | float))) + 1.0 / 3.0)) }}'
+          target:
+            entity_id: number.bambu_lab_p1_spaghetti_detection_normalized_p
+      default:
+      - service: number.set_value
+        data:
+          value: '{{ min(1.0 / 3.0, max(0, ((states(''number.bambu_lab_p1_spaghetti_detection_p'')
+            | float) * 1.0 / 3.0) / (states(''number.bambu_lab_p1_spaghetti_detection_thresh_warning'')
+            | float))) }}'
+        target:
+          entity_id: number.bambu_lab_p1_spaghetti_detection_normalized_p
+    - if:
+      - condition: numeric_state
+        entity_id: number.bambu_lab_p1_spaghetti_detection_adjusted_ewm_mean
+        below: 0.38
+      then:
+      - stop: Low probability
+    - if:
+      - condition: and
+        conditions:
+        - condition: numeric_state
+          entity_id: number.bambu_lab_p1_spaghetti_detection_adjusted_ewm_mean
+          below: 0.78
+        - condition: numeric_state
+          entity_id: number.bambu_lab_p1_spaghetti_detection_adjusted_ewm_mean
+          below: number.bambu_lab_p1_spaghetti_detection_rolling_mean_diff
+      then:
+      - stop: Below adaptive threshold
+    - if:
+      - condition: template
+        value_template: '{{ now() - states(''datetime.bambu_lab_p1_spaghetti_detection_last_notify_time'')
+          | as_datetime | as_local < timedelta(minutes=1) }}'
+      then:
+      - stop: Notification cooldown
+    - if:
+      - condition: template
+        value_template: '{{ states(''number.bambu_lab_p1_spaghetti_detection_normalized_p'')
+          | float > 0.7 }}'
+      then:
+      - action: telegram_bot.send_photo
+        data:
+          config_entry_id: '{{ TG_BOT_ID }}'
+          target: 1916644904
+          caption: ⚠️ 警告！检测到炒面风险：{{ (states('number.bambu_lab_p1_spaghetti_detection_normalized_p')
+            | float * 100) | int }}%
+          url: '{{ PUBLIC_HA_HOST_VAR }}{{ state_attr(PRINTER_CAMERA_VAR, ''entity_picture'')
+            }}'
+          inline_keyboard:
+          - ▶️ 恢复:/bambu_resume, ⏸️ 暂停:/bambu_pause
+          - ⏹️ 停止:/bambu_stop
+      - service: datetime.set_value
+        data:
+          datetime: '{{ now() }}'
+        target:
+          entity_id: datetime.bambu_lab_p1_spaghetti_detection_last_notify_time
+      - choose:
+        - conditions:
+          - condition: template
+            value_template: '{{ FAILURE_ACTION_VAR == ''pause'' }}'
+          sequence:
+          - service: button.press
+            target:
+              entity_id: !input printer_pause_button
+        - conditions:
+          - condition: template
+            value_template: '{{ FAILURE_ACTION_VAR == ''stop'' }}'
+          sequence:
+          - service: button.press
+            target:
+              entity_id: !input printer_stop_button

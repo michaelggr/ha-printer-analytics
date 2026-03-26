@@ -1,0 +1,1336 @@
+# Home Assistant �����Ǳ����??# ����ʵ���豸�Զ�����
+# ���򣺿��������ҡ������������������䡢������??
+title: �ҵ����ܼҾ�
+views:
+  # ==================== ��ҳ - ���򵼺� ====================
+  - title: ��ҳ
+    icon: mdi:home
+    path: home
+    cards:
+      # ����ͳ??
+      - type: glance
+        title: ����ͳ??
+        entities:
+          - entity: sensor.giot_cn_1162942256_v8icm_electric_power_p_4_2
+            name: ����
+          - entity: sensor.giot_cn_1164778814_v8icm_electric_power_p_4_2
+            name: С��ӡ��
+          - entity: sensor.sixwgh_cn_1200175237_v8icm1_electric_power_p_4_2
+            name: ���ӡ��
+          - entity: sensor.lumi_cn_684959720_mcn02_electric_power_p_5_1
+            name: �յ�
+        show_state: true
+        show_icon: true
+
+      # ���򵼺� - �������??
+      - type: entities
+        title: ���򵼺�
+        entities:
+          - entity: sensor.linp_cn_blt_3_1n20sdaek4k01_es4b_occupancy_status_p_2_1078
+            name: ���� (�����ת)
+            icon: mdi:sofa
+            tap_action:
+              action: navigate
+              navigation_path: /lovelace/living-room
+          - entity: sensor.linp_cn_blt_3_1ocv0fv7l0o00_es5b_occupancy_status_p_2_1078
+            name: ���� (�����ת)
+            icon: mdi:bed
+            tap_action:
+              action: navigate
+              navigation_path: /lovelace/bedroom
+          - entity: sensor.linp_cn_1137697716_lp1bc_occupancy_status_p_5_1
+            name: ���� (�����ת)
+            icon: mdi:stove
+            tap_action:
+              action: navigate
+              navigation_path: /lovelace/kitchen
+          - entity: sensor.linp_cn_blt_3_1n49ffqescc00_es2_occupancy_status_p_2_1078
+            name: ���� (�����ת)
+            icon: mdi:silverware-fork-knife
+            tap_action:
+              action: navigate
+              navigation_path: /lovelace/dining
+          - entity: sensor.linp_cn_1137691863_lp1bc_occupancy_status_p_5_1
+            name: ����??(�����ת)
+            icon: mdi:toilet
+            tap_action:
+              action: navigate
+              navigation_path: /lovelace/bathroom
+          - entity: sensor.linp_cn_1161876236_hb01_occupancy_status_p_2_1
+            name: ���� (�����ת)
+            icon: mdi:door
+            tap_action:
+              action: navigate
+              navigation_path: /lovelace/hallway
+          - entity: sensor.linp_cn_2079761645_ld6bcw_has_someone_duration_p_5_3
+            name: �ſ� (�����ת)
+            icon: mdi:door-open
+            tap_action:
+              action: navigate
+              navigation_path: /lovelace/doorway
+
+      # FDM��ӡ����??- ��������??
+      - type: vertical-stack
+        cards:
+          - type: entities
+            title:  FDM��ӡ??
+            entities:
+              - entity: sensor.p2s_22e8bj5a2401765_print_status
+                name: P2S ״??(�����ת)
+                icon: mdi:printer-3d-nozzle-outline
+                tap_action:
+                  action: navigate
+                  navigation_path: /lovelace/p2s-status
+              - entity: sensor.p2s_22e8bj5a2401765_remaining_time
+                name: P2S ʣ��ʱ�� (�����ת)
+                icon: mdi:clock-outline
+                tap_action:
+                  action: navigate
+                  navigation_path: /lovelace/p2s-status
+              - entity: sensor.a1mini_0300aa5a1600497_print_status
+                name: A1 Mini ״??(�����ת)
+                icon: mdi:printer-3d
+                tap_action:
+                  action: navigate
+                  navigation_path: /lovelace/a1mini
+              - entity: sensor.a1mini_0300aa5a1600497_remaining_time
+                name: A1 Mini ʣ��ʱ�� (�����ת)
+                icon: mdi:clock-outline
+                tap_action:
+                  action: navigate
+                  navigation_path: /lovelace/a1mini
+          - type: gauge
+            entity: sensor.p2s_22e8bj5a2401765_print_progress
+            name: P2S (���?? ��ӡ����
+            min: 0
+            max: 100
+            severity:
+              green: 80
+              yellow: 50
+              red: 0
+          - type: gauge
+            entity: sensor.a1mini_0300aa5a1600497_print_progress
+            name: A1 Mini (С��?? ��ӡ����
+            min: 0
+            max: 100
+            severity:
+              green: 80
+              yellow: 50
+              red: 0
+
+      # �ƿ���� - 4����??
+      - type: grid
+        title:  �ƿ����
+        columns: 4
+        cards:
+          - type: light
+            entity: light.jdjz_cn_857569251_jdjzu1_s_2_light
+            name: ��������??
+          - type: light
+            entity: light.lemesh_cn_1186971184_wy0c14_s_2_light
+            name: ����ɳ��??
+          - type: light
+            entity: light.ftd_cn_1124827030_dsplmp_s_2_light
+            name: ����??
+          - type: light
+            entity: light.yeelink_cn_436301383_strip6_s_2_light
+            name: ���ҵƴ�
+          - type: light
+            entity: light.linp_cn_1137697716_lp1bc_s_2_light
+            name: ����??
+          - type: light
+            entity: light.lemesh_cn_1155789492_wy0c15_s_2_light
+            name: ����??
+          - type: light
+            entity: light.linp_cn_1137691863_lp1bc_s_2_light
+            name: �������
+          - type: light
+            entity: light.yeelink_cn_942773473_v11_s_2_light
+            name: ԡ��??
+          - type: light
+            entity: light.giot_cn_1188250021_v8ssm_s_2_light
+            name: �����ߵ�??
+          - type: light
+            entity: light.linp_cn_2023072411_ld6bcw_s_2_light
+            name: �����������
+          - type: light
+            entity: light.linp_cn_2079761645_ld6bcw_s_2_light
+            name: �ſ�Ͳ��
+
+      # ��������ʱ��ͳ��
+      - type: entities
+        title:  ��������ʱ��
+        entities:
+          - entity: sensor.ke_ting_deng_jin_ri_liang_deng_shi_chang
+            name: ����??
+            icon: mdi:lightbulb-on
+          - entity: sensor.wo_shi_deng_jin_ri_liang_deng_shi_chang
+            name: ����??
+            icon: mdi:lightbulb-on
+          - entity: sensor.chu_fang_deng_jin_ri_liang_deng_shi_chang
+            name: ����??
+            icon: mdi:lightbulb-on
+          - entity: sensor.can_ting_deng_jin_ri_liang_deng_shi_chang
+            name: ����??
+            icon: mdi:lightbulb-on
+          - entity: sensor.wei_sheng_jian_deng_jin_ri_liang_deng_shi_chang
+            name: �������
+            icon: mdi:lightbulb-on
+          - entity: sensor.zou_lang_deng_jin_ri_liang_deng_shi_chang
+            name: ����??
+            icon: mdi:lightbulb-on
+          - entity: sensor.men_kou_deng_jin_ri_liang_deng_shi_chang
+            name: �ſ�??
+            icon: mdi:lightbulb-on
+          - entity: sensor.jin_ri_liang_deng_zong_shi_chang
+            name: ����������ʱ??
+            icon: mdi:lightbulb-group
+
+  # ==================== ����ͳ����??====================
+  - title: ����ͳ??
+    icon: mdi:lightning-bolt
+    path: power-stats
+    cards:
+      # ��ʵʱ��??+ �豸ʵʱ��??
+      - type: horizontal-stack
+        cards:
+          - type: entity
+            entity: sensor.zong_shi_shi_gong_lu_4
+            name: ��ʵʱ��??
+            icon: mdi:flash
+          - type: entities
+            title: �豸ʵʱ��??
+            entities:
+              - entity: sensor.wiing_cn_1169773877_v8icm_electric_power_p_4_2
+                name: ����??
+              - entity: sensor.cuco_cn_2025564050_v3_electric_power_p_11_2
+                name: ����
+              - entity: sensor.lumi_cn_684959720_mcn02_electric_power_p_5_1
+                name: �յ�
+              - entity: sensor.giot_cn_1162898415_v8icm_electric_power_p_4_2
+                name: ȡů??
+              - entity: sensor.giot_cn_1162942256_v8icm_electric_power_p_4_2
+                name: ����
+              - entity: sensor.giot_cn_1163256502_v8icm_electric_power_p_4_2
+                name: NAS
+              - entity: sensor.giot_cn_1164778814_v8icm_electric_power_p_4_2
+                name: С��ӡ��
+              - entity: sensor.sixwgh_cn_1200175237_v8icm1_electric_power_p_4_2
+                name: ���ӡ��
+              - entity: sensor.cuco_cn_860509913_v3_electric_power_p_11_2
+                name: ϴ��??
+      # ʵʱ����ͼ��
+      - type: history-graph
+        title: ʵʱ��������
+        entities:
+          - entity: sensor.wiing_cn_1169773877_v8icm_electric_power_p_4_2
+            name: ����??
+          - entity: sensor.cuco_cn_2025564050_v3_electric_power_p_11_2
+            name: ����
+          - entity: sensor.lumi_cn_684959720_mcn02_electric_power_p_5_1
+            name: ���ҿյ�
+          - entity: sensor.giot_cn_1162898415_v8icm_electric_power_p_4_2
+            name: ȡů??
+          - entity: sensor.giot_cn_1162942256_v8icm_electric_power_p_4_2
+            name: �������Ե�Դ
+          - entity: sensor.giot_cn_1163256502_v8icm_electric_power_p_4_2
+            name: NAS
+          - entity: sensor.giot_cn_1164778814_v8icm_electric_power_p_4_2
+            name: С��ӡ��
+          - entity: sensor.sixwgh_cn_1200175237_v8icm1_electric_power_p_4_2
+            name: ���ӡ��
+          - entity: sensor.cuco_cn_860509913_v3_electric_power_p_11_2
+            name: ϴ��??
+            hours_to_show: 24
+        refresh_interval: 30
+
+      # ��ӡ��ͳ����??- ��ֱ���ֱ������ֽض�
+      - type: vertical-stack
+        cards:
+          - type: entities
+            title:  С��ū��С��ӡ��??
+            entities:
+              - entity: sensor.giot_cn_1164778814_v8icm_electric_power_p_4_2
+                name: ʵʱ����
+              - entity: sensor.xiao_da_yin_ji_jin_ri_yong_dian_kwh
+                name: �����õ�
+              - entity: sensor.xiao_da_yin_ji_ben_zhou_yong_dian_kwh
+                name: �����õ�
+              - entity: sensor.xiao_da_yin_ji_ben_yue_yong_dian_kwh
+                name: �����õ�
+              - entity: sensor.xiao_da_yin_ji_lei_ji_yong_dian_kwh
+                name: �ۼ��õ�
+          - type: entities
+            title:  ���ū�����ӡ��??
+            entities:
+              - entity: sensor.sixwgh_cn_1200175237_v8icm1_electric_power_p_4_2
+                name: ʵʱ����
+              - entity: sensor.da_da_yin_ji_jin_ri_yong_dian_kwh
+                name: �����õ�
+              - entity: sensor.da_da_yin_ji_ben_zhou_yong_dian_kwh
+                name: �����õ�
+              - entity: sensor.da_da_yin_ji_ben_yue_yong_dian_kwh
+                name: �����õ�
+              - entity: sensor.da_da_yin_ji_lei_ji_yong_dian_kwh
+                name: �ۼ��õ�
+
+      # ��ӡ�������õ���
+      - type: entity
+        entity: sensor.da_yin_ji_yue_zong_yong_dian
+        name: ��ӡ��������??
+        icon: mdi:printer-3d
+
+      # �õ���ͳ??
+      - type: statistics-graph
+        title: �õ���ͳ??
+        entities:
+          - entity: sensor.wiing_cn_1169773877_v8icm_power_consumption_p_4_1
+            name: ����??
+          - entity: sensor.cuco_cn_2025564050_v3_power_consumption_p_11_1
+            name: ����
+          - entity: sensor.giot_cn_1162898415_v8icm_power_consumption_p_4_1
+            name: ȡů??
+          - entity: sensor.giot_cn_1162942256_v8icm_power_consumption_p_4_1
+            name: ���Ե�Դ
+          - entity: sensor.giot_cn_1163256502_v8icm_power_consumption_p_4_1
+            name: NAS
+          - entity: sensor.giot_cn_1164778814_v8icm_power_consumption_p_4_1
+            name: С��ӡ��
+          - entity: sensor.sixwgh_cn_1200175237_v8icm1_power_consumption_p_4_1
+            name: ���ӡ��
+          - entity: sensor.cuco_cn_860509913_v3_power_consumption_p_11_1
+            name: ϴ��??
+            stat_types:
+              - state
+        period: day
+        days_to_show: 7
+
+      # ????���õ���
+      - type: entities
+        title: �õ�ͳ��
+        entities:
+          - entity: sensor.ben_zhou_yong_dian
+            name: �����õ�
+            icon: mdi:calendar-week
+          - entity: sensor.ben_yue_yong_dian
+            name: �����õ�
+            icon: mdi:calendar-month
+          - entity: sensor.ben_nian_yong_dian
+            name: �����õ�
+            icon: mdi:calendar
+
+      # ��ѡ������õ硢��ӡ��������??
+      - type: entities
+        title:  �õ����ͳ��
+        entities:
+          - entity: sensor.jin_ri_zong_yong_dian_liang_3
+            name: ��������??
+            icon: mdi:counter
+          - entity: sensor.da_yin_ji_yue_zong_yong_dian
+            name: ��ӡ��������??
+            icon: mdi:printer-3d
+          - entity: sensor.jin_ri_dian_fei
+            name: ���յ��
+          - entity: sensor.ben_yue_dian_fei
+            name: ���µ��
+          - entity: sensor.ben_nian_dian_fei
+            name: ������
+
+  # ==================== ���ڴ�����������??====================
+  - title: ���ڷ���
+    icon: mdi:account-group
+    path: presence-analysis
+    cards:
+      # ��ǰ������״??
+      - type: glance
+        title: ��ǰ����״??
+        entities:
+          - entity: sensor.linp_cn_blt_3_1n20sdaek4k01_es4b_occupancy_status_p_2_1078
+            name: ����
+          - entity: sensor.linp_cn_blt_3_1ocv0fv7l0o00_es5b_occupancy_status_p_2_1078
+            name: ����
+          - entity: sensor.linp_cn_1137697716_lp1bc_occupancy_status_p_5_1
+            name: ����
+          - entity: sensor.linp_cn_blt_3_1n49ffqescc00_es2_occupancy_status_p_2_1078
+            name: ����
+          - entity: sensor.linp_cn_1137691863_lp1bc_occupancy_status_p_5_1
+            name: ����??
+          - entity: sensor.linp_cn_1161876236_hb01_occupancy_status_p_2_1
+            name: ��������
+          - entity: sensor.linp_cn_2079761645_ld6bcw_has_someone_duration_p_5_3
+            name: �ſ�
+        show_state: true
+        show_icon: true
+
+      # ����������ʼ�¼
+      - type: history-graph
+        title: �������ڴ�����������??
+        entities:
+          - entity: sensor.linp_cn_blt_3_1n20sdaek4k01_es4b_occupancy_status_p_2_1078
+            name: ����
+          - entity: sensor.linp_cn_blt_3_1ocv0fv7l0o00_es5b_occupancy_status_p_2_1078
+            name: ����
+          - entity: sensor.linp_cn_1137697716_lp1bc_occupancy_status_p_5_1
+            name: ����
+          - entity: sensor.linp_cn_blt_3_1n49ffqescc00_es2_occupancy_status_p_2_1078
+            name: ����
+          - entity: sensor.linp_cn_1137691863_lp1bc_occupancy_status_p_5_1
+            name: ����??
+          - entity: sensor.linp_cn_1161876236_hb01_occupancy_status_p_2_1
+            name: ��������
+          - entity: sensor.linp_cn_2079761645_ld6bcw_has_someone_duration_p_5_3
+            name: �ſ�
+        hours_to_show: 24
+        refresh_interval: 10
+
+      # �������Ƶ��ͳ��
+      - type: entities
+        title: �����������ͳ��
+        entities:
+          - entity: counter.living_room_visits
+            name: �������ʴ���
+            icon: mdi:sofa
+          - entity: counter.bedroom_visits
+            name: ���ҷ��ʴ���
+            icon: mdi:bed
+          - entity: counter.kitchen_visits
+            name: �������ʴ���
+            icon: mdi:stove
+          - entity: counter.dining_visits
+            name: �������ʴ���
+            icon: mdi:silverware-fork-knife
+          - entity: counter.bathroom_visits
+            name: ��������ʴ�??
+            icon: mdi:toilet
+          - entity: counter.hallway_visits
+            name: �������ط��ʴ���
+            icon: mdi:door
+          - entity: counter.doorway_visits
+            name: �ſڷ��ʴ���
+            icon: mdi:door-open
+
+      # ����ͣ��ʱ��ͳ��
+      - type: entities
+        title: ��������ͣ��ʱ��
+        entities:
+          - entity: sensor.ke_ting_ting_liu_shi_chang
+            name: ����ͣ��ʱ��
+            icon: mdi:sofa
+          - entity: sensor.wo_shi_ting_liu_shi_chang
+            name: ����ͣ��ʱ��
+            icon: mdi:bed
+          - entity: sensor.chu_fang_ting_liu_shi_chang
+            name: ����ͣ��ʱ��
+            icon: mdi:stove
+          - entity: sensor.can_ting_ting_liu_shi_chang
+            name: ����ͣ��ʱ��
+            icon: mdi:silverware-fork-knife
+          - entity: sensor.wei_sheng_jian_ting_liu_shi_chang
+            name: ������ͣ��ʱ??
+            icon: mdi:toilet
+          - entity: sensor.zou_lang_xuan_guan_ting_liu_shi_chang
+            name: ��������ͣ��ʱ��
+            icon: mdi:door
+          - entity: sensor.men_kou_ting_liu_shi_chang
+            name: �ſ�ͣ��ʱ��
+            icon: mdi:door-open
+
+      # �������??
+      - type: entity
+        entity: sensor.jin_ri_zui_chang_fang_wen_qu_yu
+        name: �����������??
+        icon: mdi:trophy
+
+      # �ͣ����??
+      - type: entity
+        entity: sensor.jin_ri_zui_chang_ting_liu_qu_yu
+        name: �����ͣ����??
+        icon: mdi:clock
+
+      # ��ͳ��ͼ??
+      - type: statistics-graph
+        title: ���������������
+        entities:
+          - entity: counter.living_room_visits
+            name: ����
+          - entity: counter.bedroom_visits
+            name: ����
+          - entity: counter.kitchen_visits
+            name: ����
+          - entity: counter.dining_visits
+            name: ����
+        stat_types:
+          - sum
+        period: day
+        days_to_show: 7
+
+  # ==================== ������������ ====================
+  - title: ����
+    icon: mdi:sofa
+    path: living-room
+    cards:
+      - type: grid
+        title:  �����ƹ�
+        columns: 2
+        cards:
+          - type: light
+            entity: light.jdjz_cn_857569251_jdjzu1_s_2_light
+            name: ����??
+          - type: light
+            entity: light.lemesh_cn_1186971184_wy0c14_s_2_light
+            name: ɳ��??
+          - type: entities
+        title: ����״??
+        entities:
+          - entity: sensor.linp_cn_blt_3_1n20sdaek4k01_es4b_occupancy_status_p_2_1078
+            name: ���ڴ���??
+          - entity: sensor.ke_ting_ting_liu_shi_chang_3
+            name: ͣ��ʱ��
+          - entity: counter.living_room_visits
+            name: ���ʴ���
+          - entity: sensor.giot_cn_1162942256_v8icm_electric_power_p_4_2
+            name: ���Ե�Դ����
+          - entity: sensor.giot_cn_1162942256_v8icm_power_consumption_p_4_1
+            name: �����ۼƵ���
+      - type: button
+        name: ������ҳ
+        icon: mdi:arrow-left
+        tap_action:
+          action: navigate
+          navigation_path: /lovelace/home
+
+  # ==================== ������������ ====================
+  - title: ����
+    icon: mdi:bed
+    path: bedroom
+    cards:
+      - type: grid
+        title:  ���ҵƹ�
+        columns: 2
+        cards:
+          - type: light
+            entity: light.ftd_cn_1124827030_dsplmp_s_2_light
+            name: ����??
+          - type: light
+            entity: light.yeelink_cn_436301383_strip6_s_2_light
+            name: �ƴ�
+      - type: entities
+        title: ����״??
+        entities:
+          - entity: sensor.linp_cn_blt_3_1ocv0fv7l0o00_es5b_occupancy_status_p_2_1078
+            name: ���ڴ���??
+          - entity: sensor.wo_shi_ting_liu_shi_chang_3
+            name: ͣ��ʱ��
+          - entity: counter.bedroom_visits
+            name: ���ʴ���
+          - entity: climate.lumi_cn_684959720_mcn02
+            name: �յ�
+          - entity: sensor.lumi_cn_684959720_mcn02_electric_power_p_5_1
+            name: �յ�����
+      - type: button
+        name: ������ҳ
+        icon: mdi:arrow-left
+        tap_action:
+          action: navigate
+          navigation_path: /lovelace/home
+
+  # ==================== ������������ ====================
+  - title: ����
+    icon: mdi:stove
+    path: kitchen
+    cards:
+      - type: light
+        entity: light.linp_cn_1137697716_lp1bc_s_2_light
+        name: ����??
+      - type: entities
+        title: ����״??
+        entities:
+          - entity: sensor.linp_cn_1137697716_lp1bc_occupancy_status_p_5_1
+            name: ���ڴ���??
+          - entity: sensor.chu_fang_ting_liu_shi_chang_3
+            name: ͣ��ʱ��
+          - entity: counter.kitchen_visits
+            name: ���ʴ���
+          - entity: sensor.wiing_cn_1169773877_v8icm_electric_power_p_4_2
+            name: ��������??
+          - entity: sensor.cuco_cn_2025564050_v3_electric_power_p_11_2
+            name: ���书��
+      - type: button
+        name: ������ҳ
+        icon: mdi:arrow-left
+        tap_action:
+          action: navigate
+          navigation_path: /lovelace/home
+
+  # ==================== ������������ ====================
+  - title: ����
+    icon: mdi:silverware-fork-knife
+    path: dining
+    cards:
+      - type: light
+        entity: light.lemesh_cn_1155789492_wy0c15_s_2_light
+        name: ����??
+      - type: entities
+        title: ����״??
+        entities:
+          - entity: sensor.linp_cn_blt_3_1n49ffqescc00_es2_occupancy_status_p_2_1078
+            name: ���ڴ���??
+          - entity: sensor.can_ting_ting_liu_shi_chang_3
+            name: ͣ��ʱ��
+          - entity: counter.dining_visits
+            name: ���ʴ���
+      - type: button
+        name: ������ҳ
+        icon: mdi:arrow-left
+        tap_action:
+          action: navigate
+          navigation_path: /lovelace/home
+
+  # ==================== ������������??====================
+  - title: ����??
+    icon: mdi:toilet
+    path: bathroom
+    cards:
+      - type: grid
+        title: �������??
+        columns: 2
+        cards:
+          - type: light
+            entity: light.linp_cn_1137691863_lp1bc_s_2_light
+            name: �������
+          - type: light
+            entity: light.yeelink_cn_942773473_v11_s_2_light
+            name: ԡ��??
+          - type: entities
+        title: ������״??
+        entities:
+          - entity: sensor.linp_cn_1137691863_lp1bc_occupancy_status_p_5_1
+            name: ���ڴ���??
+          - entity: sensor.wei_sheng_jian_ting_liu_shi_chang_3
+            name: ͣ��ʱ��
+          - entity: counter.bathroom_visits
+            name: ���ʴ���
+      - type: button
+        name: ������ҳ
+        icon: mdi:arrow-left
+        tap_action:
+          action: navigate
+          navigation_path: /lovelace/home
+
+  # ==================== ���������������� ====================
+  - title: ��������
+    icon: mdi:door
+    path: hallway
+    cards:
+      - type: grid
+        title:  ���ȵƹ�
+        columns: 2
+        cards:
+          - type: light
+            entity: light.giot_cn_1188250021_v8ssm_s_2_light
+            name: �ߵ�??
+          - type: light
+            entity: light.linp_cn_2023072411_ld6bcw_s_2_light
+            name: �������
+      - type: entities
+        title: ��������״??
+        entities:
+          - entity: sensor.linp_cn_1161876236_hb01_occupancy_status_p_2_1
+            name: ���ڴ���??
+          - entity: sensor.zou_lang_xuan_guan_ting_liu_shi_chang_3
+            name: ͣ��ʱ��
+          - entity: counter.hallway_visits
+            name: ���ʴ���
+      - type: button
+        name: ������ҳ
+        icon: mdi:arrow-left
+        tap_action:
+          action: navigate
+          navigation_path: /lovelace/home
+
+  # ==================== �ſ��������� ====================
+  - title: �ſ�
+    icon: mdi:door-open
+    path: doorway
+    cards:
+      - type: light
+        entity: light.linp_cn_2079761645_ld6bcw_s_2_light
+        name: Ͳ��
+      - type: entities
+        title: �ſ�״??
+        entities:
+          - entity: sensor.linp_cn_2079761645_ld6bcw_has_someone_duration_p_5_3
+            name: ���˳���ʱ��
+          - entity: sensor.linp_cn_2079761645_ld6bcw_no_one_duration_p_5_4
+            name: ���˳���ʱ��
+          - entity: sensor.linp_cn_2079761645_ld6bcw_illumination_p_5_5
+            name: ����??
+          - entity: sensor.men_kou_ting_liu_shi_chang_3
+            name: ͣ��ʱ��
+          - entity: counter.doorway_visits
+            name: ���ʴ���
+      - type: button
+        name: ������ҳ
+        icon: mdi:arrow-left
+        tap_action:
+          action: navigate
+          navigation_path: /lovelace/home
+
+  # ==================== ���ҳ�� ====================
+  - title: ���
+    icon: mdi:cctv
+    path: monitoring
+    cards:
+      # С��ū����� (A1 Mini)
+      - type: picture-entity
+        entity: image.a1mini_0300aa5a1600497_camera
+        name: С��ū�����
+        show_state: false
+        show_name: true
+        camera_view: live
+        tap_action:
+          action: more-info
+
+      # С��ū���������
+      - type: entities
+        title: С��ū���������
+        entities:
+          - entity: button.yunyi_cn_yunyi_g5y51h17naf1slx1111a_v1_start_p2p_stream_a_2_1
+            name: ��ʼʵʱ��Ƶ��
+          - entity: button.yunyi_cn_yunyi_g5y51h17naf1slx1111a_v1_stop_stream_a_2_2
+            name: ֹͣ��Ƶ??
+      # P2S��ӡ�����������
+      - type: entities
+        title: P2S��ӡ�������
+        entities:
+          - entity: switch.p2s_22e8bj5a2401765_enable_camera
+            name: �������
+
+      # �����������??
+      - type: entities
+        title: ��������??
+        entities:
+          - entity: button.chuangmi_cn_2837777671_v6_start_p2p_stream_a_3_1
+            name: ��ʼ��Ƶ��
+          - entity: button.chuangmi_cn_2837777671_v6_stop_stream_a_3_2
+            name: ֹͣ��Ƶ??
+      # С���������??
+      - type: entities
+        title: С������??
+        entities:
+          - entity: button.yunyi_cn_yunyi_g5y51h17naf1slx1111a_v1_start_p2p_stream_a_2_1
+            name: ��ʼ��Ƶ��
+          - entity: button.yunyi_cn_yunyi_g5y51h17naf1slx1111a_v1_stop_stream_a_2_2
+            name: ֹͣ��Ƶ??
+      # ������ҳ��ť
+      - type: button
+        name: ������ҳ
+        icon: mdi:arrow-left
+        tap_action:
+          action: navigate
+          navigation_path: /lovelace/home
+
+  # ==================== P2S ״̬ҳ??====================
+  - title: P2S
+    icon: mdi:printer-3d-nozzle-outline
+    path: p2s-status
+    cards:
+      # P2S ״̬��??- �����ؼ���Ϣ
+      - type: glance
+        title:  P2S (���?? ״̬��??
+        entities:
+          - entity: binary_sensor.p2s_22e8bj5a2401765_online
+            name: ����״??
+          - entity: sensor.p2s_22e8bj5a2401765_print_status
+            name: ��ӡ״??
+          - entity: sensor.p2s_22e8bj5a2401765_print_progress
+            name: ��ӡ����
+          - entity: sensor.p2s_22e8bj5a2401765_remaining_time
+            name: ʣ��ʱ��(Сʱ)
+        show_state: true
+        show_icon: true
+
+      # ��ӡ����??
+      - type: gauge
+        entity: sensor.p2s_22e8bj5a2401765_print_progress
+        name: ��ӡ����
+        min: 0
+        max: 100
+        severity:
+          green: 80
+          yellow: 50
+          red: 0
+
+      # P2S ����ͼƬ
+      - type: picture-entity
+        entity: image.p2s_22e8bj5a2401765_cover_image
+        name: P2S ����ͼƬ
+        show_state: false
+        show_name: true
+        camera_view: live
+        tap_action:
+          action: more-info
+
+      # �¶ȿ��� - ˮƽ����
+      - type: horizontal-stack
+        cards:
+          - type: gauge
+            entity: sensor.p2s_22e8bj5a2401765_nozzle_temperature
+            name: �����¶�
+            min: 0
+            max: 300
+            severity:
+              green: 200
+              yellow: 250
+              red: 280
+          - type: gauge
+            entity: sensor.p2s_22e8bj5a2401765_bed_temperature
+            name: �ȴ��¶�
+            min: 0
+            max: 120
+            severity:
+              green: 60
+              yellow: 90
+              red: 110
+          - type: gauge
+            entity: sensor.p2s_22e8bj5a2401765_chamber_temperature
+            name: ǻ���¶�
+            min: 0
+            max: 80
+            severity:
+              green: 40
+              yellow: 60
+              red: 70
+
+      # �¶�����
+      - type: entities
+        title:  �¶�����
+        entities:
+          - entity: sensor.p2s_22e8bj5a2401765_nozzle_temperature
+            name: ���쵱ǰ�¶�
+          - entity: sensor.p2s_22e8bj5a2401765_nozzle_target_temperature
+            name: ����Ŀ���¶�
+          - entity: sensor.p2s_22e8bj5a2401765_bed_temperature
+            name: �ȴ���ǰ�¶�
+          - entity: sensor.p2s_22e8bj5a2401765_bed_target_temperature
+            name: �ȴ�Ŀ���¶�
+          - entity: sensor.p2s_22e8bj5a2401765_chamber_temperature
+            name: ǻ���¶�
+
+      # �����ٶ�
+      - type: entities
+        title:  �����ٶ�
+        entities:
+          - entity: sensor.p2s_22e8bj5a2401765_cooling_fan_speed
+            name: ��ȴ����
+            icon: mdi:fan
+          - entity: sensor.p2s_22e8bj5a2401765_aux_fan_speed
+            name: ��������
+            icon: mdi:fan
+          - entity: sensor.p2s_22e8bj5a2401765_chamber_fan_speed
+            name: ǻ�����
+            icon: mdi:fan
+          - entity: sensor.p2s_22e8bj5a2401765_heatbreak_fan_speed
+            name: ��ܷ���
+            icon: mdi:fan
+
+      # ��ӡ����
+      - type: horizontal-stack
+        cards:
+          - type: button
+            name: ��ͣ��ӡ
+            icon: mdi:pause-circle
+            tap_action:
+              action: call-service
+              service: button.press
+              target:
+                entity_id: button.p2s_22e8bj5a2401765_pause_printing
+          - type: button
+            name: �ָ���ӡ
+            icon: mdi:play-circle
+            tap_action:
+              action: call-service
+              service: button.press
+              target:
+                entity_id: button.p2s_22e8bj5a2401765_resume_printing
+          - type: button
+            name: ֹͣ��ӡ
+            icon: mdi:stop-circle
+            tap_action:
+              action: call-service
+              service: button.press
+              target:
+                entity_id: button.p2s_22e8bj5a2401765_stop_printing
+          - type: light
+            entity: light.p2s_22e8bj5a2401765_chamber_light
+            name: ��������
+
+      # ��ӡ��Ϣ
+      - type: entities
+        title:  ��ӡ��Ϣ
+        entities:
+          - entity: sensor.p2s_22e8bj5a2401765_current_stage
+            name: ��ǰ�׶�
+          - entity: sensor.p2s_22e8bj5a2401765_current_layer
+            name: ��ǰ����
+          - entity: sensor.p2s_22e8bj5a2401765_total_layer_count
+            name: �ܲ�??
+          - entity: sensor.p2s_22e8bj5a2401765_print_weight
+            name: ��ӡ����(g)
+          - entity: sensor.p2s_22e8bj5a2401765_print_length
+            name: ��ӡ����(m)
+          - entity: sensor.p2s_22e8bj5a2401765_active_tray
+            name: ��ǰ����
+          - entity: sensor.p2s_22e8bj5a2401765_task_name
+            name: ��������
+          - entity: sensor.p2s_22e8bj5a2401765_gcode_filename
+            name: GCode�ļ�
+          - entity: sensor.p2s_22e8bj5a2401765_start_time
+            name: ��ʼʱ??
+          - entity: sensor.p2s_22e8bj5a2401765_end_time
+            name: Ԥ�ƽ���ʱ��
+          - entity: sensor.p2s_22e8bj5a2401765_speed_profile
+            name: ��ӡ�ٶ�ģʽ
+          - entity: sensor.p2s_22e8bj5a2401765_print_type
+            name: ��ӡ����
+          - entity: sensor.sixwgh_cn_1200175237_v8icm1_electric_power_p_4_2
+            name: ʵʱ����
+          - entity: sensor.sixwgh_cn_1200175237_v8icm1_power_consumption_p_4_1
+            name: �ۼƹ�??
+      # AMS ����״??
+      - type: entities
+        title:  AMS ����״??
+        entities:
+          - entity: sensor.p2s_22e8bj5a2401765_ams_1_tray_1
+            name: ���� 1
+            icon: mdi:circle
+          - entity: sensor.p2s_22e8bj5a2401765_ams_1_tray_2
+            name: ���� 2
+            icon: mdi:circle
+          - entity: sensor.p2s_22e8bj5a2401765_ams_1_tray_3
+            name: ���� 3
+            icon: mdi:circle
+          - entity: sensor.p2s_22e8bj5a2401765_ams_1_tray_4
+            name: ���� 4
+            icon: mdi:circle
+
+      # ���ū������
+      - type: entities
+        title:  ���ū������
+        entities:
+          - entity: button.sixwgh_cn_1200174207_v7icm_toggle_a_2_1
+            name: ���ؿ�??
+            icon: mdi:power
+          - entity: button.sixwgh_cn_1200174207_v7icm_local_timing_on_a_7_8
+            name: ������ض�ʱ
+            icon: mdi:timer-play
+          - entity: button.sixwgh_cn_1200174207_v7icm_local_timing_off_a_7_9
+            name: �رձ��ض�ʱ
+            icon: mdi:timer-off
+
+      # AMS ����
+      - type: entities
+        title:  AMS ����
+        entities:
+          - entity: sensor.p2s_22e8bj5a2401765_ams_1_humidity
+            name: AMSʪ��
+            icon: mdi:water-percent
+          - entity: sensor.p2s_22e8bj5a2401765_ams_1_humidity_index
+            name: ʪ��ָ��
+            icon: mdi:water-percent-alert
+          - entity: sensor.p2s_22e8bj5a2401765_ams_1_temperature
+            name: AMS�¶�
+            icon: mdi:thermometer
+
+      # �豸״??
+      - type: entities
+        title:  �豸״??
+        entities:
+          - entity: sensor.p2s_22e8bj5a2401765_printer_name
+            name: ��ӡ����??
+          - entity: sensor.p2s_22e8bj5a2401765_serial_number
+            name: ����??
+          - entity: sensor.p2s_22e8bj5a2401765_ip_address
+            name: IP��ַ
+          - entity: sensor.p2s_22e8bj5a2401765_wi_fi_signal
+            name: WiFi�ź�(dBm)
+          - entity: sensor.p2s_22e8bj5a2401765_total_usage
+            name: ��ʹ��ʱ??Сʱ)
+          - entity: binary_sensor.p2s_22e8bj5a2401765_extruder_filament_state
+            name: ��˿״??
+          - entity: binary_sensor.p2s_22e8bj5a2401765_enclosure_door
+            name: ������״??
+          - entity: binary_sensor.p2s_22e8bj5a2401765_airduct_mode
+            name: ���ģʽ
+          - entity: binary_sensor.p2s_22e8bj5a2401765_ams_1_active
+            name: AMS����״??
+          - entity: binary_sensor.p2s_22e8bj5a2401765_externalspool_active
+            name: ������̼�??
+          - entity: sensor.p2s_22e8bj5a2401765_externalspool_external_spool
+            name: �����������
+          - entity: binary_sensor.p2s_22e8bj5a2401765_hms_errors
+            name: HMS����
+          - entity: binary_sensor.p2s_22e8bj5a2401765_print_error
+            name: ��ӡ����
+          - entity: binary_sensor.p2s_22e8bj5a2401765_firmware_update
+            name: �̼�����
+          - entity: sensor.p2s_22e8bj5a2401765_nozzle_size
+            name: ����ߴ�
+          - entity: sensor.p2s_22e8bj5a2401765_nozzle_type
+            name: ��������
+          - entity: sensor.p2s_22e8bj5a2401765_print_bed_type
+            name: ��ӡ�װ�����
+          - entity: sensor.p2s_22e8bj5a2401765_sd_card_status
+            name: SD��״??
+          - entity: sensor.p2s_22e8bj5a2401765_mqtt_connection_mode
+            name: MQTT����ģʽ
+
+      # �������
+      - type: entities
+        title:  �������
+        entities:
+          - entity: switch.p2s_22e8bj5a2401765_enable_camera
+            name: �������
+          - entity: binary_sensor.p2s_22e8bj5a2401765_recording_timelapse
+            name: ��ʱ��Ӱ
+          - entity: image.p2s_22e8bj5a2401765_pick_image
+            name: ʰȡͼƬ
+
+      # ������ҳ��ť
+      - type: button
+        name: ������ҳ
+        icon: mdi:arrow-left
+        tap_action:
+          action: navigate
+          navigation_path: /lovelace/home
+
+  # ==================== A1 Mini ҳ�� ====================
+  - title: A1 Mini
+    icon: mdi:printer-3d
+    path: a1mini
+    cards:
+      # A1 Mini ״̬��??
+      - type: glance
+        title:  A1 Mini (С��?? ״??
+        entities:
+          - entity: binary_sensor.a1mini_0300aa5a1600497_online
+            name: ����״??
+          - entity: sensor.a1mini_0300aa5a1600497_print_status
+            name: ��ӡ״??
+          - entity: sensor.a1mini_0300aa5a1600497_print_progress
+            name: ��ӡ����
+          - entity: sensor.a1mini_0300aa5a1600497_remaining_time
+            name: ʣ��ʱ��
+        show_state: true
+        show_icon: true
+
+      # A1 Mini ʵʱ����
+      - type: picture-entity
+        entity: image.a1mini_0300aa5a1600497_camera
+        name: A1 Mini ʵʱ����
+        show_state: false
+        show_name: true
+        camera_view: live
+        tap_action:
+          action: more-info
+
+      # A1 Mini �¶ȿ���
+      - type: entities
+        title:  �¶ȿ���
+        entities:
+          - entity: sensor.a1mini_0300aa5a1600497_nozzle_temperature
+            name: �����¶�
+          - entity: number.a1mini_0300aa5a1600497_nozzle_target_temperature
+            name: ����Ŀ���¶�
+          - entity: sensor.a1mini_0300aa5a1600497_bed_temperature
+            name: �ȴ��¶�
+          - entity: number.a1mini_0300aa5a1600497_bed_target_temperature
+            name: �ȴ�Ŀ���¶�
+          - entity: sensor.a1mini_0300aa5a1600497_cooling_fan_speed
+            name: ��ȴ�����ٶ�
+          - entity: sensor.a1mini_0300aa5a1600497_heatbreak_fan_speed
+            name: ��ܷ����ٶ�
+
+      # С��ū��??
+      - type: entities
+        title:  С��ū��??
+        entities:
+          - entity: button.yutai_cn_1188285576_fsov7m_toggle_a_2_1
+            name: ���ؿ�??
+            icon: mdi:power
+          - entity: button.yutai_cn_1188285576_fsov7m_local_timing_on_a_7_8
+            name: ������ض�ʱ
+            icon: mdi:timer-play
+          - entity: button.yutai_cn_1188285576_fsov7m_local_timing_off_a_7_9
+            name: �رձ��ض�ʱ
+            icon: mdi:timer-off
+
+      # A1 Mini ��ӡ����
+      - type: entities
+        title:  ��ӡ����
+        entities:
+          - entity: button.a1mini_0300aa5a1600497_pause_printing
+            name: ��ͣ��ӡ
+          - entity: button.a1mini_0300aa5a1600497_resume_printing
+            name: �ָ���ӡ
+          - entity: button.a1mini_0300aa5a1600497_stop_printing
+            name: ֹͣ��ӡ
+          - entity: select.a1mini_0300aa5a1600497_printing_speed
+            name: ��ӡ�ٶ�
+          - entity: fan.a1mini_0300aa5a1600497_cooling_fan
+            name: ��ȴ����
+          - entity: light.a1mini_0300aa5a1600497_chamber_light
+            name: ��������
+
+      # A1 Mini ��ӡ��Ϣ
+      - type: entities
+        title:  ��ӡ��Ϣ
+        entities:
+          - entity: sensor.a1mini_0300aa5a1600497_current_stage
+            name: ��ǰ�׶�
+          - entity: sensor.a1mini_0300aa5a1600497_current_layer
+            name: ��ǰ����
+          - entity: sensor.a1mini_0300aa5a1600497_total_layer_count
+            name: �ܲ�??
+          - entity: sensor.a1mini_0300aa5a1600497_print_weight
+            name: ��ӡ����
+          - entity: sensor.a1mini_0300aa5a1600497_print_length
+            name: ��ӡ����
+          - entity: sensor.a1mini_0300aa5a1600497_printable_objects
+            name: �ɴ�ӡ������
+          - entity: sensor.a1mini_0300aa5a1600497_skipped_objects
+            name: ��������??
+          - entity: sensor.giot_cn_1164778814_v8icm_electric_power_p_4_2
+            name: ʵʱ����
+          - entity: sensor.giot_cn_1164778814_v8icm_power_consumption_p_4_1
+            name: �ۼƹ�??
+      # A1 Mini �������
+      - type: entities
+        title:  �������
+        entities:
+          - entity: sensor.a1mini_0300aa5a1600497_externalspool_external_spool
+            name: ��������
+          - entity: binary_sensor.a1mini_0300aa5a1600497_externalspool_active
+            name: ���̼���״??
+          - entity: binary_sensor.a1mini_0300aa5a1600497_extruder_filament_state
+            name: ��������˿״??
+      # A1 Mini �豸��Ϣ
+      - type: entities
+        title:  �豸��Ϣ
+        entities:
+          - entity: sensor.a1mini_0300aa5a1600497_printer_name
+            name: ��ӡ����??
+          - entity: sensor.a1mini_0300aa5a1600497_serial_number
+            name: ����??
+          - entity: sensor.a1mini_0300aa5a1600497_ip_address
+            name: IP��ַ
+          - entity: sensor.a1mini_0300aa5a1600497_wi_fi_signal
+            name: WiFi�ź�
+          - entity: sensor.a1mini_0300aa5a1600497_total_usage
+            name: ��ʹ��ʱ??
+          - entity: binary_sensor.a1mini_0300aa5a1600497_hms_errors
+            name: HMS����
+          - entity: binary_sensor.a1mini_0300aa5a1600497_print_error
+            name: ��ӡ����
+          - entity: binary_sensor.a1mini_0300aa5a1600497_firmware_update
+            name: �̼�����
+
+      # A1 Mini �������
+      - type: entities
+        title:  �������
+        entities:
+          - entity: switch.a1mini_0300aa5a1600497_enable_camera
+            name: �������
+          - entity: switch.a1mini_0300aa5a1600497_use_image_sensor_camera
+            name: ʹ��ͼ�񴫸�����??
+          - entity: image.a1mini_0300aa5a1600497_cover_image
+            name: ����ͼƬ
+          - entity: image.a1mini_0300aa5a1600497_pick_image
+            name: ʰȡͼƬ
+
+      # ������ҳ��ť
+      - type: button
+        name: ������ҳ
+        icon: mdi:arrow-left
+        tap_action:
+          action: navigate
+          navigation_path: /lovelace/home
+
+  # ==================== ���ƶԱ�ҳ�� ====================
+  - title: ���ƶԱ�
+    icon: mdi:chart-line
+    path: light-comparison
+    cards:
+      # ���ո�������ʱ���Ա�
+      - type: history-graph
+        title: ���ո�������ʱ������
+        entities:
+          - entity: sensor.ke_ting_xi_ding_deng_liang_deng_shi_chang
+            name: ��������??
+          - entity: sensor.ke_ting_sha_fa_deng_liang_deng_shi_chang
+            name: ����ɳ��??
+          - entity: sensor.wo_shi_deng_liang_deng_shi_chang
+            name: ����??
+          - entity: sensor.wo_shi_deng_dai_liang_deng_shi_chang
+            name: ���ҵƴ�
+          - entity: sensor.chu_fang_deng_liang_deng_shi_chang
+            name: ����??
+          - entity: sensor.can_ting_deng_liang_deng_shi_chang
+            name: ����??
+          - entity: sensor.wei_sheng_jian_deng_liang_deng_shi_chang
+            name: �������
+          - entity: sensor.yu_ba_deng_liang_deng_shi_chang
+            name: ԡ��??
+          - entity: sensor.zou_lang_zou_dao_deng_liang_deng_shi_chang
+            name: �����ߵ�??
+          - entity: sensor.zou_lang_wei_sheng_jian_deng_liang_deng_shi_chang
+            name: �����������
+          - entity: sensor.men_kou_tong_deng_liang_deng_shi_chang
+            name: �ſ�Ͳ��
+        hours_to_show: 24
+        refresh_interval: 60
+
+      # ȫ�ݵƹ�������ʱ��������??
+      - type: entity
+        entity: sensor.quan_wu_deng_guang_zong_liang_deng_shi_chang_fen_zhong
+        name: ����ȫ�ݵƹ�������ʱ??
+        icon: mdi:lightbulb-group-on
+
+      # ���Ƶ�ǰ����ʱ��
+      - type: entities
+        title: ���Ƶ�ǰ����ʱ��
+        entities:
+          - entity: sensor.ke_ting_xi_ding_deng_liang_deng_shi_chang
+            name: ��������??
+            icon: mdi:lightbulb-on
+          - entity: sensor.ke_ting_sha_fa_deng_liang_deng_shi_chang
+            name: ����ɳ��??
+            icon: mdi:lightbulb-on
+          - entity: sensor.wo_shi_deng_liang_deng_shi_chang
+            name: ����??
+            icon: mdi:lightbulb-on
+          - entity: sensor.wo_shi_deng_dai_liang_deng_shi_chang
+            name: ���ҵƴ�
+            icon: mdi:lightbulb-on
+          - entity: sensor.chu_fang_deng_liang_deng_shi_chang
+            name: ����??
+            icon: mdi:lightbulb-on
+          - entity: sensor.can_ting_deng_liang_deng_shi_chang
+            name: ����??
+            icon: mdi:lightbulb-on
+          - entity: sensor.wei_sheng_jian_deng_liang_deng_shi_chang
+            name: �������
+            icon: mdi:lightbulb-on
+          - entity: sensor.yu_ba_deng_liang_deng_shi_chang
+            name: ԡ��??
+            icon: mdi:lightbulb-on
+          - entity: sensor.zou_lang_zou_dao_deng_liang_deng_shi_chang
+            name: �����ߵ�??
+            icon: mdi:lightbulb-on
+          - entity: sensor.zou_lang_wei_sheng_jian_deng_liang_deng_shi_chang
+            name: �����������
+            icon: mdi:lightbulb-on
+          - entity: sensor.men_kou_tong_deng_liang_deng_shi_chang
+            name: �ſ�Ͳ��
+            icon: mdi:lightbulb-on
+
+      # ����/��������ʱ������
+      - type: history-graph
+        title: ȫ�ݵƹ�����ʱ�����ƣ�Сʱ��
+        entities:
+          - entity: sensor.quan_wu_deng_guang_ri_liang_deng_shi_chang_xiao_shi
+            name: ������ʱ??
+            hours_to_show: 168
+        refresh_interval: 300
+
+      # �������ʱ�����ƣ�����ͳ�ƣ�
+      - type: history-graph
+        title: ȫ�ݵƹ�����������ƣ�С??�죩
+        entities:
+          - entity: sensor.quan_wu_deng_guang_ri_liang_deng_shi_chang_xiao_shi
+            name: ÿ������ʱ��
+        hours_to_show: 8760
+        refresh_interval: 3600
+
+      # ������ҳ��ť
+      - type: button
+        name: ������ҳ
+        icon: mdi:arrow-left
+        tap_action:
+          action: navigate
+          navigation_path: /lovelace/home
+
+  # ==================== 3D��ӡ��ʷ��¼ҳ�� ====================
+  - title: ��ӡ��ʷ
+    icon: mdi:printer-3d
+    path: print-history
+    cards:
+      # ��ӡ��ѡ��??
+      - type: grid
+        columns: 2
+        cards:
+          - type: button
+            name: С��??(A1 Mini)
+            icon: mdi:printer-3d
+            tap_action:
+              action: navigate
+              navigation_path: /lovelace/print-history-a1mini
+          - type: button
+            name: ���??(P2S)
+            icon: mdi:printer-3d
+            tap_action:
+              action: navigate
+              navigation_path: /lovelace/print-history-p2s
+
+      - type: button
+        name: ������ҳ
+        icon: mdi:arrow-left
+        tap_action:
+          action: navigate
+          navigation_path: /lovelace/home
+
+  # ==================== A1 Mini ��ӡ��ʷ ====================
+  - title: A1 Mini ��ӡ��ʷ
+    icon: mdi:printer-3d
+    path: print-history-a1mini
+    cards:
+      - type: markdown
+        content: |
+          # A1 Mini (С��?? ��ӡ��ʷ��¼
+          ��¼ÿ�δ�ӡ����ϸ��??
+      - type: entities
+        title: ��ӡ��ʷ
+        entities:
+          - entity: input_text.printer_history_a1mini
+            name: ��ʷ��¼
+
+      - type: button
+        name: ���ش�ӡ��ʷ
+        icon: mdi:arrow-left
+        tap_action:
+          action: navigate
+          navigation_path: /lovelace/print-history
+
+  # ==================== P2S ��ӡ��ʷ ====================
+  - title: P2S ��ӡ��ʷ
+    icon: mdi:printer-3d
+    path: print-history-p2s
+    cards:
+      - type: markdown
+        content: |
+          # P2S (���?? ��ӡ��ʷ��¼
+          ��¼ÿ�δ�ӡ����ϸ��??
+      - type: entities
+        title: ��ӡ��ʷ
+        entities:
+          - entity: input_text.printer_history_p2s
+            name: ��ʷ��¼
+
+      - type: button
+        name: ���ش�ӡ��ʷ
+        icon: mdi:arrow-left
+        tap_action:
+          action: navigate
+          navigation_path: /lovelace/print-history
+
+

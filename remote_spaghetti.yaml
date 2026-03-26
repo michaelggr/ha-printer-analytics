@@ -1,0 +1,603 @@
+﻿blueprint:
+  name: Bambu Lab - 炒面检测 (米家通知版)
+  description: "基于 Obico ML 的拓竹打印机炒面检测 - 米家推送通知"
+  domain: automation
+  input:
+    # --- 米家中枢网关配置 ---
+    virtual_event_name:
+      name: 产生的虚拟事件名称
+      description: "在米家 App 中设置的虚拟事件名称（如：spaghetti_detected）"
+      default: "spaghetti_detected"
+    xiaomi_gateway_virtual_event:
+      name: 虚拟事件服务
+      description: "选择 Xiaomi 中枢网关的虚拟事件服务（如：notify.xiaomi_xxx_virtual_event）"
+      selector:
+        entity:
+          domain: notify
+
+    # --- HA 地址配置 ---
+    internal_home_assistant_host:
+      name: Home Assistant 内网地址
+      description: 用于获取摄像头图片的内网地址
+      default: http://192.168.0.130:8123
+    obico_host:
+      name: Obico ML API Host
+      default: http://192.168.0.130:3333
+    obico_auth_token:
+      name: Obico ML API Auth Token
+      default: obico
+
+    # --- 检测设置 ---
+    detection_frequency:
+      name: 检测频率
+      default: "/30"
+      selector:
+        select:
+          options:
+            - label: 每 10 秒
+              value: "/10"
+            - label: 每 30 秒
+              value: "/30"
+            - label: 每 60 秒
+              value: "/59"
+          multiple: false
+          mode: dropdown
+    auto_turn_on_light:
+      name: 自动开灯
+      description: 检测时如果仓内灯关闭，自动开启
+      default: true
+      selector:
+        boolean: {}
+    enable_image_quality_check:
+      name: 启用图像质量检测
+      description: 检测图像是否模糊/黑屏，质量差时跳过检测
+      default: true
+      selector:
+        boolean: {}
+    image_quality_threshold:
+      name: 图像质量阈值
+      description: 图像清晰度阈值（0-1，越小越严格）
+      default: 0.15
+      selector:
+        number:
+          min: 0.05
+          max: 0.5
+          step: 0.05
+          mode: slider
+    max_image_age:
+      name: 最大图像年龄
+      description: 图像超过此时间未更新视为过期（秒）
+      default: 60
+      selector:
+        number:
+          min: 10
+          max: 300
+          step: 10
+          unit_of_measurement: 秒
+    enable_auto_refresh:
+      name: 启用自动刷新
+      description: 图像过期时尝试强制刷新
+      default: true
+      selector:
+        boolean: {}
+    camera_refresh_service:
+      name: 摄像头刷新服务
+      description: 用于刷新图像的服务（如：camera.snapshot 或 image.update）
+      default: ""
+      selector:
+        text:
+          type: text
+    failure_action:
+      name: 失败动作
+      description: 检测到失败时执行的操作
+      default: pause
+      selector:
+        select:
+          options:
+            - label: 暂停打印 (推荐)
+              value: pause
+            - label: 停止打印
+              value: stop
+            - label: 仅警告
+              value: warn
+          multiple: false
+          mode: dropdown
+
+    # --- 实体选择 ---
+    printer_print_status_sensor:
+      name: 打印机状态 (Print Status)
+      selector:
+        entity:
+          filter:
+            integration: bambu_lab
+            domain: sensor
+    printer_current_stage_sensor:
+      name: 当前阶段 (Current Stage)
+      selector:
+        entity:
+          filter:
+            integration: bambu_lab
+            domain: sensor
+    printer_camera:
+      name: 主摄像头/图像
+      description: "选择主摄像头（支持 image 图像实体 或 camera 摄像头，包括 WebRTC）"
+      selector:
+        entity:
+          filter:
+            - domain: image
+            - domain: camera
+    backup_camera:
+      name: 备用摄像头 (可选)
+      description: "当主摄像头不可用时，使用此作为备用"
+      default:
+      selector:
+        entity:
+          filter:
+            - domain: image
+            - domain: camera
+    printer_pause_button:
+      name: 暂停打印按钮
+      selector:
+        entity:
+          filter:
+            integration: bambu_lab
+            domain: button
+    printer_resume_button:
+      name: 恢复打印按钮
+      selector:
+        entity:
+          filter:
+            integration: bambu_lab
+            domain: button
+    printer_stop_button:
+      name: 停止打印按钮
+      selector:
+        entity:
+          filter:
+            integration: bambu_lab
+            domain: button
+    printer_chamber_light:
+      name: 仓内灯
+      selector:
+        entity:
+          filter:
+            integration: bambu_lab
+            domain: light
+
+variables:
+  XIAOMI_GATEWAY_VIRTUAL_EVENT: !input xiaomi_gateway_virtual_event
+  VIRTUAL_EVENT_NAME: !input virtual_event_name
+  INTERNAL_HA_HOST_VAR: !input internal_home_assistant_host
+  PRINTER_CAMERA_VAR: !input printer_camera
+  BACKUP_CAMERA_VAR: !input backup_camera
+  FAILURE_ACTION_VAR: !input failure_action
+  DETECTION_FREQUENCY_VAR: !input detection_frequency
+  AUTO_LIGHT_VAR: !input auto_turn_on_light
+  QUALITY_CHECK_VAR: !input enable_image_quality_check
+  QUALITY_THRESHOLD_VAR: !input image_quality_threshold
+  MAX_IMAGE_AGE_VAR: !input max_image_age
+  AUTO_REFRESH_VAR: !input enable_auto_refresh
+  REFRESH_SERVICE_VAR: !input camera_refresh_service
+  PRINTER_PRINT_STATUS_SENSOR_VAR: !input printer_print_status_sensor
+  PRINTER_CHAMBER_LIGHT_VAR: !input printer_chamber_light
+  # 动态获取图像URL（支持 image 和 camera 两种实体）
+  IMAGE_URL: >
+    {% set main_entity = PRINTER_CAMERA_VAR %}
+    {% set backup_entity = BACKUP_CAMERA_VAR %}
+    {% set main_domain = main_entity.split('.')[0] if main_entity else 'image' %}
+    {% set backup_domain = backup_entity.split('.')[0] if backup_entity else 'camera' %}
+    
+    {# 检查主摄像头是否可用 #}
+    {% set main_available = states(main_entity) is not none %}
+    {% set main_is_image = main_domain == 'image' %}
+    {% set main_is_camera = main_domain == 'camera' %}
+    
+    {# 构建主摄像头URL #}
+    {% if main_available %}
+      {% if main_is_image and state_attr(main_entity, 'access_token') %}
+        {{ INTERNAL_HA_HOST_VAR }}/api/image_proxy/{{ main_entity }}?token={{ state_attr(main_entity, 'access_token') }}
+      {% elif main_is_camera and state_attr(main_entity, 'entity_picture') %}
+        {{ INTERNAL_HA_HOST_VAR }}{{ state_attr(main_entity, 'entity_picture') }}
+      {% elif backup_entity and states(backup_entity) is not none %}
+        {# 主摄像头不可用，切换到备用 #}
+        {% set backup_is_image = backup_domain == 'image' %}
+        {% if backup_is_image and state_attr(backup_entity, 'access_token') %}
+          {{ INTERNAL_HA_HOST_VAR }}/api/image_proxy/{{ backup_entity }}?token={{ state_attr(backup_entity, 'access_token') }}
+        {% else %}
+          {{ INTERNAL_HA_HOST_VAR }}{{ state_attr(backup_entity, 'entity_picture') }}
+        {% endif %}
+      {% else %}
+        {{ INTERNAL_HA_HOST_VAR }}/api/image_proxy/{{ main_entity }}?token={{ state_attr(main_entity, 'access_token') }}
+      {% endif %}
+    {% elif backup_entity and states(backup_entity) is not none %}
+      {# 主摄像头完全不可用，使用备用 #}
+      {% if backup_is_image and state_attr(backup_entity, 'access_token') %}
+        {{ INTERNAL_HA_HOST_VAR }}/api/image_proxy/{{ backup_entity }}?token={{ state_attr(backup_entity, 'access_token') }}
+      {% else %}
+        {{ INTERNAL_HA_HOST_VAR }}{{ state_attr(backup_entity, 'entity_picture') }}
+      {% endif %}
+    {% else %}
+      {# 兜底：尝试主摄像头 #}
+      {{ INTERNAL_HA_HOST_VAR }}/api/image_proxy/{{ main_entity }}?token={{ state_attr(main_entity, 'access_token') }}
+    {% endif %}
+
+mode: single
+max_exceeded: silent
+
+trigger:
+  # 1. 打印机开始打印
+  - platform: state
+    entity_id:
+      - !input printer_current_stage_sensor
+    to: printing
+    id: BAMBU_LAB_PRINTER_STAGE_CHANGE
+
+  # 2. 定时检测
+  - platform: time_pattern
+    id: BAMBU_LAB_DETECTION_TRIGGER
+    seconds: !input detection_frequency
+
+  # 3. 米家虚拟事件控制 - 暂停打印
+  - platform: event
+    event_type: xiaomi_home_virtual_event
+    id: VIRTUAL_EVENT_PAUSE
+    event_data:
+      event: "pause_print"
+
+  # 4. 米家虚拟事件控制 - 停止打印
+  - platform: event
+    event_type: xiaomi_home_virtual_event
+    id: VIRTUAL_EVENT_STOP
+    event_data:
+      event: "stop_print"
+
+action:
+  - choose:
+      # ==================== 步骤 1: 重置变量 (当打印开始时) ====================
+      - conditions:
+          - condition: trigger
+            id: BAMBU_LAB_PRINTER_STAGE_CHANGE
+        sequence:
+          - service: input_number.set_value
+            data:
+              value: 0
+            target:
+              entity_id:
+                - input_number.bambu_lab_p1_spaghetti_detection_current_frame_number
+                - input_number.bambu_lab_p1_spaghetti_detection_ewm_mean
+                - input_number.bambu_lab_p1_spaghetti_detection_rolling_mean_short
+                - input_number.bambu_lab_p1_spaghetti_detection_rolling_mean_long
+                - input_number.bambu_lab_p1_spaghetti_detection_normalized_p
+                - input_number.bambu_lab_p1_spaghetti_detection_adjusted_ewm_mean
+                - input_number.bambu_lab_p1_spaghetti_detection_p_sum
+          - if:
+              - condition: template
+                value_template: "{{ is_state(PRINTER_CHAMBER_LIGHT_VAR, 'off') and AUTO_LIGHT_VAR }}"
+            then:
+              - service: light.turn_on
+                target:
+                  entity_id: !input printer_chamber_light
+
+
+      # ==================== 步骤 2: 米家虚拟事件远程控制 ====================
+      # 米家 App 产生虚拟事件 pause_print → 暂停打印
+      - conditions:
+          - condition: trigger
+            id: VIRTUAL_EVENT_PAUSE
+        sequence:
+          - service: system_log.write
+            data:
+              message: "收到米家虚拟事件: pause_print，执行暂停打印"
+              level: info
+          - service: button.press
+            target:
+              entity_id: !input printer_pause_button
+
+      # 米家 App 产生虚拟事件 stop_print → 停止打印
+      - conditions:
+          - condition: trigger
+            id: VIRTUAL_EVENT_STOP
+        sequence:
+          - service: system_log.write
+            data:
+              message: "收到米家虚拟事件: stop_print，执行停止打印"
+              level: info
+          - service: button.press
+            target:
+              entity_id: !input printer_stop_button
+
+      # ==================== 步骤 3: 执行 ML 检测 ====================
+      - conditions:
+          - condition: trigger
+            id: BAMBU_LAB_DETECTION_TRIGGER
+        sequence:
+          # 3.1 检查打印状态
+          - if:
+              - condition: template
+                value_template: "{{ not is_state(PRINTER_PRINT_STATUS_SENSOR_VAR, 'running') }}"
+            then:
+              - stop: "Printer is not running."
+
+          # 3.2 自动开灯
+          - if:
+              - condition: template
+                value_template: "{{ is_state(PRINTER_CHAMBER_LIGHT_VAR, 'off') and AUTO_LIGHT_VAR }}"
+            then:
+              - service: light.turn_on
+                target:
+                  entity_id: !input printer_chamber_light
+
+
+          # 3.3 图像基础检测（检查是否黑屏/异常）
+          # 检测主摄像头和备用摄像头
+          - variables:
+              main_entity: "{{ PRINTER_CAMERA_VAR }}"
+              backup_entity: "{{ BACKUP_CAMERA_VAR }}"
+              main_domain: "{{ main_entity.split('.')[0] }}"
+              backup_domain: "{{ backup_entity.split('.')[0] if backup_entity else 'none' }}"
+              # 主摄像头检查
+              main_last_updated: "{{ states[main_entity].last_updated if states[main_entity] is not none else now() }}"
+              main_age_seconds: "{{ ((now() - main_last_updated | as_datetime | as_local).total_seconds()) | int }}"
+              main_is_stale: "{{ main_age_seconds > MAX_IMAGE_AGE_VAR }}"
+              main_needs_refresh: "{{ main_age_seconds > MAX_IMAGE_AGE_VAR and AUTO_REFRESH_VAR }}"
+              main_entity_state: "{{ states(main_entity) }}"
+              main_has_attr: "{{ state_attr(main_entity, 'access_token') != None or state_attr(main_entity, 'entity_picture') != None }}"
+              main_is_available: "{{ main_entity_state not in ['unavailable', 'unknown', 'none'] and main_has_attr and not main_is_stale }}"
+              # 备用摄像头检查（如果有配置）
+              backup_last_updated: "{{ states[backup_entity].last_updated if backup_entity and states[backup_entity] is not none else now() }}"
+              backup_age_seconds: "{{ ((now() - backup_last_updated | as_datetime | as_local).total_seconds()) | int }}"
+              backup_is_stale: "{{ backup_age_seconds > MAX_IMAGE_AGE_VAR }}"
+              backup_entity_state: "{{ states(backup_entity) if backup_entity else 'none' }}"
+              backup_has_attr: "{{ state_attr(backup_entity, 'access_token') != None or state_attr(backup_entity, 'entity_picture') != None if backup_entity else false }}"
+              backup_is_available: "{{ backup_entity and backup_entity_state not in ['unavailable', 'unknown', 'none'] and backup_has_attr and not backup_is_stale }}"
+              # 决定使用哪个摄像头
+              use_backup: "{{ not main_is_available and backup_is_available }}"
+              active_entity: "{{ backup_entity if use_backup else main_entity }}"
+
+          # 如果启用了质量检查，进行基础验证
+          - if:
+              - condition: template
+                value_template: "{{ QUALITY_CHECK_VAR }}"
+            then:
+              # 检查主摄像头质量，过期时尝试刷新
+              - if:
+                  - condition: template
+                    value_template: "{{ main_is_stale }}"
+                then:
+                  - choose:
+                      # 尝试自动刷新主摄像头
+                      - conditions:
+                          - condition: template
+                            value_template: "{{ main_needs_refresh and REFRESH_SERVICE_VAR | length > 0 }}"
+                        sequence:
+                          - service: system_log.write
+                            data:
+                              message: "Main camera image stale ({{ main_age_seconds | int }}s), attempting refresh"
+                              level: info
+                          - service: "{{ REFRESH_SERVICE_VAR }}"
+                            target:
+                              entity_id: "{{ main_entity }}"
+                          - delay:
+                              seconds: 2
+                          # 刷新后重新检查
+                          - variables:
+                              refreshed_last_updated: "{{ states[main_entity].last_updated if states[main_entity] is not none else now() }}"
+                              refreshed_age: "{{ (now() - refreshed_last_updated | as_datetime | as_local).total_seconds() }}"
+                              refresh_success: "{{ refreshed_age < MAX_IMAGE_AGE_VAR }}"
+                          - if:
+                              - condition: template
+                                value_template: "{{ not refresh_success and not backup_is_available }}"
+                            then:
+                              - stop: "Main camera refresh failed and no backup available"
+                          - if:
+                              - condition: template
+                                value_template: "{{ not refresh_success and backup_is_available }}"
+                            then:
+                              - service: system_log.write
+                                data:
+                                  message: "Main camera refresh failed, will use backup"
+                                  level: warning
+                      # 不刷新或刷新不可用，直接检查备用
+                      - conditions:
+                          - condition: template
+                            value_template: "{{ not backup_is_available }}"
+                        sequence:
+                          - stop: "Main camera image too old ({{ main_age_seconds | int }}s) and no backup available"
+              
+              # 检查主摄像头属性
+              - if:
+                  - condition: template
+                    value_template: "{{ not main_has_attr }}"
+                then:
+                  - if:
+                      - condition: template
+                        value_template: "{{ not backup_is_available }}"
+                    then:
+                      - stop: "Main camera has no image attributes and no backup available"
+
+              # 检查主摄像头状态
+              - if:
+                  - condition: template
+                    value_template: "{{ main_entity_state in ['unavailable', 'unknown', 'none'] }}"
+                then:
+                  - if:
+                      - condition: template
+                        value_template: "{{ not backup_is_available }}"
+                    then:
+                      - stop: "Main camera is {{ main_entity_state }} and no backup available"
+
+              # 如果主摄像头有问题但备用可用，记录日志
+              - if:
+                  - condition: template
+                    value_template: "{{ use_backup }}"
+                then:
+                  - service: system_log.write
+                    data:
+                      message: "Main camera quality check failed, switching to backup: {{ active_entity }}"
+                      level: warning
+
+          # 3.4 调用 ML 预测 (使用内网地址)
+          - service: shell_command.obico_detect
+            data:
+              image_url: "{{ IMAGE_URL }}"
+            response_variable: result
+
+          # 3.4 更新统计数据 (EWMA 算法)
+          - service: input_number.set_value
+            data:
+              value: "{{ result.detections | map(attribute=1) | sum | float }}"
+            target:
+              entity_id: input_number.bambu_lab_p1_spaghetti_detection_p_sum
+          - service: input_number.set_value
+            data:
+              value: "{{ states('input_number.bambu_lab_p1_spaghetti_detection_current_frame_number') | float + 1 }}"
+            target:
+              entity_id: input_number.bambu_lab_p1_spaghetti_detection_current_frame_number
+          - service: input_number.set_value
+            data:
+              value: "{{ states('input_number.bambu_lab_p1_spaghetti_detection_lifetime_frame_number') | float + 1 }}"
+            target:
+              entity_id: input_number.bambu_lab_p1_spaghetti_detection_lifetime_frame_number
+          - service: input_number.set_value
+            data:
+              value: "{{ (states('input_number.bambu_lab_p1_spaghetti_detection_p_sum') | float) * (2 / (12 + 1)) + (states('input_number.bambu_lab_p1_spaghetti_detection_ewm_mean') | float) * (1 - (2 / (12 + 1))) }}"
+            target:
+              entity_id: input_number.bambu_lab_p1_spaghetti_detection_ewm_mean
+          - service: input_number.set_value
+            data:
+              value: "{{ (states('input_number.bambu_lab_p1_spaghetti_detection_rolling_mean_short') | float) + ((states('input_number.bambu_lab_p1_spaghetti_detection_p_sum') | float) - (states('input_number.bambu_lab_p1_spaghetti_detection_rolling_mean_short') | float)) / (310 if 310 <= (states('input_number.bambu_lab_p1_spaghetti_detection_current_frame_number') | float) else (states('input_number.bambu_lab_p1_spaghetti_detection_current_frame_number') | float) + 1) }}"
+            target:
+              entity_id: input_number.bambu_lab_p1_spaghetti_detection_rolling_mean_short
+          - service: input_number.set_value
+            data:
+              value: "{{ (states('input_number.bambu_lab_p1_spaghetti_detection_rolling_mean_long') | float) + ((states('input_number.bambu_lab_p1_spaghetti_detection_p_sum') | float) - (states('input_number.bambu_lab_p1_spaghetti_detection_rolling_mean_long') | float)) / (7200 if 7200 <= (states('input_number.bambu_lab_p1_spaghetti_detection_lifetime_frame_number') | float) else (states('input_number.bambu_lab_p1_spaghetti_detection_lifetime_frame_number') | float) + 1) }}"
+            target:
+              entity_id: input_number.bambu_lab_p1_spaghetti_detection_rolling_mean_long
+
+          # 预热逻辑 (<30帧)
+          - if:
+              - condition: numeric_state
+                entity_id: input_number.bambu_lab_p1_spaghetti_detection_current_frame_number
+                below: 15
+            then:
+              - stop: "Warming up logic"
+
+          # 计算阈值
+          - service: input_number.set_value
+            data:
+              value: "{{ (states('input_number.bambu_lab_p1_spaghetti_detection_ewm_mean') | float) - (states('input_number.bambu_lab_p1_spaghetti_detection_rolling_mean_long') | float) }}"
+            target:
+              entity_id: input_number.bambu_lab_p1_spaghetti_detection_adjusted_ewm_mean
+          - service: input_number.set_value
+            data:
+              value: "{{ ((states('input_number.bambu_lab_p1_spaghetti_detection_rolling_mean_short') | float) - (states('input_number.bambu_lab_p1_spaghetti_detection_rolling_mean_long') | float)) * 3.8 }}"
+            target:
+              entity_id: input_number.bambu_lab_p1_spaghetti_detection_rolling_mean_diff
+          - service: input_number.set_value
+            data:
+              value: "{{ min(0.78, max(0.33, (states('input_number.bambu_lab_p1_spaghetti_detection_rolling_mean_diff') | float))) }}"
+            target:
+              entity_id: input_number.bambu_lab_p1_spaghetti_detection_thresh_warning
+          - service: input_number.set_value
+            data:
+              value: "{{ (states('input_number.bambu_lab_p1_spaghetti_detection_thresh_warning') | float) * 1.75 }}"
+            target:
+              entity_id: input_number.bambu_lab_p1_spaghetti_detection_thresh_failure
+          - service: input_number.set_value
+            data:
+              value: "{{ (states('input_number.bambu_lab_p1_spaghetti_detection_ewm_mean') | float) - (states('input_number.bambu_lab_p1_spaghetti_detection_rolling_mean_long') | float) }}"
+            target:
+              entity_id: input_number.bambu_lab_p1_spaghetti_detection_p
+
+          # 归一化概率
+          - choose:
+              - conditions:
+                  - condition: numeric_state
+                    entity_id: input_number.bambu_lab_p1_spaghetti_detection_p
+                    above: input_number.bambu_lab_p1_spaghetti_detection_thresh_failure
+                sequence:
+                  - service: input_number.set_value
+                    data:
+                      value: "{{ min(1.0, max(2.0 / 3.0, ((((states('input_number.bambu_lab_p1_spaghetti_detection_p') | float) - (states('input_number.bambu_lab_p1_spaghetti_detection_thresh_failure') | float)) * (1.0 - 2.0 / 3.0)) / ((states('input_number.bambu_lab_p1_spaghetti_detection_thresh_failure') | float) * 1.5 - (states('input_number.bambu_lab_p1_spaghetti_detection_thresh_failure') | float))) + 2.0 / 3.0)) }}"
+                    target:
+                      entity_id: input_number.bambu_lab_p1_spaghetti_detection_normalized_p
+              - conditions:
+                  - condition: numeric_state
+                    entity_id: input_number.bambu_lab_p1_spaghetti_detection_p
+                    above: input_number.bambu_lab_p1_spaghetti_detection_thresh_warning
+                sequence:
+                  - service: input_number.set_value
+                    data:
+                      value: "{{ min(2.0 / 3.0, max(1.0 / 3.0, ((((states('input_number.bambu_lab_p1_spaghetti_detection_p') | float) - (states('input_number.bambu_lab_p1_spaghetti_detection_thresh_warning') | float)) * (2.0 / 3.0 - 1.0 / 3.0)) / ((states('input_number.bambu_lab_p1_spaghetti_detection_thresh_failure') | float) - (states('input_number.bambu_lab_p1_spaghetti_detection_thresh_warning') | float))) + 1.0 / 3.0)) }}"
+                    target:
+                      entity_id: input_number.bambu_lab_p1_spaghetti_detection_normalized_p
+            default:
+              - service: input_number.set_value
+                data:
+                  value: "{{ min(1.0 / 3.0, max(0, ((states('input_number.bambu_lab_p1_spaghetti_detection_p') | float) * 1.0 / 3.0) / (states('input_number.bambu_lab_p1_spaghetti_detection_thresh_warning') | float))) }}"
+                target:
+                  entity_id: input_number.bambu_lab_p1_spaghetti_detection_normalized_p
+
+          # 低概率过滤 (<30%)
+          - if:
+              - condition: numeric_state
+                entity_id: input_number.bambu_lab_p1_spaghetti_detection_adjusted_ewm_mean
+                below: 0.38
+            then:
+              - stop: "Low probability"
+          - if:
+              - condition: and
+                conditions:
+                  - condition: numeric_state
+                    entity_id: input_number.bambu_lab_p1_spaghetti_detection_adjusted_ewm_mean
+                    below: 0.78
+                  - condition: numeric_state
+                    entity_id: input_number.bambu_lab_p1_spaghetti_detection_adjusted_ewm_mean
+                    below: input_number.bambu_lab_p1_spaghetti_detection_rolling_mean_diff
+            then:
+              - stop: "Below adaptive threshold"
+
+          # 通知冷却 (1分钟)
+          - if:
+              - condition: template
+                value_template: "{{ now() - states('datetime.bambu_lab_p1_spaghetti_detection_last_notify_time') | as_datetime | as_local < timedelta(minutes=1) }}"
+            then:
+              - stop: "Notification cooldown"
+
+          # 3.5 触发中枢网关虚拟事件 (当概率 > 0.7)
+          - if:
+              - condition: template
+                value_template: "{{ states('input_number.bambu_lab_p1_spaghetti_detection_normalized_p') | float > 0.7 }}"
+            then:
+              # 触发虚拟事件
+              - service: notify.send_message
+                target:
+                  entity_id: "{{ XIAOMI_GATEWAY_VIRTUAL_EVENT }}"
+                data:
+                  message: "{{ VIRTUAL_EVENT_NAME }}"
+                  data:
+                    value: "{{ (states('input_number.bambu_lab_p1_spaghetti_detection_normalized_p') | float * 100) | int }}"
+
+              # 更新通知时间
+              - service: datetime.set_value
+                data:
+                  datetime: "{{ now() }}"
+                target:
+                  entity_id: datetime.bambu_lab_p1_spaghetti_detection_last_notify_time
+
+              # 执行失败动作
+              - choose:
+                  - conditions:
+                      - condition: template
+                        value_template: "{{ FAILURE_ACTION_VAR == 'pause' }}"
+                    sequence:
+                      - service: button.press
+                        target:
+                          entity_id: !input printer_pause_button
+                  - conditions:
+                      - condition: template
+                        value_template: "{{ FAILURE_ACTION_VAR == 'stop' }}"
+                    sequence:
+                      - service: button.press
+                        target:
+                          entity_id: !input printer_stop_button

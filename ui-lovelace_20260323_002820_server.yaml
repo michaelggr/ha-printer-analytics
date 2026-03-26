@@ -1,0 +1,850 @@
+﻿# Home Assistant 定制仪表板配置
+# 根据实际设备自动生成
+# 区域：客厅、卧室、厨房、餐厅、卫生间、走廊玄关
+
+title: 我的智能家居
+views:
+  # ==================== 首页 - 区域导航 ====================
+  - title: 首页
+    icon: mdi:home
+    path: home
+    cards:
+      # 欢迎卡片
+      - type: entities
+        title: 欢迎回家
+        entities:
+          - entity: person.feng
+            name: 家庭成员
+          - entity: sun.sun
+            name: 日出日落
+
+      # 区域导航网格
+      - type: grid
+        title: 区域导航
+        columns: 2
+        cards:
+          # 客厅
+          - type: button
+            name: 客厅
+            icon: mdi:sofa
+            tap_action:
+              action: navigate
+              navigation_path: /lovelace/living-room
+            entity: sensor.linp_cn_blt_3_1n20sdaek4k01_es4b_occupancy_status_p_2_1078
+            show_state: true
+
+          # 卧室
+          - type: button
+            name: 卧室
+            icon: mdi:bed
+            tap_action:
+              action: navigate
+              navigation_path: /lovelace/bedroom
+            entity: sensor.linp_cn_blt_3_1ocv0fv7l0o00_es5b_occupancy_status_p_2_1078
+            show_state: true
+
+          # 厨房
+          - type: button
+            name: 厨房
+            icon: mdi:stove
+            tap_action:
+              action: navigate
+              navigation_path: /lovelace/kitchen
+            entity: sensor.linp_cn_1137697716_lp1bc_occupancy_status_p_5_1
+            show_state: true
+
+          # 餐厅
+          - type: button
+            name: 餐厅
+            icon: mdi:silverware-fork-knife
+            tap_action:
+              action: navigate
+              navigation_path: /lovelace/dining
+            entity: sensor.linp_cn_blt_3_1n49ffqescc00_es2_occupancy_status_p_2_1078
+            show_state: true
+
+          # 卫生间
+          - type: button
+            name: 卫生间
+            icon: mdi:toilet
+            tap_action:
+              action: navigate
+              navigation_path: /lovelace/bathroom
+            entity: sensor.linp_cn_1137691863_lp1bc_occupancy_status_p_5_1
+            show_state: true
+
+          # 走廊玄关
+          - type: button
+            name: 走廊玄关
+            icon: mdi:door
+            tap_action:
+              action: navigate
+              navigation_path: /lovelace/hallway
+            entity: sensor.linp_cn_1161876236_hb01_occupancy_status_p_2_1
+            show_state: true
+
+          # 门口
+          - type: button
+            name: 门口
+            icon: mdi:door-open
+            tap_action:
+              action: navigate
+              navigation_path: /lovelace/doorway
+            entity: sensor.linp_cn_2079761645_ld6bcw_has_someone_duration_p_5_3
+            show_state: true
+
+      # 快速统计
+      - type: glance
+        title: 快速统计
+        entities:
+          - entity: sensor.giot_cn_1162942256_v8icm_electric_power_p_4_2
+            name: 电脑电源
+          - entity: sensor.giot_cn_1164778814_v8icm_electric_power_p_4_2
+            name: 小打印机
+          - entity: sensor.sixwgh_cn_1200175237_v8icm1_electric_power_p_4_2
+            name: 大打印机
+          - entity: sensor.lumi_cn_684959720_mcn02_electric_power_p_5_1
+            name: 空调
+        show_state: true
+        show_icon: true
+
+      # 灯控面板
+      - type: grid
+        title: 💡 灯控面板
+        columns: 4
+        cards:
+          - type: light
+            entity: light.jdjz_cn_857569251_jdjzu1_s_2_light
+            name: 客厅吸顶灯
+          - type: light
+            entity: light.lemesh_cn_1186971184_wy0c14_s_2_light
+            name: 客厅沙发灯
+          - type: light
+            entity: light.ftd_cn_1124827030_dsplmp_s_2_light
+            name: 卧室灯
+          - type: light
+            entity: light.yeelink_cn_436301383_strip6_s_2_light
+            name: 卧室灯带
+          - type: light
+            entity: light.linp_cn_1137697716_lp1bc_s_2_light
+            name: 厨房灯
+          - type: light
+            entity: light.lemesh_cn_1155789492_wy0c15_s_2_light
+            name: 餐厅灯
+          - type: light
+            entity: light.linp_cn_1137691863_lp1bc_s_2_light
+            name: 卫生间灯
+          - type: light
+            entity: light.yeelink_cn_942773473_v11_s_2_light
+            name: 浴霸灯
+          - type: light
+            entity: light.giot_cn_1188250021_v8ssm_s_2_light
+            name: 走廊走道灯
+          - type: light
+            entity: light.linp_cn_2023072411_ld6bcw_s_2_light
+            name: 走廊卫生间灯
+          - type: light
+            entity: light.linp_cn_2079761645_ld6bcw_s_2_light
+            name: 门口筒灯
+
+      # 今日亮灯时长统计
+      - type: entities
+        title: ⏱️ 今日亮灯时长统计
+        entities:
+          - entity: sensor.ke_ting_deng_jin_ri_liang_deng_shi_chang
+            name: 客厅灯
+            icon: mdi:lightbulb-on
+          - entity: sensor.wo_shi_deng_jin_ri_liang_deng_shi_chang
+            name: 卧室灯
+            icon: mdi:lightbulb-on
+          - entity: sensor.chu_fang_deng_jin_ri_liang_deng_shi_chang
+            name: 厨房灯
+            icon: mdi:lightbulb-on
+          - entity: sensor.can_ting_deng_jin_ri_liang_deng_shi_chang
+            name: 餐厅灯
+            icon: mdi:lightbulb-on
+          - entity: sensor.wei_sheng_jian_deng_jin_ri_liang_deng_shi_chang
+            name: 卫生间灯
+            icon: mdi:lightbulb-on
+          - entity: sensor.zou_lang_deng_jin_ri_liang_deng_shi_chang
+            name: 走廊灯
+            icon: mdi:lightbulb-on
+          - entity: sensor.men_kou_deng_jin_ri_liang_deng_shi_chang
+            name: 门口灯
+            icon: mdi:lightbulb-on
+          - entity: sensor.jin_ri_liang_deng_zong_shi_chang
+            name: 今日亮灯总时长
+            icon: mdi:lightbulb-group-on
+
+  # ==================== 功耗统计面板 ====================
+  - title: 功耗统计
+    icon: mdi:lightning-bolt
+    path: power-stats
+    cards:
+      # 实时总功率
+      - type: entity
+        entity: sensor.zong_shi_shi_gong_lu_4
+        name: 总实时功率
+        icon: mdi:flash
+
+      # 今日总用电量
+      - type: entity
+        entity: sensor.jin_ri_zong_yong_dian_liang_3
+        name: 今日总用电量
+        icon: mdi:counter
+
+      # 实时功率图表
+      - type: history-graph
+        title: 实时功率趋势
+        entities:
+          - entity: sensor.wiing_cn_1169773877_v8icm_electric_power_p_4_2
+            name: 豆浆机
+          - entity: sensor.cuco_cn_2025564050_v3_electric_power_p_11_2
+            name: 烤箱
+          - entity: sensor.lumi_cn_684959720_mcn02_electric_power_p_5_1
+            name: 卧室空调
+          - entity: sensor.giot_cn_1162898415_v8icm_electric_power_p_4_2
+            name: 取暖器
+          - entity: sensor.giot_cn_1162942256_v8icm_electric_power_p_4_2
+            name: 客厅电脑电源
+          - entity: sensor.giot_cn_1163256502_v8icm_electric_power_p_4_2
+            name: NAS
+          - entity: sensor.giot_cn_1164778814_v8icm_electric_power_p_4_2
+            name: 小打印机
+          - entity: sensor.sixwgh_cn_1200175237_v8icm1_electric_power_p_4_2
+            name: 大打印机
+          - entity: sensor.cuco_cn_860509913_v3_electric_power_p_11_2
+            name: 洗衣机
+        hours_to_show: 24
+        refresh_interval: 30
+
+      # 各设备功耗统计
+      - type: entities
+        title: 设备实时功耗
+        entities:
+          - entity: sensor.wiing_cn_1169773877_v8icm_electric_power_p_4_2
+            name: 豆浆机功率
+          - entity: sensor.cuco_cn_2025564050_v3_electric_power_p_11_2
+            name: 烤箱功率
+          - entity: sensor.lumi_cn_684959720_mcn02_electric_power_p_5_1
+            name: 卧室空调功率
+          - entity: sensor.giot_cn_1162898415_v8icm_electric_power_p_4_2
+            name: 取暖器功率
+          - entity: sensor.giot_cn_1162942256_v8icm_electric_power_p_4_2
+            name: 客厅电脑电源功率
+          - entity: sensor.giot_cn_1163256502_v8icm_electric_power_p_4_2
+            name: NAS功率
+          - entity: sensor.giot_cn_1164778814_v8icm_electric_power_p_4_2
+            name: 小打印机功率
+          - entity: sensor.sixwgh_cn_1200175237_v8icm1_electric_power_p_4_2
+            name: 大打印机功率
+          - entity: sensor.cuco_cn_860509913_v3_electric_power_p_11_2
+            name: 洗衣机功率
+
+      # 小黑奴（小打印机）详细数据
+      - type: entities
+        title: 🖨️ 小黑奴（小打印机）数据
+        entities:
+          - entity: sensor.giot_cn_1164778814_v8icm_electric_power_p_4_2
+            name: 实时功率
+          - entity: sensor.xiao_da_yin_ji_jin_ri_yong_dian_kwh
+            name: 今日用电
+          - entity: sensor.xiao_da_yin_ji_ben_zhou_yong_dian_kwh
+            name: 本周用电
+          - entity: sensor.xiao_da_yin_ji_ben_yue_yong_dian_kwh
+            name: 本月用电
+          - entity: sensor.xiao_da_yin_ji_lei_ji_yong_dian_kwh
+            name: 累计用电
+
+      # 大黑奴（大打印机）详细数据
+      - type: entities
+        title: 🖨️ 大黑奴（大打印机）数据
+        entities:
+          - entity: sensor.sixwgh_cn_1200175237_v8icm1_electric_power_p_4_2
+            name: 实时功率
+          - entity: sensor.da_da_yin_ji_jin_ri_yong_dian_kwh
+            name: 今日用电
+          - entity: sensor.da_da_yin_ji_ben_zhou_yong_dian_kwh
+            name: 本周用电
+          - entity: sensor.da_da_yin_ji_ben_yue_yong_dian_kwh
+            name: 本月用电
+          - entity: sensor.da_da_yin_ji_lei_ji_yong_dian_kwh
+            name: 累计用电
+
+      # 用电量统计
+      - type: statistics-graph
+        title: 用电量统计
+        entities:
+          - entity: sensor.wiing_cn_1169773877_v8icm_power_consumption_p_4_1
+            name: 豆浆机
+          - entity: sensor.cuco_cn_2025564050_v3_power_consumption_p_11_1
+            name: 烤箱
+          - entity: sensor.giot_cn_1162898415_v8icm_power_consumption_p_4_1
+            name: 取暖器
+          - entity: sensor.giot_cn_1162942256_v8icm_power_consumption_p_4_1
+            name: 电脑电源
+          - entity: sensor.giot_cn_1163256502_v8icm_power_consumption_p_4_1
+            name: NAS
+          - entity: sensor.giot_cn_1164778814_v8icm_power_consumption_p_4_1
+            name: 小打印机
+          - entity: sensor.sixwgh_cn_1200175237_v8icm1_power_consumption_p_4_1
+            name: 大打印机
+          - entity: sensor.cuco_cn_860509913_v3_power_consumption_p_11_1
+            name: 洗衣机
+        stat_types:
+          - state
+        period: day
+        days_to_show: 7
+
+      # 周/月/年用电量
+      - type: grid
+        title: 用电统计
+        columns: 3
+        cards:
+          - type: entity
+            entity: sensor.ben_zhou_yong_dian
+            name: 本周用电
+            icon: mdi:calendar-week
+          - type: entity
+            entity: sensor.ben_yue_yong_dian
+            name: 本月用电
+            icon: mdi:calendar-month
+          - type: entity
+            entity: sensor.ben_nian_yong_dian
+            name: 本年用电
+            icon: mdi:calendar
+
+      # 电费估算
+      - type: entities
+        title: 电费估算 (按0.6元/度)
+        entities:
+          - entity: sensor.jin_ri_dian_fei
+            name: 今日电费
+          - entity: sensor.ben_yue_dian_fei
+            name: 本月电费
+          - entity: sensor.ben_nian_dian_fei
+            name: 本年电费
+
+  # ==================== 人在传感器分析面板 ====================
+  - title: 人在分析
+    icon: mdi:account-group
+    path: presence-analysis
+    cards:
+      # 当前各区域状态
+      - type: glance
+        title: 当前区域状态
+        entities:
+          - entity: sensor.linp_cn_blt_3_1n20sdaek4k01_es4b_occupancy_status_p_2_1078
+            name: 客厅
+          - entity: sensor.linp_cn_blt_3_1ocv0fv7l0o00_es5b_occupancy_status_p_2_1078
+            name: 卧室
+          - entity: sensor.linp_cn_1137697716_lp1bc_occupancy_status_p_5_1
+            name: 厨房
+          - entity: sensor.linp_cn_blt_3_1n49ffqescc00_es2_occupancy_status_p_2_1078
+            name: 餐厅
+          - entity: sensor.linp_cn_1137691863_lp1bc_occupancy_status_p_5_1
+            name: 卫生间
+          - entity: sensor.linp_cn_1161876236_hb01_occupancy_status_p_2_1
+            name: 走廊玄关
+          - entity: sensor.linp_cn_2079761645_ld6bcw_has_someone_duration_p_5_3
+            name: 门口
+        show_state: true
+        show_icon: true
+
+      # 今日区域访问记录
+      - type: history-graph
+        title: 今日人在传感器触发记录
+        entities:
+          - entity: sensor.linp_cn_blt_3_1n20sdaek4k01_es4b_occupancy_status_p_2_1078
+            name: 客厅
+          - entity: sensor.linp_cn_blt_3_1ocv0fv7l0o00_es5b_occupancy_status_p_2_1078
+            name: 卧室
+          - entity: sensor.linp_cn_1137697716_lp1bc_occupancy_status_p_5_1
+            name: 厨房
+          - entity: sensor.linp_cn_blt_3_1n49ffqescc00_es2_occupancy_status_p_2_1078
+            name: 餐厅
+          - entity: sensor.linp_cn_1137691863_lp1bc_occupancy_status_p_5_1
+            name: 卫生间
+          - entity: sensor.linp_cn_1161876236_hb01_occupancy_status_p_2_1
+            name: 走廊玄关
+          - entity: sensor.linp_cn_2079761645_ld6bcw_has_someone_duration_p_5_3
+            name: 门口
+        hours_to_show: 24
+        refresh_interval: 10
+
+      # 区域访问频率统计
+      - type: entities
+        title: 今日区域访问统计
+        entities:
+          - entity: counter.living_room_visits
+            name: 客厅访问次数
+            icon: mdi:sofa
+          - entity: counter.bedroom_visits
+            name: 卧室访问次数
+            icon: mdi:bed
+          - entity: counter.kitchen_visits
+            name: 厨房访问次数
+            icon: mdi:stove
+          - entity: counter.dining_visits
+            name: 餐厅访问次数
+            icon: mdi:silverware-fork-knife
+          - entity: counter.bathroom_visits
+            name: 卫生间访问次数
+            icon: mdi:toilet
+          - entity: counter.hallway_visits
+            name: 走廊玄关访问次数
+            icon: mdi:door
+          - entity: counter.doorway_visits
+            name: 门口访问次数
+            icon: mdi:door-open
+
+      # 区域停留时长统计
+      - type: entities
+        title: 今日区域停留时长
+        entities:
+          - entity: sensor.ke_ting_ting_liu_shi_chang
+            name: 客厅停留时长
+            icon: mdi:sofa
+          - entity: sensor.wo_shi_ting_liu_shi_chang
+            name: 卧室停留时长
+            icon: mdi:bed
+          - entity: sensor.chu_fang_ting_liu_shi_chang
+            name: 厨房停留时长
+            icon: mdi:stove
+          - entity: sensor.can_ting_ting_liu_shi_chang
+            name: 餐厅停留时长
+            icon: mdi:silverware-fork-knife
+          - entity: sensor.wei_sheng_jian_ting_liu_shi_chang
+            name: 卫生间停留时长
+            icon: mdi:toilet
+          - entity: sensor.zou_lang_xuan_guan_ting_liu_shi_chang
+            name: 走廊玄关停留时长
+            icon: mdi:door
+          - entity: sensor.men_kou_ting_liu_shi_chang
+            name: 门口停留时长
+            icon: mdi:door-open
+
+      # 最常访问区域
+      - type: entity
+        entity: sensor.jin_ri_zui_chang_fang_wen_qu_yu
+        name: 今日最常访问区域
+        icon: mdi:trophy
+
+      # 最长停留区域
+      - type: entity
+        entity: sensor.jin_ri_zui_chang_ting_liu_qu_yu
+        name: 今日最长停留区域
+        icon: mdi:clock
+
+      # 周统计图表
+      - type: statistics-graph
+        title: 本周区域访问趋势
+        entities:
+          - entity: counter.living_room_visits
+            name: 客厅
+          - entity: counter.bedroom_visits
+            name: 卧室
+          - entity: counter.kitchen_visits
+            name: 厨房
+          - entity: counter.dining_visits
+            name: 餐厅
+        stat_types:
+          - sum
+        period: day
+        days_to_show: 7
+
+  # ==================== 客厅区域详情 ====================
+  - title: 客厅
+    icon: mdi:sofa
+    path: living-room
+    cards:
+      - type: entities
+        title: 客厅状态
+        entities:
+          - entity: sensor.linp_cn_blt_3_1n20sdaek4k01_es4b_occupancy_status_p_2_1078
+            name: 人在传感器
+          - entity: sensor.giot_cn_1162942256_v8icm_electric_power_p_4_2
+            name: 电脑电源功率
+          - entity: sensor.giot_cn_1162942256_v8icm_power_consumption_p_4_1
+            name: 电脑累计电量
+      - type: button
+        name: 返回首页
+        icon: mdi:arrow-left
+        tap_action:
+          action: navigate
+          navigation_path: /lovelace/home
+
+  # ==================== 卧室区域详情 ====================
+  - title: 卧室
+    icon: mdi:bed
+    path: bedroom
+    cards:
+      - type: entities
+        title: 卧室状态
+        entities:
+          - entity: sensor.linp_cn_blt_3_1ocv0fv7l0o00_es5b_occupancy_status_p_2_1078
+            name: 人在传感器
+          - entity: climate.lumi_cn_684959720_mcn02
+            name: 空调
+          - entity: sensor.lumi_cn_684959720_mcn02_electric_power_p_5_1
+            name: 空调功率
+          - entity: light.yeelink_cn_436301383_strip6_s_2_light
+            name: 卧室灯带
+      - type: button
+        name: 返回首页
+        icon: mdi:arrow-left
+        tap_action:
+          action: navigate
+          navigation_path: /lovelace/home
+
+  # ==================== 厨房区域详情 ====================
+  - title: 厨房
+    icon: mdi:stove
+    path: kitchen
+    cards:
+      - type: entities
+        title: 厨房状态
+        entities:
+          - entity: sensor.linp_cn_1137697716_lp1bc_occupancy_status_p_5_1
+            name: 人在传感器
+          - entity: sensor.wiing_cn_1169773877_v8icm_electric_power_p_4_2
+            name: 豆浆机功率
+          - entity: sensor.cuco_cn_2025564050_v3_electric_power_p_11_2
+            name: 烤箱功率
+      - type: button
+        name: 返回首页
+        icon: mdi:arrow-left
+        tap_action:
+          action: navigate
+          navigation_path: /lovelace/home
+
+  # ==================== 餐厅区域详情 ====================
+  - title: 餐厅
+    icon: mdi:silverware-fork-knife
+    path: dining
+    cards:
+      - type: entities
+        title: 餐厅状态
+        entities:
+          - entity: sensor.linp_cn_blt_3_1n49ffqescc00_es2_occupancy_status_p_2_1078
+            name: 人在传感器
+      - type: button
+        name: 返回首页
+        icon: mdi:arrow-left
+        tap_action:
+          action: navigate
+          navigation_path: /lovelace/home
+
+  # ==================== 卫生间区域详情 ====================
+  - title: 卫生间
+    icon: mdi:toilet
+    path: bathroom
+    cards:
+      - type: entities
+        title: 卫生间状态
+        entities:
+          - entity: sensor.linp_cn_1137691863_lp1bc_occupancy_status_p_5_1
+            name: 人在传感器
+      - type: button
+        name: 返回首页
+        icon: mdi:arrow-left
+        tap_action:
+          action: navigate
+          navigation_path: /lovelace/home
+
+  # ==================== 走廊玄关区域详情 ====================
+  - title: 走廊玄关
+    icon: mdi:door
+    path: hallway
+    cards:
+      - type: entities
+        title: 走廊玄关状态
+        entities:
+          - entity: sensor.linp_cn_1161876236_hb01_occupancy_status_p_2_1
+            name: 人在传感器
+      - type: button
+        name: 返回首页
+        icon: mdi:arrow-left
+        tap_action:
+          action: navigate
+          navigation_path: /lovelace/home
+
+  # ==================== 门口区域详情 ====================
+  - title: 门口
+    icon: mdi:door-open
+    path: doorway
+    cards:
+      - type: entities
+        title: 门口状态
+        entities:
+          - entity: sensor.linp_cn_2079761645_ld6bcw_has_someone_duration_p_5_3
+            name: 有人持续时长
+          - entity: sensor.linp_cn_2079761645_ld6bcw_no_one_duration_p_5_4
+            name: 无人持续时长
+          - entity: sensor.linp_cn_2079761645_ld6bcw_illumination_p_5_5
+            name: 光照度
+          - entity: light.linp_cn_2079761645_ld6bcw_s_2_light
+            name: 筒灯
+      - type: button
+        name: 返回首页
+        icon: mdi:arrow-left
+        tap_action:
+          action: navigate
+          navigation_path: /lovelace/home
+
+  # ==================== 监控页面 ====================
+  - title: 监控
+    icon: mdi:cctv
+    path: monitoring
+    cards:
+      # 小黑奴摄像机 (A1 Mini)
+      - type: picture-entity
+        entity: image.a1mini_0300aa5a1600497_camera
+        name: 小黑奴摄像机
+        show_state: false
+        show_name: true
+        camera_view: live
+        tap_action:
+          action: more-info
+
+      # 小黑奴摄像机控制
+      - type: entities
+        title: 小黑奴摄像机控制
+        entities:
+          - entity: button.yunyi_cn_yunyi_g5y51h17naf1slx1111a_v1_start_p2p_stream_a_2_1
+            name: 开始实时视频流
+          - entity: button.yunyi_cn_yunyi_g5y51h17naf1slx1111a_v1_stop_stream_a_2_2
+            name: 停止视频流
+
+      # P2S打印机摄像机控制
+      - type: entities
+        title: P2S打印机摄像机
+        entities:
+          - entity: switch.p2s_22e8bj5a2401765_enable_camera
+            name: 启用相机
+
+      # 创米摄像机控制
+      - type: entities
+        title: 创米摄像机
+        entities:
+          - entity: button.chuangmi_cn_2837777671_v6_start_p2p_stream_a_3_1
+            name: 开始视频流
+          - entity: button.chuangmi_cn_2837777671_v6_stop_stream_a_3_2
+            name: 停止视频流
+
+      # 小蚁摄像机控制
+      - type: entities
+        title: 小蚁摄像机
+        entities:
+          - entity: button.yunyi_cn_yunyi_g5y51h17naf1slx1111a_v1_start_p2p_stream_a_2_1
+            name: 开始视频流
+          - entity: button.yunyi_cn_yunyi_g5y51h17naf1slx1111a_v1_stop_stream_a_2_2
+            name: 停止视频流
+
+      # 返回首页按钮
+      - type: button
+        name: 返回首页
+        icon: mdi:arrow-left
+        tap_action:
+          action: navigate
+          navigation_path: /lovelace/home
+
+  # ==================== 亮灯对比页面 ====================
+  - title: 亮灯对比
+    icon: mdi:chart-line
+    path: light-comparison
+    cards:
+      # 今日各灯亮灯时长对比
+      - type: history-graph
+        title: 今日各灯亮灯时长趋势
+        entities:
+          - entity: sensor.ke_ting_xi_ding_deng_liang_deng_shi_chang
+            name: 客厅吸顶灯
+          - entity: sensor.ke_ting_sha_fa_deng_liang_deng_shi_chang
+            name: 客厅沙发灯
+          - entity: sensor.wo_shi_deng_liang_deng_shi_chang
+            name: 卧室灯
+          - entity: sensor.wo_shi_deng_dai_liang_deng_shi_chang
+            name: 卧室灯带
+          - entity: sensor.chu_fang_deng_liang_deng_shi_chang
+            name: 厨房灯
+          - entity: sensor.can_ting_deng_liang_deng_shi_chang
+            name: 餐厅灯
+          - entity: sensor.wei_sheng_jian_deng_liang_deng_shi_chang
+            name: 卫生间灯
+          - entity: sensor.yu_ba_deng_liang_deng_shi_chang
+            name: 浴霸灯
+          - entity: sensor.zou_lang_zou_dao_deng_liang_deng_shi_chang
+            name: 走廊走道灯
+          - entity: sensor.zou_lang_wei_sheng_jian_deng_liang_deng_shi_chang
+            name: 走廊卫生间灯
+          - entity: sensor.men_kou_tong_deng_liang_deng_shi_chang
+            name: 门口筒灯
+        hours_to_show: 24
+        refresh_interval: 60
+
+      # 全屋灯光总亮灯时长（今日）
+      - type: entity
+        entity: sensor.quan_wu_deng_guang_zong_liang_deng_shi_chang_fen_zhong
+        name: 今日全屋灯光总亮灯时长
+        icon: mdi:lightbulb-group-on
+
+      # 今日各灯亮灯时长柱状图
+      - type: statistics-graph
+        title: 今日各灯亮灯时长统计
+        entities:
+          - entity: sensor.ke_ting_xi_ding_deng_liang_deng_shi_chang
+            name: 客厅吸顶灯
+          - entity: sensor.ke_ting_sha_fa_deng_liang_deng_shi_chang
+            name: 客厅沙发灯
+          - entity: sensor.wo_shi_deng_liang_deng_shi_chang
+            name: 卧室灯
+          - entity: sensor.wo_shi_deng_dai_liang_deng_shi_chang
+            name: 卧室灯带
+          - entity: sensor.chu_fang_deng_liang_deng_shi_chang
+            name: 厨房灯
+          - entity: sensor.can_ting_deng_liang_deng_shi_chang
+            name: 餐厅灯
+          - entity: sensor.wei_sheng_jian_deng_liang_deng_shi_chang
+            name: 卫生间灯
+          - entity: sensor.yu_ba_deng_liang_deng_shi_chang
+            name: 浴霸灯
+          - entity: sensor.zou_lang_zou_dao_deng_liang_deng_shi_chang
+            name: 走廊走道灯
+          - entity: sensor.zou_lang_wei_sheng_jian_deng_liang_deng_shi_chang
+            name: 走廊卫生间灯
+          - entity: sensor.men_kou_tong_deng_liang_deng_shi_chang
+            name: 门口筒灯
+        chart_type: bar
+        stat_type: mean
+        period: hour
+        days_to_show: 1
+
+      # 本周全屋灯光亮灯时长趋势
+      - type: history-graph
+        title: 本周全屋灯光亮灯时长趋势（小时）
+        entities:
+          - entity: sensor.quan_wu_deng_guang_ri_liang_deng_shi_chang_xiao_shi
+            name: 日亮灯时长
+        hours_to_show: 168
+        refresh_interval: 300
+
+      # 本周各灯亮灯时长对比
+      - type: statistics-graph
+        title: 本周各灯亮灯时长对比
+        entities:
+          - entity: sensor.ke_ting_xi_ding_deng_liang_deng_shi_chang
+            name: 客厅吸顶灯
+          - entity: sensor.ke_ting_sha_fa_deng_liang_deng_shi_chang
+            name: 客厅沙发灯
+          - entity: sensor.wo_shi_deng_liang_deng_shi_chang
+            name: 卧室灯
+          - entity: sensor.wo_shi_deng_dai_liang_deng_shi_chang
+            name: 卧室灯带
+          - entity: sensor.chu_fang_deng_liang_deng_shi_chang
+            name: 厨房灯
+          - entity: sensor.can_ting_deng_liang_deng_shi_chang
+            name: 餐厅灯
+          - entity: sensor.wei_sheng_jian_deng_liang_deng_shi_chang
+            name: 卫生间灯
+          - entity: sensor.yu_ba_deng_liang_deng_shi_chang
+            name: 浴霸灯
+          - entity: sensor.zou_lang_zou_dao_deng_liang_deng_shi_chang
+            name: 走廊走道灯
+          - entity: sensor.zou_lang_wei_sheng_jian_deng_liang_deng_shi_chang
+            name: 走廊卫生间灯
+          - entity: sensor.men_kou_tong_deng_liang_deng_shi_chang
+            name: 门口筒灯
+        chart_type: bar
+        stat_type: sum
+        period: day
+        days_to_show: 7
+
+      # 本月全屋灯光亮灯时长趋势
+      - type: history-graph
+        title: 本月全屋灯光亮灯时长趋势（小时）
+        entities:
+          - entity: sensor.quan_wu_deng_guang_ri_liang_deng_shi_chang_xiao_shi
+            name: 日亮灯时长
+        hours_to_show: 720
+        refresh_interval: 600
+
+      # 本月各灯亮灯时长对比
+      - type: statistics-graph
+        title: 本月各灯亮灯时长对比
+        entities:
+          - entity: sensor.ke_ting_xi_ding_deng_liang_deng_shi_chang
+            name: 客厅吸顶灯
+          - entity: sensor.ke_ting_sha_fa_deng_liang_deng_shi_chang
+            name: 客厅沙发灯
+          - entity: sensor.wo_shi_deng_liang_deng_shi_chang
+            name: 卧室灯
+          - entity: sensor.wo_shi_deng_dai_liang_deng_shi_chang
+            name: 卧室灯带
+          - entity: sensor.chu_fang_deng_liang_deng_shi_chang
+            name: 厨房灯
+          - entity: sensor.can_ting_deng_liang_deng_shi_chang
+            name: 餐厅灯
+          - entity: sensor.wei_sheng_jian_deng_liang_deng_shi_chang
+            name: 卫生间灯
+          - entity: sensor.yu_ba_deng_liang_deng_shi_chang
+            name: 浴霸灯
+          - entity: sensor.zou_lang_zou_dao_deng_liang_deng_shi_chang
+            name: 走廊走道灯
+          - entity: sensor.zou_lang_wei_sheng_jian_deng_liang_deng_shi_chang
+            name: 走廊卫生间灯
+          - entity: sensor.men_kou_tong_deng_liang_deng_shi_chang
+            name: 门口筒灯
+        chart_type: bar
+        stat_type: sum
+        period: week
+        days_to_show: 30
+
+      # 各灯当前状态
+      - type: entities
+        title: 各灯当前亮灯时长
+        entities:
+          - entity: sensor.ke_ting_xi_ding_deng_liang_deng_shi_chang
+            name: 客厅吸顶灯
+            icon: mdi:lightbulb-on
+          - entity: sensor.ke_ting_sha_fa_deng_liang_deng_shi_chang
+            name: 客厅沙发灯
+            icon: mdi:lightbulb-on
+          - entity: sensor.wo_shi_deng_liang_deng_shi_chang
+            name: 卧室灯
+            icon: mdi:lightbulb-on
+          - entity: sensor.wo_shi_deng_dai_liang_deng_shi_chang
+            name: 卧室灯带
+            icon: mdi:lightbulb-on
+          - entity: sensor.chu_fang_deng_liang_deng_shi_chang
+            name: 厨房灯
+            icon: mdi:lightbulb-on
+          - entity: sensor.can_ting_deng_liang_deng_shi_chang
+            name: 餐厅灯
+            icon: mdi:lightbulb-on
+          - entity: sensor.wei_sheng_jian_deng_liang_deng_shi_chang
+            name: 卫生间灯
+            icon: mdi:lightbulb-on
+          - entity: sensor.yu_ba_deng_liang_deng_shi_chang
+            name: 浴霸灯
+            icon: mdi:lightbulb-on
+          - entity: sensor.zou_lang_zou_dao_deng_liang_deng_shi_chang
+            name: 走廊走道灯
+            icon: mdi:lightbulb-on
+          - entity: sensor.zou_lang_wei_sheng_jian_deng_liang_deng_shi_chang
+            name: 走廊卫生间灯
+            icon: mdi:lightbulb-on
+          - entity: sensor.men_kou_tong_deng_liang_deng_shi_chang
+            name: 门口筒灯
+            icon: mdi:lightbulb-on
+          - entity: sensor.quan_wu_deng_guang_zong_liang_deng_shi_chang_fen_zhong
+            name: 全屋总时长
+            icon: mdi:lightbulb-group-on
+
+      # 返回首页按钮
+      - type: button
+        name: 返回首页
+        icon: mdi:arrow-left
+        tap_action:
+          action: navigate
+          navigation_path: /lovelace/home
