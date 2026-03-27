@@ -1,8 +1,8 @@
-# Home Assistant 閰嶇疆
+﻿# Home Assistant 閰嶇疆
 # 鏍规嵁瀹為檯璁惧鑷姩鐢熸垚
 
 homeassistant:
-  name: 我的家
+  name: 鎴戠殑瀹?
   latitude: 30.6492247
   longitude: 114.5766169
   elevation: 0
@@ -30,7 +30,7 @@ lovelace:
     lovelace:
       mode: yaml
       filename: ui-lovelace.yaml
-      title: 我的智能家居
+      title: 鎴戠殑鏅鸿兘瀹跺眳
       icon: mdi:home
       show_in_sidebar: true
 
@@ -38,7 +38,7 @@ lovelace:
 template:
   - sensor:
       # 鎬诲疄鏃跺姛鐜?
-      - name: 总实时功率
+      - name: 鎬诲疄鏃跺姛鐜?
         unique_id: total_power_consumption
         unit_of_measurement: W
         icon: mdi:flash
@@ -57,7 +57,7 @@ template:
           }}
 
       # 浠婃棩鎬荤敤鐢甸噺
-      - name: 今日总用电量
+      - name: 浠婃棩鎬荤敤鐢甸噺
         unique_id: daily_energy_total
         unit_of_measurement: kWh
         icon: mdi:counter
@@ -79,175 +79,175 @@ template:
           {{ ns.total|round(4) }}
 
       # 鍖哄煙鍋滅暀鏃堕暱缁熻锛堝垎閽燂級
-      - name: 客厅停留时长
+      - name: 瀹㈠巺鍋滅暀鏃堕暱
         unique_id: living_room_duration
-        unit_of_measurement: 分钟
+        unit_of_measurement: 鍒嗛挓
         icon: mdi:sofa
         state: "{{ (states('input_number.living_room_duration')|float(0) / 60)|round(0) }}"
 
-      - name: 卧室停留时长
+      - name: 鍗у鍋滅暀鏃堕暱
         unique_id: bedroom_duration
-        unit_of_measurement: 分钟
+        unit_of_measurement: 鍒嗛挓
         icon: mdi:bed
         state: "{{ (states('input_number.bedroom_duration')|float(0) / 60)|round(0) }}"
 
-      - name: 厨房停留时长
+      - name: 鍘ㄦ埧鍋滅暀鏃堕暱
         unique_id: kitchen_duration
-        unit_of_measurement: 分钟
+        unit_of_measurement: 鍒嗛挓
         icon: mdi:stove
         state: "{{ (states('input_number.kitchen_duration')|float(0) / 60)|round(0) }}"
 
-      - name: 餐厅停留时长
+      - name: 椁愬巺鍋滅暀鏃堕暱
         unique_id: dining_duration
-        unit_of_measurement: 分钟
+        unit_of_measurement: 鍒嗛挓
         icon: mdi:silverware-fork-knife
         state: "{{ (states('input_number.dining_duration')|float(0) / 60)|round(0) }}"
 
-      - name: 卫生间停留时长
+      - name: 鍗敓闂村仠鐣欐椂闀?
         unique_id: bathroom_duration
-        unit_of_measurement: 分钟
+        unit_of_measurement: 鍒嗛挓
         icon: mdi:toilet
         state: "{{ (states('input_number.bathroom_duration')|float(0) / 60)|round(0) }}"
 
-      - name: 走廊玄关停留时长
+      - name: 璧板粖鐜勫叧鍋滅暀鏃堕暱
         unique_id: hallway_duration
-        unit_of_measurement: 分钟
+        unit_of_measurement: 鍒嗛挓
         icon: mdi:door
         state: "{{ (states('input_number.hallway_duration')|float(0) / 60)|round(0) }}"
 
-      - name: 门口停留时长
+      - name: 闂ㄥ彛鍋滅暀鏃堕暱
         unique_id: doorway_duration
-        unit_of_measurement: 分钟
+        unit_of_measurement: 鍒嗛挓
         icon: mdi:door-open
         state: "{{ (states('input_number.doorway_duration')|float(0) / 60)|round(0) }}"
 
-      # 最常访问区域
-      - name: 今日最常访问区域
+      # 鏈€甯歌闂尯鍩?
+      - name: 浠婃棩鏈€甯歌闂尯鍩?
         unique_id: most_visited_area_today
         icon: mdi:trophy
         state: >
           {% set areas = {
-            '客厅': states('counter.living_room_visits')|int(0),
-            '卧室': states('counter.bedroom_visits')|int(0),
-            '厨房': states('counter.kitchen_visits')|int(0),
-            '餐厅': states('counter.dining_visits')|int(0),
-            '卫生间': states('counter.bathroom_visits')|int(0),
-            '走廊玄关': states('counter.hallway_visits')|int(0),
-            '门口': states('counter.doorway_visits')|int(0)
+            '瀹㈠巺': states('counter.living_room_visits')|int(0),
+            '鍗у': states('counter.bedroom_visits')|int(0),
+            '鍘ㄦ埧': states('counter.kitchen_visits')|int(0),
+            '椁愬巺': states('counter.dining_visits')|int(0),
+            '鍗敓闂?: states('counter.bathroom_visits')|int(0),
+            '璧板粖鐜勫叧': states('counter.hallway_visits')|int(0),
+            '闂ㄥ彛': states('counter.doorway_visits')|int(0)
           } %}
           {% set max_visits = areas.values()|max %}
           {% if max_visits > 0 %}
-            {% for area, count in areas.items() if count == max_visits %}{{ area }} ({{ count }}次){% endfor %}
+            {% for area, count in areas.items() if count == max_visits %}{{ area }} ({{ count }}娆?{% endfor %}
           {% else %}
-            暂无数据
+            鏆傛棤鏁版嵁
           {% endif %}
 
-      # 最长停留区域
-      - name: 今日最长停留区域
+      # 鏈€闀垮仠鐣欏尯鍩?
+      - name: 浠婃棩鏈€闀垮仠鐣欏尯鍩?
         unique_id: longest_stay_area_today
         icon: mdi:clock
         state: >
           {% set areas = {
-            '客厅': states('sensor.living_room_duration')|int(0),
-            '卧室': states('sensor.bedroom_duration')|int(0),
-            '厨房': states('sensor.kitchen_duration')|int(0),
-            '餐厅': states('sensor.dining_duration')|int(0),
-            '卫生间': states('sensor.bathroom_duration')|int(0),
-            '走廊玄关': states('sensor.hallway_duration')|int(0),
-            '门口': states('sensor.doorway_duration')|int(0)
+            '瀹㈠巺': states('sensor.living_room_duration')|int(0),
+            '鍗у': states('sensor.bedroom_duration')|int(0),
+            '鍘ㄦ埧': states('sensor.kitchen_duration')|int(0),
+            '椁愬巺': states('sensor.dining_duration')|int(0),
+            '鍗敓闂?: states('sensor.bathroom_duration')|int(0),
+            '璧板粖鐜勫叧': states('sensor.hallway_duration')|int(0),
+            '闂ㄥ彛': states('sensor.doorway_duration')|int(0)
           } %}
           {% set max_duration = areas.values()|max %}
           {% if max_duration > 0 %}
-            {% for area, duration in areas.items() if duration == max_duration %}{{ area }} ({{ duration }}分钟){% endfor %}
+            {% for area, duration in areas.items() if duration == max_duration %}{{ area }} ({{ duration }}鍒嗛挓){% endfor %}
           {% else %}
-            暂无数据
+            鏆傛棤鏁版嵁
           {% endif %}
 
       # 鐢佃垂浼扮畻锛堟寜0.6鍏?搴﹁绠楋級
-      - name: 今日电费
+      - name: 浠婃棩鐢佃垂
         unique_id: daily_energy_cost
-        unit_of_measurement: 元
+        unit_of_measurement: 鍏?
         icon: mdi:currency-cny
         state: "{{ (states('sensor.jin_ri_zong_yong_dian_liang_3')|float(0) * 0.6)|round(2) }}"
 
-      - name: 本月电费
+      - name: 鏈湀鐢佃垂
         unique_id: monthly_energy_cost
-        unit_of_measurement: 元
+        unit_of_measurement: 鍏?
         icon: mdi:currency-cny
         state: "{{ (states('sensor.jin_ri_zong_yong_dian_liang_3')|float(0) * 0.6 * 30)|round(2) }}"
 
-      - name: 本年电费
+      - name: 鏈勾鐢佃垂
         unique_id: yearly_energy_cost
-        unit_of_measurement: 元
+        unit_of_measurement: 鍏?
         icon: mdi:currency-cny
         state: "{{ (states('sensor.jin_ri_zong_yong_dian_liang_3')|float(0) * 0.6 * 365)|round(2) }}"
 
       # 鍛?鏈?骞寸敤鐢甸噺
-      - name: 本周用电
+      - name: 鏈懆鐢ㄧ數
         unique_id: weekly_energy_total
         unit_of_measurement: kWh
         icon: mdi:calendar-week
         state: "{{ (states('sensor.jin_ri_zong_yong_dian_liang_3')|float(0) * 7)|round(2) }}"
 
-      - name: 本月用电
+      - name: 鏈湀鐢ㄧ數
         unique_id: monthly_energy_total
         unit_of_measurement: kWh
         icon: mdi:calendar-month
         state: "{{ (states('sensor.jin_ri_zong_yong_dian_liang_3')|float(0) * 30)|round(2) }}"
 
-      - name: 本年用电
+      - name: 鏈勾鐢ㄧ數
         unique_id: yearly_energy_total
         unit_of_measurement: kWh
         icon: mdi:calendar
         state: "{{ (states('sensor.jin_ri_zong_yong_dian_liang_3')|float(0) * 365)|round(2) }}"
 
       # ==================== 鐏寒鏃堕暱缁熻锛堝尯鍩熸眹鎬伙級 ====================
-      - name: 客厅灯今日亮灯时长
+      - name: 瀹㈠巺鐏粖鏃ヤ寒鐏椂闀?
         unique_id: living_room_light_duration_min
-        unit_of_measurement: 分钟
+        unit_of_measurement: 鍒嗛挓
         icon: mdi:lightbulb-on
         state: "{{ ((states('input_number.light_jdjz_duration')|float(0) + states('input_number.light_sofa_duration')|float(0)) / 60)|round(0) }}"
 
-      - name: 卧室灯今日亮灯时长
+      - name: 鍗у鐏粖鏃ヤ寒鐏椂闀?
         unique_id: bedroom_light_duration_min
-        unit_of_measurement: 分钟
+        unit_of_measurement: 鍒嗛挓
         icon: mdi:lightbulb-on
         state: "{{ ((states('input_number.light_bedroom_duration')|float(0) + states('input_number.light_bedroom_strip_duration')|float(0)) / 60)|round(0) }}"
 
-      - name: 厨房灯今日亮灯时长
+      - name: 鍘ㄦ埧鐏粖鏃ヤ寒鐏椂闀?
         unique_id: kitchen_light_duration_min
-        unit_of_measurement: 分钟
+        unit_of_measurement: 鍒嗛挓
         icon: mdi:lightbulb-on
         state: "{{ (states('input_number.light_kitchen_duration')|float(0) / 60)|round(0) }}"
 
-      - name: 餐厅灯今日亮灯时长
+      - name: 椁愬巺鐏粖鏃ヤ寒鐏椂闀?
         unique_id: dining_light_duration_min
-        unit_of_measurement: 分钟
+        unit_of_measurement: 鍒嗛挓
         icon: mdi:lightbulb-on
         state: "{{ (states('input_number.light_dining_duration')|float(0) / 60)|round(0) }}"
 
-      - name: 卫生间灯今日亮灯时长
+      - name: 鍗敓闂寸伅浠婃棩浜伅鏃堕暱
         unique_id: bathroom_light_duration_min
-        unit_of_measurement: 分钟
+        unit_of_measurement: 鍒嗛挓
         icon: mdi:lightbulb-on
         state: "{{ ((states('input_number.light_bathroom_duration')|float(0) + states('input_number.light_yuba_duration')|float(0)) / 60)|round(0) }}"
 
-      - name: 走廊灯今日亮灯时长
+      - name: 璧板粖鐏粖鏃ヤ寒鐏椂闀?
         unique_id: hallway_light_duration_min
-        unit_of_measurement: 分钟
+        unit_of_measurement: 鍒嗛挓
         icon: mdi:lightbulb-on
         state: "{{ ((states('input_number.light_hallway_main_duration')|float(0) + states('input_number.light_hallway_bath_duration')|float(0)) / 60)|round(0) }}"
 
-      - name: 门口灯今日亮灯时长
+      - name: 闂ㄥ彛鐏粖鏃ヤ寒鐏椂闀?
         unique_id: doorway_light_duration_min
-        unit_of_measurement: 分钟
+        unit_of_measurement: 鍒嗛挓
         icon: mdi:lightbulb-on
         state: "{{ (states('input_number.light_doorway_duration')|float(0) / 60)|round(0) }}"
 
       # 浠婃棩浜伅鎬绘椂闀?
-      - name: 今日亮灯总时长
+      - name: 浠婃棩浜伅鎬绘椂闀?
         unique_id: total_light_duration_today
-        unit_of_measurement: 分钟
+        unit_of_measurement: 鍒嗛挓
         icon: mdi:lightbulb-group-on
         state: >
           {{ 
@@ -262,76 +262,76 @@ template:
           }}
 
       # ==================== 姣忎釜鐏寒鐏椂闀匡紙鍒嗛挓锛?====================
-      - name: 客厅吸顶灯亮灯时长
+      - name: 瀹㈠巺鍚搁《鐏寒鐏椂闀?
         unique_id: light_jdjz_duration_min
-        unit_of_measurement: 分钟
+        unit_of_measurement: 鍒嗛挓
         icon: mdi:lightbulb-on
         state: "{{ (states('input_number.light_jdjz_duration')|float(0) / 60)|round(0) }}"
 
-      - name: 客厅沙发灯亮灯时长
+      - name: 瀹㈠巺娌欏彂鐏寒鐏椂闀?
         unique_id: light_sofa_duration_min
-        unit_of_measurement: 分钟
+        unit_of_measurement: 鍒嗛挓
         icon: mdi:lightbulb-on
         state: "{{ (states('input_number.light_sofa_duration')|float(0) / 60)|round(0) }}"
 
-      - name: 卧室灯亮灯时长
+      - name: 鍗у鐏寒鐏椂闀?
         unique_id: light_bedroom_duration_min
-        unit_of_measurement: 分钟
+        unit_of_measurement: 鍒嗛挓
         icon: mdi:lightbulb-on
         state: "{{ (states('input_number.light_bedroom_duration')|float(0) / 60)|round(0) }}"
 
-      - name: 卧室灯带亮灯时长
+      - name: 鍗у鐏甫浜伅鏃堕暱
         unique_id: light_bedroom_strip_duration_min
-        unit_of_measurement: 分钟
+        unit_of_measurement: 鍒嗛挓
         icon: mdi:lightbulb-on
         state: "{{ (states('input_number.light_bedroom_strip_duration')|float(0) / 60)|round(0) }}"
 
-      - name: 厨房灯亮灯时长
+      - name: 鍘ㄦ埧鐏寒鐏椂闀?
         unique_id: light_kitchen_duration_min
-        unit_of_measurement: 分钟
+        unit_of_measurement: 鍒嗛挓
         icon: mdi:lightbulb-on
         state: "{{ (states('input_number.light_kitchen_duration')|float(0) / 60)|round(0) }}"
 
-      - name: 餐厅灯亮灯时长
+      - name: 椁愬巺鐏寒鐏椂闀?
         unique_id: light_dining_duration_min
-        unit_of_measurement: 分钟
+        unit_of_measurement: 鍒嗛挓
         icon: mdi:lightbulb-on
         state: "{{ (states('input_number.light_dining_duration')|float(0) / 60)|round(0) }}"
 
-      - name: 卫生间灯亮灯时长
+      - name: 鍗敓闂寸伅浜伅鏃堕暱
         unique_id: light_bathroom_duration_min
-        unit_of_measurement: 分钟
+        unit_of_measurement: 鍒嗛挓
         icon: mdi:lightbulb-on
         state: "{{ (states('input_number.light_bathroom_duration')|float(0) / 60)|round(0) }}"
 
-      - name: 浴霸灯亮灯时长
+      - name: 娴撮湼鐏寒鐏椂闀?
         unique_id: light_yuba_duration_min
-        unit_of_measurement: 分钟
+        unit_of_measurement: 鍒嗛挓
         icon: mdi:lightbulb-on
         state: "{{ (states('input_number.light_yuba_duration')|float(0) / 60)|round(0) }}"
 
-      - name: 走廊走道灯亮灯时长
+      - name: 璧板粖璧伴亾鐏寒鐏椂闀?
         unique_id: light_hallway_main_duration_min
-        unit_of_measurement: 分钟
+        unit_of_measurement: 鍒嗛挓
         icon: mdi:lightbulb-on
         state: "{{ (states('input_number.light_hallway_main_duration')|float(0) / 60)|round(0) }}"
 
-      - name: 走廊卫生间灯亮灯时长
+      - name: 璧板粖鍗敓闂寸伅浜伅鏃堕暱
         unique_id: light_hallway_bath_duration_min
-        unit_of_measurement: 分钟
+        unit_of_measurement: 鍒嗛挓
         icon: mdi:lightbulb-on
         state: "{{ (states('input_number.light_hallway_bath_duration')|float(0) / 60)|round(0) }}"
 
-      - name: 门口筒灯亮灯时长
+      - name: 闂ㄥ彛绛掔伅浜伅鏃堕暱
         unique_id: light_doorway_duration_min
-        unit_of_measurement: 分钟
+        unit_of_measurement: 鍒嗛挓
         icon: mdi:lightbulb-on
         state: "{{ (states('input_number.light_doorway_duration')|float(0) / 60)|round(0) }}"
 
       # ==================== 鍏ㄥ眿鐏厜鎬讳寒鐏椂闀匡紙绉掞級 ====================
-      - name: 全屋灯光总亮灯时长
+      - name: 鍏ㄥ眿鐏厜鎬讳寒鐏椂闀?
         unique_id: total_lights_duration
-        unit_of_measurement: 秒
+        unit_of_measurement: 绉?
         icon: mdi:lightbulb-group-on
         state: >
           {{ 
@@ -349,15 +349,15 @@ template:
             )|round(0)
           }}
 
-      - name: 全屋灯光总亮灯时长分钟
+      - name: 鍏ㄥ眿鐏厜鎬讳寒鐏椂闀垮垎閽?
         unique_id: total_lights_duration_min
-        unit_of_measurement: 分钟
+        unit_of_measurement: 鍒嗛挓
         icon: mdi:lightbulb-group-on
         state: "{{ (states('sensor.quan_wu_deng_guang_zong_liang_deng_shi_chang')|float(0) / 60)|round(0) }}"
 
-      - name: 全屋灯光总亮灯时长小时
+      - name: 鍏ㄥ眿鐏厜鎬讳寒鐏椂闀垮皬鏃?
         unique_id: total_lights_duration_hour
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:lightbulb-group-on
         state: "{{ (states('sensor.quan_wu_deng_guang_zong_liang_deng_shi_chang')|float(0) / 3600)|round(2) }}"
 
@@ -415,25 +415,25 @@ template:
 
       # ==================== 鐢佃剳鐢垫簮 kWh 杞崲浼犳劅鍣?====================
       # 寮曠敤 utility_meter 鐢熸垚鐨勫疄浣?
-      - name: 电脑电源今日用电_kwh
+      - name: 鐢佃剳鐢垫簮浠婃棩鐢ㄧ數_kwh
         unique_id: computer_daily_kwh
         unit_of_measurement: kWh
         icon: mdi:counter
         state: "{{ states('sensor.dian_nao_dian_yuan_ri_yong_dian_liang')|float(0)|round(4) }}"
 
-      - name: 电脑电源本周用电_kwh
+      - name: 鐢佃剳鐢垫簮鏈懆鐢ㄧ數_kwh
         unique_id: computer_weekly_kwh
         unit_of_measurement: kWh
         icon: mdi:counter
         state: "{{ states('sensor.dian_nao_dian_yuan_zhou_yong_dian_liang')|float(0)|round(4) }}"
 
-      - name: 电脑电源本月用电_kwh
+      - name: 鐢佃剳鐢垫簮鏈湀鐢ㄧ數_kwh
         unique_id: computer_monthly_kwh
         unit_of_measurement: kWh
         icon: mdi:counter
         state: "{{ states('sensor.dian_nao_dian_yuan_yue_yong_dian_liang')|float(0)|round(4) }}"
 
-      - name: 电脑电源累计用电_kwh
+      - name: 鐢佃剳鐢垫簮绱鐢ㄧ數_kwh
         unique_id: computer_total_kwh
         unit_of_measurement: kWh
         icon: mdi:counter
@@ -441,25 +441,25 @@ template:
 
       # ==================== NAS kWh 杞崲浼犳劅鍣?====================
       # 寮曠敤 utility_meter 鐢熸垚鐨勫疄浣?
-      - name: NAS今日用电_kwh
+      - name: NAS浠婃棩鐢ㄧ數_kwh
         unique_id: nas_daily_kwh
         unit_of_measurement: kWh
         icon: mdi:counter
         state: "{{ states('sensor.nasri_yong_dian_liang')|float(0)|round(4) }}"
 
-      - name: NAS本周用电_kwh
+      - name: NAS鏈懆鐢ㄧ數_kwh
         unique_id: nas_weekly_kwh
         unit_of_measurement: kWh
         icon: mdi:counter
         state: "{{ states('sensor.naszhou_yong_dian_liang')|float(0)|round(4) }}"
 
-      - name: NAS本月用电_kwh
+      - name: NAS鏈湀鐢ㄧ數_kwh
         unique_id: nas_monthly_kwh
         unit_of_measurement: kWh
         icon: mdi:counter
         state: "{{ states('sensor.nasyue_yong_dian_liang')|float(0)|round(4) }}"
 
-      - name: NAS累计用电_kwh
+      - name: NAS绱鐢ㄧ數_kwh
         unique_id: nas_total_kwh
         unit_of_measurement: kWh
         icon: mdi:counter
@@ -467,25 +467,25 @@ template:
 
       # ==================== 鍙栨殩鍣?kWh 杞崲浼犳劅鍣?====================
       # 寮曠敤 utility_meter 鐢熸垚鐨勫疄浣?
-      - name: 取暖器今日用电_kwh
+      - name: 鍙栨殩鍣ㄤ粖鏃ョ敤鐢礯kwh
         unique_id: heater_daily_kwh
         unit_of_measurement: kWh
         icon: mdi:counter
         state: "{{ states('sensor.qu_nuan_qi_ri_yong_dian_liang')|float(0)|round(4) }}"
 
-      - name: 取暖器本周用电_kwh
+      - name: 鍙栨殩鍣ㄦ湰鍛ㄧ敤鐢礯kwh
         unique_id: heater_weekly_kwh
         unit_of_measurement: kWh
         icon: mdi:counter
         state: "{{ states('sensor.qu_nuan_qi_zhou_yong_dian_liang')|float(0)|round(4) }}"
 
-      - name: 取暖器本月用电_kwh
+      - name: 鍙栨殩鍣ㄦ湰鏈堢敤鐢礯kwh
         unique_id: heater_monthly_kwh
         unit_of_measurement: kWh
         icon: mdi:counter
         state: "{{ states('sensor.qu_nuan_qi_yue_yong_dian_liang')|float(0)|round(4) }}"
 
-      - name: 取暖器累计用电_kwh
+      - name: 鍙栨殩鍣ㄧ疮璁＄敤鐢礯kwh
         unique_id: heater_total_kwh
         unit_of_measurement: kWh
         icon: mdi:counter
@@ -493,25 +493,25 @@ template:
 
       # ==================== 璞嗘祮鏈?kWh 杞崲浼犳劅鍣?====================
       # 鐩存帴浠庢簮浼犳劅鍣ㄨ鍙栵紙鍗曚綅 kWh锛屾棤闇€杞崲锛?
-      - name: 豆浆机今日用电_kwh
+      - name: 璞嗘祮鏈轰粖鏃ョ敤鐢礯kwh
         unique_id: doujiangji_daily_kwh
         unit_of_measurement: kWh
         icon: mdi:counter
         state: "{{ states('sensor.wiing_cn_1169773877_v8icm_power_consumption_p_4_1')|float(0)|round(4) }}"
 
-      - name: 豆浆机本周用电_kwh
+      - name: 璞嗘祮鏈烘湰鍛ㄧ敤鐢礯kwh
         unique_id: doujiangji_weekly_kwh
         unit_of_measurement: kWh
         icon: mdi:counter
         state: "{{ states('sensor.wiing_cn_1169773877_v8icm_power_consumption_p_4_1')|float(0)|round(4) }}"
 
-      - name: 豆浆机本月用电_kwh
+      - name: 璞嗘祮鏈烘湰鏈堢敤鐢礯kwh
         unique_id: doujiangji_monthly_kwh
         unit_of_measurement: kWh
         icon: mdi:counter
         state: "{{ states('sensor.wiing_cn_1169773877_v8icm_power_consumption_p_4_1')|float(0)|round(4) }}"
 
-      - name: 豆浆机累计用电_kwh
+      - name: 璞嗘祮鏈虹疮璁＄敤鐢礯kwh
         unique_id: doujiangji_total_kwh
         unit_of_measurement: kWh
         icon: mdi:counter
@@ -519,25 +519,25 @@ template:
 
       # ==================== 鐑ょ kWh 杞崲浼犳劅鍣?====================
       # 鐩存帴浠庢簮浼犳劅鍣ㄨ鍙栵紙鍗曚綅 kWh锛屾棤闇€杞崲锛?
-      - name: 烤箱今日用电_kwh
+      - name: 鐑ょ浠婃棩鐢ㄧ數_kwh
         unique_id: oven_daily_kwh
         unit_of_measurement: kWh
         icon: mdi:counter
         state: "{{ states('sensor.cuco_cn_2025564050_v3_power_consumption_p_11_1')|float(0)|round(4) }}"
 
-      - name: 烤箱本周用电_kwh
+      - name: 鐑ょ鏈懆鐢ㄧ數_kwh
         unique_id: oven_weekly_kwh
         unit_of_measurement: kWh
         icon: mdi:counter
         state: "{{ states('sensor.cuco_cn_2025564050_v3_power_consumption_p_11_1')|float(0)|round(4) }}"
 
-      - name: 烤箱本月用电_kwh
+      - name: 鐑ょ鏈湀鐢ㄧ數_kwh
         unique_id: oven_monthly_kwh
         unit_of_measurement: kWh
         icon: mdi:counter
         state: "{{ states('sensor.cuco_cn_2025564050_v3_power_consumption_p_11_1')|float(0)|round(4) }}"
 
-      - name: 烤箱累计用电_kwh
+      - name: 鐑ょ绱鐢ㄧ數_kwh
         unique_id: oven_total_kwh
         unit_of_measurement: kWh
         icon: mdi:counter
@@ -545,25 +545,25 @@ template:
 
       # ==================== 娲楄。鏈?kWh 杞崲浼犳劅鍣?====================
       # 鐩存帴浠庢簮浼犳劅鍣ㄨ鍙栵紙鍗曚綅 kWh锛屾棤闇€杞崲锛?
-      - name: 洗衣机今日用电_kwh
+      - name: 娲楄。鏈轰粖鏃ョ敤鐢礯kwh
         unique_id: washer_daily_kwh
         unit_of_measurement: kWh
         icon: mdi:counter
         state: "{{ states('sensor.cuco_cn_860509913_v3_power_consumption_p_11_1')|float(0)|round(4) }}"
 
-      - name: 洗衣机本周用电_kwh
+      - name: 娲楄。鏈烘湰鍛ㄧ敤鐢礯kwh
         unique_id: washer_weekly_kwh
         unit_of_measurement: kWh
         icon: mdi:counter
         state: "{{ states('sensor.cuco_cn_860509913_v3_power_consumption_p_11_1')|float(0)|round(4) }}"
 
-      - name: 洗衣机本月用电_kwh
+      - name: 娲楄。鏈烘湰鏈堢敤鐢礯kwh
         unique_id: washer_monthly_kwh
         unit_of_measurement: kWh
         icon: mdi:counter
         state: "{{ states('sensor.cuco_cn_860509913_v3_power_consumption_p_11_1')|float(0)|round(4) }}"
 
-      - name: 洗衣机累计用电_kwh
+      - name: 娲楄。鏈虹疮璁＄敤鐢礯kwh
         unique_id: washer_total_kwh
         unit_of_measurement: kWh
         icon: mdi:counter
@@ -573,313 +573,313 @@ template:
       # ==================== 鐏寒鏃堕暱澶氬懆鏈熺粺璁★紙灏忔椂锛?====================
       - name: light_jdjz_daily_duration_hours
         unique_id: light_jdjz_daily_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:ceiling-light
         state: "{{ (states('sensor.light_jdjz_daily_duration')|float(0) / 3600)|round(2) }}"
       - name: light_jdjz_weekly_duration_hours
         unique_id: light_jdjz_weekly_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:ceiling-light
         state: "{{ (states('sensor.light_jdjz_weekly_duration')|float(0) / 3600)|round(2) }}"
       - name: light_jdjz_monthly_duration_hours
         unique_id: light_jdjz_monthly_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:ceiling-light
         state: "{{ (states('sensor.light_jdjz_monthly_duration')|float(0) / 3600)|round(2) }}"
       - name: light_jdjz_yearly_duration_hours
         unique_id: light_jdjz_yearly_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:ceiling-light
         state: "{{ (states('sensor.light_jdjz_yearly_duration')|float(0) / 3600)|round(2) }}"
       - name: light_jdjz_total_duration_hours
         unique_id: light_jdjz_total_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:ceiling-light
         state: "{{ (states('input_number.light_jdjz_duration')|float(0) / 3600)|round(2) }}"
 
       - name: light_sofa_daily_duration_hours
         unique_id: light_sofa_daily_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:floor-lamp
         state: "{{ (states('sensor.light_sofa_daily_duration')|float(0) / 3600)|round(2) }}"
       - name: light_sofa_weekly_duration_hours
         unique_id: light_sofa_weekly_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:floor-lamp
         state: "{{ (states('sensor.light_sofa_weekly_duration')|float(0) / 3600)|round(2) }}"
       - name: light_sofa_monthly_duration_hours
         unique_id: light_sofa_monthly_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:floor-lamp
         state: "{{ (states('sensor.light_sofa_monthly_duration')|float(0) / 3600)|round(2) }}"
       - name: light_sofa_yearly_duration_hours
         unique_id: light_sofa_yearly_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:floor-lamp
         state: "{{ (states('sensor.light_sofa_yearly_duration')|float(0) / 3600)|round(2) }}"
       - name: light_sofa_total_duration_hours
         unique_id: light_sofa_total_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:floor-lamp
         state: "{{ (states('input_number.light_sofa_duration')|float(0) / 3600)|round(2) }}"
 
       - name: light_bedroom_daily_duration_hours
         unique_id: light_bedroom_daily_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:lightbulb-on
         state: "{{ (states('sensor.light_bedroom_daily_duration')|float(0) / 3600)|round(2) }}"
       - name: light_bedroom_weekly_duration_hours
         unique_id: light_bedroom_weekly_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:lightbulb-on
         state: "{{ (states('sensor.light_bedroom_weekly_duration')|float(0) / 3600)|round(2) }}"
       - name: light_bedroom_monthly_duration_hours
         unique_id: light_bedroom_monthly_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:lightbulb-on
         state: "{{ (states('sensor.light_bedroom_monthly_duration')|float(0) / 3600)|round(2) }}"
       - name: light_bedroom_yearly_duration_hours
         unique_id: light_bedroom_yearly_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:lightbulb-on
         state: "{{ (states('sensor.light_bedroom_yearly_duration')|float(0) / 3600)|round(2) }}"
       - name: light_bedroom_total_duration_hours
         unique_id: light_bedroom_total_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:lightbulb-on
         state: "{{ (states('input_number.light_bedroom_duration')|float(0) / 3600)|round(2) }}"
 
       - name: light_bedroom_strip_daily_duration_hours
         unique_id: light_bedroom_strip_daily_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:led-strip-variant
         state: "{{ (states('sensor.light_bedroom_strip_daily_duration')|float(0) / 3600)|round(2) }}"
       - name: light_bedroom_strip_weekly_duration_hours
         unique_id: light_bedroom_strip_weekly_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:led-strip-variant
         state: "{{ (states('sensor.light_bedroom_strip_weekly_duration')|float(0) / 3600)|round(2) }}"
       - name: light_bedroom_strip_monthly_duration_hours
         unique_id: light_bedroom_strip_monthly_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:led-strip-variant
         state: "{{ (states('sensor.light_bedroom_strip_monthly_duration')|float(0) / 3600)|round(2) }}"
       - name: light_bedroom_strip_yearly_duration_hours
         unique_id: light_bedroom_strip_yearly_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:led-strip-variant
         state: "{{ (states('sensor.light_bedroom_strip_yearly_duration')|float(0) / 3600)|round(2) }}"
       - name: light_bedroom_strip_total_duration_hours
         unique_id: light_bedroom_strip_total_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:led-strip-variant
         state: "{{ (states('input_number.light_bedroom_strip_duration')|float(0) / 3600)|round(2) }}"
 
       - name: light_kitchen_daily_duration_hours
         unique_id: light_kitchen_daily_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:ceiling-light-outline
         state: "{{ (states('sensor.light_kitchen_daily_duration')|float(0) / 3600)|round(2) }}"
       - name: light_kitchen_weekly_duration_hours
         unique_id: light_kitchen_weekly_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:ceiling-light-outline
         state: "{{ (states('sensor.light_kitchen_weekly_duration')|float(0) / 3600)|round(2) }}"
       - name: light_kitchen_monthly_duration_hours
         unique_id: light_kitchen_monthly_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:ceiling-light-outline
         state: "{{ (states('sensor.light_kitchen_monthly_duration')|float(0) / 3600)|round(2) }}"
       - name: light_kitchen_yearly_duration_hours
         unique_id: light_kitchen_yearly_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:ceiling-light-outline
         state: "{{ (states('sensor.light_kitchen_yearly_duration')|float(0) / 3600)|round(2) }}"
       - name: light_kitchen_total_duration_hours
         unique_id: light_kitchen_total_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:ceiling-light-outline
         state: "{{ (states('input_number.light_kitchen_duration')|float(0) / 3600)|round(2) }}"
 
       - name: light_dining_daily_duration_hours
         unique_id: light_dining_daily_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:ceiling-light-multiple
         state: "{{ (states('sensor.light_dining_daily_duration')|float(0) / 3600)|round(2) }}"
       - name: light_dining_weekly_duration_hours
         unique_id: light_dining_weekly_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:ceiling-light-multiple
         state: "{{ (states('sensor.light_dining_weekly_duration')|float(0) / 3600)|round(2) }}"
       - name: light_dining_monthly_duration_hours
         unique_id: light_dining_monthly_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:ceiling-light-multiple
         state: "{{ (states('sensor.light_dining_monthly_duration')|float(0) / 3600)|round(2) }}"
       - name: light_dining_yearly_duration_hours
         unique_id: light_dining_yearly_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:ceiling-light-multiple
         state: "{{ (states('sensor.light_dining_yearly_duration')|float(0) / 3600)|round(2) }}"
       - name: light_dining_total_duration_hours
         unique_id: light_dining_total_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:ceiling-light-multiple
         state: "{{ (states('input_number.light_dining_duration')|float(0) / 3600)|round(2) }}"
 
       - name: light_bathroom_daily_duration_hours
         unique_id: light_bathroom_daily_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:wall-sconce-flat-variant
         state: "{{ (states('sensor.light_bathroom_daily_duration')|float(0) / 3600)|round(2) }}"
       - name: light_bathroom_weekly_duration_hours
         unique_id: light_bathroom_weekly_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:wall-sconce-flat-variant
         state: "{{ (states('sensor.light_bathroom_weekly_duration')|float(0) / 3600)|round(2) }}"
       - name: light_bathroom_monthly_duration_hours
         unique_id: light_bathroom_monthly_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:wall-sconce-flat-variant
         state: "{{ (states('sensor.light_bathroom_monthly_duration')|float(0) / 3600)|round(2) }}"
       - name: light_bathroom_yearly_duration_hours
         unique_id: light_bathroom_yearly_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:wall-sconce-flat-variant
         state: "{{ (states('sensor.light_bathroom_yearly_duration')|float(0) / 3600)|round(2) }}"
       - name: light_bathroom_total_duration_hours
         unique_id: light_bathroom_total_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:wall-sconce-flat-variant
         state: "{{ (states('input_number.light_bathroom_duration')|float(0) / 3600)|round(2) }}"
 
       - name: light_yuba_daily_duration_hours
         unique_id: light_yuba_daily_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:heat-wave
         state: "{{ (states('sensor.light_yuba_daily_duration')|float(0) / 3600)|round(2) }}"
       - name: light_yuba_weekly_duration_hours
         unique_id: light_yuba_weekly_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:heat-wave
         state: "{{ (states('sensor.light_yuba_weekly_duration')|float(0) / 3600)|round(2) }}"
       - name: light_yuba_monthly_duration_hours
         unique_id: light_yuba_monthly_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:heat-wave
         state: "{{ (states('sensor.light_yuba_monthly_duration')|float(0) / 3600)|round(2) }}"
       - name: light_yuba_yearly_duration_hours
         unique_id: light_yuba_yearly_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:heat-wave
         state: "{{ (states('sensor.light_yuba_yearly_duration')|float(0) / 3600)|round(2) }}"
       - name: light_yuba_total_duration_hours
         unique_id: light_yuba_total_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:heat-wave
         state: "{{ (states('input_number.light_yuba_duration')|float(0) / 3600)|round(2) }}"
 
       - name: light_hallway_main_daily_duration_hours
         unique_id: light_hallway_main_daily_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:track-light
         state: "{{ (states('sensor.light_hallway_main_daily_duration')|float(0) / 3600)|round(2) }}"
       - name: light_hallway_main_weekly_duration_hours
         unique_id: light_hallway_main_weekly_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:track-light
         state: "{{ (states('sensor.light_hallway_main_weekly_duration')|float(0) / 3600)|round(2) }}"
       - name: light_hallway_main_monthly_duration_hours
         unique_id: light_hallway_main_monthly_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:track-light
         state: "{{ (states('sensor.light_hallway_main_monthly_duration')|float(0) / 3600)|round(2) }}"
       - name: light_hallway_main_yearly_duration_hours
         unique_id: light_hallway_main_yearly_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:track-light
         state: "{{ (states('sensor.light_hallway_main_yearly_duration')|float(0) / 3600)|round(2) }}"
       - name: light_hallway_main_total_duration_hours
         unique_id: light_hallway_main_total_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:track-light
         state: "{{ (states('input_number.light_hallway_main_duration')|float(0) / 3600)|round(2) }}"
 
       - name: light_hallway_bath_daily_duration_hours
         unique_id: light_hallway_bath_daily_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:wall-sconce-round-variant
         state: "{{ (states('sensor.light_hallway_bath_daily_duration')|float(0) / 3600)|round(2) }}"
       - name: light_hallway_bath_weekly_duration_hours
         unique_id: light_hallway_bath_weekly_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:wall-sconce-round-variant
         state: "{{ (states('sensor.light_hallway_bath_weekly_duration')|float(0) / 3600)|round(2) }}"
       - name: light_hallway_bath_monthly_duration_hours
         unique_id: light_hallway_bath_monthly_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:wall-sconce-round-variant
         state: "{{ (states('sensor.light_hallway_bath_monthly_duration')|float(0) / 3600)|round(2) }}"
       - name: light_hallway_bath_yearly_duration_hours
         unique_id: light_hallway_bath_yearly_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:wall-sconce-round-variant
         state: "{{ (states('sensor.light_hallway_bath_yearly_duration')|float(0) / 3600)|round(2) }}"
       - name: light_hallway_bath_total_duration_hours
         unique_id: light_hallway_bath_total_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:wall-sconce-round-variant
         state: "{{ (states('input_number.light_hallway_bath_duration')|float(0) / 3600)|round(2) }}"
 
       - name: light_doorway_daily_duration_hours
         unique_id: light_doorway_daily_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:spotlight-beam
         state: "{{ (states('sensor.light_doorway_daily_duration')|float(0) / 3600)|round(2) }}"
       - name: light_doorway_weekly_duration_hours
         unique_id: light_doorway_weekly_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:spotlight-beam
         state: "{{ (states('sensor.light_doorway_weekly_duration')|float(0) / 3600)|round(2) }}"
       - name: light_doorway_monthly_duration_hours
         unique_id: light_doorway_monthly_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:spotlight-beam
         state: "{{ (states('sensor.light_doorway_monthly_duration')|float(0) / 3600)|round(2) }}"
       - name: light_doorway_yearly_duration_hours
         unique_id: light_doorway_yearly_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:spotlight-beam
         state: "{{ (states('sensor.light_doorway_yearly_duration')|float(0) / 3600)|round(2) }}"
       - name: light_doorway_total_duration_hours
         unique_id: light_doorway_total_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:spotlight-beam
         state: "{{ (states('input_number.light_doorway_duration')|float(0) / 3600)|round(2) }}"
 
       - name: total_lights_daily_duration_hours
         unique_id: total_lights_daily_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:lightbulb-group
         state: "{{ (states('sensor.total_lights_daily_duration')|float(0) / 3600)|round(2) }}"
       - name: total_lights_weekly_duration_hours
         unique_id: total_lights_weekly_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:lightbulb-group
         state: "{{ (states('sensor.total_lights_weekly_duration')|float(0) / 3600)|round(2) }}"
       - name: total_lights_monthly_duration_hours
         unique_id: total_lights_monthly_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:lightbulb-group
         state: "{{ (states('sensor.total_lights_monthly_duration')|float(0) / 3600)|round(2) }}"
       - name: total_lights_yearly_duration_hours
         unique_id: total_lights_yearly_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:lightbulb-group
         state: "{{ (states('sensor.total_lights_yearly_duration')|float(0) / 3600)|round(2) }}"
       - name: total_lights_all_time_duration_hours
         unique_id: total_lights_all_time_duration_hours
-        unit_of_measurement: 小时
+        unit_of_measurement: 灏忔椂
         icon: mdi:lightbulb-group
         state: "{{ (states('sensor.quan_wu_deng_guang_zong_liang_deng_shi_chang')|float(0) / 3600)|round(2) }}"
 # ==================== 璁℃暟鍣ㄩ厤缃?====================
@@ -1050,43 +1050,43 @@ template:
         state: "{{ (states('sensor.light_doorway_yearly_duration_v2')|float(0)/3600)|round(2) }}"
 counter:
   living_room_visits:
-    name: 客厅访问次数
+    name: 瀹㈠巺璁块棶娆℃暟
     initial: 0
     step: 1
     restore: true
 
   bedroom_visits:
-    name: 卧室访问次数
+    name: 鍗у璁块棶娆℃暟
     initial: 0
     step: 1
     restore: true
 
   kitchen_visits:
-    name: 厨房访问次数
+    name: 鍘ㄦ埧璁块棶娆℃暟
     initial: 0
     step: 1
     restore: true
 
   dining_visits:
-    name: 餐厅访问次数
+    name: 椁愬巺璁块棶娆℃暟
     initial: 0
     step: 1
     restore: true
 
   bathroom_visits:
-    name: 卫生间访问次数
+    name: 鍗敓闂磋闂鏁?
     initial: 0
     step: 1
     restore: true
 
   hallway_visits:
-    name: 走廊玄关访问次数
+    name: 璧板粖鐜勫叧璁块棶娆℃暟
     initial: 0
     step: 1
     restore: true
 
   doorway_visits:
-    name: 门口访问次数
+    name: 闂ㄥ彛璁块棶娆℃暟
     initial: 0
     step: 1
     restore: true
@@ -1094,7 +1094,7 @@ counter:
 # ==================== 杈撳叆鏁板€奸厤缃紙鐢ㄤ簬璁板綍鍋滅暀鏃堕暱锛?====================
 input_number:
   living_room_duration:
-    name: 客厅停留时长（秒）
+    name: 瀹㈠巺鍋滅暀鏃堕暱锛堢锛?
     initial: 0
     min: 0
     max: 86400
@@ -1102,7 +1102,7 @@ input_number:
     mode: box
 
   bedroom_duration:
-    name: 卧室停留时长（秒）
+    name: 鍗у鍋滅暀鏃堕暱锛堢锛?
     initial: 0
     min: 0
     max: 86400
@@ -1110,7 +1110,7 @@ input_number:
     mode: box
 
   kitchen_duration:
-    name: 厨房停留时长（秒）
+    name: 鍘ㄦ埧鍋滅暀鏃堕暱锛堢锛?
     initial: 0
     min: 0
     max: 86400
@@ -1118,7 +1118,7 @@ input_number:
     mode: box
 
   dining_duration:
-    name: 餐厅停留时长（秒）
+    name: 椁愬巺鍋滅暀鏃堕暱锛堢锛?
     initial: 0
     min: 0
     max: 86400
@@ -1126,7 +1126,7 @@ input_number:
     mode: box
 
   bathroom_duration:
-    name: 卫生间停留时长（秒）
+    name: 鍗敓闂村仠鐣欐椂闀匡紙绉掞級
     initial: 0
     min: 0
     max: 86400
@@ -1134,7 +1134,7 @@ input_number:
     mode: box
 
   hallway_duration:
-    name: 走廊玄关停留时长（秒）
+    name: 璧板粖鐜勫叧鍋滅暀鏃堕暱锛堢锛?
     initial: 0
     min: 0
     max: 86400
@@ -1142,7 +1142,7 @@ input_number:
     mode: box
 
   doorway_duration:
-    name: 门口停留时长（秒）
+    name: 闂ㄥ彛鍋滅暀鏃堕暱锛堢锛?
     initial: 0
     min: 0
     max: 86400
@@ -1151,7 +1151,7 @@ input_number:
 
   # ==================== 鐏寒鏃堕暱缁熻锛堢锛?====================
   living_room_light_duration:
-    name: 客厅灯今日亮灯时长（秒）
+    name: 瀹㈠巺鐏粖鏃ヤ寒鐏椂闀匡紙绉掞級
     initial: 0
     min: 0
     max: 86400
@@ -1159,7 +1159,7 @@ input_number:
     mode: box
 
   bedroom_light_duration:
-    name: 卧室灯今日亮灯时长（秒）
+    name: 鍗у鐏粖鏃ヤ寒鐏椂闀匡紙绉掞級
     initial: 0
     min: 0
     max: 86400
@@ -1167,7 +1167,7 @@ input_number:
     mode: box
 
   kitchen_light_duration:
-    name: 厨房灯今日亮灯时长（秒）
+    name: 鍘ㄦ埧鐏粖鏃ヤ寒鐏椂闀匡紙绉掞級
     initial: 0
     min: 0
     max: 86400
@@ -1175,7 +1175,7 @@ input_number:
     mode: box
 
   dining_light_duration:
-    name: 餐厅灯今日亮灯时长（秒）
+    name: 椁愬巺鐏粖鏃ヤ寒鐏椂闀匡紙绉掞級
     initial: 0
     min: 0
     max: 86400
@@ -1183,7 +1183,7 @@ input_number:
     mode: box
 
   bathroom_light_duration:
-    name: 卫生间灯今日亮灯时长（秒）
+    name: 鍗敓闂寸伅浠婃棩浜伅鏃堕暱锛堢锛?
     initial: 0
     min: 0
     max: 86400
@@ -1191,7 +1191,7 @@ input_number:
     mode: box
 
   hallway_light_duration:
-    name: 走廊灯今日亮灯时长（秒）
+    name: 璧板粖鐏粖鏃ヤ寒鐏椂闀匡紙绉掞級
     initial: 0
     min: 0
     max: 86400
@@ -1199,7 +1199,7 @@ input_number:
     mode: box
 
   doorway_light_duration:
-    name: 门口灯今日亮灯时长（秒）
+    name: 闂ㄥ彛鐏粖鏃ヤ寒鐏椂闀匡紙绉掞級
     initial: 0
     min: 0
     max: 86400
@@ -1208,85 +1208,96 @@ input_number:
 
   # ==================== 姣忎釜鐏崟鐙寒鐏椂闀跨粺璁★紙绉掞級 ====================
   light_jdjz_duration:
-    name: 客厅吸顶灯亮灯时长（秒）
+    name: 瀹㈠巺鍚搁《鐏寒鐏椂闀匡紙绉掞級
+    initial: 0
     min: 0
-    max: 315360000
+    max: 86400
     step: 1
     mode: box
 
   light_sofa_duration:
-    name: 客厅沙发灯亮灯时长（秒）
+    name: 瀹㈠巺娌欏彂鐏寒鐏椂闀匡紙绉掞級
+    initial: 0
     min: 0
-    max: 315360000
+    max: 86400
     step: 1
     mode: box
 
   light_bedroom_duration:
-    name: 卧室灯亮灯时长（秒）
+    name: 鍗у鐏寒鐏椂闀匡紙绉掞級
+    initial: 0
     min: 0
-    max: 315360000
+    max: 86400
     step: 1
     mode: box
 
   light_bedroom_strip_duration:
-    name: 卧室灯带亮灯时长（秒）
+    name: 鍗у鐏甫浜伅鏃堕暱锛堢锛?
+    initial: 0
     min: 0
-    max: 315360000
+    max: 86400
     step: 1
     mode: box
 
   light_kitchen_duration:
-    name: 厨房灯亮灯时长（秒）
+    name: 鍘ㄦ埧鐏寒鐏椂闀匡紙绉掞級
+    initial: 0
     min: 0
-    max: 315360000
+    max: 86400
     step: 1
     mode: box
 
   light_dining_duration:
-    name: 餐厅灯亮灯时长（秒）
+    name: 椁愬巺鐏寒鐏椂闀匡紙绉掞級
+    initial: 0
     min: 0
-    max: 315360000
+    max: 86400
     step: 1
     mode: box
 
   light_bathroom_duration:
-    name: 卫生间灯亮灯时长（秒）
+    name: 鍗敓闂寸伅浜伅鏃堕暱锛堢锛?
+    initial: 0
     min: 0
-    max: 315360000
+    max: 86400
     step: 1
     mode: box
 
   light_yuba_duration:
-    name: 浴霸灯亮灯时长（秒）
+    name: 娴撮湼鐏寒鐏椂闀匡紙绉掞級
+    initial: 0
     min: 0
-    max: 315360000
+    max: 86400
     step: 1
     mode: box
 
   light_hallway_main_duration:
-    name: 走廊走道灯亮灯时长（秒）
+    name: 璧板粖璧伴亾鐏寒鐏椂闀匡紙绉掞級
+    initial: 0
     min: 0
-    max: 315360000
+    max: 86400
     step: 1
     mode: box
 
   light_hallway_bath_duration:
-    name: 走廊卫生间灯亮灯时长（秒）
+    name: 璧板粖鍗敓闂寸伅浜伅鏃堕暱锛堢锛?
+    initial: 0
     min: 0
-    max: 315360000
+    max: 86400
     step: 1
     mode: box
 
   light_doorway_duration:
-    name: 门口筒灯亮灯时长（秒）
+    name: 闂ㄥ彛绛掔伅浜伅鏃堕暱锛堢锛?
+    initial: 0
     min: 0
-    max: 315360000
+    max: 86400
     step: 1
     mode: box
 
   # 鎵撳嵃鏈烘帓姘旀椂闀匡紙鍒嗛挓锛?
   daheinu_exhaust_duration:
-    name: 大黑奴排气时长（分钟）
+    name: 澶ч粦濂存帓姘旀椂闀匡紙鍒嗛挓锛?
     initial: 10
     min: 1
     max: 60
@@ -1294,7 +1305,7 @@ input_number:
     mode: slider
 
   xiaoheinu_exhaust_duration:
-    name: 小黑奴排气时长（分钟）
+    name: 灏忛粦濂存帓姘旀椂闀匡紙鍒嗛挓锛?
     initial: 10
     min: 1
     max: 60
@@ -1303,7 +1314,7 @@ input_number:
 
   # 鐐掗潰妫€娴嬬粺璁?helper
   bambu_lab_p1_spaghetti_detection_current_frame_number:
-    name: 炒面检测当前帧数
+    name: 鐐掗潰妫€娴嬪綋鍓嶅抚鏁?
     initial: 0
     min: 0
     max: 1000000
@@ -1311,7 +1322,7 @@ input_number:
     mode: box
 
   bambu_lab_p1_spaghetti_detection_lifetime_frame_number:
-    name: 炒面检测累计帧数
+    name: 鐐掗潰妫€娴嬬疮璁″抚鏁?
     initial: 0
     min: 0
     max: 10000000
@@ -1319,7 +1330,7 @@ input_number:
     mode: box
 
   bambu_lab_p1_spaghetti_detection_p_sum:
-    name: 炒面检测概率和
+    name: 鐐掗潰妫€娴嬫鐜囧拰
     initial: 0
     min: 0
     max: 100
@@ -1327,7 +1338,7 @@ input_number:
     mode: box
 
   bambu_lab_p1_spaghetti_detection_ewm_mean:
-    name: 炒面检测EWM均值
+    name: 鐐掗潰妫€娴婨WM鍧囧€?
     initial: 0
     min: 0
     max: 100
@@ -1335,7 +1346,7 @@ input_number:
     mode: box
 
   bambu_lab_p1_spaghetti_detection_rolling_mean_short:
-    name: 炒面检测短期均值
+    name: 鐐掗潰妫€娴嬬煭鏈熷潎鍊?
     initial: 0
     min: 0
     max: 100
@@ -1343,7 +1354,7 @@ input_number:
     mode: box
 
   bambu_lab_p1_spaghetti_detection_rolling_mean_long:
-    name: 'za1_b0f8932cb0ca'
+    name: 鐐掗潰妫€娴嬮暱鏈熷潎鍊?
     initial: 0
     min: 0
     max: 100
@@ -1351,7 +1362,7 @@ input_number:
     mode: box
 
   bambu_lab_p1_spaghetti_detection_adjusted_ewm_mean:
-    name: 炒面检测修正EWM均值
+    name: 鐐掗潰妫€娴嬩慨姝WM鍧囧€?
     initial: 0
     min: 0
     max: 100
@@ -1359,7 +1370,7 @@ input_number:
     mode: box
 
   bambu_lab_p1_spaghetti_detection_rolling_mean_diff:
-    name: 炒面检测均值差
+    name: 鐐掗潰妫€娴嬪潎鍊煎樊
     initial: 0
     min: 0
     max: 100
@@ -1367,7 +1378,7 @@ input_number:
     mode: box
 
   bambu_lab_p1_spaghetti_detection_thresh_warning:
-    name: 炒面检测警告阈值
+    name: 鐐掗潰妫€娴嬭鍛婇槇鍊?
     initial: 0.33
     min: 0
     max: 10
@@ -1375,7 +1386,7 @@ input_number:
     mode: box
 
   bambu_lab_p1_spaghetti_detection_thresh_failure:
-    name: 炒面检测故障阈值
+    name: 鐐掗潰妫€娴嬫晠闅滈槇鍊?
     initial: 0.58
     min: 0
     max: 10
@@ -1383,7 +1394,7 @@ input_number:
     mode: box
 
   bambu_lab_p1_spaghetti_detection_p:
-    name: 炒面检测当前P值
+    name: 鐐掗潰妫€娴嬪綋鍓峆鍊?
     initial: 0
     min: 0
     max: 100
@@ -1391,7 +1402,7 @@ input_number:
     mode: box
 
   bambu_lab_p1_spaghetti_detection_normalized_p:
-    name: 炒面检测归一化概率
+    name: 鐐掗潰妫€娴嬪綊涓€鍖栨鐜?
     initial: 0
     min: 0
     max: 1
@@ -1401,93 +1412,93 @@ input_number:
 # ==================== 杈撳叆鏃ユ湡鏃堕棿閰嶇疆锛堢敤浜庤褰曡繘鍏ユ椂闂达級 ====================
 input_datetime:
   living_room_entry:
-    name: 客厅进入时间
+    name: 瀹㈠巺杩涘叆鏃堕棿
     has_date: false
     has_time: true
 
   bedroom_entry:
-    name: 卧室进入时间
+    name: 鍗у杩涘叆鏃堕棿
     has_date: false
     has_time: true
 
   kitchen_entry:
-    name: 厨房进入时间
+    name: 鍘ㄦ埧杩涘叆鏃堕棿
     has_date: false
     has_time: true
 
   dining_entry:
-    name: 餐厅进入时间
+    name: 椁愬巺杩涘叆鏃堕棿
     has_date: false
     has_time: true
 
   bathroom_entry:
-    name: 卫生间进入时间
+    name: 鍗敓闂磋繘鍏ユ椂闂?
     has_date: false
     has_time: true
 
   hallway_entry:
-    name: 走廊玄关进入时间
+    name: 璧板粖鐜勫叧杩涘叆鏃堕棿
     has_date: false
     has_time: true
 
   doorway_entry:
-    name: 门口进入时间
+    name: 闂ㄥ彛杩涘叆鏃堕棿
     has_date: false
     has_time: true
 
   living_room_light_on:
-    name: 客厅灯开启时间
+    name: 瀹㈠巺鐏紑鍚椂闂?
     has_date: false
     has_time: true
 
   bedroom_light_on:
-    name: 卧室灯开启时间
+    name: 鍗у鐏紑鍚椂闂?
     has_date: false
     has_time: true
 
   kitchen_light_on:
-    name: 厨房灯开启时间
+    name: 鍘ㄦ埧鐏紑鍚椂闂?
     has_date: false
     has_time: true
 
   dining_light_on:
-    name: 餐厅灯开启时间
+    name: 椁愬巺鐏紑鍚椂闂?
     has_date: false
     has_time: true
 
   bathroom_light_on:
-    name: 卫生间灯开启时间
+    name: 鍗敓闂寸伅寮€鍚椂闂?
     has_date: false
     has_time: true
 
   hallway_light_on:
-    name: 走廊灯开启时间
+    name: 璧板粖鐏紑鍚椂闂?
     has_date: false
     has_time: true
 
   doorway_light_on:
-    name: 门口灯开启时间
+    name: 闂ㄥ彛鐏紑鍚椂闂?
     has_date: false
     has_time: true
 
   # 鎵撳嵃鏈哄紑濮嬫椂闂磋褰?
   a1mini_print_start:
-    name: A1 Mini打印开始时间
+    name: A1 Mini鎵撳嵃寮€濮嬫椂闂?
     has_date: true
     has_time: true
 
   p2s_print_start:
-    name: P2S打印开始时间
+    name: P2S鎵撳嵃寮€濮嬫椂闂?
     has_date: true
     has_time: true
 
   bambu_lab_p1_spaghetti_detection_last_notify_time:
-    name: 炒面检测上次通知时间
+    name: 鐐掗潰妫€娴嬩笂娆￠€氱煡鏃堕棿
     has_date: true
     has_time: true
 
   bambu_lab_p1_spaghetti_detection_last_job_start_time:
-    name: 炒面检测上次任务开始时间
+    name: 鐐掗潰妫€娴嬩笂娆′换鍔″紑濮嬫椂闂?
     has_date: true
     has_time: true
 
@@ -1515,7 +1526,7 @@ mqtt:
     percentage_command_template: '{"mac":"b0f8932cb0ca","speed":{{ value }}}'
     percentage_value_template: '{{ value_json.speed }}'
   sensor:
-    - name: NAS累计用电
+    - name: 'zm1_b0f8931ee681_temperature'
       unique_id: zm1_b0f8931ee681_temperature
       device_class: temperature
       state_topic: 'device/zm1/b0f8931ee681/sensor'
@@ -1539,7 +1550,7 @@ mqtt:
       unique_id: zm1_b0f8931ee681_pm25
       device_class: pm25
       state_topic: 'device/zm1/b0f8931ee681/sensor'
-      unit_of_measurement: 'μg/m³'
+      unit_of_measurement: 'µg/m³'
       value_template: '{{ value_json.PM25 }}'
       availability_topic: "device/zm1/b0f8931ee681/availability"
       payload_available: 1
@@ -1549,7 +1560,7 @@ mqtt:
       unique_id: zm1_b0f8931ee681_hcho
       device_class: volatile_organic_compounds
       state_topic: 'device/zm1/b0f8931ee681/sensor'
-      unit_of_measurement: 'mg/m³'
+      unit_of_measurement: 'µg/m³'
       value_template: '{{ value_json.formaldehyde }}'
       availability_topic: "device/zm1/b0f8931ee681/availability"
       payload_available: 1
@@ -1591,35 +1602,35 @@ tuya_smart_ir_ac:
 sensor:
   - platform: integration
     source: sensor.giot_cn_1164778814_v8icm_electric_power_p_4_2
-    name: NAS累计用电
+    name: 灏忛粦濂寸疮璁＄敤鐢?
     unit_prefix: k
     round: 4
     method: trapezoidal
 
   - platform: integration
     source: sensor.sixwgh_cn_1200175237_v8icm1_electric_power_p_4_2
-    name: NAS累计用电
+    name: 澶ч粦濂寸疮璁＄敤鐢?
     unit_prefix: k
     round: 4
     method: trapezoidal
 
   - platform: integration
     source: sensor.giot_cn_1162942256_v8icm_electric_power_p_4_2
-    name: NAS累计用电
+    name: 鐢佃剳鐢垫簮绱鐢ㄧ數
     unit_prefix: k
     round: 4
     method: trapezoidal
 
   - platform: integration
     source: sensor.giot_cn_1163256502_v8icm_electric_power_p_4_2
-    name: NAS累计用电
+    name: NAS绱鐢ㄧ數
     unit_prefix: k
     round: 4
     method: trapezoidal
 
   - platform: integration
     source: sensor.giot_cn_1162898415_v8icm_electric_power_p_4_2
-    name: 厨房灯周亮灯时长
+    name: 鍙栨殩鍣ㄧ疮璁＄敤鐢?
     unit_prefix: k
     round: 4
     method: trapezoidal
@@ -1640,7 +1651,7 @@ sensor:
     start: "{{ today_at() }}"
     end: "{{ now() }}"
   - platform: history_stats
-    name: 餐厅灯月亮灯时长
+    name: light_bedroom_today_on_hours
     entity_id: light.ftd_cn_1124827030_dsplmp_s_2_light
     state: 'on'
     type: time
@@ -1661,7 +1672,7 @@ sensor:
     start: "{{ today_at() }}"
     end: "{{ now() }}"
   - platform: history_stats
-    name: 卫生间灯年亮灯时长
+    name: light_dining_today_on_hours
     entity_id: light.lemesh_cn_1155789492_wy0c15_s_2_light
     state: 'on'
     type: time
@@ -1704,7 +1715,7 @@ sensor:
     end: "{{ now() }}"
 
   - platform: history_stats
-    name: 走廊卫生间灯周亮灯时长
+    name: light_jdjz_week_on_hours
     entity_id: light.jdjz_cn_857569251_jdjzu1_s_2_light
     state: 'on'
     type: time
@@ -1725,7 +1736,7 @@ sensor:
     start: "{{ today_at() - timedelta(days=now().weekday()) }}"
     end: "{{ now() }}"
   - platform: history_stats
-    name: 门口筒灯月亮灯时长
+    name: light_bedroom_strip_week_on_hours
     entity_id: light.yeelink_cn_436301383_strip6_s_2_light
     state: 'on'
     type: time
@@ -1746,7 +1757,7 @@ sensor:
     start: "{{ today_at() - timedelta(days=now().weekday()) }}"
     end: "{{ now() }}"
   - platform: history_stats
-    name: 全屋年亮灯总时长
+    name: light_bathroom_week_on_hours
     entity_id: light.linp_cn_1137691863_lp1bc_s_2_light
     state: 'on'
     type: time
@@ -1863,277 +1874,277 @@ utility_meter:
   xiaoheinu_daily_energy:
     source: sensor.xiao_hei_nu_lei_ji_yong_dian
     cycle: daily
-    name: 小黑奴日用电量
+    name: 灏忛粦濂存棩鐢ㄧ數閲?
   xiaoheinu_weekly_energy:
     source: sensor.xiao_hei_nu_lei_ji_yong_dian
     cycle: weekly
-    name: 小黑奴周用电量
+    name: 灏忛粦濂村懆鐢ㄧ數閲?
   xiaoheinu_monthly_energy:
     source: sensor.xiao_hei_nu_lei_ji_yong_dian
     cycle: monthly
-    name: 小黑奴月用电量
+    name: 灏忛粦濂存湀鐢ㄧ數閲?
 
   # 澶ч粦濂?
   daheinu_daily_energy:
     source: sensor.da_hei_nu_lei_ji_yong_dian
     cycle: daily
-    name: 大黑奴日用电量
+    name: 澶ч粦濂存棩鐢ㄧ數閲?
   daheinu_weekly_energy:
     source: sensor.da_hei_nu_lei_ji_yong_dian
     cycle: weekly
-    name: 大黑奴周用电量
+    name: 澶ч粦濂村懆鐢ㄧ數閲?
   daheinu_monthly_energy:
     source: sensor.da_hei_nu_lei_ji_yong_dian
     cycle: monthly
-    name: 大黑奴月用电量
+    name: 澶ч粦濂存湀鐢ㄧ數閲?
 
   # 鐢佃剳鐢垫簮
   computer_daily_energy:
     source: sensor.dian_nao_dian_yuan_lei_ji_yong_dian
     cycle: daily
-    name: 电脑电源日用电量
+    name: 鐢佃剳鐢垫簮鏃ョ敤鐢甸噺
   computer_weekly_energy:
     source: sensor.dian_nao_dian_yuan_lei_ji_yong_dian
     cycle: weekly
-    name: 电脑电源周用电量
+    name: 鐢佃剳鐢垫簮鍛ㄧ敤鐢甸噺
   computer_monthly_energy:
     source: sensor.dian_nao_dian_yuan_lei_ji_yong_dian
     cycle: monthly
-    name: 电脑电源月用电量
+    name: 鐢佃剳鐢垫簮鏈堢敤鐢甸噺
 
   # NAS
   nas_daily_energy:
     source: sensor.nas_lei_ji_yong_dian
     cycle: daily
-    name: NAS日用电量
+    name: NAS鏃ョ敤鐢甸噺
   nas_weekly_energy:
     source: sensor.nas_lei_ji_yong_dian
     cycle: weekly
-    name: NAS周用电量
+    name: NAS鍛ㄧ敤鐢甸噺
   nas_monthly_energy:
     source: sensor.nas_lei_ji_yong_dian
     cycle: monthly
-    name: NAS月用电量
+    name: NAS鏈堢敤鐢甸噺
 
   # 鍙栨殩鍣?
   heater_daily_energy:
     source: sensor.qu_nuan_qi_lei_ji_yong_dian
     cycle: daily
-    name: 取暖器日用电量
+    name: 鍙栨殩鍣ㄦ棩鐢ㄧ數閲?
   heater_weekly_energy:
     source: sensor.qu_nuan_qi_lei_ji_yong_dian
     cycle: weekly
-    name: 取暖器周用电量
+    name: 鍙栨殩鍣ㄥ懆鐢ㄧ數閲?
   heater_monthly_energy:
     source: sensor.qu_nuan_qi_lei_ji_yong_dian
     cycle: monthly
-    name: 取暖器月用电量
+    name: 鍙栨殩鍣ㄦ湀鐢ㄧ數閲?
 
 
   # ==================== 鐏寒鏃堕暱 Utility Meter ====================
   light_jdjz_daily_duration:
     source: input_number.light_jdjz_duration
     cycle: daily
-    name: 客厅吸顶灯日亮灯时长
+    name: 瀹㈠巺鍚搁《鐏棩浜伅鏃堕暱
   light_jdjz_weekly_duration:
     source: input_number.light_jdjz_duration
     cycle: weekly
-    name: 客厅吸顶灯周亮灯时长
+    name: 瀹㈠巺鍚搁《鐏懆浜伅鏃堕暱
   light_jdjz_monthly_duration:
     source: input_number.light_jdjz_duration
     cycle: monthly
-    name: 客厅吸顶灯月亮灯时长
+    name: 瀹㈠巺鍚搁《鐏湀浜伅鏃堕暱
   light_jdjz_yearly_duration:
     source: input_number.light_jdjz_duration
     cycle: yearly
-    name: 客厅吸顶灯年亮灯时长
+    name: 瀹㈠巺鍚搁《鐏勾浜伅鏃堕暱
 
   light_sofa_daily_duration:
     source: input_number.light_sofa_duration
     cycle: daily
-    name: 客厅沙发灯日亮灯时长
+    name: 瀹㈠巺娌欏彂鐏棩浜伅鏃堕暱
   light_sofa_weekly_duration:
     source: input_number.light_sofa_duration
     cycle: weekly
-    name: 客厅沙发灯周亮灯时长
+    name: 瀹㈠巺娌欏彂鐏懆浜伅鏃堕暱
   light_sofa_monthly_duration:
     source: input_number.light_sofa_duration
     cycle: monthly
-    name: 客厅沙发灯月亮灯时长
+    name: 瀹㈠巺娌欏彂鐏湀浜伅鏃堕暱
   light_sofa_yearly_duration:
     source: input_number.light_sofa_duration
     cycle: yearly
-    name: 客厅沙发灯年亮灯时长
+    name: 瀹㈠巺娌欏彂鐏勾浜伅鏃堕暱
 
   light_bedroom_daily_duration:
     source: input_number.light_bedroom_duration
     cycle: daily
-    name: 卧室灯日亮灯时长
+    name: 鍗у鐏棩浜伅鏃堕暱
   light_bedroom_weekly_duration:
     source: input_number.light_bedroom_duration
     cycle: weekly
-    name: 卧室灯周亮灯时长
+    name: 鍗у鐏懆浜伅鏃堕暱
   light_bedroom_monthly_duration:
     source: input_number.light_bedroom_duration
     cycle: monthly
-    name: 卧室灯月亮灯时长
+    name: 鍗у鐏湀浜伅鏃堕暱
   light_bedroom_yearly_duration:
     source: input_number.light_bedroom_duration
     cycle: yearly
-    name: 卧室灯年亮灯时长
+    name: 鍗у鐏勾浜伅鏃堕暱
 
   light_bedroom_strip_daily_duration:
     source: input_number.light_bedroom_strip_duration
     cycle: daily
-    name: 卧室灯带日亮灯时长
+    name: 鍗у鐏甫鏃ヤ寒鐏椂闀?
   light_bedroom_strip_weekly_duration:
     source: input_number.light_bedroom_strip_duration
     cycle: weekly
-    name: 卧室灯带周亮灯时长
+    name: 鍗у鐏甫鍛ㄤ寒鐏椂闀?
   light_bedroom_strip_monthly_duration:
     source: input_number.light_bedroom_strip_duration
     cycle: monthly
-    name: 卧室灯带月亮灯时长
+    name: 鍗у鐏甫鏈堜寒鐏椂闀?
   light_bedroom_strip_yearly_duration:
     source: input_number.light_bedroom_strip_duration
     cycle: yearly
-    name: 卧室灯带年亮灯时长
+    name: 鍗у鐏甫骞翠寒鐏椂闀?
 
   light_kitchen_daily_duration:
     source: input_number.light_kitchen_duration
     cycle: daily
-    name: 厨房灯日亮灯时长
+    name: 鍘ㄦ埧鐏棩浜伅鏃堕暱
   light_kitchen_weekly_duration:
     source: input_number.light_kitchen_duration
     cycle: weekly
-    name: 厨房灯周亮灯时长
+    name: 鍘ㄦ埧鐏懆浜伅鏃堕暱
   light_kitchen_monthly_duration:
     source: input_number.light_kitchen_duration
     cycle: monthly
-    name: 厨房灯月亮灯时长
+    name: 鍘ㄦ埧鐏湀浜伅鏃堕暱
   light_kitchen_yearly_duration:
     source: input_number.light_kitchen_duration
     cycle: yearly
-    name: 厨房灯年亮灯时长
+    name: 鍘ㄦ埧鐏勾浜伅鏃堕暱
 
   light_dining_daily_duration:
     source: input_number.light_dining_duration
     cycle: daily
-    name: 餐厅灯日亮灯时长
+    name: 椁愬巺鐏棩浜伅鏃堕暱
   light_dining_weekly_duration:
     source: input_number.light_dining_duration
     cycle: weekly
-    name: 餐厅灯周亮灯时长
+    name: 椁愬巺鐏懆浜伅鏃堕暱
   light_dining_monthly_duration:
     source: input_number.light_dining_duration
     cycle: monthly
-    name: 餐厅灯月亮灯时长
+    name: 椁愬巺鐏湀浜伅鏃堕暱
   light_dining_yearly_duration:
     source: input_number.light_dining_duration
     cycle: yearly
-    name: 餐厅灯年亮灯时长
+    name: 椁愬巺鐏勾浜伅鏃堕暱
 
   light_bathroom_daily_duration:
     source: input_number.light_bathroom_duration
     cycle: daily
-    name: 卫生间灯日亮灯时长
+    name: 鍗敓闂寸伅鏃ヤ寒鐏椂闀?
   light_bathroom_weekly_duration:
     source: input_number.light_bathroom_duration
     cycle: weekly
-    name: 卫生间灯周亮灯时长
+    name: 鍗敓闂寸伅鍛ㄤ寒鐏椂闀?
   light_bathroom_monthly_duration:
     source: input_number.light_bathroom_duration
     cycle: monthly
-    name: 卫生间灯月亮灯时长
+    name: 鍗敓闂寸伅鏈堜寒鐏椂闀?
   light_bathroom_yearly_duration:
     source: input_number.light_bathroom_duration
     cycle: yearly
-    name: 卫生间灯年亮灯时长
+    name: 鍗敓闂寸伅骞翠寒鐏椂闀?
 
   light_yuba_daily_duration:
     source: input_number.light_yuba_duration
     cycle: daily
-    name: 浴霸灯日亮灯时长
+    name: 娴撮湼鐏棩浜伅鏃堕暱
   light_yuba_weekly_duration:
     source: input_number.light_yuba_duration
     cycle: weekly
-    name: 浴霸灯周亮灯时长
+    name: 娴撮湼鐏懆浜伅鏃堕暱
   light_yuba_monthly_duration:
     source: input_number.light_yuba_duration
     cycle: monthly
-    name: 浴霸灯月亮灯时长
+    name: 娴撮湼鐏湀浜伅鏃堕暱
   light_yuba_yearly_duration:
     source: input_number.light_yuba_duration
     cycle: yearly
-    name: 浴霸灯年亮灯时长
+    name: 娴撮湼鐏勾浜伅鏃堕暱
 
   light_hallway_main_daily_duration:
     source: input_number.light_hallway_main_duration
     cycle: daily
-    name: 走廊走道灯日亮灯时长
+    name: 璧板粖璧伴亾鐏棩浜伅鏃堕暱
   light_hallway_main_weekly_duration:
     source: input_number.light_hallway_main_duration
     cycle: weekly
-    name: 走廊走道灯周亮灯时长
+    name: 璧板粖璧伴亾鐏懆浜伅鏃堕暱
   light_hallway_main_monthly_duration:
     source: input_number.light_hallway_main_duration
     cycle: monthly
-    name: 走廊走道灯月亮灯时长
+    name: 璧板粖璧伴亾鐏湀浜伅鏃堕暱
   light_hallway_main_yearly_duration:
     source: input_number.light_hallway_main_duration
     cycle: yearly
-    name: 走廊走道灯年亮灯时长
+    name: 璧板粖璧伴亾鐏勾浜伅鏃堕暱
 
   light_hallway_bath_daily_duration:
     source: input_number.light_hallway_bath_duration
     cycle: daily
-    name: 走廊卫生间灯日亮灯时长
+    name: 璧板粖鍗敓闂寸伅鏃ヤ寒鐏椂闀?
   light_hallway_bath_weekly_duration:
     source: input_number.light_hallway_bath_duration
     cycle: weekly
-    name: 走廊卫生间灯周亮灯时长
+    name: 璧板粖鍗敓闂寸伅鍛ㄤ寒鐏椂闀?
   light_hallway_bath_monthly_duration:
     source: input_number.light_hallway_bath_duration
     cycle: monthly
-    name: 走廊卫生间灯月亮灯时长
+    name: 璧板粖鍗敓闂寸伅鏈堜寒鐏椂闀?
   light_hallway_bath_yearly_duration:
     source: input_number.light_hallway_bath_duration
     cycle: yearly
-    name: 走廊卫生间灯年亮灯时长
+    name: 璧板粖鍗敓闂寸伅骞翠寒鐏椂闀?
 
   light_doorway_daily_duration:
     source: input_number.light_doorway_duration
     cycle: daily
-    name: 门口筒灯日亮灯时长
+    name: 闂ㄥ彛绛掔伅鏃ヤ寒鐏椂闀?
   light_doorway_weekly_duration:
     source: input_number.light_doorway_duration
     cycle: weekly
-    name: 门口筒灯周亮灯时长
+    name: 闂ㄥ彛绛掔伅鍛ㄤ寒鐏椂闀?
   light_doorway_monthly_duration:
     source: input_number.light_doorway_duration
     cycle: monthly
-    name: 门口筒灯月亮灯时长
+    name: 闂ㄥ彛绛掔伅鏈堜寒鐏椂闀?
   light_doorway_yearly_duration:
     source: input_number.light_doorway_duration
     cycle: yearly
-    name: 门口筒灯年亮灯时长
+    name: 闂ㄥ彛绛掔伅骞翠寒鐏椂闀?
 
   total_lights_daily_duration:
     source: sensor.quan_wu_deng_guang_zong_liang_deng_shi_chang
     cycle: daily
-    name: 全屋日亮灯总时长
+    name: 鍏ㄥ眿鏃ヤ寒鐏€绘椂闀?
   total_lights_weekly_duration:
     source: sensor.quan_wu_deng_guang_zong_liang_deng_shi_chang
     cycle: weekly
-    name: 全屋周亮灯总时长
+    name: 鍏ㄥ眿鍛ㄤ寒鐏€绘椂闀?
   total_lights_monthly_duration:
     source: sensor.quan_wu_deng_guang_zong_liang_deng_shi_chang
     cycle: monthly
-    name: 全屋月亮灯总时长
+    name: 鍏ㄥ眿鏈堜寒鐏€绘椂闀?
   total_lights_yearly_duration:
     source: sensor.quan_wu_deng_guang_zong_liang_deng_shi_chang
     cycle: yearly
-    name: 全屋年亮灯总时长
+    name: 鍏ㄥ眿骞翠寒鐏€绘椂闀?
   light_jdjz_yearly_duration_v2:
     source: input_number.light_jdjz_duration
     cycle: yearly

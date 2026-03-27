@@ -1,109 +1,109 @@
-# Home Assistant 定制仪表板配置
-# 根据实际设备自动生成
-# 区域：客厅、卧室、厨房、餐厅、卫生间、走廊玄关
+﻿# Home Assistant 瀹氬埗浠〃鏉块厤缃?
+# 鏍规嵁瀹為檯璁惧鑷姩鐢熸垚
+# 鍖哄煙锛氬鍘呫€佸崸瀹ゃ€佸帹鎴裤€侀鍘呫€佸崼鐢熼棿銆佽蛋寤婄巹鍏?
 
-title: 我的智能家居
+title: 鎴戠殑鏅鸿兘瀹跺眳
 views:
-  # ==================== 首页 - 区域导航 ====================
-  - title: 首页
+  # ==================== 棣栭〉 - 鍖哄煙瀵艰埅 ====================
+  - title: 棣栭〉
     icon: mdi:home
     path: home
     cards:
-      # 快速统计
+      # 蹇€熺粺璁?
       - type: glance
-        title: 快速统计
+        title: 蹇€熺粺璁?
         entities:
           - entity: sensor.giot_cn_1162942256_v8icm_electric_power_p_4_2
-            name: 电脑
+            name: 鐢佃剳
           - entity: sensor.giot_cn_1164778814_v8icm_electric_power_p_4_2
-            name: 小打印机
+            name: 灏忔墦鍗版満
           - entity: sensor.sixwgh_cn_1200175237_v8icm1_electric_power_p_4_2
-            name: 大打印机
+            name: 澶ф墦鍗版満
           - entity: sensor.lumi_cn_684959720_mcn02_electric_power_p_5_1
-            name: 空调
+            name: 绌鸿皟
         show_state: true
         show_icon: true
 
-      # 区域导航 - 单个大格子
+      # 鍖哄煙瀵艰埅 - 鍗曚釜澶ф牸瀛?
       - type: entities
-        title: 区域导航
+        title: 鍖哄煙瀵艰埅
         entities:
           - entity: sensor.linp_cn_blt_3_1n20sdaek4k01_es4b_occupancy_status_p_2_1078
-            name: 客厅 (点击跳转)
+            name: 瀹㈠巺 (鐐瑰嚮璺宠浆)
             icon: mdi:sofa
             tap_action:
               action: navigate
               navigation_path: /lovelace/living-room
           - entity: sensor.linp_cn_blt_3_1ocv0fv7l0o00_es5b_occupancy_status_p_2_1078
-            name: 卧室 (点击跳转)
+            name: 鍗у (鐐瑰嚮璺宠浆)
             icon: mdi:bed
             tap_action:
               action: navigate
               navigation_path: /lovelace/bedroom
           - entity: sensor.linp_cn_1137697716_lp1bc_occupancy_status_p_5_1
-            name: 厨房 (点击跳转)
+            name: 鍘ㄦ埧 (鐐瑰嚮璺宠浆)
             icon: mdi:stove
             tap_action:
               action: navigate
               navigation_path: /lovelace/kitchen
           - entity: sensor.linp_cn_blt_3_1n49ffqescc00_es2_occupancy_status_p_2_1078
-            name: 餐厅 (点击跳转)
+            name: 椁愬巺 (鐐瑰嚮璺宠浆)
             icon: mdi:silverware-fork-knife
             tap_action:
               action: navigate
               navigation_path: /lovelace/dining
           - entity: sensor.linp_cn_1137691863_lp1bc_occupancy_status_p_5_1
-            name: 卫生间 (点击跳转)
+            name: 鍗敓闂?(鐐瑰嚮璺宠浆)
             icon: mdi:toilet
             tap_action:
               action: navigate
               navigation_path: /lovelace/bathroom
           - entity: sensor.linp_cn_1161876236_hb01_occupancy_status_p_2_1
-            name: 走廊 (点击跳转)
+            name: 璧板粖 (鐐瑰嚮璺宠浆)
             icon: mdi:door
             tap_action:
               action: navigate
               navigation_path: /lovelace/hallway
           - entity: sensor.linp_cn_2079761645_ld6bcw_has_someone_duration_p_5_3
-            name: 门口 (点击跳转)
+            name: 闂ㄥ彛 (鐐瑰嚮璺宠浆)
             icon: mdi:door-open
             tap_action:
               action: navigate
               navigation_path: /lovelace/doorway
 
-      # FDM打印机入口 - 进度条显示
+      # FDM鎵撳嵃鏈哄叆鍙?- 杩涘害鏉℃樉绀?
       - type: vertical-stack
         cards:
           - type: entities
-            title: ??? FDM打印机
+            title: ??? FDM鎵撳嵃鏈?
             entities:
               - entity: sensor.p2s_22e8bj5a2401765_print_status
-                name: P2S 状态 (点击跳转)
+                name: P2S 鐘舵€?(鐐瑰嚮璺宠浆)
                 icon: mdi:printer-3d-nozzle-outline
                 tap_action:
                   action: navigate
                   navigation_path: /lovelace/p2s-status
               - entity: sensor.p2s_22e8bj5a2401765_remaining_time
-                name: P2S 剩余时间 (点击跳转)
+                name: P2S 鍓╀綑鏃堕棿 (鐐瑰嚮璺宠浆)
                 icon: mdi:clock-outline
                 tap_action:
                   action: navigate
                   navigation_path: /lovelace/p2s-status
               - entity: sensor.a1mini_0300aa5a1600497_print_status
-                name: A1 Mini 状态 (点击跳转)
+                name: A1 Mini 鐘舵€?(鐐瑰嚮璺宠浆)
                 icon: mdi:printer-3d
                 tap_action:
                   action: navigate
                   navigation_path: /lovelace/a1mini
               - entity: sensor.a1mini_0300aa5a1600497_remaining_time
-                name: A1 Mini 剩余时间 (点击跳转)
+                name: A1 Mini 鍓╀綑鏃堕棿 (鐐瑰嚮璺宠浆)
                 icon: mdi:clock-outline
                 tap_action:
                   action: navigate
                   navigation_path: /lovelace/a1mini
           - type: gauge
             entity: sensor.p2s_22e8bj5a2401765_print_progress
-            name: P2S (大黑奴) 打印进度
+            name: P2S (澶ч粦濂? 鎵撳嵃杩涘害
             min: 0
             max: 100
             severity:
@@ -112,7 +112,7 @@ views:
               red: 0
           - type: gauge
             entity: sensor.a1mini_0300aa5a1600497_print_progress
-            name: A1 Mini (小黑奴) 打印进度
+            name: A1 Mini (灏忛粦濂? 鎵撳嵃杩涘害
             min: 0
             max: 100
             severity:
@@ -120,646 +120,646 @@ views:
               yellow: 50
               red: 0
 
-      # 灯控面板 - 4列网格
+      # 鐏帶闈㈡澘 - 4鍒楃綉鏍?
       - type: grid
-        title: ?? 灯控面板
+        title: ?? 鐏帶闈㈡澘
         columns: 4
         cards:
           - type: light
             entity: light.jdjz_cn_857569251_jdjzu1_s_2_light
-            name: 客厅吸顶灯
+            name: 瀹㈠巺鍚搁《鐏?
           - type: light
             entity: light.lemesh_cn_1186971184_wy0c14_s_2_light
-            name: 客厅沙发灯
+            name: 瀹㈠巺娌欏彂鐏?
           - type: light
             entity: light.ftd_cn_1124827030_dsplmp_s_2_light
-            name: 卧室灯
+            name: 鍗у鐏?
           - type: light
             entity: light.yeelink_cn_436301383_strip6_s_2_light
-            name: 卧室灯带
+            name: 鍗у鐏甫
           - type: light
             entity: light.linp_cn_1137697716_lp1bc_s_2_light
-            name: 厨房灯
+            name: 鍘ㄦ埧鐏?
           - type: light
             entity: light.lemesh_cn_1155789492_wy0c15_s_2_light
-            name: 餐厅灯
+            name: 椁愬巺鐏?
           - type: light
             entity: light.linp_cn_1137691863_lp1bc_s_2_light
-            name: 卫生间灯
+            name: 鍗敓闂寸伅
           - type: light
             entity: light.yeelink_cn_942773473_v11_s_2_light
-            name: 浴霸灯
+            name: 娴撮湼鐏?
           - type: light
             entity: light.giot_cn_1188250021_v8ssm_s_2_light
-            name: 走廊走道灯
+            name: 璧板粖璧伴亾鐏?
           - type: light
             entity: light.linp_cn_2023072411_ld6bcw_s_2_light
-            name: 走廊卫生间灯
+            name: 璧板粖鍗敓闂寸伅
           - type: light
             entity: light.linp_cn_2079761645_ld6bcw_s_2_light
-            name: 门口筒灯
+            name: 闂ㄥ彛绛掔伅
 
-      # 今日亮灯时长统计
+      # 浠婃棩浜伅鏃堕暱缁熻
       - type: entities
-        title: ?? 今日亮灯时长
+        title: ?? 浠婃棩浜伅鏃堕暱
         entities:
           - entity: sensor.ke_ting_deng_jin_ri_liang_deng_shi_chang
-            name: 客厅灯
+            name: 瀹㈠巺鐏?
             icon: mdi:lightbulb-on
           - entity: sensor.wo_shi_deng_jin_ri_liang_deng_shi_chang
-            name: 卧室灯
+            name: 鍗у鐏?
             icon: mdi:lightbulb-on
           - entity: sensor.chu_fang_deng_jin_ri_liang_deng_shi_chang
-            name: 厨房灯
+            name: 鍘ㄦ埧鐏?
             icon: mdi:lightbulb-on
           - entity: sensor.can_ting_deng_jin_ri_liang_deng_shi_chang
-            name: 餐厅灯
+            name: 椁愬巺鐏?
             icon: mdi:lightbulb-on
           - entity: sensor.wei_sheng_jian_deng_jin_ri_liang_deng_shi_chang
-            name: 卫生间灯
+            name: 鍗敓闂寸伅
             icon: mdi:lightbulb-on
           - entity: sensor.zou_lang_deng_jin_ri_liang_deng_shi_chang
-            name: 走廊灯
+            name: 璧板粖鐏?
             icon: mdi:lightbulb-on
           - entity: sensor.men_kou_deng_jin_ri_liang_deng_shi_chang
-            name: 门口灯
+            name: 闂ㄥ彛鐏?
             icon: mdi:lightbulb-on
           - entity: sensor.jin_ri_liang_deng_zong_shi_chang
-            name: 今日亮灯总时长
+            name: 浠婃棩浜伅鎬绘椂闀?
             icon: mdi:lightbulb-group
 
-  # ==================== 功耗统计面板 ====================
-  - title: 功耗统计
+  # ==================== 鍔熻€楃粺璁￠潰鏉?====================
+  - title: 鍔熻€楃粺璁?
     icon: mdi:lightning-bolt
     path: power-stats
     cards:
-      # 总实时功率 + 设备实时功耗
+      # 鎬诲疄鏃跺姛鐜?+ 璁惧瀹炴椂鍔熻€?
       - type: horizontal-stack
         cards:
           - type: entity
             entity: sensor.zong_shi_shi_gong_lu_4
-            name: 总实时功率
+            name: 鎬诲疄鏃跺姛鐜?
             icon: mdi:flash
           - type: entities
-            title: 设备实时功耗
+            title: 璁惧瀹炴椂鍔熻€?
             entities:
               - entity: sensor.wiing_cn_1169773877_v8icm_electric_power_p_4_2
-                name: 豆浆机
+                name: 璞嗘祮鏈?
               - entity: sensor.cuco_cn_2025564050_v3_electric_power_p_11_2
-                name: 烤箱
+                name: 鐑ょ
               - entity: sensor.lumi_cn_684959720_mcn02_electric_power_p_5_1
-                name: 空调
+                name: 绌鸿皟
               - entity: sensor.giot_cn_1162898415_v8icm_electric_power_p_4_2
-                name: 取暖器
+                name: 鍙栨殩鍣?
               - entity: sensor.giot_cn_1162942256_v8icm_electric_power_p_4_2
-                name: 电脑
+                name: 鐢佃剳
               - entity: sensor.giot_cn_1163256502_v8icm_electric_power_p_4_2
                 name: NAS
               - entity: sensor.giot_cn_1164778814_v8icm_electric_power_p_4_2
-                name: 小打印机
+                name: 灏忔墦鍗版満
               - entity: sensor.sixwgh_cn_1200175237_v8icm1_electric_power_p_4_2
-                name: 大打印机
+                name: 澶ф墦鍗版満
               - entity: sensor.cuco_cn_860509913_v3_electric_power_p_11_2
-                name: 洗衣机
+                name: 娲楄。鏈?
 
-      # 实时功率图表
+      # 瀹炴椂鍔熺巼鍥捐〃
       - type: history-graph
-        title: 实时功率趋势
+        title: 瀹炴椂鍔熺巼瓒嬪娍
         entities:
           - entity: sensor.wiing_cn_1169773877_v8icm_electric_power_p_4_2
-            name: 豆浆机
+            name: 璞嗘祮鏈?
           - entity: sensor.cuco_cn_2025564050_v3_electric_power_p_11_2
-            name: 烤箱
+            name: 鐑ょ
           - entity: sensor.lumi_cn_684959720_mcn02_electric_power_p_5_1
-            name: 卧室空调
+            name: 鍗у绌鸿皟
           - entity: sensor.giot_cn_1162898415_v8icm_electric_power_p_4_2
-            name: 取暖器
+            name: 鍙栨殩鍣?
           - entity: sensor.giot_cn_1162942256_v8icm_electric_power_p_4_2
-            name: 客厅电脑电源
+            name: 瀹㈠巺鐢佃剳鐢垫簮
           - entity: sensor.giot_cn_1163256502_v8icm_electric_power_p_4_2
             name: NAS
           - entity: sensor.giot_cn_1164778814_v8icm_electric_power_p_4_2
-            name: 小打印机
+            name: 灏忔墦鍗版満
           - entity: sensor.sixwgh_cn_1200175237_v8icm1_electric_power_p_4_2
-            name: 大打印机
+            name: 澶ф墦鍗版満
           - entity: sensor.cuco_cn_860509913_v3_electric_power_p_11_2
-            name: 洗衣机
+            name: 娲楄。鏈?
         hours_to_show: 24
         refresh_interval: 30
 
-      # 打印机统计数据 - 垂直布局避免文字截断
+      # 鎵撳嵃鏈虹粺璁℃暟鎹?- 鍨傜洿甯冨眬閬垮厤鏂囧瓧鎴柇
       - type: vertical-stack
         cards:
           - type: entities
-            title: ??? 小黑奴（小打印机）
+            title: ??? 灏忛粦濂达紙灏忔墦鍗版満锛?
             entities:
               - entity: sensor.giot_cn_1164778814_v8icm_electric_power_p_4_2
-                name: 实时功率
+                name: 瀹炴椂鍔熺巼
               - entity: sensor.xiao_da_yin_ji_jin_ri_yong_dian_kwh
-                name: 今日用电
+                name: 浠婃棩鐢ㄧ數
               - entity: sensor.xiao_da_yin_ji_ben_zhou_yong_dian_kwh
-                name: 本周用电
+                name: 鏈懆鐢ㄧ數
               - entity: sensor.xiao_da_yin_ji_ben_yue_yong_dian_kwh
-                name: 本月用电
+                name: 鏈湀鐢ㄧ數
               - entity: sensor.xiao_da_yin_ji_lei_ji_yong_dian_kwh
-                name: 累计用电
+                name: 绱鐢ㄧ數
           - type: entities
-            title: ??? 大黑奴（大打印机）
+            title: ??? 澶ч粦濂达紙澶ф墦鍗版満锛?
             entities:
               - entity: sensor.sixwgh_cn_1200175237_v8icm1_electric_power_p_4_2
-                name: 实时功率
+                name: 瀹炴椂鍔熺巼
               - entity: sensor.da_da_yin_ji_jin_ri_yong_dian_kwh
-                name: 今日用电
+                name: 浠婃棩鐢ㄧ數
               - entity: sensor.da_da_yin_ji_ben_zhou_yong_dian_kwh
-                name: 本周用电
+                name: 鏈懆鐢ㄧ數
               - entity: sensor.da_da_yin_ji_ben_yue_yong_dian_kwh
-                name: 本月用电
+                name: 鏈湀鐢ㄧ數
               - entity: sensor.da_da_yin_ji_lei_ji_yong_dian_kwh
-                name: 累计用电
+                name: 绱鐢ㄧ數
 
-      # 打印机月总用电量
+      # 鎵撳嵃鏈烘湀鎬荤敤鐢甸噺
       - type: entity
         entity: sensor.da_yin_ji_yue_zong_yong_dian
-        name: 打印机月总用电
+        name: 鎵撳嵃鏈烘湀鎬荤敤鐢?
         icon: mdi:printer-3d
 
-      # 用电量统计
+      # 鐢ㄧ數閲忕粺璁?
       - type: statistics-graph
-        title: 用电量统计
+        title: 鐢ㄧ數閲忕粺璁?
         entities:
           - entity: sensor.wiing_cn_1169773877_v8icm_power_consumption_p_4_1
-            name: 豆浆机
+            name: 璞嗘祮鏈?
           - entity: sensor.cuco_cn_2025564050_v3_power_consumption_p_11_1
-            name: 烤箱
+            name: 鐑ょ
           - entity: sensor.giot_cn_1162898415_v8icm_power_consumption_p_4_1
-            name: 取暖器
+            name: 鍙栨殩鍣?
           - entity: sensor.giot_cn_1162942256_v8icm_power_consumption_p_4_1
-            name: 电脑电源
+            name: 鐢佃剳鐢垫簮
           - entity: sensor.giot_cn_1163256502_v8icm_power_consumption_p_4_1
             name: NAS
           - entity: sensor.giot_cn_1164778814_v8icm_power_consumption_p_4_1
-            name: 小打印机
+            name: 灏忔墦鍗版満
           - entity: sensor.sixwgh_cn_1200175237_v8icm1_power_consumption_p_4_1
-            name: 大打印机
+            name: 澶ф墦鍗版満
           - entity: sensor.cuco_cn_860509913_v3_power_consumption_p_11_1
-            name: 洗衣机
+            name: 娲楄。鏈?
         stat_types:
           - state
         period: day
         days_to_show: 7
 
-      # 周/月/年用电量
+      # 鍛?鏈?骞寸敤鐢甸噺
       - type: entities
-        title: 用电统计
+        title: 鐢ㄧ數缁熻
         entities:
           - entity: sensor.ben_zhou_yong_dian
-            name: 本周用电
+            name: 鏈懆鐢ㄧ數
             icon: mdi:calendar-week
           - entity: sensor.ben_yue_yong_dian
-            name: 本月用电
+            name: 鏈湀鐢ㄧ數
             icon: mdi:calendar-month
           - entity: sensor.ben_nian_yong_dian
-            name: 本年用电
+            name: 鏈勾鐢ㄧ數
             icon: mdi:calendar
 
-      # 电费、日总用电、打印机月总用电
+      # 鐢佃垂銆佹棩鎬荤敤鐢点€佹墦鍗版満鏈堟€荤敤鐢?
       - type: entities
-        title: ?? 用电费用统计
+        title: ?? 鐢ㄧ數璐圭敤缁熻
         entities:
           - entity: sensor.jin_ri_zong_yong_dian_liang_3
-            name: 今日总用电
+            name: 浠婃棩鎬荤敤鐢?
             icon: mdi:counter
           - entity: sensor.da_yin_ji_yue_zong_yong_dian
-            name: 打印机月总用电
+            name: 鎵撳嵃鏈烘湀鎬荤敤鐢?
             icon: mdi:printer-3d
           - entity: sensor.jin_ri_dian_fei
-            name: 今日电费
+            name: 浠婃棩鐢佃垂
           - entity: sensor.ben_yue_dian_fei
-            name: 本月电费
+            name: 鏈湀鐢佃垂
           - entity: sensor.ben_nian_dian_fei
-            name: 本年电费
+            name: 鏈勾鐢佃垂
 
-  # ==================== 人在传感器分析面板 ====================
-  - title: 人在分析
+  # ==================== 浜哄湪浼犳劅鍣ㄥ垎鏋愰潰鏉?====================
+  - title: 浜哄湪鍒嗘瀽
     icon: mdi:account-group
     path: presence-analysis
     cards:
-      # 当前各区域状态
+      # 褰撳墠鍚勫尯鍩熺姸鎬?
       - type: glance
-        title: 当前区域状态
+        title: 褰撳墠鍖哄煙鐘舵€?
         entities:
           - entity: sensor.linp_cn_blt_3_1n20sdaek4k01_es4b_occupancy_status_p_2_1078
-            name: 客厅
+            name: 瀹㈠巺
           - entity: sensor.linp_cn_blt_3_1ocv0fv7l0o00_es5b_occupancy_status_p_2_1078
-            name: 卧室
+            name: 鍗у
           - entity: sensor.linp_cn_1137697716_lp1bc_occupancy_status_p_5_1
-            name: 厨房
+            name: 鍘ㄦ埧
           - entity: sensor.linp_cn_blt_3_1n49ffqescc00_es2_occupancy_status_p_2_1078
-            name: 餐厅
+            name: 椁愬巺
           - entity: sensor.linp_cn_1137691863_lp1bc_occupancy_status_p_5_1
-            name: 卫生间
+            name: 鍗敓闂?
           - entity: sensor.linp_cn_1161876236_hb01_occupancy_status_p_2_1
-            name: 走廊玄关
+            name: 璧板粖鐜勫叧
           - entity: sensor.linp_cn_2079761645_ld6bcw_has_someone_duration_p_5_3
-            name: 门口
+            name: 闂ㄥ彛
         show_state: true
         show_icon: true
 
-      # 今日区域访问记录
+      # 浠婃棩鍖哄煙璁块棶璁板綍
       - type: history-graph
-        title: 今日人在传感器触发记录
+        title: 浠婃棩浜哄湪浼犳劅鍣ㄨЕ鍙戣褰?
         entities:
           - entity: sensor.linp_cn_blt_3_1n20sdaek4k01_es4b_occupancy_status_p_2_1078
-            name: 客厅
+            name: 瀹㈠巺
           - entity: sensor.linp_cn_blt_3_1ocv0fv7l0o00_es5b_occupancy_status_p_2_1078
-            name: 卧室
+            name: 鍗у
           - entity: sensor.linp_cn_1137697716_lp1bc_occupancy_status_p_5_1
-            name: 厨房
+            name: 鍘ㄦ埧
           - entity: sensor.linp_cn_blt_3_1n49ffqescc00_es2_occupancy_status_p_2_1078
-            name: 餐厅
+            name: 椁愬巺
           - entity: sensor.linp_cn_1137691863_lp1bc_occupancy_status_p_5_1
-            name: 卫生间
+            name: 鍗敓闂?
           - entity: sensor.linp_cn_1161876236_hb01_occupancy_status_p_2_1
-            name: 走廊玄关
+            name: 璧板粖鐜勫叧
           - entity: sensor.linp_cn_2079761645_ld6bcw_has_someone_duration_p_5_3
-            name: 门口
+            name: 闂ㄥ彛
         hours_to_show: 24
         refresh_interval: 10
 
-      # 区域访问频率统计
+      # 鍖哄煙璁块棶棰戠巼缁熻
       - type: entities
-        title: 今日区域访问统计
+        title: 浠婃棩鍖哄煙璁块棶缁熻
         entities:
           - entity: counter.living_room_visits
-            name: 客厅访问次数
+            name: 瀹㈠巺璁块棶娆℃暟
             icon: mdi:sofa
           - entity: counter.bedroom_visits
-            name: 卧室访问次数
+            name: 鍗у璁块棶娆℃暟
             icon: mdi:bed
           - entity: counter.kitchen_visits
-            name: 厨房访问次数
+            name: 鍘ㄦ埧璁块棶娆℃暟
             icon: mdi:stove
           - entity: counter.dining_visits
-            name: 餐厅访问次数
+            name: 椁愬巺璁块棶娆℃暟
             icon: mdi:silverware-fork-knife
           - entity: counter.bathroom_visits
-            name: 卫生间访问次数
+            name: 鍗敓闂磋闂鏁?
             icon: mdi:toilet
           - entity: counter.hallway_visits
-            name: 走廊玄关访问次数
+            name: 璧板粖鐜勫叧璁块棶娆℃暟
             icon: mdi:door
           - entity: counter.doorway_visits
-            name: 门口访问次数
+            name: 闂ㄥ彛璁块棶娆℃暟
             icon: mdi:door-open
 
-      # 区域停留时长统计
+      # 鍖哄煙鍋滅暀鏃堕暱缁熻
       - type: entities
-        title: 今日区域停留时长
+        title: 浠婃棩鍖哄煙鍋滅暀鏃堕暱
         entities:
           - entity: sensor.ke_ting_ting_liu_shi_chang
-            name: 客厅停留时长
+            name: 瀹㈠巺鍋滅暀鏃堕暱
             icon: mdi:sofa
           - entity: sensor.wo_shi_ting_liu_shi_chang
-            name: 卧室停留时长
+            name: 鍗у鍋滅暀鏃堕暱
             icon: mdi:bed
           - entity: sensor.chu_fang_ting_liu_shi_chang
-            name: 厨房停留时长
+            name: 鍘ㄦ埧鍋滅暀鏃堕暱
             icon: mdi:stove
           - entity: sensor.can_ting_ting_liu_shi_chang
-            name: 餐厅停留时长
+            name: 椁愬巺鍋滅暀鏃堕暱
             icon: mdi:silverware-fork-knife
           - entity: sensor.wei_sheng_jian_ting_liu_shi_chang
-            name: 卫生间停留时长
+            name: 鍗敓闂村仠鐣欐椂闀?
             icon: mdi:toilet
           - entity: sensor.zou_lang_xuan_guan_ting_liu_shi_chang
-            name: 走廊玄关停留时长
+            name: 璧板粖鐜勫叧鍋滅暀鏃堕暱
             icon: mdi:door
           - entity: sensor.men_kou_ting_liu_shi_chang
-            name: 门口停留时长
+            name: 闂ㄥ彛鍋滅暀鏃堕暱
             icon: mdi:door-open
 
-      # 最常访问区域
+      # 鏈€甯歌闂尯鍩?
       - type: entity
         entity: sensor.jin_ri_zui_chang_fang_wen_qu_yu
-        name: 今日最常访问区域
+        name: 浠婃棩鏈€甯歌闂尯鍩?
         icon: mdi:trophy
 
-      # 最长停留区域
+      # 鏈€闀垮仠鐣欏尯鍩?
       - type: entity
         entity: sensor.jin_ri_zui_chang_ting_liu_qu_yu
-        name: 今日最长停留区域
+        name: 浠婃棩鏈€闀垮仠鐣欏尯鍩?
         icon: mdi:clock
 
-      # 周统计图表
+      # 鍛ㄧ粺璁″浘琛?
       - type: statistics-graph
-        title: 本周区域访问趋势
+        title: 鏈懆鍖哄煙璁块棶瓒嬪娍
         entities:
           - entity: counter.living_room_visits
-            name: 客厅
+            name: 瀹㈠巺
           - entity: counter.bedroom_visits
-            name: 卧室
+            name: 鍗у
           - entity: counter.kitchen_visits
-            name: 厨房
+            name: 鍘ㄦ埧
           - entity: counter.dining_visits
-            name: 餐厅
+            name: 椁愬巺
         stat_types:
           - sum
         period: day
         days_to_show: 7
 
-  # ==================== 客厅区域详情 ====================
-  - title: 客厅
+  # ==================== 瀹㈠巺鍖哄煙璇︽儏 ====================
+  - title: 瀹㈠巺
     icon: mdi:sofa
     path: living-room
     cards:
       - type: grid
-        title: ?? 客厅灯光
+        title: ?? 瀹㈠巺鐏厜
         columns: 2
         cards:
           - type: light
             entity: light.jdjz_cn_857569251_jdjzu1_s_2_light
-            name: 吸顶灯
+            name: 鍚搁《鐏?
           - type: light
             entity: light.lemesh_cn_1186971184_wy0c14_s_2_light
-            name: 沙发灯
+            name: 娌欏彂鐏?
       - type: entities
-        title: 客厅状态
+        title: 瀹㈠巺鐘舵€?
         entities:
           - entity: sensor.linp_cn_blt_3_1n20sdaek4k01_es4b_occupancy_status_p_2_1078
-            name: 人在传感器
+            name: 浜哄湪浼犳劅鍣?
           - entity: sensor.ke_ting_ting_liu_shi_chang_3
-            name: 停留时长
+            name: 鍋滅暀鏃堕暱
           - entity: counter.living_room_visits
-            name: 访问次数
+            name: 璁块棶娆℃暟
           - entity: sensor.giot_cn_1162942256_v8icm_electric_power_p_4_2
-            name: 电脑电源功率
+            name: 鐢佃剳鐢垫簮鍔熺巼
           - entity: sensor.giot_cn_1162942256_v8icm_power_consumption_p_4_1
-            name: 电脑累计电量
+            name: 鐢佃剳绱鐢甸噺
       - type: button
-        name: 返回首页
+        name: 杩斿洖棣栭〉
         icon: mdi:arrow-left
         tap_action:
           action: navigate
           navigation_path: /lovelace/home
 
-  # ==================== 卧室区域详情 ====================
-  - title: 卧室
+  # ==================== 鍗у鍖哄煙璇︽儏 ====================
+  - title: 鍗у
     icon: mdi:bed
     path: bedroom
     cards:
       - type: grid
-        title: ?? 卧室灯光
+        title: ?? 鍗у鐏厜
         columns: 2
         cards:
           - type: light
             entity: light.ftd_cn_1124827030_dsplmp_s_2_light
-            name: 卧室灯
+            name: 鍗у鐏?
           - type: light
             entity: light.yeelink_cn_436301383_strip6_s_2_light
-            name: 灯带
+            name: 鐏甫
       - type: entities
-        title: 卧室状态
+        title: 鍗у鐘舵€?
         entities:
           - entity: sensor.linp_cn_blt_3_1ocv0fv7l0o00_es5b_occupancy_status_p_2_1078
-            name: 人在传感器
+            name: 浜哄湪浼犳劅鍣?
           - entity: sensor.wo_shi_ting_liu_shi_chang_3
-            name: 停留时长
+            name: 鍋滅暀鏃堕暱
           - entity: counter.bedroom_visits
-            name: 访问次数
+            name: 璁块棶娆℃暟
           - entity: climate.lumi_cn_684959720_mcn02
-            name: 空调
+            name: 绌鸿皟
           - entity: sensor.lumi_cn_684959720_mcn02_electric_power_p_5_1
-            name: 空调功率
+            name: 绌鸿皟鍔熺巼
       - type: button
-        name: 返回首页
+        name: 杩斿洖棣栭〉
         icon: mdi:arrow-left
         tap_action:
           action: navigate
           navigation_path: /lovelace/home
 
-  # ==================== 厨房区域详情 ====================
-  - title: 厨房
+  # ==================== 鍘ㄦ埧鍖哄煙璇︽儏 ====================
+  - title: 鍘ㄦ埧
     icon: mdi:stove
     path: kitchen
     cards:
       - type: light
         entity: light.linp_cn_1137697716_lp1bc_s_2_light
-        name: 厨房灯
+        name: 鍘ㄦ埧鐏?
       - type: entities
-        title: 厨房状态
+        title: 鍘ㄦ埧鐘舵€?
         entities:
           - entity: sensor.linp_cn_1137697716_lp1bc_occupancy_status_p_5_1
-            name: 人在传感器
+            name: 浜哄湪浼犳劅鍣?
           - entity: sensor.chu_fang_ting_liu_shi_chang_3
-            name: 停留时长
+            name: 鍋滅暀鏃堕暱
           - entity: counter.kitchen_visits
-            name: 访问次数
+            name: 璁块棶娆℃暟
           - entity: sensor.wiing_cn_1169773877_v8icm_electric_power_p_4_2
-            name: 豆浆机功率
+            name: 璞嗘祮鏈哄姛鐜?
           - entity: sensor.cuco_cn_2025564050_v3_electric_power_p_11_2
-            name: 烤箱功率
+            name: 鐑ょ鍔熺巼
       - type: button
-        name: 返回首页
+        name: 杩斿洖棣栭〉
         icon: mdi:arrow-left
         tap_action:
           action: navigate
           navigation_path: /lovelace/home
 
-  # ==================== 餐厅区域详情 ====================
-  - title: 餐厅
+  # ==================== 椁愬巺鍖哄煙璇︽儏 ====================
+  - title: 椁愬巺
     icon: mdi:silverware-fork-knife
     path: dining
     cards:
       - type: light
         entity: light.lemesh_cn_1155789492_wy0c15_s_2_light
-        name: 餐厅灯
+        name: 椁愬巺鐏?
       - type: entities
-        title: 餐厅状态
+        title: 椁愬巺鐘舵€?
         entities:
           - entity: sensor.linp_cn_blt_3_1n49ffqescc00_es2_occupancy_status_p_2_1078
-            name: 人在传感器
+            name: 浜哄湪浼犳劅鍣?
           - entity: sensor.can_ting_ting_liu_shi_chang_3
-            name: 停留时长
+            name: 鍋滅暀鏃堕暱
           - entity: counter.dining_visits
-            name: 访问次数
+            name: 璁块棶娆℃暟
       - type: button
-        name: 返回首页
+        name: 杩斿洖棣栭〉
         icon: mdi:arrow-left
         tap_action:
           action: navigate
           navigation_path: /lovelace/home
 
-  # ==================== 卫生间区域详情 ====================
-  - title: 卫生间
+  # ==================== 鍗敓闂村尯鍩熻鎯?====================
+  - title: 鍗敓闂?
     icon: mdi:toilet
     path: bathroom
     cards:
       - type: grid
-        title: ?? 卫生间灯光
+        title: ?? 鍗敓闂寸伅鍏?
         columns: 2
         cards:
           - type: light
             entity: light.linp_cn_1137691863_lp1bc_s_2_light
-            name: 卫生间灯
+            name: 鍗敓闂寸伅
           - type: light
             entity: light.yeelink_cn_942773473_v11_s_2_light
-            name: 浴霸灯
+            name: 娴撮湼鐏?
       - type: entities
-        title: 卫生间状态
+        title: 鍗敓闂寸姸鎬?
         entities:
           - entity: sensor.linp_cn_1137691863_lp1bc_occupancy_status_p_5_1
-            name: 人在传感器
+            name: 浜哄湪浼犳劅鍣?
           - entity: sensor.wei_sheng_jian_ting_liu_shi_chang_3
-            name: 停留时长
+            name: 鍋滅暀鏃堕暱
           - entity: counter.bathroom_visits
-            name: 访问次数
+            name: 璁块棶娆℃暟
       - type: button
-        name: 返回首页
+        name: 杩斿洖棣栭〉
         icon: mdi:arrow-left
         tap_action:
           action: navigate
           navigation_path: /lovelace/home
 
-  # ==================== 走廊玄关区域详情 ====================
-  - title: 走廊玄关
+  # ==================== 璧板粖鐜勫叧鍖哄煙璇︽儏 ====================
+  - title: 璧板粖鐜勫叧
     icon: mdi:door
     path: hallway
     cards:
       - type: grid
-        title: ?? 走廊灯光
+        title: ?? 璧板粖鐏厜
         columns: 2
         cards:
           - type: light
             entity: light.giot_cn_1188250021_v8ssm_s_2_light
-            name: 走道灯
+            name: 璧伴亾鐏?
           - type: light
             entity: light.linp_cn_2023072411_ld6bcw_s_2_light
-            name: 卫生间灯
+            name: 鍗敓闂寸伅
       - type: entities
-        title: 走廊玄关状态
+        title: 璧板粖鐜勫叧鐘舵€?
         entities:
           - entity: sensor.linp_cn_1161876236_hb01_occupancy_status_p_2_1
-            name: 人在传感器
+            name: 浜哄湪浼犳劅鍣?
           - entity: sensor.zou_lang_xuan_guan_ting_liu_shi_chang_3
-            name: 停留时长
+            name: 鍋滅暀鏃堕暱
           - entity: counter.hallway_visits
-            name: 访问次数
+            name: 璁块棶娆℃暟
       - type: button
-        name: 返回首页
+        name: 杩斿洖棣栭〉
         icon: mdi:arrow-left
         tap_action:
           action: navigate
           navigation_path: /lovelace/home
 
-  # ==================== 门口区域详情 ====================
-  - title: 门口
+  # ==================== 闂ㄥ彛鍖哄煙璇︽儏 ====================
+  - title: 闂ㄥ彛
     icon: mdi:door-open
     path: doorway
     cards:
       - type: light
         entity: light.linp_cn_2079761645_ld6bcw_s_2_light
-        name: 筒灯
+        name: 绛掔伅
       - type: entities
-        title: 门口状态
+        title: 闂ㄥ彛鐘舵€?
         entities:
           - entity: sensor.linp_cn_2079761645_ld6bcw_has_someone_duration_p_5_3
-            name: 有人持续时长
+            name: 鏈変汉鎸佺画鏃堕暱
           - entity: sensor.linp_cn_2079761645_ld6bcw_no_one_duration_p_5_4
-            name: 无人持续时长
+            name: 鏃犱汉鎸佺画鏃堕暱
           - entity: sensor.linp_cn_2079761645_ld6bcw_illumination_p_5_5
-            name: 光照度
+            name: 鍏夌収搴?
           - entity: sensor.men_kou_ting_liu_shi_chang_3
-            name: 停留时长
+            name: 鍋滅暀鏃堕暱
           - entity: counter.doorway_visits
-            name: 访问次数
+            name: 璁块棶娆℃暟
       - type: button
-        name: 返回首页
+        name: 杩斿洖棣栭〉
         icon: mdi:arrow-left
         tap_action:
           action: navigate
           navigation_path: /lovelace/home
 
-  # ==================== 监控页面 ====================
-  - title: 监控
+  # ==================== 鐩戞帶椤甸潰 ====================
+  - title: 鐩戞帶
     icon: mdi:cctv
     path: monitoring
     cards:
-      # 小黑奴摄像机 (A1 Mini)
+      # 灏忛粦濂存憚鍍忔満 (A1 Mini)
       - type: picture-entity
         entity: image.a1mini_0300aa5a1600497_camera
-        name: 小黑奴摄像机
+        name: 灏忛粦濂存憚鍍忔満
         show_state: false
         show_name: true
         camera_view: live
         tap_action:
           action: more-info
 
-      # 小黑奴摄像机控制
+      # 灏忛粦濂存憚鍍忔満鎺у埗
       - type: entities
-        title: 小黑奴摄像机控制
+        title: 灏忛粦濂存憚鍍忔満鎺у埗
         entities:
           - entity: button.yunyi_cn_yunyi_g5y51h17naf1slx1111a_v1_start_p2p_stream_a_2_1
-            name: 开始实时视频流
+            name: 寮€濮嬪疄鏃惰棰戞祦
           - entity: button.yunyi_cn_yunyi_g5y51h17naf1slx1111a_v1_stop_stream_a_2_2
-            name: 停止视频流
+            name: 鍋滄瑙嗛娴?
 
-      # P2S打印机摄像机控制
+      # P2S鎵撳嵃鏈烘憚鍍忔満鎺у埗
       - type: entities
-        title: P2S打印机摄像机
+        title: P2S鎵撳嵃鏈烘憚鍍忔満
         entities:
           - entity: switch.p2s_22e8bj5a2401765_enable_camera
-            name: 启用相机
+            name: 鍚敤鐩告満
 
-      # 创米摄像机控制
+      # 鍒涚背鎽勫儚鏈烘帶鍒?
       - type: entities
-        title: 创米摄像机
+        title: 鍒涚背鎽勫儚鏈?
         entities:
           - entity: button.chuangmi_cn_2837777671_v6_start_p2p_stream_a_3_1
-            name: 开始视频流
+            name: 寮€濮嬭棰戞祦
           - entity: button.chuangmi_cn_2837777671_v6_stop_stream_a_3_2
-            name: 停止视频流
+            name: 鍋滄瑙嗛娴?
 
-      # 小蚁摄像机控制
+      # 灏忚殎鎽勫儚鏈烘帶鍒?
       - type: entities
-        title: 小蚁摄像机
+        title: 灏忚殎鎽勫儚鏈?
         entities:
           - entity: button.yunyi_cn_yunyi_g5y51h17naf1slx1111a_v1_start_p2p_stream_a_2_1
-            name: 开始视频流
+            name: 寮€濮嬭棰戞祦
           - entity: button.yunyi_cn_yunyi_g5y51h17naf1slx1111a_v1_stop_stream_a_2_2
-            name: 停止视频流
+            name: 鍋滄瑙嗛娴?
 
-      # 返回首页按钮
+      # 杩斿洖棣栭〉鎸夐挳
       - type: button
-        name: 返回首页
+        name: 杩斿洖棣栭〉
         icon: mdi:arrow-left
         tap_action:
           action: navigate
           navigation_path: /lovelace/home
 
-  # ==================== P2S 状态页面 ====================
+  # ==================== P2S 鐘舵€侀〉闈?====================
   - title: P2S
     icon: mdi:printer-3d-nozzle-outline
     path: p2s-status
     cards:
-      # P2S 状态概览 - 顶部关键信息
+      # P2S 鐘舵€佹瑙?- 椤堕儴鍏抽敭淇℃伅
       - type: glance
-        title: ??? P2S (大黑奴) 状态概览
+        title: ??? P2S (澶ч粦濂? 鐘舵€佹瑙?
         entities:
           - entity: binary_sensor.p2s_22e8bj5a2401765_online
-            name: 在线状态
+            name: 鍦ㄧ嚎鐘舵€?
           - entity: sensor.p2s_22e8bj5a2401765_print_status
-            name: 打印状态
+            name: 鎵撳嵃鐘舵€?
           - entity: sensor.p2s_22e8bj5a2401765_print_progress
-            name: 打印进度
+            name: 鎵撳嵃杩涘害
           - entity: sensor.p2s_22e8bj5a2401765_remaining_time
-            name: 剩余时间(小时)
+            name: 鍓╀綑鏃堕棿(灏忔椂)
         show_state: true
         show_icon: true
 
-      # 打印进度条
+      # 鎵撳嵃杩涘害鏉?
       - type: gauge
         entity: sensor.p2s_22e8bj5a2401765_print_progress
-        name: 打印进度
+        name: 鎵撳嵃杩涘害
         min: 0
         max: 100
         severity:
@@ -767,22 +767,22 @@ views:
           yellow: 50
           red: 0
 
-      # P2S 封面图片
+      # P2S 灏侀潰鍥剧墖
       - type: picture-entity
         entity: image.p2s_22e8bj5a2401765_cover_image
-        name: P2S 封面图片
+        name: P2S 灏侀潰鍥剧墖
         show_state: false
         show_name: true
         camera_view: live
         tap_action:
           action: more-info
 
-      # 温度控制 - 水平布局
+      # 娓╁害鎺у埗 - 姘村钩甯冨眬
       - type: horizontal-stack
         cards:
           - type: gauge
             entity: sensor.p2s_22e8bj5a2401765_nozzle_temperature
-            name: 喷嘴温度
+            name: 鍠峰槾娓╁害
             min: 0
             max: 300
             severity:
@@ -791,7 +791,7 @@ views:
               red: 280
           - type: gauge
             entity: sensor.p2s_22e8bj5a2401765_bed_temperature
-            name: 热床温度
+            name: 鐑簥娓╁害
             min: 0
             max: 120
             severity:
@@ -800,7 +800,7 @@ views:
               red: 110
           - type: gauge
             entity: sensor.p2s_22e8bj5a2401765_chamber_temperature
-            name: 腔体温度
+            name: 鑵斾綋娓╁害
             min: 0
             max: 80
             severity:
@@ -808,43 +808,43 @@ views:
               yellow: 60
               red: 70
 
-      # 温度详情
+      # 娓╁害璇︽儏
       - type: entities
-        title: ??? 温度详情
+        title: ??? 娓╁害璇︽儏
         entities:
           - entity: sensor.p2s_22e8bj5a2401765_nozzle_temperature
-            name: 喷嘴当前温度
+            name: 鍠峰槾褰撳墠娓╁害
           - entity: sensor.p2s_22e8bj5a2401765_nozzle_target_temperature
-            name: 喷嘴目标温度
+            name: 鍠峰槾鐩爣娓╁害
           - entity: sensor.p2s_22e8bj5a2401765_bed_temperature
-            name: 热床当前温度
+            name: 鐑簥褰撳墠娓╁害
           - entity: sensor.p2s_22e8bj5a2401765_bed_target_temperature
-            name: 热床目标温度
+            name: 鐑簥鐩爣娓╁害
           - entity: sensor.p2s_22e8bj5a2401765_chamber_temperature
-            name: 腔体温度
+            name: 鑵斾綋娓╁害
 
-      # 风扇速度
+      # 椋庢墖閫熷害
       - type: entities
-        title: ?? 风扇速度
+        title: ?? 椋庢墖閫熷害
         entities:
           - entity: sensor.p2s_22e8bj5a2401765_cooling_fan_speed
-            name: 冷却风扇
+            name: 鍐峰嵈椋庢墖
             icon: mdi:fan
           - entity: sensor.p2s_22e8bj5a2401765_aux_fan_speed
-            name: 辅助风扇
+            name: 杈呭姪椋庢墖
             icon: mdi:fan
           - entity: sensor.p2s_22e8bj5a2401765_chamber_fan_speed
-            name: 腔体风扇
+            name: 鑵斾綋椋庢墖
             icon: mdi:fan
           - entity: sensor.p2s_22e8bj5a2401765_heatbreak_fan_speed
-            name: 喉管风扇
+            name: 鍠夌椋庢墖
             icon: mdi:fan
 
-      # 打印控制
+      # 鎵撳嵃鎺у埗
       - type: horizontal-stack
         cards:
           - type: button
-            name: 暂停打印
+            name: 鏆傚仠鎵撳嵃
             icon: mdi:pause-circle
             tap_action:
               action: call-service
@@ -852,7 +852,7 @@ views:
               target:
                 entity_id: button.p2s_22e8bj5a2401765_pause_printing
           - type: button
-            name: 恢复打印
+            name: 鎭㈠鎵撳嵃
             icon: mdi:play-circle
             tap_action:
               action: call-service
@@ -860,7 +860,7 @@ views:
               target:
                 entity_id: button.p2s_22e8bj5a2401765_resume_printing
           - type: button
-            name: 停止打印
+            name: 鍋滄鎵撳嵃
             icon: mdi:stop-circle
             tap_action:
               action: call-service
@@ -869,399 +869,551 @@ views:
                 entity_id: button.p2s_22e8bj5a2401765_stop_printing
           - type: light
             entity: light.p2s_22e8bj5a2401765_chamber_light
-            name: 舱内照明
+            name: 鑸卞唴鐓ф槑
 
-      # 打印信息
+      # 鎵撳嵃淇℃伅
       - type: entities
-        title: ?? 打印信息
+        title: ?? 鎵撳嵃淇℃伅
         entities:
           - entity: sensor.p2s_22e8bj5a2401765_current_stage
-            name: 当前阶段
+            name: 褰撳墠闃舵
           - entity: sensor.p2s_22e8bj5a2401765_current_layer
-            name: 当前层数
+            name: 褰撳墠灞傛暟
           - entity: sensor.p2s_22e8bj5a2401765_total_layer_count
-            name: 总层数
+            name: 鎬诲眰鏁?
           - entity: sensor.p2s_22e8bj5a2401765_print_weight
-            name: 打印重量(g)
+            name: 鎵撳嵃閲嶉噺(g)
           - entity: sensor.p2s_22e8bj5a2401765_print_length
-            name: 打印长度(m)
+            name: 鎵撳嵃闀垮害(m)
           - entity: sensor.p2s_22e8bj5a2401765_active_tray
-            name: 当前料盘
+            name: 褰撳墠鏂欑洏
           - entity: sensor.p2s_22e8bj5a2401765_task_name
-            name: 任务名称
+            name: 浠诲姟鍚嶇О
           - entity: sensor.p2s_22e8bj5a2401765_gcode_filename
-            name: GCode文件
+            name: GCode鏂囦欢
           - entity: sensor.p2s_22e8bj5a2401765_start_time
-            name: 开始时间
+            name: 寮€濮嬫椂闂?
           - entity: sensor.p2s_22e8bj5a2401765_end_time
-            name: 预计结束时间
+            name: 棰勮缁撴潫鏃堕棿
           - entity: sensor.p2s_22e8bj5a2401765_speed_profile
-            name: 打印速度模式
+            name: 鎵撳嵃閫熷害妯″紡
           - entity: sensor.p2s_22e8bj5a2401765_print_type
-            name: 打印类型
+            name: 鎵撳嵃绫诲瀷
           - entity: sensor.sixwgh_cn_1200175237_v8icm1_electric_power_p_4_2
-            name: 实时功率
+            name: 瀹炴椂鍔熺巼
           - entity: sensor.sixwgh_cn_1200175237_v8icm1_power_consumption_p_4_1
-            name: 累计功耗
+            name: 绱鍔熻€?
 
-      # AMS 料盘状态
+      # AMS 鏂欑洏鐘舵€?
       - type: entities
-        title: ?? AMS 料盘状态
+        title: ?? AMS 鏂欑洏鐘舵€?
         entities:
           - entity: sensor.p2s_22e8bj5a2401765_ams_1_tray_1
-            name: 料盘 1
+            name: 鏂欑洏 1
             icon: mdi:circle
           - entity: sensor.p2s_22e8bj5a2401765_ams_1_tray_2
-            name: 料盘 2
+            name: 鏂欑洏 2
             icon: mdi:circle
           - entity: sensor.p2s_22e8bj5a2401765_ams_1_tray_3
-            name: 料盘 3
+            name: 鏂欑洏 3
             icon: mdi:circle
           - entity: sensor.p2s_22e8bj5a2401765_ams_1_tray_4
-            name: 料盘 4
+            name: 鏂欑洏 4
             icon: mdi:circle
 
-      # 大黑奴排气扇
+      # 澶ч粦濂存帓姘旀墖
       - type: entities
-        title: ?? 大黑奴排气扇
+        title: ?? 澶ч粦濂存帓姘旀墖
         entities:
           - entity: button.sixwgh_cn_1200174207_v7icm_toggle_a_2_1
-            name: 开关控制
+            name: 寮€鍏虫帶鍒?
             icon: mdi:power
           - entity: button.sixwgh_cn_1200174207_v7icm_local_timing_on_a_7_8
-            name: 启动本地定时
+            name: 鍚姩鏈湴瀹氭椂
             icon: mdi:timer-play
           - entity: button.sixwgh_cn_1200174207_v7icm_local_timing_off_a_7_9
-            name: 关闭本地定时
+            name: 鍏抽棴鏈湴瀹氭椂
             icon: mdi:timer-off
 
-      # AMS 环境
+      # AMS 鐜
       - type: entities
-        title: ??? AMS 环境
+        title: ??? AMS 鐜
         entities:
           - entity: sensor.p2s_22e8bj5a2401765_ams_1_humidity
-            name: AMS湿度
+            name: AMS婀垮害
             icon: mdi:water-percent
           - entity: sensor.p2s_22e8bj5a2401765_ams_1_humidity_index
-            name: 湿度指数
+            name: 婀垮害鎸囨暟
             icon: mdi:water-percent-alert
           - entity: sensor.p2s_22e8bj5a2401765_ams_1_temperature
-            name: AMS温度
+            name: AMS娓╁害
             icon: mdi:thermometer
 
-      # 设备状态
+      # 璁惧鐘舵€?
       - type: entities
-        title: ?? 设备状态
+        title: ?? 璁惧鐘舵€?
         entities:
           - entity: sensor.p2s_22e8bj5a2401765_printer_name
-            name: 打印机名称
+            name: 鎵撳嵃鏈哄悕绉?
           - entity: sensor.p2s_22e8bj5a2401765_serial_number
-            name: 序列号
+            name: 搴忓垪鍙?
           - entity: sensor.p2s_22e8bj5a2401765_ip_address
-            name: IP地址
+            name: IP鍦板潃
           - entity: sensor.p2s_22e8bj5a2401765_wi_fi_signal
-            name: WiFi信号(dBm)
+            name: WiFi淇″彿(dBm)
           - entity: sensor.p2s_22e8bj5a2401765_total_usage
-            name: 总使用时长(小时)
+            name: 鎬讳娇鐢ㄦ椂闀?灏忔椂)
           - entity: binary_sensor.p2s_22e8bj5a2401765_extruder_filament_state
-            name: 料丝状态
+            name: 鏂欎笣鐘舵€?
           - entity: binary_sensor.p2s_22e8bj5a2401765_enclosure_door
-            name: 封箱门状态
+            name: 灏佺闂ㄧ姸鎬?
           - entity: binary_sensor.p2s_22e8bj5a2401765_airduct_mode
-            name: 风道模式
+            name: 椋庨亾妯″紡
           - entity: binary_sensor.p2s_22e8bj5a2401765_ams_1_active
-            name: AMS激活状态
+            name: AMS婵€娲荤姸鎬?
           - entity: binary_sensor.p2s_22e8bj5a2401765_externalspool_active
-            name: 外挂料盘激活
+            name: 澶栨寕鏂欑洏婵€娲?
           - entity: sensor.p2s_22e8bj5a2401765_externalspool_external_spool
-            name: 外挂料盘类型
+            name: 澶栨寕鏂欑洏绫诲瀷
           - entity: binary_sensor.p2s_22e8bj5a2401765_hms_errors
-            name: HMS错误
+            name: HMS閿欒
           - entity: binary_sensor.p2s_22e8bj5a2401765_print_error
-            name: 打印错误
+            name: 鎵撳嵃閿欒
           - entity: binary_sensor.p2s_22e8bj5a2401765_firmware_update
-            name: 固件更新
+            name: 鍥轰欢鏇存柊
           - entity: sensor.p2s_22e8bj5a2401765_nozzle_size
-            name: 喷嘴尺寸
+            name: 鍠峰槾灏哄
           - entity: sensor.p2s_22e8bj5a2401765_nozzle_type
-            name: 喷嘴类型
+            name: 鍠峰槾绫诲瀷
           - entity: sensor.p2s_22e8bj5a2401765_print_bed_type
-            name: 打印底板类型
+            name: 鎵撳嵃搴曟澘绫诲瀷
           - entity: sensor.p2s_22e8bj5a2401765_sd_card_status
-            name: SD卡状态
+            name: SD鍗＄姸鎬?
           - entity: sensor.p2s_22e8bj5a2401765_mqtt_connection_mode
-            name: MQTT连接模式
+            name: MQTT杩炴帴妯″紡
 
-      # 相机控制
+      # 鐩告満鎺у埗
       - type: entities
-        title: ?? 相机控制
+        title: ?? 鐩告満鎺у埗
         entities:
           - entity: switch.p2s_22e8bj5a2401765_enable_camera
-            name: 启用相机
+            name: 鍚敤鐩告満
           - entity: binary_sensor.p2s_22e8bj5a2401765_recording_timelapse
-            name: 延时摄影
+            name: 寤舵椂鎽勫奖
           - entity: image.p2s_22e8bj5a2401765_pick_image
-            name: 拾取图片
+            name: 鎷惧彇鍥剧墖
 
-      # 返回首页按钮
+      # 杩斿洖棣栭〉鎸夐挳
       - type: button
-        name: 返回首页
+        name: 杩斿洖棣栭〉
         icon: mdi:arrow-left
         tap_action:
           action: navigate
           navigation_path: /lovelace/home
 
-  # ==================== A1 Mini 页面 ====================
+  # ==================== A1 Mini 椤甸潰 ====================
   - title: A1 Mini
     icon: mdi:printer-3d
     path: a1mini
     cards:
-      # A1 Mini 状态概览
+      # A1 Mini 鐘舵€佹瑙?
       - type: glance
-        title: ??? A1 Mini (小黑奴) 状态
+        title: ??? A1 Mini (灏忛粦濂? 鐘舵€?
         entities:
           - entity: binary_sensor.a1mini_0300aa5a1600497_online
-            name: 在线状态
+            name: 鍦ㄧ嚎鐘舵€?
           - entity: sensor.a1mini_0300aa5a1600497_print_status
-            name: 打印状态
+            name: 鎵撳嵃鐘舵€?
           - entity: sensor.a1mini_0300aa5a1600497_print_progress
-            name: 打印进度
+            name: 鎵撳嵃杩涘害
           - entity: sensor.a1mini_0300aa5a1600497_remaining_time
-            name: 剩余时间
+            name: 鍓╀綑鏃堕棿
         show_state: true
         show_icon: true
 
-      # A1 Mini 实时画面
+      # A1 Mini 瀹炴椂鐢婚潰
       - type: picture-entity
         entity: image.a1mini_0300aa5a1600497_camera
-        name: A1 Mini 实时画面
+        name: A1 Mini 瀹炴椂鐢婚潰
         show_state: false
         show_name: true
         camera_view: live
         tap_action:
           action: more-info
 
-      # A1 Mini 温度控制
+      # A1 Mini 娓╁害鎺у埗
       - type: entities
-        title: ??? 温度控制
+        title: ??? 娓╁害鎺у埗
         entities:
           - entity: sensor.a1mini_0300aa5a1600497_nozzle_temperature
-            name: 喷嘴温度
+            name: 鍠峰槾娓╁害
           - entity: number.a1mini_0300aa5a1600497_nozzle_target_temperature
-            name: 喷嘴目标温度
+            name: 鍠峰槾鐩爣娓╁害
           - entity: sensor.a1mini_0300aa5a1600497_bed_temperature
-            name: 热床温度
+            name: 鐑簥娓╁害
           - entity: number.a1mini_0300aa5a1600497_bed_target_temperature
-            name: 热床目标温度
+            name: 鐑簥鐩爣娓╁害
           - entity: sensor.a1mini_0300aa5a1600497_cooling_fan_speed
-            name: 冷却风扇速度
+            name: 鍐峰嵈椋庢墖閫熷害
           - entity: sensor.a1mini_0300aa5a1600497_heatbreak_fan_speed
-            name: 喉管风扇速度
+            name: 鍠夌椋庢墖閫熷害
 
-      # 小黑奴风扇
+      # 灏忛粦濂撮鎵?
       - type: entities
-        title: ?? 小黑奴风扇
+        title: ?? 灏忛粦濂撮鎵?
         entities:
           - entity: button.yutai_cn_1188285576_fsov7m_toggle_a_2_1
-            name: 开关控制
+            name: 寮€鍏虫帶鍒?
             icon: mdi:power
           - entity: button.yutai_cn_1188285576_fsov7m_local_timing_on_a_7_8
-            name: 启动本地定时
+            name: 鍚姩鏈湴瀹氭椂
             icon: mdi:timer-play
           - entity: button.yutai_cn_1188285576_fsov7m_local_timing_off_a_7_9
-            name: 关闭本地定时
+            name: 鍏抽棴鏈湴瀹氭椂
             icon: mdi:timer-off
 
-      # A1 Mini 打印控制
+      # A1 Mini 鎵撳嵃鎺у埗
       - type: entities
-        title: ?? 打印控制
+        title: ?? 鎵撳嵃鎺у埗
         entities:
           - entity: button.a1mini_0300aa5a1600497_pause_printing
-            name: 暂停打印
+            name: 鏆傚仠鎵撳嵃
           - entity: button.a1mini_0300aa5a1600497_resume_printing
-            name: 恢复打印
+            name: 鎭㈠鎵撳嵃
           - entity: button.a1mini_0300aa5a1600497_stop_printing
-            name: 停止打印
+            name: 鍋滄鎵撳嵃
           - entity: select.a1mini_0300aa5a1600497_printing_speed
-            name: 打印速度
+            name: 鎵撳嵃閫熷害
           - entity: fan.a1mini_0300aa5a1600497_cooling_fan
-            name: 冷却风扇
+            name: 鍐峰嵈椋庢墖
           - entity: light.a1mini_0300aa5a1600497_chamber_light
-            name: 舱内照明
+            name: 鑸卞唴鐓ф槑
 
-      # A1 Mini 打印信息
+      # A1 Mini 鎵撳嵃淇℃伅
       - type: entities
-        title: ?? 打印信息
+        title: ?? 鎵撳嵃淇℃伅
         entities:
           - entity: sensor.a1mini_0300aa5a1600497_current_stage
-            name: 当前阶段
+            name: 褰撳墠闃舵
           - entity: sensor.a1mini_0300aa5a1600497_current_layer
-            name: 当前层数
+            name: 褰撳墠灞傛暟
           - entity: sensor.a1mini_0300aa5a1600497_total_layer_count
-            name: 总层数
+            name: 鎬诲眰鏁?
           - entity: sensor.a1mini_0300aa5a1600497_print_weight
-            name: 打印重量
+            name: 鎵撳嵃閲嶉噺
           - entity: sensor.a1mini_0300aa5a1600497_print_length
-            name: 打印长度
+            name: 鎵撳嵃闀垮害
           - entity: sensor.a1mini_0300aa5a1600497_printable_objects
-            name: 可打印对象数
+            name: 鍙墦鍗板璞℃暟
           - entity: sensor.a1mini_0300aa5a1600497_skipped_objects
-            name: 跳过对象数
+            name: 璺宠繃瀵硅薄鏁?
           - entity: sensor.giot_cn_1164778814_v8icm_electric_power_p_4_2
-            name: 实时功率
+            name: 瀹炴椂鍔熺巼
           - entity: sensor.giot_cn_1164778814_v8icm_power_consumption_p_4_1
-            name: 累计功耗
+            name: 绱鍔熻€?
 
-      # A1 Mini 外挂料盘
+      # A1 Mini 澶栨寕鏂欑洏
       - type: entities
-        title: ?? 外挂料盘
+        title: ?? 澶栨寕鏂欑洏
         entities:
           - entity: sensor.a1mini_0300aa5a1600497_externalspool_external_spool
-            name: 料盘类型
+            name: 鏂欑洏绫诲瀷
           - entity: binary_sensor.a1mini_0300aa5a1600497_externalspool_active
-            name: 料盘激活状态
+            name: 鏂欑洏婵€娲荤姸鎬?
           - entity: binary_sensor.a1mini_0300aa5a1600497_extruder_filament_state
-            name: 挤出机料丝状态
+            name: 鎸ゅ嚭鏈烘枡涓濈姸鎬?
 
-      # A1 Mini 设备信息
+      # A1 Mini 璁惧淇℃伅
       - type: entities
-        title: ?? 设备信息
+        title: ?? 璁惧淇℃伅
         entities:
           - entity: sensor.a1mini_0300aa5a1600497_printer_name
-            name: 打印机名称
+            name: 鎵撳嵃鏈哄悕绉?
           - entity: sensor.a1mini_0300aa5a1600497_serial_number
-            name: 序列号
+            name: 搴忓垪鍙?
           - entity: sensor.a1mini_0300aa5a1600497_ip_address
-            name: IP地址
+            name: IP鍦板潃
           - entity: sensor.a1mini_0300aa5a1600497_wi_fi_signal
-            name: WiFi信号
+            name: WiFi淇″彿
           - entity: sensor.a1mini_0300aa5a1600497_total_usage
-            name: 总使用时长
+            name: 鎬讳娇鐢ㄦ椂闀?
           - entity: binary_sensor.a1mini_0300aa5a1600497_hms_errors
-            name: HMS错误
+            name: HMS閿欒
           - entity: binary_sensor.a1mini_0300aa5a1600497_print_error
-            name: 打印错误
+            name: 鎵撳嵃閿欒
           - entity: binary_sensor.a1mini_0300aa5a1600497_firmware_update
-            name: 固件更新
+            name: 鍥轰欢鏇存柊
 
-      # A1 Mini 相机控制
+      # A1 Mini 鐩告満鎺у埗
       - type: entities
-        title: ?? 相机控制
+        title: ?? 鐩告満鎺у埗
         entities:
           - entity: switch.a1mini_0300aa5a1600497_enable_camera
-            name: 启用相机
+            name: 鍚敤鐩告満
           - entity: switch.a1mini_0300aa5a1600497_use_image_sensor_camera
-            name: 使用图像传感器相机
+            name: 浣跨敤鍥惧儚浼犳劅鍣ㄧ浉鏈?
           - entity: image.a1mini_0300aa5a1600497_cover_image
-            name: 封面图片
+            name: 灏侀潰鍥剧墖
           - entity: image.a1mini_0300aa5a1600497_pick_image
-            name: 拾取图片
+            name: 鎷惧彇鍥剧墖
 
-      # 返回首页按钮
+      # 杩斿洖棣栭〉鎸夐挳
       - type: button
-        name: 返回首页
+        name: 杩斿洖棣栭〉
         icon: mdi:arrow-left
         tap_action:
           action: navigate
           navigation_path: /lovelace/home
 
-  # ==================== 亮灯对比页面 ====================
+  # ==================== 浜伅瀵规瘮椤甸潰 ====================
   - title: 亮灯对比
     icon: mdi:chart-line
     path: light-comparison
     cards:
-      # 今日各灯亮灯时长对比
-      - type: history-graph
-        title: 今日各灯亮灯时长趋势
-        entities:
-          - entity: sensor.ke_ting_xi_ding_deng_liang_deng_shi_chang
-            name: 客厅吸顶灯
-          - entity: sensor.ke_ting_sha_fa_deng_liang_deng_shi_chang
-            name: 客厅沙发灯
-          - entity: sensor.wo_shi_deng_liang_deng_shi_chang
-            name: 卧室灯
-          - entity: sensor.wo_shi_deng_dai_liang_deng_shi_chang
-            name: 卧室灯带
-          - entity: sensor.chu_fang_deng_liang_deng_shi_chang
-            name: 厨房灯
-          - entity: sensor.can_ting_deng_liang_deng_shi_chang
-            name: 餐厅灯
-          - entity: sensor.wei_sheng_jian_deng_liang_deng_shi_chang
-            name: 卫生间灯
-          - entity: sensor.yu_ba_deng_liang_deng_shi_chang
-            name: 浴霸灯
-          - entity: sensor.zou_lang_zou_dao_deng_liang_deng_shi_chang
-            name: 走廊走道灯
-          - entity: sensor.zou_lang_wei_sheng_jian_deng_liang_deng_shi_chang
-            name: 走廊卫生间灯
-          - entity: sensor.men_kou_tong_deng_liang_deng_shi_chang
-            name: 门口筒灯
-        hours_to_show: 24
-        refresh_interval: 60
+      - type: heading
+        heading: 亮灯总时长
+        icon: mdi:lightbulb-group
 
-      # 全屋灯光总亮灯时长（今日）
-      - type: entity
-        entity: sensor.quan_wu_deng_guang_zong_liang_deng_shi_chang_fen_zhong
-        name: 今日全屋灯光总亮灯时长
-        icon: mdi:lightbulb-group-on
+      - type: markdown
+        content: |
+          {% set total_sec = states('sensor.total_lights_all_time_duration_seconds_v2')|float(0) %}
+          {% set total_h = (total_sec / 3600) %}
+          {% set year_h_raw = states('sensor.total_lights_yearly_duration_hours_v2')|float(0) %}
+          {% set today_h_raw = states('sensor.total_lights_hs_daily_duration_hours_v2')|float(0) %}
+          {% set month_h_raw = states('sensor.total_lights_hs_monthly_duration_hours_v2')|float(0) %}
+          {% set week_h_raw = states('sensor.total_lights_hs_weekly_duration_hours_v2')|float(0) %}
+          {% set year_h = [year_h_raw, total_h]|min %}
+          {% set month_h = [month_h_raw, year_h]|min %}
+          {% set week_h = [week_h_raw, month_h]|min %}
+          {% set today_h = [today_h_raw, week_h]|min %}
+          | 今日 | 本周 | 本月 | 本年 | 总计 |
+          | --- | --- | --- | --- | --- |
+          | {{ today_h|round(2) }} 小时 | {{ week_h|round(2) }} 小时 | {{ month_h|round(2) }} 小时 | {{ (year_h / 24)|round(2) }} 天 | {{ (total_h / 24)|round(2) }} 天 |
 
-      # 各灯当前亮灯时长
+      - type: heading
+        heading: 全屋趋势对比
+        icon: mdi:chart-timeline-variant
+
+      - type: grid
+        columns: 2
+        square: false
+        cards:
+          - type: history-graph
+            title: 每天亮灯
+            entities:
+              - entity: sensor.total_lights_hs_daily_duration_hours_v2
+                name: 每天
+            hours_to_show: 168
+            refresh_interval: 300
+          - type: history-graph
+            title: 每周亮灯
+            entities:
+              - entity: sensor.total_lights_hs_weekly_duration_hours_v2
+                name: 每周
+            hours_to_show: 2160
+            refresh_interval: 1800
+          - type: history-graph
+            title: 每月亮灯
+            entities:
+              - entity: sensor.total_lights_hs_monthly_duration_hours_v2
+                name: 每月
+            hours_to_show: 8760
+            refresh_interval: 3600
+          - type: history-graph
+            title: 每年亮灯
+            entities:
+              - entity: sensor.total_lights_yearly_duration_hours_v2
+                name: 每年
+            hours_to_show: 8760
+            refresh_interval: 3600
+
+      - type: heading
+        heading: 各灯时长对比（小时）
+        icon: mdi:table
+
+      - type: markdown
+        content: |
+          灯｜今｜周｜月｜年｜总（小时）
+
       - type: entities
-        title: 各灯当前亮灯时长
         entities:
-          - entity: sensor.ke_ting_xi_ding_deng_liang_deng_shi_chang
-            name: 客厅吸顶灯
-            icon: mdi:lightbulb-on
-          - entity: sensor.ke_ting_sha_fa_deng_liang_deng_shi_chang
-            name: 客厅沙发灯
-            icon: mdi:lightbulb-on
-          - entity: sensor.wo_shi_deng_liang_deng_shi_chang
+          - type: custom:multiple-entity-row
+            entity: light.jdjz_cn_857569251_jdjzu1_s_2_light
+            name: 客厅吸顶
+            icon: mdi:ceiling-light
+            show_state: false
+            entities:
+              - entity: sensor.light_jdjz_today_on_hours
+                name: false
+              - entity: sensor.light_jdjz_week_on_hours
+                name: false
+              - entity: sensor.light_jdjz_month_on_hours
+                name: false
+              - entity: sensor.light_jdjz_yearly_duration_hours_v2
+                name: false
+              - entity: sensor.light_jdjz_total_duration_hours_v2
+                name: false
+          - type: custom:multiple-entity-row
+            entity: light.lemesh_cn_1186971184_wy0c14_s_2_light
+            name: 客厅沙发
+            icon: mdi:floor-lamp
+            show_state: false
+            entities:
+              - entity: sensor.light_sofa_today_on_hours
+                name: false
+              - entity: sensor.light_sofa_week_on_hours
+                name: false
+              - entity: sensor.light_sofa_month_on_hours
+                name: false
+              - entity: sensor.light_sofa_yearly_duration_hours_v2
+                name: false
+              - entity: sensor.light_sofa_total_duration_hours_v2
+                name: false
+          - type: custom:multiple-entity-row
+            entity: light.ftd_cn_1124827030_dsplmp_s_2_light
             name: 卧室灯
-            icon: mdi:lightbulb-on
-          - entity: sensor.wo_shi_deng_dai_liang_deng_shi_chang
+            icon: mdi:lightbulb
+            show_state: false
+            entities:
+              - entity: sensor.light_bedroom_today_on_hours
+                name: false
+              - entity: sensor.light_bedroom_week_on_hours
+                name: false
+              - entity: sensor.light_bedroom_month_on_hours
+                name: false
+              - entity: sensor.light_bedroom_yearly_duration_hours_v2
+                name: false
+              - entity: sensor.light_bedroom_total_duration_hours_v2
+                name: false
+          - type: custom:multiple-entity-row
+            entity: light.yeelink_cn_436301383_strip6_s_2_light
             name: 卧室灯带
-            icon: mdi:lightbulb-on
-          - entity: sensor.chu_fang_deng_liang_deng_shi_chang
+            icon: mdi:led-strip-variant
+            show_state: false
+            entities:
+              - entity: sensor.light_bedroom_strip_today_on_hours
+                name: false
+              - entity: sensor.light_bedroom_strip_week_on_hours
+                name: false
+              - entity: sensor.light_bedroom_strip_month_on_hours
+                name: false
+              - entity: sensor.light_bedroom_strip_yearly_duration_hours_v2
+                name: false
+              - entity: sensor.light_bedroom_strip_total_duration_hours_v2
+                name: false
+          - type: custom:multiple-entity-row
+            entity: light.linp_cn_1137697716_lp1bc_s_2_light
             name: 厨房灯
-            icon: mdi:lightbulb-on
-          - entity: sensor.can_ting_deng_liang_deng_shi_chang
+            icon: mdi:ceiling-light-multiple
+            show_state: false
+            entities:
+              - entity: sensor.light_kitchen_today_on_hours
+                name: false
+              - entity: sensor.light_kitchen_week_on_hours
+                name: false
+              - entity: sensor.light_kitchen_month_on_hours
+                name: false
+              - entity: sensor.light_kitchen_yearly_duration_hours_v2
+                name: false
+              - entity: sensor.light_kitchen_total_duration_hours_v2
+                name: false
+          - type: custom:multiple-entity-row
+            entity: light.lemesh_cn_1155789492_wy0c15_s_2_light
             name: 餐厅灯
-            icon: mdi:lightbulb-on
-          - entity: sensor.wei_sheng_jian_deng_liang_deng_shi_chang
+            icon: mdi:ceiling-light-multiple-outline
+            show_state: false
+            entities:
+              - entity: sensor.light_dining_today_on_hours
+                name: false
+              - entity: sensor.light_dining_week_on_hours
+                name: false
+              - entity: sensor.light_dining_month_on_hours
+                name: false
+              - entity: sensor.light_dining_yearly_duration_hours_v2
+                name: false
+              - entity: sensor.light_dining_total_duration_hours_v2
+                name: false
+          - type: custom:multiple-entity-row
+            entity: light.linp_cn_1137691863_lp1bc_s_2_light
             name: 卫生间灯
-            icon: mdi:lightbulb-on
-          - entity: sensor.yu_ba_deng_liang_deng_shi_chang
+            icon: mdi:vanity-light
+            show_state: false
+            entities:
+              - entity: sensor.light_bathroom_today_on_hours
+                name: false
+              - entity: sensor.light_bathroom_week_on_hours
+                name: false
+              - entity: sensor.light_bathroom_month_on_hours
+                name: false
+              - entity: sensor.light_bathroom_yearly_duration_hours_v2
+                name: false
+              - entity: sensor.light_bathroom_total_duration_hours_v2
+                name: false
+          - type: custom:multiple-entity-row
+            entity: light.yeelink_cn_942773473_v11_s_2_light
             name: 浴霸灯
-            icon: mdi:lightbulb-on
-          - entity: sensor.zou_lang_zou_dao_deng_liang_deng_shi_chang
-            name: 走廊走道灯
-            icon: mdi:lightbulb-on
-          - entity: sensor.zou_lang_wei_sheng_jian_deng_liang_deng_shi_chang
-            name: 走廊卫生间灯
-            icon: mdi:lightbulb-on
-          - entity: sensor.men_kou_tong_deng_liang_deng_shi_chang
+            icon: mdi:heat-wave
+            show_state: false
+            entities:
+              - entity: sensor.light_yuba_today_on_hours
+                name: false
+              - entity: sensor.light_yuba_week_on_hours
+                name: false
+              - entity: sensor.light_yuba_month_on_hours
+                name: false
+              - entity: sensor.light_yuba_yearly_duration_hours_v2
+                name: false
+              - entity: sensor.light_yuba_total_duration_hours_v2
+                name: false
+          - type: custom:multiple-entity-row
+            entity: light.giot_cn_1188250021_v8ssm_s_2_light
+            name: 走廊走道
+            icon: mdi:track-light
+            show_state: false
+            entities:
+              - entity: sensor.light_hallway_main_today_on_hours
+                name: false
+              - entity: sensor.light_hallway_main_week_on_hours
+                name: false
+              - entity: sensor.light_hallway_main_month_on_hours
+                name: false
+              - entity: sensor.light_hallway_main_yearly_duration_hours_v2
+                name: false
+              - entity: sensor.light_hallway_main_total_duration_hours_v2
+                name: false
+          - type: custom:multiple-entity-row
+            entity: light.linp_cn_2023072411_ld6bcw_s_2_light
+            name: 走廊卫灯
+            icon: mdi:wall-sconce-flat-variant
+            show_state: false
+            entities:
+              - entity: sensor.light_hallway_bath_today_on_hours
+                name: false
+              - entity: sensor.light_hallway_bath_week_on_hours
+                name: false
+              - entity: sensor.light_hallway_bath_month_on_hours
+                name: false
+              - entity: sensor.light_hallway_bath_yearly_duration_hours_v2
+                name: false
+              - entity: sensor.light_hallway_bath_total_duration_hours_v2
+                name: false
+          - type: custom:multiple-entity-row
+            entity: light.linp_cn_2079761645_ld6bcw_s_2_light
             name: 门口筒灯
-            icon: mdi:lightbulb-on
+            icon: mdi:spotlight-beam
+            show_state: false
+            entities:
+              - entity: sensor.light_doorway_today_on_hours
+                name: false
+              - entity: sensor.light_doorway_week_on_hours
+                name: false
+              - entity: sensor.light_doorway_month_on_hours
+                name: false
+              - entity: sensor.light_doorway_yearly_duration_hours_v2
+                name: false
+              - entity: sensor.light_doorway_total_duration_hours_v2
+                name: false
 
-      # 本周/本月亮灯时长趋势
-      - type: history-graph
-        title: 全屋灯光亮灯时长趋势（小时）
-        entities:
-          - entity: sensor.quan_wu_deng_guang_ri_liang_deng_shi_chang_xiao_shi
-            name: 日亮灯时长
-        hours_to_show: 168
-        refresh_interval: 300
-
-      # 年度亮灯时长趋势（按天统计）
-      - type: history-graph
-        title: 全屋灯光年度亮灯趋势（小时/天）
-        entities:
-          - entity: sensor.quan_wu_deng_guang_ri_liang_deng_shi_chang_xiao_shi
-            name: 每日亮灯时长
-        hours_to_show: 8760
-        refresh_interval: 3600
-
-      # 返回首页按钮
       - type: button
         name: 返回首页
         icon: mdi:arrow-left
@@ -1269,77 +1421,81 @@ views:
           action: navigate
           navigation_path: /lovelace/home
 
-  # ==================== 3D打印历史记录页面 ====================
-  - title: 打印历史
+  # ==================== 3D鎵撳嵃鍘嗗彶璁板綍椤甸潰 ====================
+  - title: 鎵撳嵃鍘嗗彶
     icon: mdi:printer-3d
     path: print-history
     cards:
-      # 打印机选择器
+      # 鎵撳嵃鏈洪€夋嫨鍣?
       - type: grid
         columns: 2
         cards:
           - type: button
-            name: 小黑奴 (A1 Mini)
+            name: 灏忛粦濂?(A1 Mini)
             icon: mdi:printer-3d
             tap_action:
               action: navigate
               navigation_path: /lovelace/print-history-a1mini
           - type: button
-            name: 大黑奴 (P2S)
+            name: 澶ч粦濂?(P2S)
             icon: mdi:printer-3d
             tap_action:
               action: navigate
               navigation_path: /lovelace/print-history-p2s
 
       - type: button
-        name: 返回首页
+        name: 杩斿洖棣栭〉
         icon: mdi:arrow-left
         tap_action:
           action: navigate
           navigation_path: /lovelace/home
 
-  # ==================== A1 Mini 打印历史 ====================
-  - title: A1 Mini 打印历史
+  # ==================== A1 Mini 鎵撳嵃鍘嗗彶 ====================
+  - title: A1 Mini 鎵撳嵃鍘嗗彶
     icon: mdi:printer-3d
     path: print-history-a1mini
     cards:
       - type: markdown
         content: |
-          # A1 Mini (小黑奴) 打印历史记录
-          记录每次打印的详细信息
+          # A1 Mini (灏忛粦濂? 鎵撳嵃鍘嗗彶璁板綍
+          璁板綍姣忔鎵撳嵃鐨勮缁嗕俊鎭?
 
       - type: entities
-        title: 打印历史
+        title: 鎵撳嵃鍘嗗彶
         entities:
           - entity: input_text.printer_history_a1mini
-            name: 历史记录
+            name: 鍘嗗彶璁板綍
 
       - type: button
-        name: 返回打印历史
+        name: 杩斿洖鎵撳嵃鍘嗗彶
         icon: mdi:arrow-left
         tap_action:
           action: navigate
           navigation_path: /lovelace/print-history
 
-  # ==================== P2S 打印历史 ====================
-  - title: P2S 打印历史
+  # ==================== P2S 鎵撳嵃鍘嗗彶 ====================
+  - title: P2S 鎵撳嵃鍘嗗彶
     icon: mdi:printer-3d
     path: print-history-p2s
     cards:
       - type: markdown
         content: |
-          # P2S (大黑奴) 打印历史记录
-          记录每次打印的详细信息
+          # P2S (澶ч粦濂? 鎵撳嵃鍘嗗彶璁板綍
+          璁板綍姣忔鎵撳嵃鐨勮缁嗕俊鎭?
 
       - type: entities
-        title: 打印历史
+        title: 鎵撳嵃鍘嗗彶
         entities:
           - entity: input_text.printer_history_p2s
-            name: 历史记录
+            name: 鍘嗗彶璁板綍
 
       - type: button
-        name: 返回打印历史
+        name: 杩斿洖鎵撳嵃鍘嗗彶
         icon: mdi:arrow-left
         tap_action:
           action: navigate
           navigation_path: /lovelace/print-history
+
+
+
+
