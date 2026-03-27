@@ -33,6 +33,12 @@ lovelace:
       title: 鎴戠殑鏅鸿兘瀹跺眳
       icon: mdi:home
       show_in_sidebar: true
+    all_printers:
+      mode: yaml
+      filename: ui-all-printers.yaml
+      title: ALL打印机
+      icon: mdi:printer-3d
+      show_in_sidebar: true
 
 # ==================== 濡剝婢樻导鐘冲妳閸ｃ劑鍘ょ純顕嗙礄閺傛壆澧楃拠顓熺《閿?====================
 template:

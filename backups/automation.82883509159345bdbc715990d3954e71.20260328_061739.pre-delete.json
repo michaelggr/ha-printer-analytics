@@ -1,0 +1,35 @@
+{
+  "alias": "[亮灯] 每日重置所有灯亮灯时长（已停用）",
+  "initial_state": false,
+  "mode": "single",
+  "id": "82883509159345bdbc715990d3954e71",
+  "triggers": [
+    {
+      "platform": "time",
+      "at": "00:00:00"
+    }
+  ],
+  "actions": [
+    {
+      "service": "input_number.set_value",
+      "data": {
+        "value": 0
+      },
+      "target": {
+        "entity_id": [
+          "input_number.light_jdjz_duration",
+          "input_number.light_sofa_duration",
+          "input_number.light_bedroom_duration",
+          "input_number.light_bedroom_strip_duration",
+          "input_number.light_kitchen_duration",
+          "input_number.light_dining_duration",
+          "input_number.light_bathroom_duration",
+          "input_number.light_yuba_duration",
+          "input_number.light_hallway_main_duration",
+          "input_number.light_hallway_bath_duration",
+          "input_number.light_doorway_duration"
+        ]
+      }
+    }
+  ]
+}

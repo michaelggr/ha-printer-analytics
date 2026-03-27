@@ -63,9 +63,65 @@
 - 原因：用户反馈此前仅恢复名字，动作与旧配置不一致；需要按历史执行证据回填真实逻辑。
 - 测试状态：[待测试]
 
+- 时间：2026-03-28 13:20
+- 操作类型：[重构]
+- 影响文件：G:\dev\ha\ha\automations.yaml；G:\dev\ha\ha\operateLog.md
+- 变更摘要：将 automations.yaml 统一为新风格字段（triggers/conditions/actions），保持业务逻辑不变并同步到服务器后重载。
+- 原因：避免新旧风格混用导致维护成本高、UI 回写风格反复变化。
+- 测试状态：[待测试]
+
+- 时间：2026-03-28 13:58
+- 操作类型：[修改]
+- 影响文件：G:\dev\ha\ha\automations.yaml；G:\dev\ha\ha\operateLog.md
+- 变更摘要：将 8 条“虚拟事件”自动化统一为按 `triggers.attribute=事件名称 + to=具体值` 的触发模式，并将 `conditions` 清空；保留原动作链，`电视切直播` 继续保留 ACK 回写动作。
+- 原因：减少插件重载带来的误触发，统一与 UI 编辑器当前保存风格一致。
+- 测试状态：[待测试]
+
 - 时间：2026-03-28 00:28
 - 操作类型：[修改]
 - 影响文件：G:\dev\ha\ha\ui-lovelace.yaml；G:\dev\ha\ha\ha_export\configuration.yaml；G:\dev\ha\ha\operateLog.md
 - 变更摘要：修复 UI 与实体显示名中文乱码；UI 回滚到稳定快照并修复打印历史区块中文名；同步修复配置中“最常访问区域/最长停留区域”模板中文键值。
 - 原因：当前仪表盘与实体名出现大面积中文乱码，影响可读性与状态解释。
+- 测试状态：[待测试]
+
+- 时间：2026-03-28 04:40
+- 操作类型：[修改]
+- 影响文件：G:\dev\ha\ha\configuration.server.verify2.yaml；G:\dev\ha\ha\configuration.server.finalcheck.yaml；G:\dev\ha\ha\operateLog.md
+- 变更摘要：分两轮清理 configuration.yaml 中注释与显示名称乱码，并回传服务器；保留实体 ID、触发条件与动作逻辑不变。
+- 原因：侧边栏标题已修复后，配置文件其余中文注释/名称仍有大量历史乱码，影响可读性与维护。
+- 测试状态：[待测试]
+
+- 时间：2026-03-28 05:06
+- 操作类型：[修改]
+- 影响文件：G:\dev\ha\ha\_server_configuration_after_fullfix.yaml；G:\dev\ha\ha\_server_ui_after_fullfix.yaml；G:\dev\ha\ha\_server_configuration_verify_fullfix.yaml；G:\dev\ha\ha\_server_ui_verify_fullfix.yaml；G:\dev\ha\ha\operateLog.md
+- 变更摘要：对服务器 configuration.yaml 与 ui-lovelace.yaml 执行逐行全量中文乱码修复（含 name/title/state 文本与注释），上传后回读校验为 0 残留。
+- 原因：用户要求“每一行都检查”，此前仍存在多处漏网乱码（尤其 UI 文案与单位文本）。
+- 测试状态：[待测试]
+
+- 时间：2026-03-28 06:07
+- 操作类型：[修改]
+- 影响文件：G:\dev\ha\ha\backups\automations.yaml.20260328_060648.pre-add-ack-all.server.bak；G:\dev\ha\ha\operateLog.md
+- 变更摘要：为 8 条“虚拟事件”自动化统一补齐“执行完成 ACK 虚拟事件”末尾动作；原已存在 ACK 的“虚拟事件电视切直播”保持不变。
+- 原因：降低插件重载重放时的误判风险，通过每次执行后上报唯一 ACK（含时间戳）标记完成态。
+- 测试状态：[已测试]
+
+- 时间：2026-03-28 06:12
+- 操作类型：[修改]
+- 影响文件：G:\dev\ha\ha\backups\automations.yaml.20260328_061201.pre-rename-mobile-tv.server.bak；G:\dev\ha\ha\backups\automations.yaml.20260328_061243.pre-fix-mobile-prefix.server.bak；G:\dev\ha\ha\operateLog.md
+- 变更摘要：将 8 条“虚拟事件”自动化名称统一加前缀“【移动电视】”，并修复首次写入时前缀被错误保存为问号的问题。
+- 原因：按用户要求为同类自动化增加统一标识，便于筛选和识别。
+- 测试状态：[已测试]
+
+- 时间：2026-03-28 06:17
+- 操作类型：[删除]
+- 影响文件：G:\dev\ha\ha\backups\automation.82883509159345bdbc715990d3954e71.20260328_061739.pre-delete.json；G:\dev\ha\ha\operateLog.md
+- 变更摘要：删除自动化“[亮灯] 每日重置所有灯亮灯时长（已停用）”，并先导出该条配置备份。
+- 原因：该自动化当前处于停用状态，按用户要求清理不再使用项。
+- 测试状态：[已测试]
+
+- 时间：2026-03-28 06:23
+- 操作类型：[修改]
+- 影响文件：G:\dev\ha\ha\ha_export\configuration.yaml
+- 变更摘要：将11个亮灯累计input_number上限由315360000提升至3153600000（秒）
+- 原因：避免长期运行达到上限后累计停滞
 - 测试状态：[待测试]
