@@ -34,3 +34,38 @@
 - 变更摘要：按可用方案重做亮灯统计：sensor.platform=history_stats 实现今/周/月，累计输入源+utility_meter实现年/总，并更新亮灯对比页实体映射。
 - 原因：你的环境不接受顶层 history_stats: YAML，需要改为平台语法并兼容现有插件链。
 - 测试状态：[待测试]
+
+- 时间：2026-03-27 08:45
+- 操作类型：[修改]
+- 影响文件：G:\dev\ha\ha\ha_export\configuration.yaml
+- 变更摘要：新增 logger.default: debug，为重启后的日志排查开启调试级别。
+- 原因：配合本次重启抓取更详细的 HA 日志。
+- 测试状态：[待测试]
+
+- 时间：2026-03-27 09:05
+- 操作类型：[修改]
+- 影响文件：G:\dev\ha\ha\ha_export\configuration.yaml
+- 变更摘要：移除亮灯累计 input_number 的 initial: 0，并将上限提升到 315360000 秒。
+- 原因：修复重启后累计值归零，并避免总计/本年累计触达 24 小时上限。
+- 测试状态：[待测试]
+
+- 时间：2026-03-27 12:20
+- 操作类型：[修改]
+- 影响文件：G:\dev\ha\ha\automations.yaml；G:\dev\ha\ha\operateLog.md
+- 变更摘要：恢复 8 条名字带“虚拟”的电视/音箱自动化，重新接入中枢网关虚拟事件触发。
+- 原因：服务器当前 YAML 丢失该批自动化，但 .storage 仍保留自动化名称与 ID 痕迹，需要先恢复最小可用版本。
+- 测试状态：[待测试]
+
+- 时间：2026-03-28 09:24
+- 操作类型：[修改]
+- 影响文件：G:\dev\ha\ha\automations.yaml；G:\dev\ha\ha\operateLog.md
+- 变更摘要：根据 HA 数据库中 automation_triggered/call_service 历史链路，将“虚拟”自动化动作从 media_player 方案修正为原按钮链路（机顶盒/音箱按钮）。
+- 原因：用户反馈此前仅恢复名字，动作与旧配置不一致；需要按历史执行证据回填真实逻辑。
+- 测试状态：[待测试]
+
+- 时间：2026-03-28 00:28
+- 操作类型：[修改]
+- 影响文件：G:\dev\ha\ha\ui-lovelace.yaml；G:\dev\ha\ha\ha_export\configuration.yaml；G:\dev\ha\ha\operateLog.md
+- 变更摘要：修复 UI 与实体显示名中文乱码；UI 回滚到稳定快照并修复打印历史区块中文名；同步修复配置中“最常访问区域/最长停留区域”模板中文键值。
+- 原因：当前仪表盘与实体名出现大面积中文乱码，影响可读性与状态解释。
+- 测试状态：[待测试]
