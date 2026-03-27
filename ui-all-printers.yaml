@@ -1,0 +1,432 @@
+﻿# ALL打印机 仪表板
+title: ALL打印机
+views:
+  - title: P2S
+    icon: mdi:printer-3d-nozzle-outline
+    path: p2s-status
+    cards:
+      # P2S 状态概览 - 顶部关键信息
+      - type: glance
+        title: P2S（大黑奴）状态概览
+        entities:
+          - entity: binary_sensor.p2s_22e8bj5a2401765_online
+            name: 鍦ㄧ嚎状态
+          - entity: sensor.p2s_22e8bj5a2401765_print_status
+            name: 打印状态
+          - entity: sensor.p2s_22e8bj5a2401765_print_progress
+            name: 打印进度
+          - entity: sensor.p2s_22e8bj5a2401765_remaining_time
+            name: 剩余时间(小时)
+        show_state: true
+        show_icon: true
+
+      # 打印进度条
+      - type: gauge
+        entity: sensor.p2s_22e8bj5a2401765_print_progress
+        name: 打印进度
+        min: 0
+        max: 100
+        severity:
+          green: 80
+          yellow: 50
+          red: 0
+
+      # P2S 封面图片
+      - type: picture-entity
+        entity: image.p2s_22e8bj5a2401765_cover_image
+        name: P2S 封面图片
+        show_state: false
+        show_name: true
+        camera_view: live
+        tap_action:
+          action: more-info
+
+      # 温度控制 - 水平布局
+      - type: horizontal-stack
+        cards:
+          - type: gauge
+            entity: sensor.p2s_22e8bj5a2401765_nozzle_temperature
+            name: 喷嘴温度
+            min: 0
+            max: 300
+            severity:
+              green: 200
+              yellow: 250
+              red: 280
+          - type: gauge
+            entity: sensor.p2s_22e8bj5a2401765_bed_temperature
+            name: 热床温度
+            min: 0
+            max: 120
+            severity:
+              green: 60
+              yellow: 90
+              red: 110
+          - type: gauge
+            entity: sensor.p2s_22e8bj5a2401765_chamber_temperature
+            name: 腔体温度
+            min: 0
+            max: 80
+            severity:
+              green: 40
+              yellow: 60
+              red: 70
+
+      # 温度详情
+      - type: entities
+        title: 温度详情
+        entities:
+          - entity: sensor.p2s_22e8bj5a2401765_nozzle_temperature
+            name: 喷嘴当前温度
+          - entity: sensor.p2s_22e8bj5a2401765_nozzle_target_temperature
+            name: 喷嘴目标温度
+          - entity: sensor.p2s_22e8bj5a2401765_bed_temperature
+            name: 热床当前温度
+          - entity: sensor.p2s_22e8bj5a2401765_bed_target_temperature
+            name: 热床目标温度
+          - entity: sensor.p2s_22e8bj5a2401765_chamber_temperature
+            name: 腔体温度
+
+      # 风扇速度
+      - type: entities
+        title: 风扇速度
+        entities:
+          - entity: sensor.p2s_22e8bj5a2401765_cooling_fan_speed
+            name: 冷却风扇
+            icon: mdi:fan
+          - entity: sensor.p2s_22e8bj5a2401765_aux_fan_speed
+            name: 辅助风扇
+            icon: mdi:fan
+          - entity: sensor.p2s_22e8bj5a2401765_chamber_fan_speed
+            name: 腔体风扇
+            icon: mdi:fan
+          - entity: sensor.p2s_22e8bj5a2401765_heatbreak_fan_speed
+            name: 喉管风扇
+            icon: mdi:fan
+
+      # 打印控制
+      - type: horizontal-stack
+        cards:
+          - type: button
+            name: 暂停打印
+            icon: mdi:pause-circle
+            tap_action:
+              action: call-service
+              service: button.press
+              target:
+                entity_id: button.p2s_22e8bj5a2401765_pause_printing
+          - type: button
+            name: 恢复打印
+            icon: mdi:play-circle
+            tap_action:
+              action: call-service
+              service: button.press
+              target:
+                entity_id: button.p2s_22e8bj5a2401765_resume_printing
+          - type: button
+            name: 停止打印
+            icon: mdi:stop-circle
+            tap_action:
+              action: call-service
+              service: button.press
+              target:
+                entity_id: button.p2s_22e8bj5a2401765_stop_printing
+          - type: light
+            entity: light.p2s_22e8bj5a2401765_chamber_light
+            name: 鑸卞唴鐓ф槑
+
+      # 打印信息
+      - type: entities
+        title: 打印信息
+        entities:
+          - entity: sensor.p2s_22e8bj5a2401765_current_stage
+            name: 当前阶段
+          - entity: sensor.p2s_22e8bj5a2401765_current_layer
+            name: 当前层数
+          - entity: sensor.p2s_22e8bj5a2401765_total_layer_count
+            name: 总层数
+          - entity: sensor.p2s_22e8bj5a2401765_print_weight
+            name: 打印重量(g)
+          - entity: sensor.p2s_22e8bj5a2401765_print_length
+            name: 打印长度(m)
+          - entity: sensor.p2s_22e8bj5a2401765_active_tray
+            name: 当前料盘
+          - entity: sensor.p2s_22e8bj5a2401765_task_name
+            name: 任务名称
+          - entity: sensor.p2s_22e8bj5a2401765_gcode_filename
+            name: GCode鏂囦欢
+          - entity: sensor.p2s_22e8bj5a2401765_start_time
+            name: 开始时间
+          - entity: sensor.p2s_22e8bj5a2401765_end_time
+            name: 预计结束时间
+          - entity: sensor.p2s_22e8bj5a2401765_speed_profile
+            name: 打印速度模式
+          - entity: sensor.p2s_22e8bj5a2401765_print_type
+            name: 打印类型
+          - entity: sensor.sixwgh_cn_1200175237_v8icm1_electric_power_p_4_2
+            name: 实时功率
+          - entity: sensor.sixwgh_cn_1200175237_v8icm1_power_consumption_p_4_1
+            name: 累计功耗
+
+      # AMS 鏂欑洏状态
+      - type: entities
+        title: AMS 料盘状态
+        entities:
+          - entity: sensor.p2s_22e8bj5a2401765_ams_1_tray_1
+            name: 鏂欑洏 1
+            icon: mdi:circle
+          - entity: sensor.p2s_22e8bj5a2401765_ams_1_tray_2
+            name: 鏂欑洏 2
+            icon: mdi:circle
+          - entity: sensor.p2s_22e8bj5a2401765_ams_1_tray_3
+            name: 鏂欑洏 3
+            icon: mdi:circle
+          - entity: sensor.p2s_22e8bj5a2401765_ams_1_tray_4
+            name: 鏂欑洏 4
+            icon: mdi:circle
+
+      # 大黑奴排气扇
+      - type: entities
+        title: 大黑奴排气扇
+        entities:
+          - entity: button.sixwgh_cn_1200174207_v7icm_toggle_a_2_1
+            name: 开关控制
+            icon: mdi:power
+          - entity: button.sixwgh_cn_1200174207_v7icm_local_timing_on_a_7_8
+            name: 启动本地定时
+            icon: mdi:timer-play
+          - entity: button.sixwgh_cn_1200174207_v7icm_local_timing_off_a_7_9
+            name: 关闭本地定时
+            icon: mdi:timer-off
+
+      # AMS 鐜
+      - type: entities
+        title: AMS 环境
+        entities:
+          - entity: sensor.p2s_22e8bj5a2401765_ams_1_humidity
+            name: AMS湿度
+            icon: mdi:water-percent
+          - entity: sensor.p2s_22e8bj5a2401765_ams_1_humidity_index
+            name: 湿度指数
+            icon: mdi:water-percent-alert
+          - entity: sensor.p2s_22e8bj5a2401765_ams_1_temperature
+            name: AMS温度
+            icon: mdi:thermometer
+
+      # 设备状态
+      - type: entities
+        title: 设备状态
+        entities:
+          - entity: sensor.p2s_22e8bj5a2401765_printer_name
+            name: 打印机名称
+          - entity: sensor.p2s_22e8bj5a2401765_serial_number
+            name: 序列号
+          - entity: sensor.p2s_22e8bj5a2401765_ip_address
+            name: IP鍦板潃
+          - entity: sensor.p2s_22e8bj5a2401765_wi_fi_signal
+            name: WiFi淇″彿(dBm)
+          - entity: sensor.p2s_22e8bj5a2401765_total_usage
+            name: 总使用时长(小时)
+          - entity: binary_sensor.p2s_22e8bj5a2401765_extruder_filament_state
+            name: 鏂欎笣状态
+          - entity: binary_sensor.p2s_22e8bj5a2401765_enclosure_door
+            name: 封箱门状态
+          - entity: binary_sensor.p2s_22e8bj5a2401765_airduct_mode
+            name: 风道模式
+          - entity: binary_sensor.p2s_22e8bj5a2401765_ams_1_active
+            name: AMS激活状态
+          - entity: binary_sensor.p2s_22e8bj5a2401765_externalspool_active
+            name: 外挂料盘激活
+          - entity: sensor.p2s_22e8bj5a2401765_externalspool_external_spool
+            name: 外挂料盘类型
+          - entity: binary_sensor.p2s_22e8bj5a2401765_hms_errors
+            name: HMS閿欒
+          - entity: binary_sensor.p2s_22e8bj5a2401765_print_error
+            name: 打印错误
+          - entity: binary_sensor.p2s_22e8bj5a2401765_firmware_update
+            name: 固件更新
+          - entity: sensor.p2s_22e8bj5a2401765_nozzle_size
+            name: 喷嘴尺寸
+          - entity: sensor.p2s_22e8bj5a2401765_nozzle_type
+            name: 鍠峰槾绫诲瀷
+          - entity: sensor.p2s_22e8bj5a2401765_print_bed_type
+            name: 打印底板类型
+          - entity: sensor.p2s_22e8bj5a2401765_sd_card_status
+            name: SD卡状态
+          - entity: sensor.p2s_22e8bj5a2401765_mqtt_connection_mode
+            name: MQTT连接模式
+
+      # 相机控制
+      - type: entities
+        title: 相机控制
+        entities:
+          - entity: switch.p2s_22e8bj5a2401765_enable_camera
+            name: 启用相机
+          - entity: binary_sensor.p2s_22e8bj5a2401765_recording_timelapse
+            name: 寤舵椂鎽勫奖
+          - entity: image.p2s_22e8bj5a2401765_pick_image
+            name: 拾取图片
+
+      # 返回首页按钮
+      - type: button
+        name: 返回首页
+        icon: mdi:arrow-left
+        tap_action:
+          action: navigate
+          navigation_path: /lovelace/home
+
+  # ==================== A1 Mini 椤甸潰 ====================
+  - title: A1 Mini
+    icon: mdi:printer-3d
+    path: a1mini
+    cards:
+      # A1 Mini 状态概览
+      - type: glance
+        title: A1 Mini（小黑奴）状态概览
+        entities:
+          - entity: binary_sensor.a1mini_0300aa5a1600497_online
+            name: 鍦ㄧ嚎状态
+          - entity: sensor.a1mini_0300aa5a1600497_print_status
+            name: 打印状态
+          - entity: sensor.a1mini_0300aa5a1600497_print_progress
+            name: 打印进度
+          - entity: sensor.a1mini_0300aa5a1600497_remaining_time
+            name: 剩余时间
+        show_state: true
+        show_icon: true
+
+      # A1 Mini 实时画面
+      - type: picture-entity
+        entity: image.a1mini_0300aa5a1600497_camera
+        name: A1 Mini 实时画面
+        show_state: false
+        show_name: true
+        camera_view: live
+        tap_action:
+          action: more-info
+
+      # A1 Mini 温度控制
+      - type: entities
+        title: 温度控制
+        entities:
+          - entity: sensor.a1mini_0300aa5a1600497_nozzle_temperature
+            name: 喷嘴温度
+          - entity: number.a1mini_0300aa5a1600497_nozzle_target_temperature
+            name: 喷嘴目标温度
+          - entity: sensor.a1mini_0300aa5a1600497_bed_temperature
+            name: 热床温度
+          - entity: number.a1mini_0300aa5a1600497_bed_target_temperature
+            name: 热床目标温度
+          - entity: sensor.a1mini_0300aa5a1600497_cooling_fan_speed
+            name: 冷却风扇速度
+          - entity: sensor.a1mini_0300aa5a1600497_heatbreak_fan_speed
+            name: 喉管风扇速度
+
+      # 小黑奴风扇
+      - type: entities
+        title: 小黑奴风扇
+        entities:
+          - entity: button.yutai_cn_1188285576_fsov7m_toggle_a_2_1
+            name: 开关控制
+            icon: mdi:power
+          - entity: button.yutai_cn_1188285576_fsov7m_local_timing_on_a_7_8
+            name: 启动本地定时
+            icon: mdi:timer-play
+          - entity: button.yutai_cn_1188285576_fsov7m_local_timing_off_a_7_9
+            name: 关闭本地定时
+            icon: mdi:timer-off
+
+      # A1 Mini 打印控制
+      - type: entities
+        title: 打印控制
+        entities:
+          - entity: button.a1mini_0300aa5a1600497_pause_printing
+            name: 暂停打印
+          - entity: button.a1mini_0300aa5a1600497_resume_printing
+            name: 恢复打印
+          - entity: button.a1mini_0300aa5a1600497_stop_printing
+            name: 停止打印
+          - entity: select.a1mini_0300aa5a1600497_printing_speed
+            name: 打印速度
+          - entity: fan.a1mini_0300aa5a1600497_cooling_fan
+            name: 冷却风扇
+          - entity: light.a1mini_0300aa5a1600497_chamber_light
+            name: 鑸卞唴鐓ф槑
+
+      # A1 Mini 打印信息
+      - type: entities
+        title: 打印信息
+        entities:
+          - entity: sensor.a1mini_0300aa5a1600497_current_stage
+            name: 当前阶段
+          - entity: sensor.a1mini_0300aa5a1600497_current_layer
+            name: 当前层数
+          - entity: sensor.a1mini_0300aa5a1600497_total_layer_count
+            name: 总层数
+          - entity: sensor.a1mini_0300aa5a1600497_print_weight
+            name: 打印重量
+          - entity: sensor.a1mini_0300aa5a1600497_print_length
+            name: 打印长度
+          - entity: sensor.a1mini_0300aa5a1600497_printable_objects
+            name: 可打印对象数
+          - entity: sensor.a1mini_0300aa5a1600497_skipped_objects
+            name: 可打印对象数
+          - entity: sensor.giot_cn_1164778814_v8icm_electric_power_p_4_2
+            name: 实时功率
+          - entity: sensor.giot_cn_1164778814_v8icm_power_consumption_p_4_1
+            name: 累计功耗
+
+      # A1 Mini 外挂料盘
+      - type: entities
+        title: 外挂料盘
+        entities:
+          - entity: sensor.a1mini_0300aa5a1600497_externalspool_external_spool
+            name: 鏂欑洏绫诲瀷
+          - entity: binary_sensor.a1mini_0300aa5a1600497_externalspool_active
+            name: 料盘激活状态
+          - entity: binary_sensor.a1mini_0300aa5a1600497_extruder_filament_state
+            name: 挤出机料丝状态
+
+      # A1 Mini 设备信息
+      - type: entities
+        title: 设备信息
+        entities:
+          - entity: sensor.a1mini_0300aa5a1600497_printer_name
+            name: 打印机名称
+          - entity: sensor.a1mini_0300aa5a1600497_serial_number
+            name: 序列号
+          - entity: sensor.a1mini_0300aa5a1600497_ip_address
+            name: IP鍦板潃
+          - entity: sensor.a1mini_0300aa5a1600497_wi_fi_signal
+            name: WiFi淇″彿
+          - entity: sensor.a1mini_0300aa5a1600497_total_usage
+            name: 总使用时长
+          - entity: binary_sensor.a1mini_0300aa5a1600497_hms_errors
+            name: HMS閿欒
+          - entity: binary_sensor.a1mini_0300aa5a1600497_print_error
+            name: 打印错误
+          - entity: binary_sensor.a1mini_0300aa5a1600497_firmware_update
+            name: 固件更新
+
+      # A1 Mini 相机控制
+      - type: entities
+        title: 相机控制
+        entities:
+          - entity: switch.a1mini_0300aa5a1600497_enable_camera
+            name: 启用相机
+          - entity: switch.a1mini_0300aa5a1600497_use_image_sensor_camera
+            name: 使用图像传感器相机
+          - entity: image.a1mini_0300aa5a1600497_cover_image
+            name: 封面图片
+          - entity: image.a1mini_0300aa5a1600497_pick_image
+            name: 拾取图片
+
+      # 返回首页按钮
+      - type: button
+        name: 返回首页
+        icon: mdi:arrow-left
+        tap_action:
+          action: navigate
+          navigation_path: /lovelace/home
+
+  # ==================== 亮灯对比页面 ====================

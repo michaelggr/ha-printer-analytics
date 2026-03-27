@@ -40,13 +40,11 @@
   alias: 虚拟打开电视触发红外遥控点电视音响和电视电源键
   mode: single
   triggers:
-  - entity_id:
-    - event.xiaomi_cn_1175403807_hub1_virtual_event_e_4_1
-    trigger: state
-    attribute: 事件名称
-    to:
-    - 电视电源键
-  conditions: []
+  - platform: state
+    entity_id: event.xiaomi_cn_1175403807_hub1_virtual_event_e_4_1
+  conditions:
+  - condition: template
+    value_template: '{{ state_attr(''event.xiaomi_cn_1175403807_hub1_virtual_event_e_4_1'', ''事件名称'') == ''电视电源键'' }}'
   actions:
   - service: button.press
     target:
@@ -60,13 +58,11 @@
   alias: 虚拟事件电视切网易云
   mode: single
   triggers:
-  - entity_id:
-    - event.xiaomi_cn_1175403807_hub1_virtual_event_e_4_1
-    trigger: state
-    attribute: 事件名称
-    to:
-    - 电视切网易云
-  conditions: []
+  - platform: state
+    entity_id: event.xiaomi_cn_1175403807_hub1_virtual_event_e_4_1
+  conditions:
+  - condition: template
+    value_template: '{{ state_attr(''event.xiaomi_cn_1175403807_hub1_virtual_event_e_4_1'', ''事件名称'') == ''电视切网易云'' }}'
   actions:
   - service: button.press
     target:
@@ -80,13 +76,12 @@
   alias: 虚拟事件电视切直播
   mode: single
   triggers:
-  - entity_id:
-    - event.xiaomi_cn_1175403807_hub1_virtual_event_e_4_1
-    trigger: state
-    attribute: 事件名称
-    to:
-    - 电视切直播
-  conditions: []
+  - platform: state
+    entity_id: event.xiaomi_cn_1175403807_hub1_virtual_event_e_4_1
+  conditions:
+  - condition: template
+    value_template: '{{ state_attr(''event.xiaomi_cn_1175403807_hub1_virtual_event_e_4_1'', ''事件名称'') in [''电视切直播'', ''电视切TV'']
+      }}'
   actions:
   - service: button.press
     target:
@@ -96,22 +91,15 @@
   - service: button.press
     target:
       entity_id: button.ji_ding_he_2
-  - service: notify.send_message
-    target:
-      entity_id: notify.xiaomi_cn_1175403807_hub1_emit_virtual_event_a_4_1
-    data:
-      message: ACK_电视切直播_{{ now().timestamp()|int }}
 - id: '1774516169921'
   alias: 虚拟事件电视切唱歌
   mode: single
   triggers:
-  - entity_id:
-    - event.xiaomi_cn_1175403807_hub1_virtual_event_e_4_1
-    trigger: state
-    attribute: 事件名称
-    to:
-    - 电视切唱歌
-  conditions: []
+  - platform: state
+    entity_id: event.xiaomi_cn_1175403807_hub1_virtual_event_e_4_1
+  conditions:
+  - condition: template
+    value_template: '{{ state_attr(''event.xiaomi_cn_1175403807_hub1_virtual_event_e_4_1'', ''事件名称'') == ''电视切唱歌'' }}'
   actions:
   - service: button.press
     target:
@@ -125,13 +113,11 @@
   alias: 虚拟事件打开电视音箱
   mode: single
   triggers:
-  - entity_id:
-    - event.xiaomi_cn_1175403807_hub1_virtual_event_e_4_1
-    trigger: state
-    attribute: 事件名称
-    to:
-    - 打开电视音箱
-  conditions: []
+  - platform: state
+    entity_id: event.xiaomi_cn_1175403807_hub1_virtual_event_e_4_1
+  conditions:
+  - condition: template
+    value_template: '{{ state_attr(''event.xiaomi_cn_1175403807_hub1_virtual_event_e_4_1'', ''事件名称'') == ''打开电视音箱'' }}'
   actions:
   - service: button.press
     target:
@@ -140,13 +126,11 @@
   alias: 虚拟事件音响音量增加
   mode: single
   triggers:
-  - entity_id:
-    - event.xiaomi_cn_1175403807_hub1_virtual_event_e_4_1
-    trigger: state
-    attribute: 事件名称
-    to:
-    - 音响音量增加
-  conditions: []
+  - platform: state
+    entity_id: event.xiaomi_cn_1175403807_hub1_virtual_event_e_4_1
+  conditions:
+  - condition: template
+    value_template: '{{ state_attr(''event.xiaomi_cn_1175403807_hub1_virtual_event_e_4_1'', ''事件名称'') == ''音响音量增加'' }}'
   actions:
   - service: button.press
     target:
@@ -155,13 +139,11 @@
   alias: 虚拟事件音响音量减少
   mode: single
   triggers:
-  - entity_id:
-    - event.xiaomi_cn_1175403807_hub1_virtual_event_e_4_1
-    trigger: state
-    attribute: 事件名称
-    to:
-    - 音响音量减少
-  conditions: []
+  - platform: state
+    entity_id: event.xiaomi_cn_1175403807_hub1_virtual_event_e_4_1
+  conditions:
+  - condition: template
+    value_template: '{{ state_attr(''event.xiaomi_cn_1175403807_hub1_virtual_event_e_4_1'', ''事件名称'') == ''音响音量减少'' }}'
   actions:
   - service: button.press
     target:
@@ -170,13 +152,11 @@
   alias: 虚拟事件音响蓝牙播放暂停
   mode: single
   triggers:
-  - entity_id:
-    - event.xiaomi_cn_1175403807_hub1_virtual_event_e_4_1
-    trigger: state
-    attribute: 事件名称
-    to:
-    - 音响蓝牙播放暂停
-  conditions: []
+  - platform: state
+    entity_id: event.xiaomi_cn_1175403807_hub1_virtual_event_e_4_1
+  conditions:
+  - condition: template
+    value_template: '{{ state_attr(''event.xiaomi_cn_1175403807_hub1_virtual_event_e_4_1'', ''事件名称'') == ''音响蓝牙播放暂停'' }}'
   actions:
   - service: button.press
     target:
