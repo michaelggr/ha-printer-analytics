@@ -1,0 +1,41 @@
+# Home Assistant 配置文件（不属于集成）
+*.yaml
+!custom_components/printer_analytics/services.yaml
+!hacs.json
+
+# Python 缓存
+__pycache__/
+*.pyc
+*.pyo
+
+# 备份文件
+backups/
+ha_export_server/
+ha_server_backup/
+*.bak
+*.zip
+
+# 临时脚本
+check_*.py
+restart_*.py
+verify_*.py
+fix_*.py
+pull_*.py
+upload_*.py
+write_*.py
+
+# IDE 和工具
+.trae/
+.vscode/
+.idea/
+
+# 连接信息
+.ha_connection_info.json
+
+# 日志
+*.log
+
+# 其他
+BACKUP_README.md
+blueprints/
+python_scripts/
