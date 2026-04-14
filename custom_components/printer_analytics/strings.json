@@ -1,0 +1,47 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configure Printer Analytics (配置打印机分析)",
+        "description": "Select printer to analyze and related sensors (选择要分析的打印机和关联的传感器)",
+        "data": {
+          "printer_name": "Printer Name (打印机名称)",
+          "print_status_entity": "Print Status Sensor (打印状态传感器)",
+          "power_entity": "Power Sensor (Optional) (功率传感器)",
+          "energy_entity": "Energy Sensor (Optional) (能耗传感器)"
+        }
+      }
+    },
+    "error": {
+      "invalid_entity": "Invalid entity ID (无效的实体ID)",
+      "entity_not_found": "Entity not found (找不到该实体)"
+    },
+    "abort": {
+      "already_configured": "Printer already configured (该打印机已配置)"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Printer Analytics Options (打印机分析选项)",
+        "description": "Modify printer analytics configuration (修改打印机分析配置)",
+        "data": {
+          "printer_name": "Printer Name (打印机名称)",
+          "power_entity": "Power Sensor (Optional) (功率传感器)",
+          "energy_entity": "Energy Sensor (Optional) (能耗传感器)",
+          "reset_history": "Reset Print History (重置打印历史)"
+        }
+      }
+    }
+  },
+  "services": {
+    "refresh_stats": {
+      "name": "Refresh Stats (刷新统计)",
+      "description": "Force recalculate all statistics (强制重新计算所有统计数据)"
+    },
+    "reset_history": {
+      "name": "Reset History (重置历史)",
+      "description": "Clear print history (清除打印历史记录)"
+    }
+  }
+}

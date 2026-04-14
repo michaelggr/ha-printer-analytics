@@ -1,0 +1,15 @@
+refresh_stats:
+  name: 刷新统计
+  description: 强制重新计算指定打印机的所有统计数据
+  target:
+    entity:
+      integration: printer_analytics
+      domain: sensor
+
+reset_history:
+  name: 重置历史
+  description: 清除指定打印机的所有打印历史记录
+  target:
+    entity:
+      integration: printer_analytics
+      domain: sensor
