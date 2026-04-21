@@ -1,3 +1,4 @@
+
 /**
  * Printer Analytics Card
  * 自包含的 Lovelace 卡片，无需外部依赖
@@ -24,38 +25,37 @@ class PrinterAnalyticsCard extends HTMLElement {
     const historyEntity = this._hass?.states[this.config.entity];
     if (!historyEntity) return {};
 
-    // 方案1：通过 device_id 查找同设备实体
-    const deviceId = historyEntity.attributes?.device_id;
-    if (deviceId) {
-      const entities = {};
-      for (const [entityId, state] of Object.entries(this._hass.states)) {
-        if (state.attributes?.device_id === deviceId && entityId.startsWith('sensor.')) {
-          // 从实体名中提取 key（如 "总打印次数" -> "total_prints"）
-          const name = state.attributes?.friendly_name || '';
-          const key = this._nameToKey(name);
-          if (key) entities[key] = entityId;
-        }
-      }
-      if (Object.keys(entities).length > 3) return entities;
-    }
+    console.log('Printer Analytics Card: Discovering entities...');
 
-    // 方案2：通过实体 ID 前缀匹配
+    // 方案：通过实体 ID 前缀匹配
     const prefix = this._extractPrefix(this.config.entity);
+    console.log('Printer Analytics Card: Using prefix:', prefix);
+    
     const entities = {};
     for (const [entityId, state] of Object.entries(this._hass.states)) {
-      if (entityId.startsWith(prefix) && entityId.startsWith('sensor.')) {
+      if (entityId.startsWith(prefix) &amp;&amp; entityId.startsWith('sensor.')) {
         const name = state.attributes?.friendly_name || '';
         const key = this._nameToKey(name);
-        if (key) entities[key] = entityId;
+        if (key) {
+          entities[key] = entityId;
+          console.log('Printer Analytics Card: Mapped', key, '-&gt;', entityId);
+        }
       }
     }
+    
+    // 确保 print_history 总是被设置
+    if (!entities.print_history) {
+      entities.print_history = this.config.entity;
+    }
+    
+    console.log('Printer Analytics Card: Found entities:', entities);
     return entities;
   }
 
   // 从 print_history 实体 ID 提取前缀
   _extractPrefix(entityId) {
     // sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_li_shi
-    // -> sensor.p2sda_yin_ji_p2sda_yin_ji_
+    // -&gt; sensor.p2sda_yin_ji_p2sda_yin_ji_
     const name = entityId.replace('sensor.', '');
     // 移除最后的 _da_yin_li_shi (打印历史) 或 _print_history
     const suffixes = ['_da_yin_li_shi', '_print_history', '_da_yin_zhuang_tai'];
@@ -66,7 +66,7 @@ class PrinterAnalyticsCard extends HTMLElement {
     }
     // 兜底：移除最后两段
     const parts = name.split('_');
-    if (parts.length > 2) {
+    if (parts.length &gt; 2) {
       return 'sensor.' + parts.slice(0, -2).join('_') + '_';
     }
     return entityId.substring(0, entityId.lastIndexOf('_')) + '_';
@@ -101,9 +101,9 @@ class PrinterAnalyticsCard extends HTMLElement {
       'Print History': 'print_history',
       'Print Status': 'print_status',
     };
-    // 去掉打印机名称前缀（如 "P2S打印机 总打印次数" -> "总打印次数"）
-    for (const [cn, key] of Object.entries(map)) {
-      if (name.includes(cn)) return key;
+    // 查找匹配的 key
+    for (const [keyword, key] of Object.entries(map)) {
+      if (name.includes(keyword)) return key;
     }
     return null;
   }
@@ -122,9 +122,15 @@ class PrinterAnalyticsCard extends HTMLElement {
     return state?.attributes?.[attr];
   }
 
+  // 获取完整的实体对象
+  _getEntity(key) {
+    if (!this._entityCache[key]) return null;
+    return this._hass?.states[this._entityCache[key]];
+  }
+
   render() {
     this.shadowRoot.innerHTML = `
-      <style>
+      &lt;style&gt;
         :host { display: block; }
         .card {
           background: var(--card-background-color, #fff);
@@ -188,16 +194,17 @@ class PrinterAnalyticsCard extends HTMLElement {
         .stats-table tr:last-child td { border-bottom: none; }
         .stats-table tr:hover td { background: var(--secondary-background-color, #f5f5f5); }
         .no-data { text-align: center; color: var(--secondary-text-color, #888); padding: 20px; font-style: italic; }
-      </style>
-      <div class="card" id="card-content">
-        <div class="no-data">Loading...</div>
-      </div>
+        .debug-info { background: #fff3cd; border: 1px solid #ffc107; padding: 10px; border-radius: 6px; margin-bottom: 10px; font-size: 12px; }
+      &lt;/style&gt;
+      &lt;div class="card" id="card-content"&gt;
+        &lt;div class="no-data"&gt;Loading...&lt;/div&gt;
+      &lt;/div&gt;
     `;
   }
 
   set hass(hass) {
     this._hass = hass;
-    if (hass && this.config) {
+    if (hass &amp;&amp; this.config) {
       this._entityCache = this._discoverEntities();
       this.updateData();
     }
@@ -206,34 +213,46 @@ class PrinterAnalyticsCard extends HTMLElement {
   updateData() {
     const card = this.shadowRoot.getElementById('card-content');
     if (!card) return;
+    
     const title = this.config.title || 'Printer Analytics (打印机分析)';
-    let html = '';
+    
+    let debugHtml = '';
+    if (this.config.debug) {
+      debugHtml = `&lt;div class="debug-info"&gt;
+        &lt;div&gt;Config: ${JSON.stringify(this.config)}&lt;/div&gt;
+        &lt;div&gt;Entity Cache: ${JSON.stringify(this._entityCache)}&lt;/div&gt;
+        &lt;div&gt;History Entity: ${this._getEntity('print_history') ? 'OK' : 'Missing'}&lt;/div&gt;
+      &lt;/div&gt;`;
+    }
+    
+    let html = debugHtml;
     html += this._renderTimeDimensionStats(title);
     html += this._renderPeriodStats();
     html += this._renderSuccessRateTrend();
     html += this._renderDurationDistribution();
     html += this._renderActivityHeatmap();
     html += this._renderFilamentUsage();
-    card.innerHTML = html || '<div class="no-data">No data available</div>';
+    
+    card.innerHTML = html || '&lt;div class="no-data"&gt;No data available&lt;/div&gt;';
   }
 
   _renderTimeDimensionStats(title) {
     const totalPrints = this._getValue('total_prints');
     const successRate = this._getValue('success_rate');
     const avgDuration = this._getValue('average_duration');
-    const totalDuration = this._getValue('total_online_duration');
+    const totalDuration = this._getValue('total_print_duration');
     const totalEnergy = this._getValue('total_energy');
     const printStatus = this._getValue('print_status');
     return `
-      <div class="section-title">📊 ${title}</div>
-      <div class="stats-grid">
-        <div class="stat-card"><div class="stat-icon">🖨️</div><div class="stat-value">${totalPrints}</div><div class="stat-label">Total Prints<br/>(总打印次数)</div></div>
-        <div class="stat-card"><div class="stat-icon">✅</div><div class="stat-value">${successRate}%</div><div class="stat-label">Success Rate<br/>(成功率)</div></div>
-        <div class="stat-card"><div class="stat-icon">⏱️</div><div class="stat-value">${avgDuration}</div><div class="stat-label">Avg Duration (min)<br/>(平均时长)</div></div>
-        <div class="stat-card"><div class="stat-icon">🕐</div><div class="stat-value">${totalDuration}</div><div class="stat-label">Total Duration (h)<br/>(总时长)</div></div>
-        <div class="stat-card"><div class="stat-icon">⚡</div><div class="stat-value">${totalEnergy}</div><div class="stat-label">Energy (kWh)<br/>(总能耗)</div></div>
-        <div class="stat-card"><div class="stat-icon">${printStatus === '打印中' ? '🔵' : '⚪'}</div><div class="stat-value" style="font-size:16px">${printStatus || 'Idle'}</div><div class="stat-label">Status<br/>(打印状态)</div></div>
-      </div>`;
+      &lt;div class="section-title"&gt;📊 ${title}&lt;/div&gt;
+      &lt;div class="stats-grid"&gt;
+        &lt;div class="stat-card"&gt;&lt;div class="stat-icon"&gt;🖨️&lt;/div&gt;&lt;div class="stat-value"&gt;${totalPrints}&lt;/div&gt;&lt;div class="stat-label"&gt;Total Prints&lt;br/&gt;(总打印次数)&lt;/div&gt;&lt;/div&gt;
+        &lt;div class="stat-card"&gt;&lt;div class="stat-icon"&gt;✅&lt;/div&gt;&lt;div class="stat-value"&gt;${successRate}%&lt;/div&gt;&lt;div class="stat-label"&gt;Success Rate&lt;br/&gt;(成功率)&lt;/div&gt;&lt;/div&gt;
+        &lt;div class="stat-card"&gt;&lt;div class="stat-icon"&gt;⏱️&lt;/div&gt;&lt;div class="stat-value"&gt;${avgDuration}&lt;/div&gt;&lt;div class="stat-label"&gt;Avg Duration (min)&lt;br/&gt;(平均时长)&lt;/div&gt;&lt;/div&gt;
+        &lt;div class="stat-card"&gt;&lt;div class="stat-icon"&gt;🕐&lt;/div&gt;&lt;div class="stat-value"&gt;${totalDuration}&lt;/div&gt;&lt;div class="stat-label"&gt;Total Duration (min)&lt;br/&gt;(总时长)&lt;/div&gt;&lt;/div&gt;
+        &lt;div class="stat-card"&gt;&lt;div class="stat-icon"&gt;⚡&lt;/div&gt;&lt;div class="stat-value"&gt;${totalEnergy}&lt;/div&gt;&lt;div class="stat-label"&gt;Energy&lt;br/&gt;(总能耗)&lt;/div&gt;&lt;/div&gt;
+        &lt;div class="stat-card"&gt;&lt;div class="stat-icon"&gt;${printStatus.includes('打印中') || printStatus.includes('printing') ? '🔵' : '⚪'}&lt;/div&gt;&lt;div class="stat-value" style="font-size:16px"&gt;${printStatus || 'Idle'}&lt;/div&gt;&lt;div class="stat-label"&gt;Status&lt;br/&gt;(打印状态)&lt;/div&gt;&lt;/div&gt;
+      &lt;/div&gt;`;
   }
 
   _renderPeriodStats() {
@@ -243,136 +262,200 @@ class PrinterAnalyticsCard extends HTMLElement {
     ];
     let html = '';
     for (const period of periods) {
-      const stats = this._getAttr(period.key, '') || {};
-      if (typeof stats === 'string') continue;
+      const entity = this._getEntity(period.key);
+      const attrs = entity?.attributes || {};
+      const totalPrints = attrs.total_prints || 0;
+      const successful = attrs.successful || 0;
+      const failed = attrs.failed || 0;
+      const successRate = attrs.success_rate || 0;
+      const totalWeight = attrs.total_weight_g || 0;
+      const totalLength = attrs.total_length_m || 0;
+      const totalEnergy = attrs.total_energy_kwh || 0;
+      const avgDuration = attrs.average_duration_minutes || 0;
+      
       html += `
-        <div class="section-title">${period.icon} ${period.label}</div>
-        <div class="chart-container">
-          <table class="stats-table">
-            <thead><tr><th>Metric (指标)</th><th>Value (值)</th></tr></thead>
-            <tbody>
-              <tr><td>Prints (打印次数)</td><td>${stats.total_prints || 0}</td></tr>
-              <tr><td>Successful (成功)</td><td>${stats.successful || 0}</td></tr>
-              <tr><td>Failed (失败)</td><td>${stats.failed || 0}</td></tr>
-              <tr><td>Success Rate (成功率)</td><td>${stats.success_rate || 0}%</td></tr>
-              <tr><td>Weight (耗材重量)</td><td>${stats.total_weight_g || 0}g</td></tr>
-              <tr><td>Length (耗材长度)</td><td>${stats.total_length_m || 0}m</td></tr>
-              <tr><td>Energy (能耗)</td><td>${stats.total_energy_kwh || 0} kWh</td></tr>
-              <tr><td>Avg Duration (平均时长)</td><td>${stats.average_duration_minutes || 0} min</td></tr>
-            </tbody>
-          </table>
-        </div>`;
+        &lt;div class="section-title"&gt;${period.icon} ${period.label}&lt;/div&gt;
+        &lt;div class="chart-container"&gt;
+          &lt;table class="stats-table"&gt;
+            &lt;thead&gt;&lt;tr&gt;&lt;th&gt;Metric (指标)&lt;/th&gt;&lt;th&gt;Value (值)&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;
+            &lt;tbody&gt;
+              &lt;tr&gt;&lt;td&gt;Prints (打印次数)&lt;/td&gt;&lt;td&gt;${totalPrints}&lt;/td&gt;&lt;/tr&gt;
+              &lt;tr&gt;&lt;td&gt;Successful (成功)&lt;/td&gt;&lt;td&gt;${successful}&lt;/td&gt;&lt;/tr&gt;
+              &lt;tr&gt;&lt;td&gt;Failed (失败)&lt;/td&gt;&lt;td&gt;${failed}&lt;/td&gt;&lt;/tr&gt;
+              &lt;tr&gt;&lt;td&gt;Success Rate (成功率)&lt;/td&gt;&lt;td&gt;${successRate}%&lt;/td&gt;&lt;/tr&gt;
+              &lt;tr&gt;&lt;td&gt;Weight (耗材重量)&lt;/td&gt;&lt;td&gt;${totalWeight}g&lt;/td&gt;&lt;/tr&gt;
+              &lt;tr&gt;&lt;td&gt;Length (耗材长度)&lt;/td&gt;&lt;td&gt;${totalLength}m&lt;/td&gt;&lt;/tr&gt;
+              &lt;tr&gt;&lt;td&gt;Energy (能耗)&lt;/td&gt;&lt;td&gt;${totalEnergy} kWh&lt;/td&gt;&lt;/tr&gt;
+              &lt;tr&gt;&lt;td&gt;Avg Duration (平均时长)&lt;/td&gt;&lt;td&gt;${avgDuration} min&lt;/td&gt;&lt;/tr&gt;
+            &lt;/tbody&gt;
+          &lt;/table&gt;
+        &lt;/div&gt;`;
     }
     return html;
   }
 
   _renderSuccessRateTrend() {
-    const history = this._getAttr('print_history', 'history') || [];
+    const historyEntity = this._getEntity('print_history');
+    const history = historyEntity?.attributes?.history || [];
+    
     if (!Array.isArray(history) || history.length === 0) {
-      return `<div class="section-title">📈 Success Rate Trend (打印成功率趋势)</div><div class="chart-container"><div class="no-data">No history data</div></div>`;
+      return `&lt;div class="section-title"&gt;📈 Success Rate Trend (打印成功率趋势)&lt;/div&gt;&lt;div class="chart-container"&gt;&lt;div class="no-data"&gt;No history data&lt;/div&gt;&lt;/div&gt;`;
     }
-    const dailyData = {};
+    
+    const sortedHistory = [...history].sort((a, b) =&gt; new Date(a.end_time) - new Date(b.end_time));
     let successCount = 0, totalCount = 0;
-    const sorted = [...history].sort((a, b) => new Date(a.end_time) - new Date(b.end_time));
-    for (const item of sorted) {
-      if (!item.end_time) continue;
+    const points = [];
+    
+    for (const item of sortedHistory) {
       totalCount++;
       if (item.status === 'finish') successCount++;
+      
       const date = item.end_time.substring(0, 10);
-      if (!dailyData[date]) dailyData[date] = { success: 0, total: 0 };
-      dailyData[date].total++;
-      if (item.status === 'finish') dailyData[date].success++;
+      const rate = Math.round(successCount / totalCount * 100);
+      points.push({ date, rate });
     }
-    const dates = Object.keys(dailyData).sort();
-    if (dates.length === 0) return `<div class="section-title">📈 Success Rate Trend (打印成功率趋势)</div><div class="chart-container"><div class="no-data">No data</div></div>`;
-    const points = [];
-    let cumSuccess = 0, cumTotal = 0;
-    for (const date of dates) {
-      cumSuccess += dailyData[date].success;
-      cumTotal += dailyData[date].total;
-      points.push({ date, rate: Math.round(cumSuccess / cumTotal * 100) });
+    
+    if (points.length === 0) {
+      return `&lt;div class="section-title"&gt;📈 Success Rate Trend (打印成功率趋势)&lt;/div&gt;&lt;div class="chart-container"&gt;&lt;div class="no-data"&gt;No data&lt;/div&gt;&lt;/div&gt;`;
     }
-    const width = 500, height = 80, padding = 10;
+    
+    const width = 500, height = 100, padding = 20;
     const chartW = width - padding * 2, chartH = height - padding * 2;
-    const pathPoints = points.map((p, i) => {
+    
+    const pathPoints = points.map((p, i) =&gt; {
       const x = padding + (i / Math.max(points.length - 1, 1)) * chartW;
       const y = padding + chartH - (p.rate / 100) * chartH;
       return `${x},${y}`;
     });
+    
     const areaPath = `M${padding},${height - padding} L${pathPoints.join(' L')} L${padding + chartW},${height - padding} Z`;
     const linePath = `M${pathPoints.join(' L')}`;
+    
     return `
-      <div class="section-title">📈 Success Rate Trend (打印成功率趋势)</div>
-      <div class="chart-container">
-        <div class="chart-title">Cumulative: ${successCount}/${totalCount} = ${Math.round(successCount/totalCount*100)}%</div>
-        <div class="trend-container">
-          <svg class="trend-svg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
-            <defs><linearGradient id="rateGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="var(--primary-color, #03a9f4)" stop-opacity="0.3"/>
-              <stop offset="100%" stop-color="var(--primary-color, #03a9f4)" stop-opacity="0.05"/>
-            </linearGradient></defs>
-            <path d="${areaPath}" fill="url(#rateGrad)" />
-            <path d="${linePath}" fill="none" stroke="var(--primary-color, #03a9f4)" stroke-width="2"/>
-            ${points.map((p, i) => {
+      &lt;div class="section-title"&gt;📈 Success Rate Trend (打印成功率趋势)&lt;/div&gt;
+      &lt;div class="chart-container"&gt;
+        &lt;div class="chart-title"&gt;Cumulative: ${successCount}/${totalCount} = ${Math.round(successCount/totalCount*100)}%&lt;/div&gt;
+        &lt;div class="trend-container"&gt;
+          &lt;svg class="trend-svg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none"&gt;
+            &lt;defs&gt;&lt;linearGradient id="rateGrad" x1="0" y1="0" x2="0" y2="1"&gt;
+              &lt;stop offset="0%" stop-color="var(--primary-color, #03a9f4)" stop-opacity="0.3"/&gt;
+              &lt;stop offset="100%" stop-color="var(--primary-color, #03a9f4)" stop-opacity="0.05"/&gt;
+            &lt;/linearGradient&gt;&lt;/defs&gt;
+            &lt;path d="${areaPath}" fill="url(#rateGrad)" /&gt;
+            &lt;path d="${linePath}" fill="none" stroke="var(--primary-color, #03a9f4)" stroke-width="2"/&gt;
+            ${points.map((p, i) =&gt; {
               const x = padding + (i / Math.max(points.length - 1, 1)) * chartW;
               const y = padding + chartH - (p.rate / 100) * chartH;
-              return `<circle cx="${x}" cy="${y}" r="3" fill="var(--primary-color, #03a9f4)"/>`;
+              return `&lt;circle cx="${x}" cy="${y}" r="3" fill="var(--primary-color, #03a9f4)"/&gt;`;
             }).join('')}
-          </svg>
-        </div>
-      </div>`;
+          &lt;/svg&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;`;
   }
 
   _renderDurationDistribution() {
-    const dist = this._getAttr('duration_distribution', '') || {};
-    if (typeof dist === 'string' || Object.keys(dist).length === 0) {
-      return `<div class="section-title">📊 Duration Distribution (打印时长分布)</div><div class="chart-container"><div class="no-data">No data</div></div>`;
+    const entity = this._getEntity('duration_distribution');
+    const attrs = entity?.attributes || {};
+    
+    // 获取数据，先尝试从属性获取，没有就尝试从 state 解析
+    let distribution = attrs;
+    if (Object.keys(distribution).length === 0) {
+      try {
+        distribution = typeof entity?.state === 'string' ? JSON.parse(entity.state) : entity?.state || {};
+      } catch (e) {
+        distribution = {};
+      }
     }
-    const labels = Object.keys(dist), values = Object.values(dist);
-    const maxVal = Math.max(...values, 1);
+    
+    if (Object.keys(distribution).length === 0) {
+      return `&lt;div class="section-title"&gt;📊 Duration Distribution (打印时长分布)&lt;/div&gt;&lt;div class="chart-container"&gt;&lt;div class="no-data"&gt;No data&lt;/div&gt;&lt;/div&gt;`;
+    }
+    
+    const labels = Object.keys(distribution).filter(k =&gt; !['icon', 'friendly_name', 'device_class', 'unit_of_measurement'].includes(k));
+    const maxVal = Math.max(...labels.map(k =&gt; distribution[k]), 1);
     const colors = ['#4CAF50', '#8BC34A', '#FFC107', '#FF9800', '#F44336', '#9C27B0'];
+    
     let barsHtml = '';
-    for (let i = 0; i < labels.length; i++) {
-      const heightPct = (values[i] / maxVal) * 100;
-      barsHtml += `<div class="bar-col"><div class="bar-value">${values[i]}</div><div class="bar" style="height:${Math.max(heightPct, 2)}%;background:${colors[i % colors.length]}"></div><div class="bar-label">${labels[i]}</div></div>`;
+    for (let i = 0; i &lt; labels.length; i++) {
+      const label = labels[i];
+      const value = distribution[label] || 0;
+      const heightPct = (value / maxVal) * 100;
+      barsHtml += `&lt;div class="bar-col"&gt;&lt;div class="bar-value"&gt;${value}&lt;/div&gt;&lt;div class="bar" style="height:${Math.max(heightPct, 2)}%;background:${colors[i % colors.length]}"&gt;&lt;/div&gt;&lt;div class="bar-label"&gt;${label}&lt;/div&gt;&lt;/div&gt;`;
     }
-    return `<div class="section-title">📊 Duration Distribution (打印时长分布)</div><div class="chart-container"><div class="bar-chart">${barsHtml}</div></div>`;
+    
+    return `&lt;div class="section-title"&gt;📊 Duration Distribution (打印时长分布)&lt;/div&gt;&lt;div class="chart-container"&gt;&lt;div class="bar-chart"&gt;${barsHtml}&lt;/div&gt;&lt;/div&gt;`;
   }
 
   _renderActivityHeatmap() {
-    const heatmap = this._getAttr('activity_heatmap', '') || {};
-    if (typeof heatmap === 'string' || Object.keys(heatmap).length === 0) {
-      return `<div class="section-title">🗓️ Activity Heatmap (打印活动热力图)</div><div class="chart-container"><div class="no-data">No data</div></div>`;
+    const entity = this._getEntity('activity_heatmap');
+    let heatmap = entity?.attributes || {};
+    
+    // 过滤掉非日期属性
+    const dateKeys = Object.keys(heatmap).filter(k =&gt; /^\d{4}-\d{2}-\d{2}$/.test(k));
+    if (dateKeys.length === 0) {
+      // 尝试从 state 解析
+      try {
+        const stateData = typeof entity?.state === 'string' ? JSON.parse(entity.state) : entity?.state || {};
+        heatmap = stateData;
+      } catch (e) {
+        heatmap = {};
+      }
     }
-    const dates = Object.keys(heatmap).sort();
-    const maxCount = Math.max(...Object.values(heatmap), 1);
-    const recentDates = dates.slice(-35);
-    const startDate = recentDates.length > 0 ? new Date(recentDates[0]) : new Date();
-    let cellsHtml = '';
-    for (let i = 0; i < 35; i++) {
-      const d = new Date(startDate); d.setDate(d.getDate() + i);
+    
+    // 构建热力图
+    const sortedDates = Object.keys(heatmap).filter(k =&gt; /^\d{4}-\d{2}-\d{2}$/.test(k)).sort();
+    if (sortedDates.length === 0) {
+      return `&lt;div class="section-title"&gt;🗓️ Activity Heatmap (打印活动热力图)&lt;/div&gt;&lt;div class="chart-container"&gt;&lt;div class="no-data"&gt;No data&lt;/div&gt;&lt;/div&gt;`;
+    }
+    
+    const maxCount = Math.max(...sortedDates.map(k =&gt; heatmap[k]), 1);
+    const recentDates = sortedDates.slice(-35);
+    const startDate = recentDates.length &gt; 0 ? new Date(recentDates[0]) : new Date();
+    
+    // 填充缺失的日期
+    const allDates = [];
+    for (let i = 0; i &lt; 35; i++) {
+      const d = new Date(startDate);
+      d.setDate(d.getDate() + i);
       const dateKey = d.toISOString().substring(0, 10);
-      const count = heatmap[dateKey] || 0;
-      const intensity = count > 0 ? Math.min(count / maxCount, 1) : 0;
-      let color = 'var(--divider-color, #e0e0e0)';
-      if (count > 0) color = intensity < 0.33 ? '#c8e6c9' : intensity < 0.66 ? '#66bb6a' : '#2e7d32';
-      cellsHtml += `<div class="heatmap-cell" style="background:${color}" data-date="${dateKey}" data-count="${count}"></div>`;
+      allDates.push(dateKey);
     }
-    return `<div class="section-title">🗓️ Activity Heatmap (打印活动热力图)</div><div class="chart-container"><div class="heatmap-grid">${cellsHtml}</div></div>`;
+    
+    let cellsHtml = '';
+    for (const dateKey of allDates) {
+      const count = heatmap[dateKey] || 0;
+      const intensity = count &gt; 0 ? Math.min(count / maxCount, 1) : 0;
+      let color = 'var(--divider-color, #e0e0e0)';
+      if (count &gt; 0) {
+        color = intensity &lt; 0.33 ? '#c8e6c9' : intensity &lt; 0.66 ? '#66bb6a' : '#2e7d32';
+      }
+      cellsHtml += `&lt;div class="heatmap-cell" style="background:${color}" data-date="${dateKey}" data-count="${count}"&gt;&lt;/div&gt;`;
+    }
+    
+    return `&lt;div class="section-title"&gt;🗓️ Activity Heatmap (打印活动热力图)&lt;/div&gt;&lt;div class="chart-container"&gt;&lt;div class="heatmap-grid"&gt;${cellsHtml}&lt;/div&gt;&lt;/div&gt;`;
   }
 
   _renderFilamentUsage() {
-    const history = this._getAttr('print_history', 'history') || [];
+    const historyEntity = this._getEntity('print_history');
+    const history = historyEntity?.attributes?.history || [];
+    
     if (!Array.isArray(history) || history.length === 0) return '';
-    const typeUsage = {}, colorUsage = {};
+    
+    const typeUsage = {};
+    const colorUsage = {};
     const pieColors = ['#03a9f4', '#4caf50', '#ff9800', '#f44336', '#9c27b0', '#00bcd4', '#ffeb3b', '#795548'];
+    
     for (const item of history) {
       if (item.status !== 'finish') continue;
-      const ft = item.filament_type || 'Unknown', fc = item.filament_color || 'Unknown';
+      const ft = item.filament_type || 'Unknown';
+      const fc = item.filament_color || 'Unknown';
       const weight = item.total_weight || 0;
-      if (!typeUsage[ft]) typeUsage[ft] = 0; typeUsage[ft] += weight;
-      if (!colorUsage[fc]) colorUsage[fc] = 0; colorUsage[fc] += weight;
+      if (!typeUsage[ft]) typeUsage[ft] = 0;
+      typeUsage[ft] += weight;
+      if (!colorUsage[fc]) colorUsage[fc] = 0;
+      colorUsage[fc] += weight;
     }
+    
     let html = '';
     html += this._renderPieChart('🎨 Filament Type Usage (耗材类型使用量)', typeUsage, pieColors);
     html += this._renderPieChart('🎨 Filament Color Usage (耗材颜色使用量)', colorUsage, pieColors);
@@ -380,12 +463,14 @@ class PrinterAnalyticsCard extends HTMLElement {
   }
 
   _renderPieChart(title, data, colors) {
-    const entries = Object.entries(data).filter(([_, v]) => v > 0);
-    if (entries.length === 0) return `<div class="section-title">${title}</div><div class="chart-container"><div class="no-data">No data</div></div>`;
-    const total = entries.reduce((sum, [_, v]) => sum + v, 0);
+    const entries = Object.entries(data).filter(([_, v]) =&gt; v &gt; 0);
+    if (entries.length === 0) return `&lt;div class="section-title"&gt;${title}&lt;/div&gt;&lt;div class="chart-container"&gt;&lt;div class="no-data"&gt;No data&lt;/div&gt;&lt;/div&gt;`;
+    
+    const total = entries.reduce((sum, [_, v]) =&gt; sum + v, 0);
     const size = 120, cx = size / 2, cy = size / 2, r = size / 2 - 5;
     let paths = '', startAngle = 0, legendHtml = '';
-    for (let i = 0; i < entries.length; i++) {
+    
+    for (let i = 0; i &lt; entries.length; i++) {
       const [label, value] = entries[i];
       const pct = value / total;
       const endAngle = startAngle + pct * 2 * Math.PI;
@@ -393,14 +478,15 @@ class PrinterAnalyticsCard extends HTMLElement {
       const y1 = cy + r * Math.sin(startAngle - Math.PI / 2);
       const x2 = cx + r * Math.cos(endAngle - Math.PI / 2);
       const y2 = cy + r * Math.sin(endAngle - Math.PI / 2);
-      const largeArc = pct > 0.5 ? 1 : 0;
+      const largeArc = pct &gt; 0.5 ? 1 : 0;
       const d = `M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${largeArc},1 ${x2},${y2} Z`;
       const color = colors[i % colors.length];
-      paths += `<path d="${d}" fill="${color}" stroke="var(--card-background-color, #fff)" stroke-width="2"/>`;
-      legendHtml += `<div class="legend-item"><div class="legend-dot" style="background:${color}"></div><span>${label}: ${Math.round(value)}g (${Math.round(pct * 100)}%)</span></div>`;
+      paths += `&lt;path d="${d}" fill="${color}" stroke="var(--card-background-color, #fff)" stroke-width="2"/&gt;`;
+      legendHtml += `&lt;div class="legend-item"&gt;&lt;div class="legend-dot" style="background:${color}"&gt;&lt;/div&gt;&lt;span&gt;${label}: ${Math.round(value)}g (${Math.round(pct * 100)}%)&lt;/span&gt;&lt;/div&gt;`;
       startAngle = endAngle;
     }
-    return `<div class="section-title">${title}</div><div class="chart-container"><div class="pie-container"><svg class="pie-svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${paths}</svg><div class="pie-legend">${legendHtml}</div></div></div>`;
+    
+    return `&lt;div class="section-title"&gt;${title}&lt;/div&gt;&lt;div class="chart-container"&gt;&lt;div class="pie-container"&gt;&lt;svg class="pie-svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"&gt;${paths}&lt;/svg&gt;&lt;div class="pie-legend"&gt;${legendHtml}&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;`;
   }
 
   getCardSize() { return 6; }
@@ -418,3 +504,4 @@ window.customCards.push({
   name: 'Printer Analytics Card',
   description: 'Card for Printer Analytics integration (打印机分析卡片)',
 });
+
