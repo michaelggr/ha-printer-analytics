@@ -48,27 +48,13 @@ async def _register_lovelace_resource(hass: HomeAssistant) -> None:
         LOGGER.error("Failed to copy card: %s", err)
         return
 
-    # 注册 Lovelace 资源
+    # 注册 Lovelace 资源 - 简化为只复制文件，避免不稳定的 API 调用
     try:
-        from homeassistant.components.lovelace import DOMAIN as LOVELACE_DOMAIN
-        resources = hass.data.get(LOVELACE_DOMAIN, {}).get("resources")
-        if resources is None:
-            return
-
-        existing = [
-            r for r in resources.async_items()
-            if r.get("url") == CARD_URL
-        ]
-        if not existing:
-            resources.async_create_item({
-                "res_type": "module",
-                "url": CARD_URL,
-            })
-            LOGGER.info("Registered Lovelace resource: %s", CARD_URL)
-        else:
-            LOGGER.info("Lovelace resource already registered: %s", CARD_URL)
+        # 不尝试自动注册资源（API 不稳定），只复制文件即可
+        # 用户可以手动添加资源或通过 HACS 处理
+        LOGGER.info("Card copied to %s (manual registration may be needed if auto-registration fails)", dst)
     except Exception as err:
-        LOGGER.warning("Failed to register Lovelace resource (card still works if manually added): %s", err)
+        LOGGER.warning("Failed to complete card setup: %s", err)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
