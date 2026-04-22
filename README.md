@@ -56,12 +56,22 @@ The integration automatically deploys a custom Lovelace card when you add the in
 
 ### Usage
 
-Add a custom card in your Lovelace dashboard:
+Add a custom card in your Lovelace dashboard (requires full entity configuration):
 
 ```yaml
 type: custom:printer-analytics-card
-entity: sensor.YOUR_PRINTER_print_history
-title: My Printer Analytics
+title: P2S打印机
+print_history: sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_li_shi
+total_prints: sensor.p2sda_yin_ji_p2sda_yin_ji_zong_da_yin_ci_shu
+success_rate: sensor.p2sda_yin_ji_p2sda_yin_ji_cheng_gong_lu
+average_duration: sensor.p2sda_yin_ji_p2sda_yin_ji_ping_jun_da_yin_shi_chang
+total_print_duration: sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_zong_shi_chang
+total_energy: sensor.p2sda_yin_ji_p2sda_yin_ji_zong_neng_hao
+material_stats_7d: sensor.p2sda_yin_ji_p2sda_yin_ji_7tian_hao_cai_tong_ji
+material_stats_30d: sensor.p2sda_yin_ji_p2sda_yin_ji_30tian_hao_cai_tong_ji
+duration_distribution: sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_shi_chang_fen_bu
+activity_heatmap: sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_huo_dong_re_li_tu
+print_status: sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_zhuang_tai
 ```
 
 ### Card Features
@@ -147,6 +157,24 @@ Home Assistant 自定义集成，用于跟踪和分析 3D 打印机数据。支�
 3. 填写打印机名称、选择打印状态传感器等
 
 ### Lovelace 卡片
+
+在仪表盘中添加自定义卡片（需要配置所有实体）：
+
+```yaml
+type: custom:printer-analytics-card
+title: P2S打印机
+print_history: sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_li_shi
+total_prints: sensor.p2sda_yin_ji_p2sda_yin_ji_zong_da_yin_ci_shu
+success_rate: sensor.p2sda_yin_ji_p2sda_yin_ji_cheng_gong_lu
+average_duration: sensor.p2sda_yin_ji_p2sda_yin_ji_ping_jun_da_yin_shi_chang
+total_print_duration: sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_zong_shi_chang
+total_energy: sensor.p2sda_yin_ji_p2sda_yin_ji_zong_neng_hao
+material_stats_7d: sensor.p2sda_yin_ji_p2sda_yin_ji_7tian_hao_cai_tong_ji
+material_stats_30d: sensor.p2sda_yin_ji_p2sda_yin_ji_30tian_hao_cai_tong_ji
+duration_distribution: sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_shi_chang_fen_bu
+activity_heatmap: sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_huo_dong_re_li_tu
+print_status: sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_zhuang_tai
+```
 
 集成安装后自动部署卡片，在仪表板中添加：
 
