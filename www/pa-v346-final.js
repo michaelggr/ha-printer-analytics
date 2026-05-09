@@ -87,15 +87,15 @@ class PrinterAnalyticsCard extends HTMLElement {
       <style>
         :host {
           display: block;
-          --md-sys-color-primary: var(--primary-color, #03a9f4);
+          --md-sys-color-primary: #4fc3f7;
           --md-sys-color-on-primary: #fff;
-          --md-sys-color-primary-container: #e0f7fa;
-          --md-sys-color-secondary: #00bcd4;
-          --md-sys-color-surface: var(--card-background-color, #fff);
-          --md-sys-color-surface-variant: var(--secondary-background-color, #f8f9fa);
-          --md-sys-color-outline: rgba(0,0,0,0.12);
-          --md-sys-elevation-1: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
-          --md-sys-elevation-2: 0 3px 6px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.06);
+          --md-sys-color-primary-container: #1a3a4a;
+          --md-sys-color-secondary: #26c6da;
+          --md-sys-color-surface: #1e1e2e;
+          --md-sys-color-surface-variant: #2a2a3c;
+          --md-sys-color-outline: rgba(255,255,255,0.08);
+          --md-sys-elevation-1: 0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
+          --md-sys-elevation-2: 0 3px 6px rgba(0,0,0,0.4), 0 2px 4px rgba(0,0,0,0.2);
           --md-sys-shape-corner-extra-small: 6px;
           --md-sys-shape-corner-small: 10px;
           --md-sys-shape-corner-medium: 16px;
@@ -107,7 +107,7 @@ class PrinterAnalyticsCard extends HTMLElement {
           border-radius: var(--md-sys-shape-corner-large);
           box-shadow: var(--md-sys-elevation-1);
           padding: 28px;
-          color: var(--primary-text-color, #1a1a1a);
+          color: #e0e0e0;
           font-family: 'Roboto', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
         }
         
@@ -157,12 +157,12 @@ class PrinterAnalyticsCard extends HTMLElement {
           cursor: pointer;
         }
         .tab-button:hover {
-          background: rgba(3,169,244,0.08);
-          color: var(--md-sys-color-primary, #03a9f4);
+          background: rgba(79,195,247,0.15);
+          color: var(--md-sys-color-primary);
         }
         .tab-button.active {
-          background: white;
-          color: var(--md-sys-color-primary, #03a9f4);
+          background: #2a2a3c;
+          color: var(--md-sys-color-primary);
           box-shadow: var(--md-sys-elevation-1);
         }
         .tab-content {
@@ -216,7 +216,7 @@ class PrinterAnalyticsCard extends HTMLElement {
           font-size: 30px;
           font-weight: 800;
           line-height: 1.2;
-          background: linear-gradient(135deg, var(--primary-text-color, #333), var(--secondary-text-color, #666));
+          background: linear-gradient(135deg, #4fc3f7, #26c6da);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
@@ -225,7 +225,7 @@ class PrinterAnalyticsCard extends HTMLElement {
         }
         .stat-label {
           font-size: 12px;
-          color: var(--secondary-text-color, #888);
+          color: #94a3b8;
           line-height: 1.5;
           font-weight: 500;
         }
@@ -236,11 +236,11 @@ class PrinterAnalyticsCard extends HTMLElement {
           font-weight: 700;
           margin: 24px 0 14px 0;
           padding-bottom: 10px;
-          border-bottom: 2px solid rgba(0,0,0,0.06);
+          border-bottom: 2px solid rgba(255,255,255,0.08);
           display: flex;
           align-items: center;
           gap: 12px;
-          color: var(--primary-text-color, #1a1a1a);
+          color: #e0e0e0;
         }
         .section-icon {
           width: 32px;
@@ -250,7 +250,7 @@ class PrinterAnalyticsCard extends HTMLElement {
           align-items: center;
           justify-content: center;
           font-size: 18px;
-          background: linear-gradient(135deg, var(--md-sys-color-primary-container), rgba(3,169,244,0.08));
+          background: linear-gradient(135deg, #1a3a4a, #0d2137);
           box-shadow: var(--md-sys-elevation-1);
         }
         
@@ -269,7 +269,7 @@ class PrinterAnalyticsCard extends HTMLElement {
           font-size: 14px;
           font-weight: 600;
           margin-bottom: 18px;
-          color: var(--primary-text-color, #333);
+          color: #e0e0e0;
           display: flex;
           justify-content: space-between;
           align-items: center;
@@ -297,11 +297,12 @@ class PrinterAnalyticsCard extends HTMLElement {
         }
         .stats-table td {
           padding: 14px 18px;
-          border-bottom: 1px solid var(--md-sys-color-outline);
+          border-bottom: 1px solid rgba(255,255,255,0.06);
+          color: #c0c0c0;
         }
         .stats-table tr:last-child td { border-bottom: none; }
         .stats-table tr:hover td {
-          background: rgba(3,169,244,0.06);
+          background: rgba(79,195,247,0.1);
         }
         .table-value {
           font-weight: 700;
@@ -311,17 +312,17 @@ class PrinterAnalyticsCard extends HTMLElement {
         
         /* 多色统计特殊样式 */
         .multi-color-card {
-          background: linear-gradient(145deg, #fff9f0, #fffef8);
+          background: linear-gradient(145deg, #2a2a3c, #1e1e2e);
           border-left-width: 6px !important;
           box-shadow: var(--md-sys-elevation-2);
         }
         .multi-color-card.success { 
           border-left-color: #4caf50 !important; 
-          background: linear-gradient(145deg, #f1f8e9, #fff);
+          background: linear-gradient(145deg, #1a2e1a, #1e1e2e);
         }
         .multi-color-card.failed { 
           border-left-color: #f44336 !important; 
-          background: linear-gradient(145deg, #ffebee, #fff);
+          background: linear-gradient(145deg, #2e1a1a, #1e1e2e);
         }
         
         .color-tag {
@@ -344,17 +345,17 @@ class PrinterAnalyticsCard extends HTMLElement {
           display: flex;
           justify-content: space-between;
           font-size: 11px;
-          color: var(--secondary-text-color, #888);
+          color: #94a3b8;
           margin-bottom: 6px;
           font-weight: 600;
         }
         .progress-track {
-          background: linear-gradient(90deg, #e0e0e0, #f5f5f5);
+          background: linear-gradient(90deg, #2a2a3c, #333348);
           border-radius: 10px;
           height: 8px;
           overflow: hidden;
           position: relative;
-          box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+          box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
         }
         .progress-fill {
           height: 100%;
@@ -368,13 +369,13 @@ class PrinterAnalyticsCard extends HTMLElement {
         /* 无数据/错误状态 */
         .no-data {
           text-align: center;
-          color: var(--secondary-text-color, #999);
+          color: #94a3b8;
           padding: 50px 24px;
           font-style: italic;
           font-size: 15px;
-          background: linear-gradient(145deg, var(--md-sys-color-surface-variant), var(--md-sys-color-surface));
+          background: linear-gradient(145deg, #2a2a3c, #1e1e2e);
           border-radius: var(--md-sys-shape-corner-medium);
-          border: 2px dashed var(--md-sys-color-outline);
+          border: 2px dashed rgba(255,255,255,0.1);
         }
         .no-data::before {
           content: '📭';
@@ -384,8 +385,8 @@ class PrinterAnalyticsCard extends HTMLElement {
           opacity: 0.6;
         }
         .error {
-          background: linear-gradient(145deg, #ffebee, #fff3e0);
-          color: #c62828;
+          background: linear-gradient(145deg, #3e1a1a, #2e1515);
+          color: #ef9a9a;
           padding: 20px 24px;
           border-radius: var(--md-sys-shape-corner-medium);
           border-left: 6px solid #f44336;
@@ -416,7 +417,7 @@ class PrinterAnalyticsCard extends HTMLElement {
           cursor: default;
         }
         .legend-item:hover {
-          background: rgba(3,169,244,0.04);
+          background: rgba(79,195,247,0.08);
           padding-left: 8px;
           margin-left: -8px;
           border-radius: var(--md-sys-shape-corner-extra-small);
@@ -549,11 +550,11 @@ class PrinterAnalyticsCard extends HTMLElement {
           width: 6px;
         }
         .history-list::-webkit-scrollbar-track {
-          background: #f1f1f1;
+          background: #2a2a3c;
           border-radius: 3px;
         }
         .history-list::-webkit-scrollbar-thumb {
-          background: #c1c1c1;
+          background: #4a4a5c;
           border-radius: 3px;
         }
 
@@ -561,7 +562,7 @@ class PrinterAnalyticsCard extends HTMLElement {
           display: flex;
           gap: 16px;
           padding: 16px;
-          background: linear-gradient(145deg, #ffffff, #fafafa);
+          background: linear-gradient(145deg, #2a2a3c, #252538);
           border-radius: var(--md-sys-shape-corner-medium, 16px);
           margin-bottom: 12px;
           border: 1px solid transparent;
@@ -581,7 +582,7 @@ class PrinterAnalyticsCard extends HTMLElement {
         }
         .history-item:hover {
           box-shadow: var(--md-sys-elevation-2);
-          border-color: rgba(3,169,244,0.15);
+          border-color: rgba(79,195,247,0.2);
         }
         .history-item:hover::before {
           opacity: 1;
@@ -591,7 +592,7 @@ class PrinterAnalyticsCard extends HTMLElement {
           width: 70px;
           height: 70px;
           border-radius: var(--md-sys-shape-corner-small, 10px);
-          background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+          background: linear-gradient(135deg, #1a3a4a, #0d2137);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -599,7 +600,7 @@ class PrinterAnalyticsCard extends HTMLElement {
           flex-shrink: 0;
           position: relative;
           overflow: hidden;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         }
         .thumbnail-color-bar {
           position: absolute;
@@ -622,37 +623,37 @@ class PrinterAnalyticsCard extends HTMLElement {
         .history-task-name {
           font-size: 14px;
           font-weight: 700;
-          color: var(--primary-text-color, #1a1a1a);
+          color: #e0e0e0;
           line-height: 1.3;
         }
         .history-params {
           font-size: 11px;
-          color: var(--secondary-text-color, #888);
+          color: #94a3b8;
           display: flex;
           gap: 10px;
           flex-wrap: wrap;
         }
         .param-tag {
-          background: rgba(3,169,244,0.08);
+          background: rgba(79,195,247,0.12);
           padding: 2px 8px;
           border-radius: 10px;
           font-weight: 500;
-          color: var(--md-sys-color-primary, #03a9f4);
+          color: #4fc3f7;
         }
         .history-meta {
           display: flex;
           align-items: center;
           gap: 14px;
           font-size: 11px;
-          color: var(--secondary-text-color, #888);
+          color: #94a3b8;
           margin-top: 4px;
         }
         .history-datetime {
           font-size: 10px;
-          color: #999;
+          color: #64748b;
           margin-top: auto;
           padding-top: 4px;
-          border-top: 1px dashed rgba(0,0,0,0.06);
+          border-top: 1px dashed rgba(255,255,255,0.08);
         }
 
         .status-badge {
@@ -665,16 +666,16 @@ class PrinterAnalyticsCard extends HTMLElement {
           font-weight: 700;
         }
         .status-badge.success {
-          background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
-          color: #2e7d32;
+          background: linear-gradient(135deg, #1b5e20, #2e7d32);
+          color: #a5d6a7;
         }
         .status-badge.failed {
-          background: linear-gradient(135deg, #ffebee, #ffcdd2);
-          color: #c62828;
+          background: linear-gradient(135deg, #b71c1c, #c62828);
+          color: #ef9a9a;
         }
         .status-badge.printing {
-          background: linear-gradient(135deg, #e3f2fd, #bbdefb);
-          color: #1565c0;
+          background: linear-gradient(135deg, #0d47a1, #1565c0);
+          color: #90caf9;
         }
 
         /* 统计信息条 */
@@ -683,9 +684,9 @@ class PrinterAnalyticsCard extends HTMLElement {
           gap: 12px;
           margin-bottom: 16px;
           padding: 12px;
-          background: linear-gradient(145deg, #f8f9fa, #fff);
+          background: linear-gradient(145deg, #2a2a3c, #252538);
           border-radius: var(--md-sys-shape-corner-small, 10px);
-          border: 1px solid rgba(0,0,0,0.06);
+          border: 1px solid rgba(255,255,255,0.06);
         }
         .summary-item {
           flex: 1;
@@ -698,7 +699,7 @@ class PrinterAnalyticsCard extends HTMLElement {
         }
         .summary-label {
           font-size: 10px;
-          color: var(--secondary-text-color, #888);
+          color: #94a3b8;
           margin-top: 2px;
           text-transform: uppercase;
           letter-spacing: 0.5px;
@@ -713,12 +714,12 @@ class PrinterAnalyticsCard extends HTMLElement {
         }
         .filter-select {
           padding: 8px 14px;
-          border: 2px solid var(--md-sys-color-outline, rgba(0,0,0,0.12));
+          border: 2px solid rgba(255,255,255,0.12);
           border-radius: var(--md-sys-shape-corner-extra-small, 6px);
-          background: white;
+          background: #2a2a3c;
           font-size: 12px;
           font-weight: 500;
-          color: var(--primary-text-color, #333);
+          color: #e0e0e0;
           cursor: pointer;
           min-width: 120px;
         }
@@ -730,28 +731,30 @@ class PrinterAnalyticsCard extends HTMLElement {
         .search-input {
           width: 100%;
           padding: 8px 14px 8px 36px;
-          border: 2px solid var(--md-sys-color-outline, rgba(0,0,0,0.12));
+          border: 2px solid rgba(255,255,255,0.12);
           border-radius: var(--md-sys-shape-corner-extra-small, 6px);
           font-size: 12px;
+          background: #2a2a3c;
+          color: #e0e0e0;
         }
         .search-input:focus {
           outline: none;
-          border-color: var(--md-sys-color-primary, #03a9f4);
-          box-shadow: 0 0 0 3px rgba(3,169,244,0.15);
+          border-color: #4fc3f7;
+          box-shadow: 0 0 0 3px rgba(79,195,247,0.2);
         }
         .search-icon {
           position: absolute;
           left: 12px;
           top: 50%;
           transform: translateY(-50%);
-          color: #999;
+          color: #64748b;
           font-size: 14px;
         }
 
         .empty-state {
           text-align: center;
           padding: 60px 24px;
-          color: var(--secondary-text-color, #999);
+          color: #94a3b8;
         }
         .empty-icon {
           font-size: 64px;
