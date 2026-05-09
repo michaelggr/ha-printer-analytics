@@ -1,0 +1,126 @@
+﻿sensor.ben_nian_dian_fei:
+  friendly_name: 本年电费
+sensor.ben_nian_yong_dian:
+  friendly_name: 本年用电
+sensor.ben_yue_dian_fei:
+  friendly_name: 本月电费
+sensor.ben_yue_yong_dian:
+  friendly_name: 本月用电
+sensor.ben_zhou_yong_dian:
+  friendly_name: 本周用电
+sensor.can_ting_deng_jin_ri_liang_deng_shi_chang:
+  friendly_name: 餐厅灯今日亮灯时长
+sensor.can_ting_deng_liang_deng_shi_chang:
+  friendly_name: 餐厅灯亮灯时长
+sensor.can_ting_ting_liu_shi_chang:
+  friendly_name: 餐厅停留时长
+sensor.chu_fang_deng_jin_ri_liang_deng_shi_chang:
+  friendly_name: 厨房灯今日亮灯时长
+sensor.chu_fang_deng_liang_deng_shi_chang:
+  friendly_name: 厨房灯亮灯时长
+sensor.chu_fang_ting_liu_shi_chang:
+  friendly_name: 厨房停留时长
+sensor.dian_nao_dian_yuan_ben_yue_yong_dian_kwh:
+  friendly_name: 电脑电源本月用电_kwh
+sensor.dian_nao_dian_yuan_ben_zhou_yong_dian_kwh:
+  friendly_name: 电脑电源本周用电_kwh
+sensor.dian_nao_dian_yuan_jin_ri_yong_dian_kwh:
+  friendly_name: 电脑电源今日用电_kwh
+sensor.dian_nao_dian_yuan_lei_ji_yong_dian_kwh:
+  friendly_name: 电脑电源累计用电_kwh
+sensor.dou_jiang_ji_ben_yue_yong_dian_kwh:
+  friendly_name: 豆浆机本月用电_kwh
+sensor.dou_jiang_ji_ben_zhou_yong_dian_kwh:
+  friendly_name: 豆浆机本周用电_kwh
+sensor.dou_jiang_ji_jin_ri_yong_dian_kwh:
+  friendly_name: 豆浆机今日用电_kwh
+sensor.dou_jiang_ji_lei_ji_yong_dian_kwh:
+  friendly_name: 豆浆机累计用电_kwh
+sensor.jin_ri_dian_fei:
+  friendly_name: 今日电费
+sensor.jin_ri_liang_deng_zong_shi_chang:
+  friendly_name: 今日亮灯总时长
+sensor.jin_ri_zong_yong_dian_liang:
+  friendly_name: 今日总用电量
+sensor.jin_ri_zui_chang_fang_wen_qu_yu:
+  friendly_name: 今日最常访问区域
+sensor.jin_ri_zui_chang_ting_liu_qu_yu:
+  friendly_name: 今日最长停留区域
+sensor.kao_xiang_ben_yue_yong_dian_kwh:
+  friendly_name: 烤箱本月用电_kwh
+sensor.kao_xiang_ben_zhou_yong_dian_kwh:
+  friendly_name: 烤箱本周用电_kwh
+sensor.kao_xiang_jin_ri_yong_dian_kwh:
+  friendly_name: 烤箱今日用电_kwh
+sensor.kao_xiang_lei_ji_yong_dian_kwh:
+  friendly_name: 烤箱累计用电_kwh
+sensor.ke_ting_deng_jin_ri_liang_deng_shi_chang:
+  friendly_name: 客厅灯今日亮灯时长
+sensor.ke_ting_sha_fa_deng_liang_deng_shi_chang:
+  friendly_name: 客厅沙发灯亮灯时长
+sensor.ke_ting_ting_liu_shi_chang:
+  friendly_name: 客厅停留时长
+sensor.ke_ting_xi_ding_deng_liang_deng_shi_chang:
+  friendly_name: 客厅吸顶灯亮灯时长
+sensor.men_kou_deng_jin_ri_liang_deng_shi_chang:
+  friendly_name: 门口灯今日亮灯时长
+sensor.men_kou_ting_liu_shi_chang:
+  friendly_name: 门口停留时长
+sensor.men_kou_tong_deng_liang_deng_shi_chang:
+  friendly_name: 门口筒灯亮灯时长
+sensor.nasben_yue_yong_dian_kwh:
+  friendly_name: NAS本月用电_kwh
+sensor.nasben_zhou_yong_dian_kwh:
+  friendly_name: NAS本周用电_kwh
+sensor.nasjin_ri_yong_dian_kwh:
+  friendly_name: NAS今日用电_kwh
+sensor.naslei_ji_yong_dian_kwh:
+  friendly_name: NAS累计用电_kwh
+sensor.qu_nuan_qi_ben_yue_yong_dian_kwh:
+  friendly_name: 取暖器本月用电_kwh
+sensor.qu_nuan_qi_ben_zhou_yong_dian_kwh:
+  friendly_name: 取暖器本周用电_kwh
+sensor.qu_nuan_qi_jin_ri_yong_dian_kwh:
+  friendly_name: 取暖器今日用电_kwh
+sensor.qu_nuan_qi_lei_ji_yong_dian_kwh:
+  friendly_name: 取暖器累计用电_kwh
+sensor.quan_wu_deng_guang_zong_liang_deng_shi_chang:
+  friendly_name: 全屋灯光总亮灯时长
+sensor.quan_wu_deng_guang_zong_liang_deng_shi_chang_fen_zhong:
+  friendly_name: 全屋灯光总亮灯时长分钟
+sensor.quan_wu_deng_guang_zong_liang_deng_shi_chang_xiao_shi:
+  friendly_name: 全屋灯光总亮灯时长小时
+sensor.wei_sheng_jian_deng_jin_ri_liang_deng_shi_chang:
+  friendly_name: 卫生间灯今日亮灯时长
+sensor.wei_sheng_jian_deng_liang_deng_shi_chang:
+  friendly_name: 卫生间灯亮灯时长
+sensor.wei_sheng_jian_ting_liu_shi_chang:
+  friendly_name: 卫生间停留时长
+sensor.wo_shi_deng_dai_liang_deng_shi_chang:
+  friendly_name: 卧室灯带亮灯时长
+sensor.wo_shi_deng_jin_ri_liang_deng_shi_chang:
+  friendly_name: 卧室灯今日亮灯时长
+sensor.wo_shi_deng_liang_deng_shi_chang:
+  friendly_name: 卧室灯亮灯时长
+sensor.wo_shi_ting_liu_shi_chang:
+  friendly_name: 卧室停留时长
+sensor.xi_yi_ji_ben_yue_yong_dian_kwh:
+  friendly_name: 洗衣机本月用电_kwh
+sensor.xi_yi_ji_ben_zhou_yong_dian_kwh:
+  friendly_name: 洗衣机本周用电_kwh
+sensor.xi_yi_ji_jin_ri_yong_dian_kwh:
+  friendly_name: 洗衣机今日用电_kwh
+sensor.xi_yi_ji_lei_ji_yong_dian_kwh:
+  friendly_name: 洗衣机累计用电_kwh
+sensor.yu_ba_deng_liang_deng_shi_chang:
+  friendly_name: 浴霸灯亮灯时长
+sensor.zong_shi_shi_gong_lu:
+  friendly_name: 总实时功率
+sensor.zou_lang_deng_jin_ri_liang_deng_shi_chang:
+  friendly_name: 走廊灯今日亮灯时长
+sensor.zou_lang_wei_sheng_jian_deng_liang_deng_shi_chang:
+  friendly_name: 走廊卫生间灯亮灯时长
+sensor.zou_lang_xuan_guan_ting_liu_shi_chang:
+  friendly_name: 走廊玄关停留时长
+sensor.zou_lang_zou_dao_deng_liang_deng_shi_chang:
+  friendly_name: 走廊走道灯亮灯时长

@@ -1,0 +1,668 @@
+﻿{
+  "version": 1,
+  "minor_version": 1,
+  "key": "lovelace.dashboard_test1",
+  "data": {
+    "config": {
+      "views": [
+        {
+          "title": "Home",
+          "sections": [
+            {
+              "type": "grid",
+              "cards": [
+                {
+                  "type": "heading",
+                  "heading": "P2S_22E8BJ5A2401765"
+                },
+                {
+                  "type": "tile",
+                  "entity": "binary_sensor.p2s_22e8bj5a2401765_print_error"
+                },
+                {
+                  "type": "tile",
+                  "entity": "binary_sensor.p2s_22e8bj5a2401765_airduct_mode"
+                },
+                {
+                  "type": "tile",
+                  "entity": "binary_sensor.p2s_22e8bj5a2401765_firmware_update"
+                },
+                {
+                  "type": "tile",
+                  "entity": "binary_sensor.p2s_22e8bj5a2401765_hybrid_mqtt_blocks_control"
+                },
+                {
+                  "type": "tile",
+                  "entity": "binary_sensor.p2s_22e8bj5a2401765_developer_lan_mode"
+                },
+                {
+                  "type": "tile",
+                  "entity": "binary_sensor.p2s_22e8bj5a2401765_enclosure_door"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.p2s_22e8bj5a2401765_serial_number"
+                },
+                {
+                  "type": "tile",
+                  "entity": "binary_sensor.p2s_22e8bj5a2401765_online"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.p2s_22e8bj5a2401765_total_usage"
+                },
+                {
+                  "type": "tile",
+                  "entity": "binary_sensor.p2s_22e8bj5a2401765_hms_errors"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.p2s_22e8bj5a2401765_ip_address"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.p2s_22e8bj5a2401765_mqtt_connection_mode"
+                },
+                {
+                  "type": "tile",
+                  "entity": "binary_sensor.p2s_22e8bj5a2401765_mqtt_encryption_firmware"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.p2s_22e8bj5a2401765_sd_card_status"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.p2s_22e8bj5a2401765_wi_fi_signal"
+                }
+              ]
+            },
+            {
+              "type": "grid",
+              "cards": [
+                {
+                  "type": "tile",
+                  "entity": "sensor.zm1_b0f8931ee681_pm25"
+                },
+                {
+                  "type": "entity",
+                  "entity": "event.xiaomi_cn_1175403807_hub1_virtual_event_e_4_1",
+                  "tap_action": {
+                    "action": "more-info"
+                  }
+                },
+                {
+                  "type": "tile",
+                  "entity": "input_number.bambu_lab_p1_spaghetti_detection_current_frame_number"
+                },
+                {
+                  "type": "tile",
+                  "entity": "input_number.bambu_lab_p1_spaghetti_detection_p"
+                },
+                {
+                  "type": "tile",
+                  "entity": "input_number.bambu_lab_p1_spaghetti_detection_rolling_mean_short"
+                },
+                {
+                  "type": "tile",
+                  "entity": "input_number.bambu_lab_p1_spaghetti_detection_p_sum"
+                },
+                {
+                  "type": "tile",
+                  "entity": "input_number.bambu_lab_p1_spaghetti_detection_thresh_failure"
+                },
+                {
+                  "type": "tile",
+                  "entity": "input_number.bambu_lab_p1_spaghetti_detection_normalized_p"
+                },
+                {
+                  "type": "tile",
+                  "entity": "input_number.bambu_lab_p1_spaghetti_detection_thresh_warning"
+                },
+                {
+                  "type": "tile",
+                  "entity": "input_number.bambu_lab_p1_spaghetti_detection_rolling_mean_diff"
+                },
+                {
+                  "type": "tile",
+                  "entity": "input_number.bambu_lab_p1_spaghetti_detection_lifetime_frame_number"
+                },
+                {
+                  "type": "tile",
+                  "entity": "input_datetime.bambu_lab_p1_spaghetti_detection_last_job_start_time"
+                },
+                {
+                  "type": "tile",
+                  "entity": "input_datetime.bambu_lab_p1_spaghetti_detection_last_notify_time"
+                },
+                {
+                  "type": "tile",
+                  "entity": "input_number.bambu_lab_p1_spaghetti_detection_adjusted_ewm_mean"
+                },
+                {
+                  "type": "tile",
+                  "entity": "input_number.bambu_lab_p1_spaghetti_detection_rolling_mean_long"
+                },
+                {
+                  "type": "tile",
+                  "entity": "automation.kai_shi_da_yin_da_kai_chao_mian_jian_ce"
+                },
+                {
+                  "type": "tile",
+                  "entity": "button.yunyi_cn_yunyi_g5y51h17naf1slx1111a_v1_start_p2p_stream_a_2_1"
+                },
+                {
+                  "type": "tile",
+                  "entity": "button.yunyi_cn_yunyi_g5y51h17naf1slx1111a_v1_stop_stream_a_2_2"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.aichao_mian_jian_ce"
+                },
+                {
+                  "type": "tile",
+                  "entity": "switch.aichao_mian_jian_ce_kai_guan"
+                },
+                {
+                  "type": "tile",
+                  "entity": "automation.bambu_lab_chao_mian_jian_ce_mi_jia_tong_zhi_ban"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.zm1_b0f8931ee681_humidity"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.zm1_b0f8931ee681_temperature"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.da_yin_shi_chang_fen_bu"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.da_yin_huo_dong_re_li_tu"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.printer_daily_energy"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.printer_monthly_energy"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.printer_monthly_total_v2"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.printer_weekly_energy"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.da_yin_ji_zong_da_yin_ci_shu"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.da_yin_ji_ping_jun_da_yin_shi_chang"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.p2szong_da_yin_ci_shu"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.a1minizong_da_yin_ci_shu"
+                },
+                {
+                  "type": "tile",
+                  "entity": "input_select.print_analytics_time_range"
+                }
+              ]
+            },
+            {
+              "type": "grid",
+              "cards": [
+                {
+                  "type": "heading",
+                  "heading": "小黑奴炒面摄像机"
+                },
+                {
+                  "type": "tile",
+                  "entity": "button.yunyi_cn_yunyi_g5y51h17naf1slx1111a_v1_start_p2p_stream_a_2_1"
+                },
+                {
+                  "type": "tile",
+                  "entity": "button.yunyi_cn_yunyi_g5y51h17naf1slx1111a_v1_stop_stream_a_2_2"
+                },
+                {
+                  "type": "tile",
+                  "entity": "input_text.printer_history_a1mini"
+                },
+                {
+                  "type": "tile",
+                  "entity": "input_text.a1mini_start_energy"
+                },
+                {
+                  "type": "tile",
+                  "entity": "input_datetime.a1mini_print_start"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.a1mini_0300aa5a1600497_print_bed_type"
+                },
+                {
+                  "type": "tile",
+                  "entity": "light.a1mini_0300aa5a1600497_chamber_light"
+                },
+                {
+                  "type": "tile",
+                  "entity": "binary_sensor.a1mini_0300aa5a1600497_print_error"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.a1mini_0300aa5a1600497_printer_name"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.a1mini_0300aa5a1600497_print_progress"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.a1mini_0300aa5a1600497_print_type"
+                },
+                {
+                  "type": "tile",
+                  "entity": "select.a1mini_0300aa5a1600497_printing_speed"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.a1mini_0300aa5a1600497_print_length"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.a1mini_0300aa5a1600497_print_weight"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.a1mini_0300aa5a1600497_print_status"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.a1mini_0300aa5a1600497_current_layer"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.a1mini_0300aa5a1600497_current_stage"
+                },
+                {
+                  "type": "tile",
+                  "entity": "image.a1mini_0300aa5a1600497_cover_image",
+                  "show_entity_picture": true
+                },
+                {
+                  "type": "tile",
+                  "entity": "binary_sensor.a1mini_0300aa5a1600497_firmware_update"
+                },
+                {
+                  "type": "tile",
+                  "entity": "button.a1mini_0300aa5a1600497_resume_printing"
+                },
+                {
+                  "type": "tile",
+                  "entity": "binary_sensor.a1mini_0300aa5a1600497_hybrid_mqtt_blocks_control"
+                },
+                {
+                  "type": "tile",
+                  "entity": "binary_sensor.a1mini_0300aa5a1600497_extruder_filament_state"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.a1mini_0300aa5a1600497_end_time"
+                },
+                {
+                  "type": "tile",
+                  "entity": "binary_sensor.a1mini_0300aa5a1600497_developer_lan_mode"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.a1mini_0300aa5a1600497_start_time"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.a1mini_0300aa5a1600497_printable_objects"
+                },
+                {
+                  "type": "tile",
+                  "entity": "fan.a1mini_0300aa5a1600497_cooling_fan"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.a1mini_0300aa5a1600497_cooling_fan_speed"
+                },
+                {
+                  "type": "tile",
+                  "entity": "binary_sensor.a1mini_0300aa5a1600497_recording_timelapse"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.a1mini_0300aa5a1600497_model_download"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.a1mini_0300aa5a1600497_nozzle_type"
+                },
+                {
+                  "type": "tile",
+                  "entity": "number.a1mini_0300aa5a1600497_nozzle_target_temperature"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.a1mini_0300aa5a1600497_nozzle_target_temperature"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.a1mini_0300aa5a1600497_nozzle_temperature"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.a1mini_0300aa5a1600497_nozzle_size"
+                },
+                {
+                  "type": "tile",
+                  "entity": "switch.a1mini_0300aa5a1600497_enable_camera"
+                },
+                {
+                  "type": "tile",
+                  "entity": "button.a1mini_0300aa5a1600497_force_refresh_data"
+                },
+                {
+                  "type": "tile",
+                  "entity": "number.a1mini_0300aa5a1600497_bed_target_temperature"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.a1mini_0300aa5a1600497_bed_target_temperature"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.a1mini_0300aa5a1600497_bed_temperature"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.a1mini_0300aa5a1600497_heatbreak_fan_speed"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.a1mini_0300aa5a1600497_task_name"
+                },
+                {
+                  "type": "tile",
+                  "entity": "image.a1mini_0300aa5a1600497_camera",
+                  "show_entity_picture": true
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.a1mini_0300aa5a1600497_remaining_time"
+                },
+                {
+                  "type": "tile",
+                  "entity": "switch.a1mini_0300aa5a1600497_use_image_sensor_camera"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.a1mini_0300aa5a1600497_speed_profile"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.a1mini_0300aa5a1600497_skipped_objects"
+                },
+                {
+                  "type": "tile",
+                  "entity": "button.a1mini_0300aa5a1600497_stop_printing"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.a1mini_0300aa5a1600497_serial_number"
+                },
+                {
+                  "type": "tile",
+                  "entity": "image.a1mini_0300aa5a1600497_pick_image",
+                  "show_entity_picture": true
+                },
+                {
+                  "type": "tile",
+                  "entity": "switch.a1mini_0300aa5a1600497_allow_prompt_sound"
+                },
+                {
+                  "type": "tile",
+                  "entity": "binary_sensor.a1mini_0300aa5a1600497_online"
+                },
+                {
+                  "type": "tile",
+                  "entity": "button.a1mini_0300aa5a1600497_pause_printing"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.a1mini_0300aa5a1600497_total_layer_count"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.a1mini_0300aa5a1600497_total_usage"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.a1mini_0300aa5a1600497_gcode_filename"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.a1mini_0300aa5a1600497_gcode_file_downloaded"
+                },
+                {
+                  "type": "tile",
+                  "entity": "binary_sensor.a1mini_0300aa5a1600497_hms_errors"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.a1mini_0300aa5a1600497_ip_address"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.a1mini_0300aa5a1600497_mqtt_connection_mode"
+                },
+                {
+                  "type": "tile",
+                  "entity": "binary_sensor.a1mini_0300aa5a1600497_mqtt_encryption_firmware"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.a1mini_0300aa5a1600497_sd_card_status"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.a1mini_0300aa5a1600497_wi_fi_signal"
+                },
+                {
+                  "type": "tile",
+                  "entity": "binary_sensor.a1mini_0300aa5a1600497_externalspool_active"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.a1mini_0300aa5a1600497_externalspool_external_spool"
+                }
+              ]
+            },
+            {
+              "type": "grid",
+              "cards": [
+                {
+                  "type": "heading",
+                  "heading": "新建部件"
+                },
+                {
+                  "type": "custom:printer-analytics-card",
+                  "title": "P2S打印机",
+                  "print_history": "sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_li_shi",
+                  "total_prints": "sensor.p2sda_yin_ji_p2sda_yin_ji_zong_da_yin_ci_shu",
+                  "success_rate": "sensor.p2sda_yin_ji_p2sda_yin_ji_cheng_gong_lu",
+                  "average_duration": "sensor.p2sda_yin_ji_p2sda_yin_ji_ping_jun_da_yin_shi_chang",
+                  "total_print_duration": "sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_zong_shi_chang",
+                  "total_energy": "sensor.p2sda_yin_ji_p2sda_yin_ji_zong_neng_hao",
+                  "material_stats_7d": "sensor.p2sda_yin_ji_p2sda_yin_ji_7tian_hao_cai_tong_ji",
+                  "material_stats_30d": "sensor.p2sda_yin_ji_p2sda_yin_ji_30tian_hao_cai_tong_ji",
+                  "duration_distribution": "sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_shi_chang_fen_bu",
+                  "activity_heatmap": "sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_huo_dong_re_li_tu",
+                  "print_status": "sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_zhuang_tai"
+                }
+              ]
+            },
+            {
+              "cards": [
+                {
+                  "type": "heading",
+                  "heading": "历史"
+                },
+                {
+                  "title": "历史",
+                  "type": "history-graph",
+                  "hours_to_show": 720,
+                  "entities": [
+                    "sensor.quan_wu_ri_liang_deng_zong_shi_chang"
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "grid",
+              "cards": [
+                {
+                  "type": "heading",
+                  "heading": "daheinu"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.daheinu_daheinu_7tian_hao_cai_tong_ji"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.daheinu_daheinu_30tian_hao_cai_tong_ji"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.daheinu_daheinu_cheng_gong_lu"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.daheinu_daheinu_da_yin_huo_dong_re_li_tu"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.daheinu_daheinu_da_yin_li_shi"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.daheinu_daheinu_da_yin_shi_chang_fen_bu"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.daheinu_daheinu_da_yin_zhuang_tai"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.daheinu_daheinu_ping_jun_da_yin_shi_chang"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.daheinu_daheinu_zhong_shen_hao_cai_tong_ji"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.daheinu_daheinu_zong_da_yin_ci_shu"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.daheinu_daheinu_zong_da_yin_shi_chang"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.daheinu_daheinu_zong_neng_hao"
+                }
+              ]
+            }
+          ],
+          "header": {
+            "layout": "responsive",
+            "badges_position": "bottom",
+            "badges_wrap": "wrap"
+          }
+        },
+        {
+          "type": "panel",
+          "path": "unknown",
+          "title": "测试",
+          "cards": [
+            {
+              "type": "entities",
+              "entities": [
+                {
+                  "entity": "sensor.p2sda_yin_ji_p2sda_yin_ji_7tian_hao_cai_tong_ji",
+                  "name": "P2S打印机 7天耗材统计"
+                },
+                {
+                  "entity": "sensor.p2sda_yin_ji_p2sda_yin_ji_30tian_hao_cai_tong_ji",
+                  "name": "P2S打印机 30天耗材统计"
+                },
+                {
+                  "entity": "sensor.p2sda_yin_ji_p2sda_yin_ji_cheng_gong_lu",
+                  "name": "P2S打印机 成功率"
+                },
+                {
+                  "entity": "sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_huo_dong_re_li_tu",
+                  "name": "P2S打印机 打印活动热力图"
+                },
+                {
+                  "entity": "sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_li_shi",
+                  "name": "P2S打印机 打印历史"
+                },
+                {
+                  "entity": "sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_shi_chang_fen_bu",
+                  "name": "P2S打印机 打印时长分布"
+                },
+                {
+                  "entity": "sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_zhuang_tai",
+                  "name": "P2S打印机 打印状态"
+                },
+                {
+                  "entity": "sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_zong_shi_chang",
+                  "name": "P2S打印机 打印总时长"
+                },
+                {
+                  "entity": "sensor.p2sda_yin_ji_p2sda_yin_ji_ping_jun_da_yin_shi_chang",
+                  "name": "P2S打印机 平均打印时长"
+                },
+                {
+                  "entity": "sensor.p2sda_yin_ji_p2sda_yin_ji_zhong_shen_hao_cai_tong_ji",
+                  "name": "P2S打印机 终身耗材统计"
+                },
+                {
+                  "entity": "sensor.p2sda_yin_ji_p2sda_yin_ji_zong_da_yin_ci_shu",
+                  "name": "P2S打印机 总打印次数"
+                },
+                {
+                  "entity": "sensor.p2sda_yin_ji_p2sda_yin_ji_zong_da_yin_shi_chang",
+                  "name": "P2S打印机 总打印时长"
+                },
+                {
+                  "entity": "sensor.p2sda_yin_ji_p2sda_yin_ji_zong_neng_hao",
+                  "name": "P2S打印机 总能耗"
+                }
+              ],
+              "title": "P2S打印机"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

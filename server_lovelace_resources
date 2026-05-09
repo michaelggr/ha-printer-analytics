@@ -1,0 +1,19 @@
+﻿{
+  "version": 1,
+  "minor_version": 1,
+  "key": "lovelace_resources",
+  "data": {
+    "items": [
+      {
+        "id": "e6fc2349687848deb67ed3968a4f93d7",
+        "url": "/webrtc/webrtc-camera.js?v=v3.6.1",
+        "type": "module"
+      },
+      {
+        "id": "8dacef30cb324efcb2a7a31303f98da4",
+        "url": "/bambu_lab/ha-bambulab-cards.js?v=0.6.47",
+        "type": "module"
+      }
+    ]
+  }
+}

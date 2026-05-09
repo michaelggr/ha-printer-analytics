@@ -36,7 +36,7 @@ SENSORS: dict[str, SensorEntityDescription] = {
         key="average_duration",
         name="平均打印时长",
         icon="mdi:clock-outline",
-        native_unit_of_measurement=UnitOfTime.MINUTES,
+        native_unit_of_measurement=UnitOfTime.HOURS,
     ),
     "total_online_duration": SensorEntityDescription(
         key="total_online_duration",
@@ -48,7 +48,7 @@ SENSORS: dict[str, SensorEntityDescription] = {
         key="total_print_duration",
         name="打印总时长",
         icon="mdi:timer-outline",
-        native_unit_of_measurement=UnitOfTime.MINUTES,
+        native_unit_of_measurement=UnitOfTime.HOURS,
         state_class=SensorStateClass.TOTAL_INCREASING,
     ),
     "material_stats_lifetime": SensorEntityDescription(
@@ -83,6 +83,16 @@ SENSORS: dict[str, SensorEntityDescription] = {
         name="打印活动热力图",
         icon="mdi:heatmap",
     ),
+    "failure_stage_distribution": SensorEntityDescription(
+        key="failure_stage_distribution",
+        name="失败阶段分布",
+        icon="mdi:chart-donut",
+    ),
+    "filament_success_stats": SensorEntityDescription(
+        key="filament_success_stats",
+        name="耗材成功率统计",
+        icon="mdi:file-chart-outline",
+    ),
     "print_history": SensorEntityDescription(
         key="print_history",
         name="打印历史",
@@ -105,11 +115,11 @@ def _get_sensor_value(sensor_key: str, data: PrinterStats) -> Any:
         case "success_rate":
             return data.success_rate
         case "average_duration":
-            return data.average_duration_minutes
+            return data.average_duration_hours
         case "total_online_duration":
-            return round(data.total_duration_minutes / 60, 2) if data.total_duration_minutes else 0
+            return data.total_duration_hours if data.total_duration_hours else 0
         case "total_print_duration":
-            return data.total_duration_minutes
+            return data.total_duration_hours
         case "material_stats_lifetime":
             if data.total_weight_g or data.total_length_m:
                 return f"总重量 {data.total_weight_g}g, 总长度 {data.total_length_m}m"
@@ -128,6 +138,10 @@ def _get_sensor_value(sensor_key: str, data: PrinterStats) -> Any:
             return json.dumps(data.duration_distribution, ensure_ascii=False)
         case "activity_heatmap":
             return json.dumps(data.activity_heatmap, ensure_ascii=False)
+        case "failure_stage_distribution":
+            return json.dumps(data.failure_stage_distribution, ensure_ascii=False)
+        case "filament_success_stats":
+            return json.dumps(data.filament_success_stats, ensure_ascii=False)
         case "print_history":
             return data.last_update or "暂无数据"
         case "print_status":
@@ -150,8 +164,17 @@ def _get_sensor_attrs(sensor_key: str, data: PrinterStats) -> dict | None:
             return data.duration_distribution
         case "activity_heatmap":
             return data.activity_heatmap
+        case "failure_stage_distribution":
+            return data.failure_stage_distribution
+        case "filament_success_stats":
+            return data.filament_success_stats
         case "print_history":
-            return {"history": data.history, "current_print": data.current_print}
+            result = {"history": data.history, "current_print": data.current_print}
+            if hasattr(data, '_entity_map_debug'):
+                result["entity_map"] = data._entity_map_debug
+            if hasattr(data, '_discover_debug') and data._discover_debug:
+                result["discover_debug"] = data._discover_debug
+            return result
         case _:
             return None
 

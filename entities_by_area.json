@@ -1,0 +1,3594 @@
+{
+  "客厅": [
+    {
+      "entity_id": "counter.living_room_visits",
+      "name": "客厅访问次数",
+      "state": "14"
+    },
+    {
+      "entity_id": "input_number.living_room_duration",
+      "name": "客厅停留时长（秒）",
+      "state": "1590.0"
+    },
+    {
+      "entity_id": "input_number.living_room_light_duration",
+      "name": "客厅灯今日亮灯时长（秒）",
+      "state": "0.0"
+    },
+    {
+      "entity_id": "input_number.light_jdjz_duration",
+      "name": "客厅吸顶灯亮灯时长（秒）",
+      "state": "463110.0"
+    },
+    {
+      "entity_id": "input_number.light_sofa_duration",
+      "name": "客厅沙发灯亮灯时长（秒）",
+      "state": "50.0"
+    },
+    {
+      "entity_id": "input_datetime.living_room_entry",
+      "name": "客厅进入时间",
+      "state": "10:10:31"
+    },
+    {
+      "entity_id": "input_datetime.living_room_light_on",
+      "name": "客厅灯开启时间",
+      "state": "09:20:39"
+    },
+    {
+      "entity_id": "sensor.ke_ting_deng_jin_ri_liang_deng_shi_chang",
+      "name": "客厅灯今日亮灯时长",
+      "state": "0.0"
+    },
+    {
+      "entity_id": "sensor.ke_ting_ting_liu_shi_chang",
+      "name": "客厅停留时长",
+      "state": "26"
+    },
+    {
+      "entity_id": "sensor.ke_ting_deng_jin_ri_liang_deng",
+      "name": "客厅灯今日亮灯",
+      "state": "0.0"
+    },
+    {
+      "entity_id": "sensor.ke_ting_xi_ding_deng_liang_deng_shi_chang",
+      "name": "客厅吸顶灯亮灯时长",
+      "state": "128.6"
+    },
+    {
+      "entity_id": "sensor.ke_ting_sha_fa_deng_liang_deng_shi_chang",
+      "name": "客厅沙发灯亮灯时长",
+      "state": "0"
+    },
+    {
+      "entity_id": "sensor.ke_ting_deng_jin_ri_liang_deng_2",
+      "name": "客厅灯今日亮灯",
+      "state": "0.0"
+    },
+    {
+      "entity_id": "button.giot_cn_1162942256_v8icm_toggle_a_2_1",
+      "name": "客厅PC电源  开关 开关状态切换",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.giot_cn_1162942256_v8icm_match_code_a_5_1",
+      "name": "客厅PC电源 * 设置 遥控器对码",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.giot_cn_1162942256_v8icm_clear_code_a_5_2",
+      "name": "客厅PC电源 * 设置 遥控器清码",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.giot_cn_1162942256_v8icm_restore_factory_a_5_3",
+      "name": "客厅PC电源 * 设置 重置所有参数",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.giot_cn_1162942256_v8icm_normal_mode_a_7_1",
+      "name": "客厅PC电源 * 辅助开关 控制器模式设为普通模式",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.giot_cn_1162942256_v8icm_wireless_mode_a_7_2",
+      "name": "客厅PC电源 * 辅助开关 控制器模式设为无线模式",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.giot_cn_1162942256_v8icm_jog_mode_a_7_3",
+      "name": "客厅PC电源 * 辅助开关 控制器模式设为点动模式",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.giot_cn_1162942256_v8icm_follow_led_a_7_4",
+      "name": "客厅PC电源 * 辅助开关 指示灯设置为跟随模式",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.giot_cn_1162942256_v8icm_opposition_led_a_7_5",
+      "name": "客厅PC电源 * 辅助开关 指示灯设为相反模式",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.giot_cn_1162942256_v8icm_on_led_a_7_6",
+      "name": "客厅PC电源 * 辅助开关 指示灯设为常亮模式",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.giot_cn_1162942256_v8icm_off_led_a_7_7",
+      "name": "客厅PC电源 * 辅助开关 指示灯设为常灭模式",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.giot_cn_1162942256_v8icm_local_timing_on_a_7_8",
+      "name": "客厅PC电源 * 辅助开关 启动本地定时",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.giot_cn_1162942256_v8icm_local_timing_off_a_7_9",
+      "name": "客厅PC电源 * 辅助开关 关闭本地定时",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.giot_cn_1162942256_v8icm_cycle_timing_on_a_7_10",
+      "name": "客厅PC电源 * 辅助开关 启动循环定时",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.giot_cn_1162942256_v8icm_cycle_timing_off_a_7_11",
+      "name": "客厅PC电源 * 辅助开关 关闭循环定时",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.giot_cn_1162942256_v8icm_led_cofig_on_a_7_12",
+      "name": "客厅PC电源 * 辅助开关 开启指示灯勿扰",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.giot_cn_1162942256_v8icm_led_cofig_off_a_7_13",
+      "name": "客厅PC电源 * 辅助开关 关闭指示灯勿扰",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.giot_cn_1162942256_v8icm_overcharging_on_a_7_14",
+      "name": "客厅PC电源 * 辅助开关 打开过充保护",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.giot_cn_1162942256_v8icm_overcharging_off_a_7_15",
+      "name": "客厅PC电源 * 辅助开关 关闭过充保护",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.giot_cn_1162942256_v8icm_mixed_mode_a_7_16",
+      "name": "客厅PC电源 * 辅助开关 启动普通+无线模式",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.jdjz_cn_857569251_jdjzu1_toggle_a_2_1",
+      "name": "客厅吸顶灯  灯 开关状态切换",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.jdjz_cn_857569251_jdjzu1_brightness_increase_a_4_1",
+      "name": "客厅吸顶灯 * 设置 亮度+",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.jdjz_cn_857569251_jdjzu1_brightness_reduction_a_4_2",
+      "name": "客厅吸顶灯 * 设置 亮度-",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.jdjz_cn_857569251_jdjzu1_temperature_increase_a_4_3",
+      "name": "客厅吸顶灯 * 设置 色温+",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.jdjz_cn_857569251_jdjzu1_temperature_decrease_a_4_4",
+      "name": "客厅吸顶灯 * 设置 色温-",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.jdjz_cn_857569251_jdjzu1_match_code_a_4_5",
+      "name": "客厅吸顶灯 * 设置 对码",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.jdjz_cn_857569251_jdjzu1_clear_code_a_4_6",
+      "name": "客厅吸顶灯 * 设置 清码",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.jdjz_cn_857569251_jdjzu1_restore_factory_a_4_7",
+      "name": "客厅吸顶灯 * 设置 恢复出厂设置",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.iot_cn_959434975_x2_toggle_a_3_1",
+      "name": "客厅空调  空调 开关状态切换",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "climate.iot_cn_959434975_x2",
+      "name": "客厅空调  空调插座",
+      "state": "off"
+    },
+    {
+      "entity_id": "event.giot_cn_1162942256_v8icm_click_e_8_1",
+      "name": "客厅PC电源  开关传感器 单击",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "event.giot_cn_1162942256_v8icm_double_click_e_8_2",
+      "name": "客厅PC电源  开关传感器 双击",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "event.giot_cn_1162942256_v8icm_long_press_e_8_3",
+      "name": "客厅PC电源  开关传感器 长按",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "event.giot_cn_1162942256_v8icm_success_e_5_1",
+      "name": "客厅PC电源 * 设置 应用成功",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "event.giot_cn_1162942256_v8icm_app_method_e_7_1",
+      "name": "客厅PC电源 * 辅助开关 米家触发开关",
+      "state": "2026-04-29T05:49:31.736+00:00"
+    },
+    {
+      "entity_id": "event.giot_cn_1162942256_v8icm_on_off_e_7_2",
+      "name": "客厅PC电源 * 辅助开关 断电上电触发开关",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "event.giot_cn_1162942256_v8icm_recovery_e_7_3",
+      "name": "客厅PC电源 * 辅助开关 点动恢复",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "event.giot_cn_1162942256_v8icm_local_e_7_4",
+      "name": "客厅PC电源 * 辅助开关 本地按键触发",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "event.giot_cn_1162942256_v8icm_remote_e_7_5",
+      "name": "客厅PC电源 * 辅助开关 遥控器触发",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "event.giot_cn_1162942256_v8icm_auto_e_7_6",
+      "name": "客厅PC电源 * 辅助开关 本地定时触发",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "event.giot_cn_1162942256_v8icm_click_e_7_7",
+      "name": "客厅PC电源 * 辅助开关 双击倒计时触发",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "event.giot_cn_1162942256_v8icm_cycle_timing_on_e_7_8",
+      "name": "客厅PC电源 * 辅助开关 循环定时启动",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "event.giot_cn_1162942256_v8icm_cycle_timing_off_e_7_9",
+      "name": "客厅PC电源 * 辅助开关 循环定时结束",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "event.giot_cn_1162942256_v8icm_cycle_timing_e_7_10",
+      "name": "客厅PC电源 * 辅助开关 循环定时触发",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "event.jdjz_cn_857569251_jdjzu1_success_e_4_1",
+      "name": "客厅吸顶灯 * 设置 应用成功",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "event.linp_cn_blt_3_1n20sdaek4k01_es4b_customized_event_5_e_5_1097",
+      "name": "客厅人体存在传感器ES5（顶装版）  自定义 重置及关灯模式事件",
+      "state": "2026-04-14T19:50:00.154+00:00"
+    },
+    {
+      "entity_id": "light.jdjz_cn_857569251_jdjzu1_s_2_light",
+      "name": "客厅吸顶灯  灯",
+      "state": "on"
+    },
+    {
+      "entity_id": "light.iot_cn_959434975_x2_s_6_indicator_light",
+      "name": "客厅空调  指示灯",
+      "state": "on"
+    },
+    {
+      "entity_id": "number.giot_cn_1162942256_v8icm_rec_one_p_5_1",
+      "name": "客厅PC电源 * 设置 循环定时参数1",
+      "state": "1070285880"
+    },
+    {
+      "entity_id": "number.giot_cn_1162942256_v8icm_rec_two_p_5_2",
+      "name": "客厅PC电源 * 设置 循环定时参数2",
+      "state": "2147485448"
+    },
+    {
+      "entity_id": "number.giot_cn_1162942256_v8icm_rec_three_p_5_3",
+      "name": "客厅PC电源 * 设置 循环定时参数3",
+      "state": "1800"
+    },
+    {
+      "entity_id": "number.giot_cn_1162942256_v8icm_set_parameter_one_p_5_4",
+      "name": "客厅PC电源 * 设置 设置参数合并1",
+      "state": "140320"
+    },
+    {
+      "entity_id": "number.giot_cn_1162942256_v8icm_set_parameter_two_p_5_5",
+      "name": "客厅PC电源 * 设置 设置参数合并2",
+      "state": "2097157"
+    },
+    {
+      "entity_id": "number.giot_cn_1162942256_v8icm_set_parameter_three_p_5_6",
+      "name": "客厅PC电源 * 设置 设置参数合并3",
+      "state": "3406020612"
+    },
+    {
+      "entity_id": "number.giot_cn_1162942256_v8icm_local_timing_p_5_7",
+      "name": "客厅PC电源 * 设置 本地定时参数合并",
+      "state": "1070285880"
+    },
+    {
+      "entity_id": "number.giot_cn_1162942256_v8icm_time_p_5_8",
+      "name": "客厅PC电源 * 设置 时间参数",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "number.giot_cn_1162942256_v8icm_time_zone_p_5_9",
+      "name": "客厅PC电源 * 设置 时区参数",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "number.jdjz_cn_857569251_jdjzu1_sleep_aid_time_p_4_7",
+      "name": "客厅吸顶灯 * 设置 助眠时长",
+      "state": "30"
+    },
+    {
+      "entity_id": "number.jdjz_cn_857569251_jdjzu1_initial_brightness_p_4_9",
+      "name": "客厅吸顶灯 * 设置 起始亮度",
+      "state": "100"
+    },
+    {
+      "entity_id": "number.jdjz_cn_857569251_jdjzu1_initial_temperature_p_4_10",
+      "name": "客厅吸顶灯 * 设置 起始色温",
+      "state": "4200"
+    },
+    {
+      "entity_id": "number.jdjz_cn_857569251_jdjzu1_wake_up_time_p_4_11",
+      "name": "客厅吸顶灯 * 设置 唤醒时长",
+      "state": "30"
+    },
+    {
+      "entity_id": "number.jdjz_cn_857569251_jdjzu1_final_brightness_p_4_13",
+      "name": "客厅吸顶灯 * 设置 最终亮度",
+      "state": "100"
+    },
+    {
+      "entity_id": "number.jdjz_cn_857569251_jdjzu1_final_temperature_p_4_14",
+      "name": "客厅吸顶灯 * 设置 最终色温",
+      "state": "5700"
+    },
+    {
+      "entity_id": "number.jdjz_cn_857569251_jdjzu1_gradient_duration_on_p_4_17",
+      "name": "客厅吸顶灯 * 设置 开灯渐变时长（ms)",
+      "state": "1000"
+    },
+    {
+      "entity_id": "number.jdjz_cn_857569251_jdjzu1_gradient_duration_of_p_4_18",
+      "name": "客厅吸顶灯 * 设置 关灯渐变时长（ms）",
+      "state": "1000"
+    },
+    {
+      "entity_id": "number.jdjz_cn_857569251_jdjzu1_gradient_duration_aj_p_4_19",
+      "name": "客厅吸顶灯 * 设置 调节渐变时长（ms）",
+      "state": "1000"
+    },
+    {
+      "entity_id": "number.iot_cn_959434975_x2_set_device_p_9_4",
+      "name": "客厅空调 * 自定义 设置空调品牌代号",
+      "state": "97"
+    },
+    {
+      "entity_id": "number.iot_cn_959434975_x2_brand_id_p_9_7",
+      "name": "客厅空调 * 自定义 品牌id",
+      "state": "8015"
+    },
+    {
+      "entity_id": "select.jdjz_cn_857569251_jdjzu1_update_p_4_6",
+      "name": "客厅吸顶灯 * 设置 更新",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "select.iot_cn_959434975_x2_matching_with_emote_p_9_8",
+      "name": "客厅空调 * 自定义 通过遥控器匹配空调",
+      "state": "IREnd"
+    },
+    {
+      "entity_id": "sensor.giot_cn_1162942256_v8icm_power_consumption_p_4_1",
+      "name": "客厅PC电源  功耗参数 耗电量",
+      "state": "2601"
+    },
+    {
+      "entity_id": "sensor.giot_cn_1162942256_v8icm_electric_power_p_4_2",
+      "name": "客厅PC电源  功耗参数 电功率",
+      "state": "186"
+    },
+    {
+      "entity_id": "sensor.giot_cn_1162942256_v8icm_voltage_p_4_3",
+      "name": "客厅PC电源  功耗参数 电压",
+      "state": "221"
+    },
+    {
+      "entity_id": "sensor.giot_cn_1162942256_v8icm_electric_current_p_4_4",
+      "name": "客厅PC电源  功耗参数 电流",
+      "state": "748"
+    },
+    {
+      "entity_id": "sensor.jdjz_cn_857569251_jdjzu1_default_brightness_p_4_4",
+      "name": "客厅吸顶灯 * 设置 默认亮度",
+      "state": "100"
+    },
+    {
+      "entity_id": "sensor.jdjz_cn_857569251_jdjzu1_default_temperature_p_4_5",
+      "name": "客厅吸顶灯 * 设置 默认色温",
+      "state": "4200"
+    },
+    {
+      "entity_id": "sensor.jdjz_cn_857569251_jdjzu1_moonlight_bright_p_4_22",
+      "name": "客厅吸顶灯 * 设置 月光模式-亮度",
+      "state": "100"
+    },
+    {
+      "entity_id": "sensor.jdjz_cn_857569251_jdjzu1_sunshine_bright_p_4_23",
+      "name": "客厅吸顶灯 * 设置 日光模式-亮度",
+      "state": "50"
+    },
+    {
+      "entity_id": "sensor.jdjz_cn_857569251_jdjzu1_ac_status_p_4_1",
+      "name": "客厅吸顶灯 * 设置 AC状态",
+      "state": "真"
+    },
+    {
+      "entity_id": "sensor.jdjz_cn_857569251_jdjzu1_fill_light_detection_p_4_20",
+      "name": "客厅吸顶灯 * 设置 辅光检测",
+      "state": "假"
+    },
+    {
+      "entity_id": "sensor.iot_cn_959434975_x2_fault_p_3_3",
+      "name": "客厅空调  空调 故障",
+      "state": "No Faults"
+    },
+    {
+      "entity_id": "sensor.miaomiaoc_cn_blt_3_11c1qp540lc00_t2_temperature_p_2_1",
+      "name": "客厅温湿度计  温湿度传感器 温度",
+      "state": "21.9"
+    },
+    {
+      "entity_id": "sensor.miaomiaoc_cn_blt_3_11c1qp540lc00_t2_relative_humidity_p_2_2",
+      "name": "客厅温湿度计  温湿度传感器 湿度",
+      "state": "57.2"
+    },
+    {
+      "entity_id": "sensor.miaomiaoc_cn_blt_3_11c1qp540lc00_t2_battery_level_p_3_1",
+      "name": "客厅温湿度计  电池 电池电量",
+      "state": "100"
+    },
+    {
+      "entity_id": "sensor.linp_cn_blt_3_1n20sdaek4k01_es4b_illumination_p_2_1005",
+      "name": "客厅人体存在传感器ES5（顶装版）  标准 光照度",
+      "state": "12"
+    },
+    {
+      "entity_id": "sensor.linp_cn_blt_3_1n20sdaek4k01_es4b_has_someone_duration_p_2_1081",
+      "name": "客厅人体存在传感器ES5（顶装版）  标准 有人持续时长",
+      "state": "120分钟持续有人"
+    },
+    {
+      "entity_id": "sensor.linp_cn_blt_3_1n20sdaek4k01_es4b_no_one_duration_p_2_1082",
+      "name": "客厅人体存在传感器ES5（顶装版）  标准 无人持续时长",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "sensor.linp_cn_blt_3_1n20sdaek4k01_es4b_customized_property_2_p_5_1019",
+      "name": "客厅人体存在传感器ES5（顶装版）  自定义 近距区间有人无人状态",
+      "state": "无人"
+    },
+    {
+      "entity_id": "sensor.linp_cn_blt_3_1n20sdaek4k01_es4b_occupancy_status_p_2_1078",
+      "name": "客厅人体存在传感器ES5（顶装版）  标准 有人无人状态",
+      "state": "有人"
+    },
+    {
+      "entity_id": "switch.giot_cn_1162942256_v8icm_on_p_2_1",
+      "name": "客厅PC电源  开关 开关",
+      "state": "on"
+    },
+    {
+      "entity_id": "switch.giot_cn_1162942256_v8icm_switch_p_7_1",
+      "name": "客厅PC电源 * 辅助开关 设备开关",
+      "state": "on"
+    },
+    {
+      "entity_id": "switch.giot_cn_1162942256_v8icm_disable_p_7_2",
+      "name": "客厅PC电源 * 辅助开关 语音功能禁用开关",
+      "state": "on"
+    },
+    {
+      "entity_id": "switch.jdjz_cn_857569251_jdjzu1_flex_switch_p_2_12",
+      "name": "客厅吸顶灯  灯 凌动开关",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.jdjz_cn_857569251_jdjzu1_sleep_aid_mode_p_2_13",
+      "name": "客厅吸顶灯  灯 助眠模式",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.jdjz_cn_857569251_jdjzu1_wake_up_mode_p_2_14",
+      "name": "客厅吸顶灯  灯 唤醒模式",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.jdjz_cn_857569251_jdjzu1_power_on_state_p_4_2",
+      "name": "客厅吸顶灯 * 设置 通电默认状态",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.jdjz_cn_857569251_jdjzu1_turn_on_state_p_4_3",
+      "name": "客厅吸顶灯 * 设置 开灯默认状态",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.jdjz_cn_857569251_jdjzu1_custom_sleep_aid_p_4_8",
+      "name": "客厅吸顶灯 * 设置 助眠自定义开关",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.jdjz_cn_857569251_jdjzu1_custom_weak_up_p_4_12",
+      "name": "客厅吸顶灯 * 设置 唤醒自定义开关",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.jdjz_cn_857569251_jdjzu1_fill_light_switch_p_4_21",
+      "name": "客厅吸顶灯 * 设置 辅光开关",
+      "state": "on"
+    },
+    {
+      "entity_id": "switch.iot_cn_959434975_x2_match_confirmation_p_9_6",
+      "name": "客厅空调 * 自定义 空调匹配确认",
+      "state": "on"
+    },
+    {
+      "entity_id": "text.iot_cn_959434975_x2_indicator_set_p_9_3",
+      "name": "客厅空调 * 自定义 指示灯勿扰模式设置",
+      "state": "0017000800"
+    },
+    {
+      "entity_id": "text.iot_cn_959434975_x2_safe_sleep_mode_p_9_5",
+      "name": "客厅空调 * 自定义 安睡模式",
+      "state": "fe170008003c3c0101023b161b191b"
+    },
+    {
+      "entity_id": "sensor.ke_ting_xi_ding_deng_ri_liang_deng_shi_chang",
+      "name": "客厅吸顶灯日亮灯时长",
+      "state": "53220.0"
+    },
+    {
+      "entity_id": "sensor.ke_ting_xi_ding_deng_zhou_liang_deng_shi_chang",
+      "name": "客厅吸顶灯周亮灯时长",
+      "state": "164370.0"
+    },
+    {
+      "entity_id": "sensor.ke_ting_xi_ding_deng_yue_liang_deng_shi_chang",
+      "name": "客厅吸顶灯月亮灯时长",
+      "state": "1015770.0"
+    },
+    {
+      "entity_id": "sensor.ke_ting_xi_ding_deng_nian_liang_deng_shi_chang",
+      "name": "客厅吸顶灯年亮灯时长",
+      "state": "1312970.0"
+    },
+    {
+      "entity_id": "sensor.ke_ting_sha_fa_deng_ri_liang_deng_shi_chang",
+      "name": "客厅沙发灯日亮灯时长",
+      "state": "0"
+    },
+    {
+      "entity_id": "sensor.ke_ting_sha_fa_deng_zhou_liang_deng_shi_chang",
+      "name": "客厅沙发灯周亮灯时长",
+      "state": "0"
+    },
+    {
+      "entity_id": "sensor.ke_ting_sha_fa_deng_yue_liang_deng_shi_chang",
+      "name": "客厅沙发灯月亮灯时长",
+      "state": "50.0"
+    },
+    {
+      "entity_id": "sensor.ke_ting_sha_fa_deng_nian_liang_deng_shi_chang",
+      "name": "客厅沙发灯年亮灯时长",
+      "state": "44230.0"
+    },
+    {
+      "entity_id": "switch.wo_de_dian_nao",
+      "name": "客厅电脑",
+      "state": "off"
+    },
+    {
+      "entity_id": "sensor.210006733703670_indoor_humidity",
+      "name": "客厅空调 室内湿度",
+      "state": "30"
+    },
+    {
+      "entity_id": "sensor.210006733703670_indoor_temperature",
+      "name": "客厅空调 室内温度",
+      "state": "21.4"
+    },
+    {
+      "entity_id": "sensor.210006733703670_outdoor_temperature",
+      "name": "客厅空调 室外温度",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "sensor.210006733703670_total_energy_consumption",
+      "name": "客厅空调 总能耗",
+      "state": "638.59"
+    },
+    {
+      "entity_id": "sensor.210006733703670_current_energy_consumption",
+      "name": "客厅空调 当前能耗",
+      "state": "0.0"
+    },
+    {
+      "entity_id": "sensor.210006733703670_realtime_power",
+      "name": "客厅空调 实时功率",
+      "state": "1.0"
+    },
+    {
+      "entity_id": "binary_sensor.210006733703670_full_dust",
+      "name": "客厅空调 尘满",
+      "state": "off"
+    },
+    {
+      "entity_id": "climate.210006733703670_climate",
+      "name": "客厅空调",
+      "state": "off"
+    },
+    {
+      "entity_id": "fan.210006733703670_fresh_air",
+      "name": "客厅空调 新风",
+      "state": "off"
+    },
+    {
+      "entity_id": "automation.liang_deng_ke_ting_xi_ding_deng_liang_shi_chang_lei_jia_2",
+      "name": "[亮灯] 客厅吸顶灯亮灯时长累计",
+      "state": "on"
+    },
+    {
+      "entity_id": "automation.liang_deng_ke_ting_sha_fa_deng_liang_shi_chang_lei_jia_2",
+      "name": "[亮灯] 客厅沙发灯亮灯时长累计",
+      "state": "on"
+    },
+    {
+      "entity_id": "automation.qu_yu_ke_ting_fang_wen_ji_shu_v2",
+      "name": "[区域] 客厅访问计数（v2）",
+      "state": "on"
+    },
+    {
+      "entity_id": "switch.210006733703670_aux_heating",
+      "name": "客厅空调 电辅热",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.210006733703670_boost_mode",
+      "name": "客厅空调 强劲模式",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.210006733703670_breezeless",
+      "name": "客厅空调 无风感",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.210006733703670_comfort_mode",
+      "name": "客厅空调 舒省模式",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.210006733703670_dry",
+      "name": "客厅空调 干燥",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.210006733703670_eco_mode",
+      "name": "客厅空调 ECO模式",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.210006733703670_frost_protect",
+      "name": "客厅空调 防霜冻",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.210006733703670_indirect_wind",
+      "name": "客厅空调 防直吹",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.210006733703670_natural_wind",
+      "name": "客厅空调 自然风",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.210006733703670_prompt_tone",
+      "name": "客厅空调 提示音",
+      "state": "on"
+    },
+    {
+      "entity_id": "switch.210006733703670_power",
+      "name": "客厅空调 电源开关",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.210006733703670_screen_display",
+      "name": "客厅空调 屏幕显示",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.210006733703670_screen_display_alternate",
+      "name": "客厅空调 屏幕显示备用开关",
+      "state": "on"
+    },
+    {
+      "entity_id": "switch.210006733703670_sleep_mode",
+      "name": "客厅空调 睡眠模式",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.210006733703670_smart_eye",
+      "name": "客厅空调 智慧眼",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.210006733703670_swing_horizontal",
+      "name": "客厅空调 水平摆风",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.210006733703670_swing_vertical",
+      "name": "客厅空调 垂直摆风",
+      "state": "off"
+    },
+    {
+      "entity_id": "select.210006733703670_wind_lr_angle",
+      "name": "客厅空调 水平出风",
+      "state": "off"
+    },
+    {
+      "entity_id": "select.210006733703670_wind_ud_angle",
+      "name": "客厅空调 垂直出风",
+      "state": "off"
+    },
+    {
+      "entity_id": "number.210006733703670_fan_speed",
+      "name": "客厅空调 风速百分比",
+      "state": "102"
+    },
+    {
+      "entity_id": "automation.ke_ting_deng_kai_qi_shi_kai_shi_ji_shi",
+      "name": "客厅灯开启时开始计时",
+      "state": "unavailable"
+    },
+    {
+      "entity_id": "automation.ke_ting_deng_guan_bi_shi_ting_zhi_ji_shi",
+      "name": "客厅灯关闭时停止计时",
+      "state": "unavailable"
+    }
+  ],
+  "卧室": [
+    {
+      "entity_id": "counter.bedroom_visits",
+      "name": "卧室访问次数",
+      "state": "72"
+    },
+    {
+      "entity_id": "input_number.bedroom_duration",
+      "name": "卧室停留时长（秒）",
+      "state": "0.0"
+    },
+    {
+      "entity_id": "input_number.bedroom_light_duration",
+      "name": "卧室灯今日亮灯时长（秒）",
+      "state": "0.0"
+    },
+    {
+      "entity_id": "input_number.light_bedroom_duration",
+      "name": "卧室灯亮灯时长（秒）",
+      "state": "65940.0"
+    },
+    {
+      "entity_id": "input_number.light_bedroom_strip_duration",
+      "name": "卧室灯带亮灯时长（秒）",
+      "state": "7620.0"
+    },
+    {
+      "entity_id": "input_datetime.bedroom_entry",
+      "name": "卧室进入时间",
+      "state": "10:51:33"
+    },
+    {
+      "entity_id": "input_datetime.bedroom_light_on",
+      "name": "卧室灯开启时间",
+      "state": "10:26:35"
+    },
+    {
+      "entity_id": "sensor.wo_shi_deng_jin_ri_liang_deng_shi_chang",
+      "name": "卧室灯今日亮灯时长",
+      "state": "0.0"
+    },
+    {
+      "entity_id": "sensor.wo_shi_ting_liu_shi_chang",
+      "name": "卧室停留时长",
+      "state": "0"
+    },
+    {
+      "entity_id": "sensor.wo_shi_deng_jin_ri_liang_deng",
+      "name": "卧室灯今日亮灯",
+      "state": "0.0"
+    },
+    {
+      "entity_id": "sensor.wo_shi_deng_liang_deng_shi_chang",
+      "name": "卧室灯亮灯时长",
+      "state": "18"
+    },
+    {
+      "entity_id": "sensor.wo_shi_deng_dai_liang_deng_shi_chang",
+      "name": "卧室灯带亮灯时长",
+      "state": "2"
+    },
+    {
+      "entity_id": "sensor.wo_shi_deng_jin_ri_liang_deng_2",
+      "name": "卧室灯今日亮灯",
+      "state": "0.0"
+    },
+    {
+      "entity_id": "button.ftd_cn_1124827030_dsplmp_toggle_a_2_1",
+      "name": "卧室灯  灯 开关状态切换",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.ftd_cn_1124827030_dsplmp_action_parareset_a_3_4",
+      "name": "卧室灯 * 厂商自定义 参数重置",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.ftd_cn_1124827030_dsplmp_action_powerondimlum_a_3_5",
+      "name": "卧室灯 * 厂商自定义 开灯或切换亮度",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.ftd_cn_1124827030_dsplmp_action_powerondimctl_a_3_6",
+      "name": "卧室灯 * 厂商自定义 开灯或切换色温",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.yeelink_cn_436301383_strip6_toggle_a_2_1",
+      "name": "卧室灯带  灯 开关状态切换",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.xiaomi_cn_484766525_lx04_play_radio_a_5_3",
+      "name": "卧室小爱触屏音箱  智能音箱 播放电台",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.xiaomi_cn_484766525_lx04_stop_alarm_a_6_1",
+      "name": "卧室小爱触屏音箱  闹钟 停止闹钟",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "climate.lumi_cn_684959720_mcn02",
+      "name": "卧室空调插座  空调",
+      "state": "off"
+    },
+    {
+      "entity_id": "cover.zjdh_cn_819677807_xj001_s_2_curtain",
+      "name": "卧室窗帘  窗帘",
+      "state": "open"
+    },
+    {
+      "entity_id": "event.090615_cn_blt_3_1lkcc2kl8co00_btsw1_click_e_2_1012",
+      "name": "卧室快捷键  BLE专用开关传感器 单击",
+      "state": "2026-04-28T18:56:38.065+00:00"
+    },
+    {
+      "entity_id": "event.090615_cn_blt_3_1lkcc2kl8co00_btsw1_double_click_e_2_1013",
+      "name": "卧室快捷键  BLE专用开关传感器 双击",
+      "state": "2026-03-26T14:59:49.534+00:00"
+    },
+    {
+      "entity_id": "event.090615_cn_blt_3_1lkcc2kl8co00_btsw1_long_press_e_2_1014",
+      "name": "卧室快捷键  BLE专用开关传感器 长按",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "event.090615_cn_blt_3_1lkcc2kl8co00_btsw1_low_battery_e_3_1001",
+      "name": "卧室快捷键  电池 电量低",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "event.linp_cn_blt_3_1ocv0fv7l0o00_es5b_customized_event_5_e_5_1097",
+      "name": "卧室人存  自定义 重置及关灯模式事件",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "light.ftd_cn_1124827030_dsplmp_s_2_light",
+      "name": "卧室灯  灯",
+      "state": "off"
+    },
+    {
+      "entity_id": "light.yeelink_cn_436301383_strip6_s_2_light",
+      "name": "卧室灯带  灯",
+      "state": "off"
+    },
+    {
+      "entity_id": "media_player.xiaomi_cn_484766525_lx04",
+      "name": "卧室小爱触屏音箱  音箱",
+      "state": "on"
+    },
+    {
+      "entity_id": "notify.ftd_cn_1124827030_dsplmp_action_dimlum_a_3_1",
+      "name": "卧室灯 * 厂商自定义 亮度增减",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "notify.ftd_cn_1124827030_dsplmp_action_dimctl_a_3_2",
+      "name": "卧室灯 * 厂商自定义 色温增减",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "notify.xiaomi_cn_484766525_lx04_play_text_a_5_1",
+      "name": "卧室小爱触屏音箱  智能音箱 播放文本",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "notify.xiaomi_cn_484766525_lx04_wake_up_a_5_2",
+      "name": "卧室小爱触屏音箱  智能音箱 唤醒",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "notify.xiaomi_cn_484766525_lx04_execute_text_directive_a_5_4",
+      "name": "卧室小爱触屏音箱  智能音箱 执行文本指令",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "notify.lumi_cn_684959720_mcn02_set_ac_model_a_4_1",
+      "name": "卧室空调插座  空调插座匹配服务 配置空调的品牌信息",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "notify.lumi_cn_684959720_mcn02_set_ac_ctrl_info_a_4_2",
+      "name": "卧室空调插座  空调插座匹配服务 配置码库控制信息",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "number.ftd_cn_1124827030_dsplmp_delayoff_p_3_3",
+      "name": "卧室灯 * 厂商自定义 延时关灯",
+      "state": "0"
+    },
+    {
+      "entity_id": "number.ftd_cn_1124827030_dsplmp_lightontime_p_3_8",
+      "name": "卧室灯 * 厂商自定义 开灯渐变时长(单位ms)",
+      "state": "500"
+    },
+    {
+      "entity_id": "number.ftd_cn_1124827030_dsplmp_lightofftime_p_3_9",
+      "name": "卧室灯 * 厂商自定义 关灯渐变时长(单位ms)",
+      "state": "500"
+    },
+    {
+      "entity_id": "number.ftd_cn_1124827030_dsplmp_lightdimtime_p_3_10",
+      "name": "卧室灯 * 厂商自定义 灯光调光时长(单位ms)",
+      "state": "5000"
+    },
+    {
+      "entity_id": "number.ftd_cn_1124827030_dsplmp_lightminlum_p_3_11",
+      "name": "卧室灯 * 厂商自定义 最低亮度(x10)",
+      "state": "50"
+    },
+    {
+      "entity_id": "number.ftd_cn_1124827030_dsplmp_sleepmodetime_p_3_12",
+      "name": "卧室灯 * 厂商自定义 助眠模式时长",
+      "state": "30"
+    },
+    {
+      "entity_id": "number.ftd_cn_1124827030_dsplmp_sleepmodelum_p_3_14",
+      "name": "卧室灯 * 厂商自定义 助眠模式起始亮度",
+      "state": "35"
+    },
+    {
+      "entity_id": "number.ftd_cn_1124827030_dsplmp_wakeupmodtime_p_3_15",
+      "name": "卧室灯 * 厂商自定义 唤醒模式时长",
+      "state": "30"
+    },
+    {
+      "entity_id": "number.ftd_cn_1124827030_dsplmp_wakeupmodelum_p_3_17",
+      "name": "卧室灯 * 厂商自定义 唤醒模式终点亮度",
+      "state": "80"
+    },
+    {
+      "entity_id": "number.yeelink_cn_436301383_strip6_brightness_delta_p_3_1",
+      "name": "卧室灯带 * Light Extension Feature 亮度调节",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "select.ftd_cn_1124827030_dsplmp_mymodeid_p_3_18",
+      "name": "卧室灯 * 厂商自定义 我的模式id",
+      "state": "Unselected"
+    },
+    {
+      "entity_id": "select.lumi_cn_684959720_mcn02_match_state_p_4_1",
+      "name": "卧室空调插座  空调插座匹配服务 匹配状态",
+      "state": "未匹配中"
+    },
+    {
+      "entity_id": "select.lumi_cn_684959720_mcn02_ac_work_mode_p_4_2",
+      "name": "卧室空调插座  空调插座匹配服务 空调工作模式",
+      "state": "空调插在插座上"
+    },
+    {
+      "entity_id": "sensor.ftd_cn_1124827030_dsplmp_supportac_p_3_4",
+      "name": "卧室灯 * 厂商自定义 是否支持交流检测",
+      "state": "真"
+    },
+    {
+      "entity_id": "sensor.xiaomi_cn_484766525_lx04_audio_id_p_5_4",
+      "name": "卧室小爱触屏音箱  智能音箱 音频ID ",
+      "state": "3660490062271873339"
+    },
+    {
+      "entity_id": "sensor.lumi_cn_684959720_mcn02_electric_power_p_5_1",
+      "name": "卧室空调插座  功耗参数 电功率",
+      "state": "1.87"
+    },
+    {
+      "entity_id": "sensor.zjdh_cn_819677807_xj001_fault_p_2_1",
+      "name": "卧室窗帘  窗帘 故障",
+      "state": "正常"
+    },
+    {
+      "entity_id": "sensor.zjdh_cn_819677807_xj001_synchronization_p_3_1",
+      "name": "卧室窗帘 * 自定义 同步按钮",
+      "state": "2"
+    },
+    {
+      "entity_id": "sensor.miaomiaoc_cn_blt_3_1lip7b874ck01_t2_temperature_p_2_1",
+      "name": "卧室温湿度计  温湿度传感器 温度",
+      "state": "20.7"
+    },
+    {
+      "entity_id": "sensor.miaomiaoc_cn_blt_3_1lip7b874ck01_t2_relative_humidity_p_2_2",
+      "name": "卧室温湿度计  温湿度传感器 湿度",
+      "state": "76.1"
+    },
+    {
+      "entity_id": "sensor.miaomiaoc_cn_blt_3_1lip7b874ck01_t2_battery_level_p_3_1",
+      "name": "卧室温湿度计  电池 电池电量",
+      "state": "100"
+    },
+    {
+      "entity_id": "sensor.linp_cn_blt_3_1ocv0fv7l0o00_es5b_illumination_p_2_1005",
+      "name": "卧室人存  标准 光照度",
+      "state": "0"
+    },
+    {
+      "entity_id": "sensor.linp_cn_blt_3_1ocv0fv7l0o00_es5b_no_one_duration_p_2_1082",
+      "name": "卧室人存  标准 无人持续时长",
+      "state": "60 分钟持续无人"
+    },
+    {
+      "entity_id": "sensor.linp_cn_blt_3_1ocv0fv7l0o00_es5b_has_someone_duration_p_2_1081",
+      "name": "卧室人存  标准 有人持续时长",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "sensor.linp_cn_blt_3_1ocv0fv7l0o00_es5b_customized_property_2_p_5_1019",
+      "name": "卧室人存  自定义 近距区间有人/无人状态",
+      "state": "无人"
+    },
+    {
+      "entity_id": "sensor.linp_cn_blt_3_1ocv0fv7l0o00_es5b_battery_level_p_7_1003",
+      "name": "卧室人存  干电池/纽扣电池 电池电量",
+      "state": "100"
+    },
+    {
+      "entity_id": "sensor.linp_cn_blt_3_1ocv0fv7l0o00_es5b_occupancy_status_p_2_1078",
+      "name": "卧室人存  标准 有人无人",
+      "state": "无人"
+    },
+    {
+      "entity_id": "switch.ftd_cn_1124827030_dsplmp_flex_switch_p_2_4",
+      "name": "卧室灯  灯 凌动开关",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.ftd_cn_1124827030_dsplmp_dimlum_p_3_1",
+      "name": "卧室灯 * 厂商自定义 亮度增减",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.ftd_cn_1124827030_dsplmp_dimctl_p_3_2",
+      "name": "卧室灯 * 厂商自定义 色温增减",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.ftd_cn_1124827030_dsplmp_defaultonoffstate_p_3_5",
+      "name": "卧室灯 * 厂商自定义 通电默认状态",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.ftd_cn_1124827030_dsplmp_recoverybeforeoff_p_3_6",
+      "name": "卧室灯 * 厂商自定义 恢复断电前灯光",
+      "state": "on"
+    },
+    {
+      "entity_id": "switch.ftd_cn_1124827030_dsplmp_nightlight_p_3_7",
+      "name": "卧室灯 * 厂商自定义 起夜模式开关",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.ftd_cn_1124827030_dsplmp_sleepmodeuserset_p_3_13",
+      "name": "卧室灯 * 厂商自定义 助眠模式自定义亮度标志",
+      "state": "on"
+    },
+    {
+      "entity_id": "switch.ftd_cn_1124827030_dsplmp_wakeupmodeuserset_p_3_16",
+      "name": "卧室灯 * 厂商自定义 唤醒模式自定义亮度标志",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.ftd_cn_1124827030_dsplmp_nightlightonoff_p_3_19",
+      "name": "卧室灯 * 厂商自定义 打开/关闭起夜灯功能",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.ftd_cn_1124827030_dsplmp_defaultstate_p_3_20",
+      "name": "卧室灯 * 厂商自定义 默认灯光",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.xiaomi_cn_484766525_lx04_mute_p_4_1",
+      "name": "卧室小爱触屏音箱  麦克风 静音",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.xiaomi_cn_484766525_lx04_sleep_mode_p_5_3",
+      "name": "卧室小爱触屏音箱  智能音箱 睡眠模式",
+      "state": "on"
+    },
+    {
+      "entity_id": "switch.zjdh_cn_819677807_xj001_motor_reverse_p_2_5",
+      "name": "卧室窗帘  窗帘 电机反向",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.zjdh_cn_819677807_xj001_calibration_p_3_2",
+      "name": "卧室窗帘 * 自定义 校准",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.zjdh_cn_819677807_xj001_on_and_off_p_3_3",
+      "name": "卧室窗帘 * 自定义 开关停",
+      "state": "off"
+    },
+    {
+      "entity_id": "text.ftd_cn_1124827030_dsplmp_action_dimlum_a_3_1",
+      "name": "卧室灯 * 厂商自定义 亮度增减",
+      "state": ""
+    },
+    {
+      "entity_id": "text.ftd_cn_1124827030_dsplmp_action_dimctl_a_3_2",
+      "name": "卧室灯 * 厂商自定义 色温增减",
+      "state": ""
+    },
+    {
+      "entity_id": "text.xiaomi_cn_484766525_lx04_play_text_a_5_1",
+      "name": "卧室小爱触屏音箱  智能音箱 播放文本",
+      "state": ""
+    },
+    {
+      "entity_id": "text.xiaomi_cn_484766525_lx04_wake_up_a_5_2",
+      "name": "卧室小爱触屏音箱  智能音箱 唤醒",
+      "state": ""
+    },
+    {
+      "entity_id": "text.xiaomi_cn_484766525_lx04_execute_text_directive_a_5_4",
+      "name": "卧室小爱触屏音箱  智能音箱 执行文本指令",
+      "state": ""
+    },
+    {
+      "entity_id": "text.lumi_cn_684959720_mcn02_set_ac_model_a_4_1",
+      "name": "卧室空调插座  空调插座匹配服务 配置空调的品牌信息",
+      "state": ""
+    },
+    {
+      "entity_id": "text.lumi_cn_684959720_mcn02_set_ac_ctrl_info_a_4_2",
+      "name": "卧室空调插座  空调插座匹配服务 配置码库控制信息",
+      "state": ""
+    },
+    {
+      "entity_id": "sensor.wo_shi_deng_ri_liang_deng_shi_chang",
+      "name": "卧室灯日亮灯时长",
+      "state": "8490.0"
+    },
+    {
+      "entity_id": "sensor.wo_shi_deng_zhou_liang_deng_shi_chang",
+      "name": "卧室灯周亮灯时长",
+      "state": "30540.0"
+    },
+    {
+      "entity_id": "sensor.wo_shi_deng_yue_liang_deng_shi_chang",
+      "name": "卧室灯月亮灯时长",
+      "state": "159230.0"
+    },
+    {
+      "entity_id": "sensor.wo_shi_deng_nian_liang_deng_shi_chang",
+      "name": "卧室灯年亮灯时长",
+      "state": "181510.0"
+    },
+    {
+      "entity_id": "sensor.wo_shi_deng_dai_ri_liang_deng_shi_chang",
+      "name": "卧室灯带日亮灯时长",
+      "state": "0"
+    },
+    {
+      "entity_id": "sensor.wo_shi_deng_dai_zhou_liang_deng_shi_chang",
+      "name": "卧室灯带周亮灯时长",
+      "state": "300.0"
+    },
+    {
+      "entity_id": "sensor.wo_shi_deng_dai_yue_liang_deng_shi_chang",
+      "name": "卧室灯带月亮灯时长",
+      "state": "17700.0"
+    },
+    {
+      "entity_id": "sensor.wo_shi_deng_dai_nian_liang_deng_shi_chang",
+      "name": "卧室灯带年亮灯时长",
+      "state": "21300.0"
+    },
+    {
+      "entity_id": "automation.liang_deng_wo_shi_deng_liang_shi_chang_lei_jia_2",
+      "name": "[亮灯] 卧室灯亮灯时长累计",
+      "state": "on"
+    },
+    {
+      "entity_id": "automation.liang_deng_wo_shi_deng_dai_liang_shi_chang_lei_jia_2",
+      "name": "[亮灯] 卧室灯带亮灯时长累计",
+      "state": "on"
+    },
+    {
+      "entity_id": "automation.qu_yu_wo_shi_fang_wen_ji_shu_v2",
+      "name": "[区域] 卧室访问计数（v2）",
+      "state": "on"
+    },
+    {
+      "entity_id": "sensor.208907222021213_indoor_humidity",
+      "name": "卧室空调 室内湿度",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "sensor.208907222021213_indoor_temperature",
+      "name": "卧室空调 室内温度",
+      "state": "21.2"
+    },
+    {
+      "entity_id": "sensor.208907222021213_outdoor_temperature",
+      "name": "卧室空调 室外温度",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "sensor.208907222021213_total_energy_consumption",
+      "name": "卧室空调 总能耗",
+      "state": "283.5"
+    },
+    {
+      "entity_id": "sensor.208907222021213_current_energy_consumption",
+      "name": "卧室空调 当前能耗",
+      "state": "0.0"
+    },
+    {
+      "entity_id": "sensor.208907222021213_realtime_power",
+      "name": "卧室空调 实时功率",
+      "state": "1.0"
+    },
+    {
+      "entity_id": "binary_sensor.208907222021213_full_dust",
+      "name": "卧室空调 尘满",
+      "state": "off"
+    },
+    {
+      "entity_id": "climate.208907222021213_climate",
+      "name": "卧室空调",
+      "state": "off"
+    },
+    {
+      "entity_id": "fan.208907222021213_fresh_air",
+      "name": "卧室空调 新风",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.208907222021213_aux_heating",
+      "name": "卧室空调 电辅热",
+      "state": "on"
+    },
+    {
+      "entity_id": "switch.208907222021213_boost_mode",
+      "name": "卧室空调 强劲模式",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.208907222021213_breezeless",
+      "name": "卧室空调 无风感",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.208907222021213_comfort_mode",
+      "name": "卧室空调 舒省模式",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.208907222021213_dry",
+      "name": "卧室空调 干燥",
+      "state": "on"
+    },
+    {
+      "entity_id": "switch.208907222021213_eco_mode",
+      "name": "卧室空调 ECO模式",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.208907222021213_frost_protect",
+      "name": "卧室空调 防霜冻",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.208907222021213_indirect_wind",
+      "name": "卧室空调 防直吹",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.208907222021213_natural_wind",
+      "name": "卧室空调 自然风",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.208907222021213_prompt_tone",
+      "name": "卧室空调 提示音",
+      "state": "on"
+    },
+    {
+      "entity_id": "switch.208907222021213_power",
+      "name": "卧室空调 电源开关",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.208907222021213_screen_display",
+      "name": "卧室空调 屏幕显示",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.208907222021213_screen_display_alternate",
+      "name": "卧室空调 屏幕显示备用开关",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.208907222021213_sleep_mode",
+      "name": "卧室空调 睡眠模式",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.208907222021213_smart_eye",
+      "name": "卧室空调 智慧眼",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.208907222021213_swing_horizontal",
+      "name": "卧室空调 水平摆风",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.208907222021213_swing_vertical",
+      "name": "卧室空调 垂直摆风",
+      "state": "off"
+    },
+    {
+      "entity_id": "select.208907222021213_wind_lr_angle",
+      "name": "卧室空调 水平出风",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "select.208907222021213_wind_ud_angle",
+      "name": "卧室空调 垂直出风",
+      "state": "off"
+    },
+    {
+      "entity_id": "number.208907222021213_fan_speed",
+      "name": "卧室空调 风速百分比",
+      "state": "101"
+    },
+    {
+      "entity_id": "sensor.wo_shi_kong_diao_zong_gong_lu",
+      "name": "卧室空调总功率",
+      "state": "unavailable"
+    },
+    {
+      "entity_id": "sensor.wo_shi_kong_diao_zong_neng_hao",
+      "name": "卧室空调总能耗",
+      "state": "unavailable"
+    },
+    {
+      "entity_id": "automation.wo_shi_deng_kai_qi_shi_kai_shi_ji_shi",
+      "name": "卧室灯开启时开始计时",
+      "state": "unavailable"
+    },
+    {
+      "entity_id": "automation.wo_shi_deng_guan_bi_shi_ting_zhi_ji_shi",
+      "name": "卧室灯关闭时停止计时",
+      "state": "unavailable"
+    }
+  ],
+  "厨房": [
+    {
+      "entity_id": "counter.kitchen_visits",
+      "name": "厨房访问次数",
+      "state": "2"
+    },
+    {
+      "entity_id": "sensor.chu_fang_deng_zhou_liang_deng_shi_chang",
+      "name": "厨房灯周亮灯时长",
+      "state": "1860.0000"
+    },
+    {
+      "entity_id": "input_number.kitchen_duration",
+      "name": "厨房停留时长（秒）",
+      "state": "0.0"
+    },
+    {
+      "entity_id": "input_number.kitchen_light_duration",
+      "name": "厨房灯今日亮灯时长（秒）",
+      "state": "0.0"
+    },
+    {
+      "entity_id": "input_number.light_kitchen_duration",
+      "name": "厨房灯亮灯时长（秒）",
+      "state": "7080.0"
+    },
+    {
+      "entity_id": "input_datetime.kitchen_entry",
+      "name": "厨房进入时间",
+      "state": "00:00:00"
+    },
+    {
+      "entity_id": "input_datetime.kitchen_light_on",
+      "name": "厨房灯开启时间",
+      "state": "10:46:36"
+    },
+    {
+      "entity_id": "sensor.chu_fang_deng_jin_ri_liang_deng_shi_chang",
+      "name": "厨房灯今日亮灯时长",
+      "state": "0.0"
+    },
+    {
+      "entity_id": "sensor.chu_fang_ting_liu_shi_chang",
+      "name": "厨房停留时长",
+      "state": "0"
+    },
+    {
+      "entity_id": "sensor.chu_fang_deng_jin_ri_liang_deng",
+      "name": "厨房灯今日亮灯",
+      "state": "0.0"
+    },
+    {
+      "entity_id": "sensor.chu_fang_deng_liang_deng_shi_chang",
+      "name": "厨房灯亮灯时长",
+      "state": "2"
+    },
+    {
+      "entity_id": "sensor.chu_fang_deng_jin_ri_liang_deng_2",
+      "name": "厨房灯今日亮灯",
+      "state": "0.0"
+    },
+    {
+      "entity_id": "button.linp_cn_1137697716_lp1bc_toggle_a_2_1",
+      "name": "厨房人体存在平板灯  灯 开关状态切换",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.linp_cn_1137697716_lp1bc_brightness_up_a_2_2",
+      "name": "厨房人体存在平板灯  灯 亮度+",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.linp_cn_1137697716_lp1bc_brightness_down_a_2_3",
+      "name": "厨房人体存在平板灯  灯 亮度-",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.linp_cn_1137697716_lp1bc_brightness_sw_a_4_1",
+      "name": "厨房人体存在平板灯 * 智能场景 亮度切换",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.linp_cn_1137697716_lp1bc_crossctrl_pair_start_a_4_2",
+      "name": "厨房人体存在平板灯 * 智能场景 互控学习-开始",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.linp_cn_1137697716_lp1bc_crossctrl_pair_clear_a_4_3",
+      "name": "厨房人体存在平板灯 * 智能场景 互控学习-清除",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.linp_cn_1137697716_lp1bc_switch_pair_start_a_4_4",
+      "name": "厨房人体存在平板灯 * 智能场景 自发电开关配对-开始学习",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.linp_cn_1137697716_lp1bc_switch_pair_clear_a_4_5",
+      "name": "厨房人体存在平板灯 * 智能场景 自发电开关配对-清除",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "light.linp_cn_1137697716_lp1bc_s_2_light",
+      "name": "厨房人体存在平板灯  灯",
+      "state": "off"
+    },
+    {
+      "entity_id": "notify.linp_cn_1137697716_lp1bc_set_brightness_a_2_4",
+      "name": "厨房人体存在平板灯  灯 设置亮度并开灯",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "number.linp_cn_1137697716_lp1bc_light_on_gradient_time_p_2_10",
+      "name": "厨房人体存在平板灯  灯 开灯渐亮时长",
+      "state": "1"
+    },
+    {
+      "entity_id": "number.linp_cn_1137697716_lp1bc_light_off_gradient_time_p_2_11",
+      "name": "厨房人体存在平板灯  灯 关灯渐灭时长",
+      "state": "2"
+    },
+    {
+      "entity_id": "number.linp_cn_1137697716_lp1bc_no_one_determine_time_p_5_2",
+      "name": "厨房人体存在平板灯  雷达 无人判定时长",
+      "state": "30"
+    },
+    {
+      "entity_id": "number.linp_cn_1137697716_lp1bc_lux_threshold_p_4_3",
+      "name": "厨房人体存在平板灯 * 智能场景 灯-人存联动光照阈值",
+      "state": "150"
+    },
+    {
+      "entity_id": "number.linp_cn_1137697716_lp1bc_shielding_distance_p_6_2",
+      "name": "厨房人体存在平板灯 * 人存设置项 屏蔽距离（每个bit代表一个距离门）",
+      "state": "2"
+    },
+    {
+      "entity_id": "number.linp_cn_1137697716_lp1bc_someone_judge_time_p_6_5",
+      "name": "厨房人体存在平板灯 * 人存设置项 有人延时判断时间（毫秒）",
+      "state": "100"
+    },
+    {
+      "entity_id": "number.linp_cn_1137697716_lp1bc_move_threshold_high_p_6_7",
+      "name": "厨房人体存在平板灯 * 人存设置项 运动灵敏度设置高32bit",
+      "state": "332178261"
+    },
+    {
+      "entity_id": "number.linp_cn_1137697716_lp1bc_move_threshold_low_p_6_8",
+      "name": "厨房人体存在平板灯 * 人存设置项 运动灵敏度设置低32bit",
+      "state": "448096981"
+    },
+    {
+      "entity_id": "number.linp_cn_1137697716_lp1bc_miro_move_high_p_6_9",
+      "name": "厨房人体存在平板灯 * 人存设置项 微动灵敏度设置高32bit",
+      "state": "448096981"
+    },
+    {
+      "entity_id": "number.linp_cn_1137697716_lp1bc_miro_move_low_p_6_10",
+      "name": "厨房人体存在平板灯 * 人存设置项 微动灵敏度设置低32bit",
+      "state": "448096981"
+    },
+    {
+      "entity_id": "select.linp_cn_1137697716_lp1bc_default_power_on_state_p_2_9",
+      "name": "厨房人体存在平板灯  灯 默认上电状态",
+      "state": "断电记忆"
+    },
+    {
+      "entity_id": "select.linp_cn_1137697716_lp1bc_human_trigger_lv_p_4_4",
+      "name": "厨房人体存在平板灯 * 智能场景 有人触发等级设置（防误触功能）",
+      "state": "One Region"
+    },
+    {
+      "entity_id": "select.linp_cn_1137697716_lp1bc_sensitivity_p_6_6",
+      "name": "厨房人体存在平板灯 * 人存设置项 灵敏度等级",
+      "state": "Middle"
+    },
+    {
+      "entity_id": "select.linp_cn_1137697716_lp1bc_radar_function_onoff_p_6_12",
+      "name": "厨房人体存在平板灯 * 人存设置项 用于开启/关闭雷达上报功能",
+      "state": "RADAR-ON"
+    },
+    {
+      "entity_id": "sensor.linp_cn_1137697716_lp1bc_has_someone_duration_p_5_3",
+      "name": "厨房人体存在平板灯  雷达 有人持续时长",
+      "state": "0"
+    },
+    {
+      "entity_id": "sensor.linp_cn_1137697716_lp1bc_no_one_duration_p_5_4",
+      "name": "厨房人体存在平板灯  雷达 无人持续时长",
+      "state": "248"
+    },
+    {
+      "entity_id": "sensor.linp_cn_1137697716_lp1bc_illumination_p_5_5",
+      "name": "厨房人体存在平板灯  雷达 光照度",
+      "state": "0"
+    },
+    {
+      "entity_id": "sensor.linp_cn_1137697716_lp1bc_remote_num_p_4_8",
+      "name": "厨房人体存在平板灯 * 智能场景 遥控个数",
+      "state": "0"
+    },
+    {
+      "entity_id": "sensor.linp_cn_1137697716_lp1bc_distance_bitmap_p_6_11",
+      "name": "厨房人体存在平板灯 * 人存设置项 用于有人进入日志-附触发区段",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "sensor.linp_cn_1137697716_lp1bc_real_time_bitmap_p_6_14",
+      "name": "厨房人体存在平板灯 * 人存设置项 实时有人状态显示",
+      "state": "0"
+    },
+    {
+      "entity_id": "sensor.linp_cn_1137697716_lp1bc_occupancy_status_p_5_1",
+      "name": "厨房人体存在平板灯  雷达 有人无人状态",
+      "state": "NoOne"
+    },
+    {
+      "entity_id": "sensor.miaomiaoc_cn_blt_3_14n419k7k5k01_t2_temperature_p_2_1",
+      "name": "厨房温湿度计  温湿度传感器 温度",
+      "state": "20.7"
+    },
+    {
+      "entity_id": "sensor.miaomiaoc_cn_blt_3_14n419k7k5k01_t2_relative_humidity_p_2_2",
+      "name": "厨房温湿度计  温湿度传感器 湿度",
+      "state": "61.3"
+    },
+    {
+      "entity_id": "sensor.miaomiaoc_cn_blt_3_14n419k7k5k01_t2_battery_level_p_3_1",
+      "name": "厨房温湿度计  电池 电池电量",
+      "state": "100"
+    },
+    {
+      "entity_id": "switch.linp_cn_1137697716_lp1bc_link_human_sensor_p_4_2",
+      "name": "厨房人体存在平板灯 * 智能场景 灯-人存联动（有人开灯，无人关灯）",
+      "state": "on"
+    },
+    {
+      "entity_id": "switch.linp_cn_1137697716_lp1bc_eng_mode_p_6_15",
+      "name": "厨房人体存在平板灯 * 人存设置项 Engineering Mode",
+      "state": "off"
+    },
+    {
+      "entity_id": "text.linp_cn_1137697716_lp1bc_set_brightness_a_2_4",
+      "name": "厨房人体存在平板灯  灯 设置亮度并开灯",
+      "state": ""
+    },
+    {
+      "entity_id": "sensor.chu_fang_deng_ri_liang_deng_shi_chang",
+      "name": "厨房灯日亮灯时长",
+      "state": "60.0"
+    },
+    {
+      "entity_id": "sensor.chu_fang_deng_zhou_liang_deng_shi_chang_2",
+      "name": "厨房灯周亮灯时长",
+      "state": "1350.0"
+    },
+    {
+      "entity_id": "sensor.chu_fang_deng_yue_liang_deng_shi_chang",
+      "name": "厨房灯月亮灯时长",
+      "state": "23030.0"
+    },
+    {
+      "entity_id": "sensor.chu_fang_deng_nian_liang_deng_shi_chang",
+      "name": "厨房灯年亮灯时长",
+      "state": "28790.0"
+    },
+    {
+      "entity_id": "automation.liang_deng_chu_fang_deng_liang_shi_chang_lei_jia_2",
+      "name": "[亮灯] 厨房灯亮灯时长累计",
+      "state": "on"
+    },
+    {
+      "entity_id": "automation.qu_yu_chu_fang_fang_wen_ji_shu_v2",
+      "name": "[区域] 厨房访问计数（v2）",
+      "state": "on"
+    },
+    {
+      "entity_id": "automation.chu_fang_deng_kai_qi_shi_kai_shi_ji_shi",
+      "name": "厨房灯开启时开始计时",
+      "state": "unavailable"
+    },
+    {
+      "entity_id": "automation.chu_fang_deng_guan_bi_shi_ting_zhi_ji_shi",
+      "name": "厨房灯关闭时停止计时",
+      "state": "unavailable"
+    }
+  ],
+  "餐厅": [
+    {
+      "entity_id": "counter.dining_visits",
+      "name": "餐厅访问次数",
+      "state": "5"
+    },
+    {
+      "entity_id": "sensor.can_ting_deng_yue_liang_deng_shi_chang",
+      "name": "餐厅灯月亮灯时长",
+      "state": "0.0"
+    },
+    {
+      "entity_id": "input_number.dining_duration",
+      "name": "餐厅停留时长（秒）",
+      "state": "0.0"
+    },
+    {
+      "entity_id": "input_number.dining_light_duration",
+      "name": "餐厅灯今日亮灯时长（秒）",
+      "state": "0.0"
+    },
+    {
+      "entity_id": "input_number.light_dining_duration",
+      "name": "餐厅灯亮灯时长（秒）",
+      "state": "27840.0"
+    },
+    {
+      "entity_id": "tag.da_kai_can_ting_deng",
+      "name": "打开餐厅灯",
+      "state": "2026-02-25T14:40:40.821+00:00"
+    },
+    {
+      "entity_id": "input_datetime.dining_entry",
+      "name": "餐厅进入时间",
+      "state": "00:00:00"
+    },
+    {
+      "entity_id": "input_datetime.dining_light_on",
+      "name": "餐厅灯开启时间",
+      "state": "10:41:32"
+    },
+    {
+      "entity_id": "sensor.can_ting_deng_jin_ri_liang_deng_shi_chang",
+      "name": "餐厅灯今日亮灯时长",
+      "state": "0.0"
+    },
+    {
+      "entity_id": "sensor.can_ting_ting_liu_shi_chang",
+      "name": "餐厅停留时长",
+      "state": "0"
+    },
+    {
+      "entity_id": "sensor.can_ting_deng_jin_ri_liang_deng",
+      "name": "餐厅灯今日亮灯",
+      "state": "0.0"
+    },
+    {
+      "entity_id": "sensor.can_ting_deng_liang_deng_shi_chang",
+      "name": "餐厅灯亮灯时长",
+      "state": "8"
+    },
+    {
+      "entity_id": "sensor.can_ting_deng_jin_ri_liang_deng_2",
+      "name": "餐厅灯今日亮灯",
+      "state": "0.0"
+    },
+    {
+      "entity_id": "button.lemesh_cn_1155789492_wy0c15_toggle_a_2_1",
+      "name": "餐厅灯  灯光 开关状态切换",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.linp_cn_1161876236_hb01_bitmap_active_a_3_1",
+      "name": "走廊靠餐厅人在 * 厂家设置 插件自动控制，下发action后允许上报一段时间realtime-bitmap",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.giot_cn_1188250021_v8ssm_toggle_a_2_1",
+      "name": "靠餐厅走廊灯  灯 开关状态切换",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.giot_cn_1188250021_v8ssm_brightness_increase_a_4_1",
+      "name": "靠餐厅走廊灯 * 设置 亮度+",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.giot_cn_1188250021_v8ssm_brightness_reduction_a_4_2",
+      "name": "靠餐厅走廊灯 * 设置 亮度-",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.giot_cn_1188250021_v8ssm_color_temp_increases_a_4_3",
+      "name": "靠餐厅走廊灯 * 设置 色温+",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.giot_cn_1188250021_v8ssm_color_temp_decrease_a_4_4",
+      "name": "靠餐厅走廊灯 * 设置 色温-",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.giot_cn_1188250021_v8ssm_match_code_a_4_5",
+      "name": "靠餐厅走廊灯 * 设置 对码",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.giot_cn_1188250021_v8ssm_clear_code_a_4_6",
+      "name": "靠餐厅走廊灯 * 设置 清码",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.giot_cn_1188250021_v8ssm_restore_factory_a_4_7",
+      "name": "靠餐厅走廊灯 * 设置 恢复出厂设置",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.giot_cn_1188250021_v8ssm_update_a_4_8",
+      "name": "靠餐厅走廊灯 * 设置 更新灯具默认状态",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.giot_cn_1188250021_v8ssm_rhythm_reset_a_4_9",
+      "name": "靠餐厅走廊灯 * 设置 重置节律灯参数",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "event.linp_cn_blt_3_1n49ffqescc00_es2_device_be_reset_e_2_1028",
+      "name": "餐厅人体存在传感器  标准 设备被重置",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "event.090615_cn_blt_3_1n9oepblp0g00_btsw1_click_e_2_1012",
+      "name": "餐厅快捷键  BLE专用开关传感器 单击",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "event.090615_cn_blt_3_1n9oepblp0g00_btsw1_double_click_e_2_1013",
+      "name": "餐厅快捷键  BLE专用开关传感器 双击",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "event.090615_cn_blt_3_1n9oepblp0g00_btsw1_long_press_e_2_1014",
+      "name": "餐厅快捷键  BLE专用开关传感器 长按",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "event.090615_cn_blt_3_1n9oepblp0g00_btsw1_low_battery_e_3_1001",
+      "name": "餐厅快捷键  电池 电量低",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "event.linp_cn_1161876236_hb01_approach_aloof_event_e_3_1",
+      "name": "走廊靠餐厅人在 * 厂家设置 接近远离事件",
+      "state": "2026-04-28T10:48:16.354+00:00"
+    },
+    {
+      "entity_id": "event.giot_cn_1188250021_v8ssm_success_e_4_1",
+      "name": "靠餐厅走廊灯 * 设置 应用成功",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "light.lemesh_cn_1155789492_wy0c15_s_2_light",
+      "name": "餐厅灯  灯光",
+      "state": "off"
+    },
+    {
+      "entity_id": "light.linp_cn_1161876236_hb01_s_4_indicator_light",
+      "name": "走廊靠餐厅人在  指示灯",
+      "state": "off"
+    },
+    {
+      "entity_id": "light.giot_cn_1188250021_v8ssm_s_2_light",
+      "name": "靠餐厅走廊灯  灯",
+      "state": "off"
+    },
+    {
+      "entity_id": "number.lemesh_cn_1155789492_wy0c15_delay_p_4_6",
+      "name": "餐厅灯 * 默认状态 延时关灯",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "number.lemesh_cn_1155789492_wy0c15_fade_time_p_4_8",
+      "name": "餐厅灯 * 默认状态 渐变时间设置，字节[0]开灯渐变时间，字节[1]关灯渐变时间，字节[2]模式渐变时间",
+      "state": "1315860"
+    },
+    {
+      "entity_id": "number.lemesh_cn_1155789492_wy0c15_lowest_brightness_p_4_9",
+      "name": "餐厅灯 * 默认状态 最低亮度千分比-0恢复默认",
+      "state": "30"
+    },
+    {
+      "entity_id": "number.lemesh_cn_1155789492_wy0c15_lock_state_p_4_10",
+      "name": "餐厅灯 * 默认状态 字节[0]BIT0-锁定重置操作 BIT1-锁定设置参数 BIT2-锁定遥控器配对和情景保存 BIT3-AC开关 BIT4-自定义情景；字节[1]预留0；字节[2]旋钮亮度档位；字节[3]旋钮色温档位",
+      "state": "842137608"
+    },
+    {
+      "entity_id": "number.lemesh_cn_1155789492_wy0c15_light_mode_one_p_4_11",
+      "name": "餐厅灯 * 默认状态 模式1配置，字节[0]开关，字节[1]亮度，字节[2]色温，字节[3]渐变时间",
+      "state": "342123521"
+    },
+    {
+      "entity_id": "number.lemesh_cn_1155789492_wy0c15_light_mode_two_p_4_12",
+      "name": "餐厅灯 * 默认状态 模式2配置，字节[0]开关，字节[1]亮度，字节[2]色温，字节[3]渐变时间",
+      "state": "335569921"
+    },
+    {
+      "entity_id": "number.lemesh_cn_1155789492_wy0c15_light_mode_three_p_4_13",
+      "name": "餐厅灯 * 默认状态 模式3配置，字节[0]开关，字节[1]亮度，字节[2]色温，字节[3]渐变时间",
+      "state": "338846721"
+    },
+    {
+      "entity_id": "number.lemesh_cn_1155789492_wy0c15_light_mode_four_p_4_14",
+      "name": "餐厅灯 * 默认状态 模式4配置，字节[0]开关，字节[1]亮度，字节[2]色温，字节[3]渐变时间",
+      "state": "335544577"
+    },
+    {
+      "entity_id": "number.lemesh_cn_1155789492_wy0c15_sleep_config_p_4_16",
+      "name": "餐厅灯 * 默认状态 助眠设置-字节0-持续时间、字节1-起始亮度，字节2-结束亮度",
+      "state": "20510"
+    },
+    {
+      "entity_id": "number.lemesh_cn_1155789492_wy0c15_wake_config_p_4_17",
+      "name": "餐厅灯 * 默认状态 唤醒设置-字节0-持续时间、字节1-起始亮度，字节2-结束亮度",
+      "state": "5268510"
+    },
+    {
+      "entity_id": "number.lemesh_cn_1155789492_wy0c15_remote_del_p_8_3",
+      "name": "餐厅灯 * 遥控器 删除遥控",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "number.linp_cn_1161876236_hb01_no_one_determine_time_p_2_2",
+      "name": "走廊靠餐厅人在  雷达 无人判定时长",
+      "state": "210"
+    },
+    {
+      "entity_id": "number.linp_cn_1161876236_hb01_shielding_distance_p_3_2",
+      "name": "走廊靠餐厅人在 * 厂家设置 屏蔽距离（每个bit代表一个距离门）",
+      "state": "31"
+    },
+    {
+      "entity_id": "number.linp_cn_1161876236_hb01_approach_distance_p_3_4",
+      "name": "走廊靠餐厅人在 * 厂家设置 接近远离距离设置",
+      "state": "1"
+    },
+    {
+      "entity_id": "number.linp_cn_1161876236_hb01_someone_judge_time_p_3_5",
+      "name": "走廊靠餐厅人在 * 厂家设置 有人延时判断时间（毫秒）",
+      "state": "3000"
+    },
+    {
+      "entity_id": "number.linp_cn_1161876236_hb01_move_threshold_high_p_3_9",
+      "name": "走廊靠餐厅人在 * 厂家设置 运动灵敏度设置高32bit",
+      "state": "873307944"
+    },
+    {
+      "entity_id": "number.linp_cn_1161876236_hb01_move_threshold_low_p_3_10",
+      "name": "走廊靠餐厅人在 * 厂家设置 运动灵敏度设置低32bit",
+      "state": "923883980"
+    },
+    {
+      "entity_id": "number.linp_cn_1161876236_hb01_miro_move_high_p_3_11",
+      "name": "走廊靠餐厅人在 * 厂家设置 微动灵敏度设置高32bit",
+      "state": "995334400"
+    },
+    {
+      "entity_id": "number.linp_cn_1161876236_hb01_miro_move_low_p_3_12",
+      "name": "走廊靠餐厅人在 * 厂家设置 微动灵敏度设置低32bit",
+      "state": "837438645"
+    },
+    {
+      "entity_id": "number.giot_cn_1188250021_v8ssm_setting_p_4_1",
+      "name": "靠餐厅走廊灯 * 设置 设置参数合并",
+      "state": "2724467192"
+    },
+    {
+      "entity_id": "number.giot_cn_1188250021_v8ssm_sleep_aid_p_4_2",
+      "name": "靠餐厅走廊灯 * 设置 助眠参数合并",
+      "state": "509874680"
+    },
+    {
+      "entity_id": "number.giot_cn_1188250021_v8ssm_weak_up_p_4_3",
+      "name": "靠餐厅走廊灯 * 设置 唤醒参数合并",
+      "state": "509876580"
+    },
+    {
+      "entity_id": "number.giot_cn_1188250021_v8ssm_night_light_p_4_4",
+      "name": "靠餐厅走廊灯 * 设置 起夜灯参数合并",
+      "state": "100668928"
+    },
+    {
+      "entity_id": "number.giot_cn_1188250021_v8ssm_duration_factory_p_4_5",
+      "name": "靠餐厅走廊灯 * 设置 专业设置参数合并",
+      "state": "336860160"
+    },
+    {
+      "entity_id": "number.giot_cn_1188250021_v8ssm_factory_set_p_4_6",
+      "name": "靠餐厅走廊灯 * 设置 出厂和设置最低亮度+节律灯周期",
+      "state": "18743423"
+    },
+    {
+      "entity_id": "number.giot_cn_1188250021_v8ssm_rhythm_light_set_p_4_7",
+      "name": "靠餐厅走廊灯 * 设置 节律灯节点参数1",
+      "state": "3750835077"
+    },
+    {
+      "entity_id": "number.giot_cn_1188250021_v8ssm_breathing_light_p_4_8",
+      "name": "靠餐厅走廊灯 * 设置 呼吸模式参数",
+      "state": "1551918234"
+    },
+    {
+      "entity_id": "number.giot_cn_1188250021_v8ssm_groove_mode_p_4_9",
+      "name": "靠餐厅走廊灯 * 设置 律动模式",
+      "state": "478176408"
+    },
+    {
+      "entity_id": "number.giot_cn_1188250021_v8ssm_rhythm_light_two_p_4_10",
+      "name": "靠餐厅走廊灯 * 设置 节律灯节点参数2",
+      "state": "2509399277"
+    },
+    {
+      "entity_id": "number.giot_cn_1188250021_v8ssm_rhythm_light_thr_p_4_11",
+      "name": "靠餐厅走廊灯 * 设置 节律灯节点参数3",
+      "state": "3389076987"
+    },
+    {
+      "entity_id": "number.giot_cn_1188250021_v8ssm_rhythm_light_fou_p_4_12",
+      "name": "靠餐厅走廊灯 * 设置 节律灯节点参数4",
+      "state": "3415369331"
+    },
+    {
+      "entity_id": "number.giot_cn_1188250021_v8ssm_rhythm_light_fiv_p_4_13",
+      "name": "靠餐厅走廊灯 * 设置 节律灯节点参数5",
+      "state": "3918575789"
+    },
+    {
+      "entity_id": "number.giot_cn_1188250021_v8ssm_rhythm_light_six_p_4_14",
+      "name": "靠餐厅走廊灯 * 设置 节律灯节点参数6",
+      "state": "4060089093"
+    },
+    {
+      "entity_id": "select.lemesh_cn_1155789492_wy0c15_default_power_on_state_p_2_7",
+      "name": "餐厅灯  灯光 默认上电状态",
+      "state": "上电打开"
+    },
+    {
+      "entity_id": "select.lemesh_cn_1155789492_wy0c15_toggle_p_3_1",
+      "name": "餐厅灯 * 智能场景 开/关",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "select.lemesh_cn_1155789492_wy0c15_brightness_add_p_3_2",
+      "name": "餐厅灯 * 智能场景 亮度增加",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "select.lemesh_cn_1155789492_wy0c15_brightness_dec_p_3_3",
+      "name": "餐厅灯 * 智能场景 亮度减少",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "select.lemesh_cn_1155789492_wy0c15_brightness_switch_p_3_4",
+      "name": "餐厅灯 * 智能场景 亮度切换",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "select.lemesh_cn_1155789492_wy0c15_colortemperature_add_p_3_5",
+      "name": "餐厅灯 * 智能场景 色温增加",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "select.lemesh_cn_1155789492_wy0c15_colortemperature_dec_p_3_6",
+      "name": "餐厅灯 * 智能场景 色温减少",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "select.lemesh_cn_1155789492_wy0c15_colortemperature_sw_p_3_7",
+      "name": "餐厅灯 * 智能场景 色温切换",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "select.lemesh_cn_1155789492_wy0c15_on_or_brightness_p_3_8",
+      "name": "餐厅灯 * 智能场景 开或切换亮度",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "select.lemesh_cn_1155789492_wy0c15_on_or_colortemp_p_3_9",
+      "name": "餐厅灯 * 智能场景 开或切换色温",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "select.lemesh_cn_1155789492_wy0c15_user_save_p_4_2",
+      "name": "餐厅灯 * 默认状态 默认灯光",
+      "state": "Off"
+    },
+    {
+      "entity_id": "select.lemesh_cn_1155789492_wy0c15_dimming_p_4_3",
+      "name": "餐厅灯 * 默认状态 灯光变化",
+      "state": "Gradient"
+    },
+    {
+      "entity_id": "select.lemesh_cn_1155789492_wy0c15_night_switch_p_4_5",
+      "name": "餐厅灯 * 默认状态 起夜灯模式",
+      "state": "Off"
+    },
+    {
+      "entity_id": "select.lemesh_cn_1155789492_wy0c15_light_mode_trig_p_4_15",
+      "name": "餐厅灯 * 默认状态 自定义情景模式触发",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "select.lemesh_cn_1155789492_wy0c15_factory_reset_p_4_18",
+      "name": "餐厅灯 * 默认状态 参数重置",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "select.lemesh_cn_1155789492_wy0c15_get_p_4_19",
+      "name": "餐厅灯 * 默认状态 上报状态获取",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "select.lemesh_cn_1155789492_wy0c15_remote_switch_p_8_1",
+      "name": "餐厅灯 * 遥控器 遥控获取",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "select.lemesh_cn_1155789492_wy0c15_remote_add_p_8_2",
+      "name": "餐厅灯 * 遥控器 添加遥控",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "select.linp_cn_1161876236_hb01_sensitivity_p_3_8",
+      "name": "走廊靠餐厅人在 * 厂家设置 灵敏度等级",
+      "state": "User-defined"
+    },
+    {
+      "entity_id": "select.linp_cn_1161876236_hb01_radar_function_onoff_p_3_31",
+      "name": "走廊靠餐厅人在 * 厂家设置 用于开启/关闭雷达上报功能",
+      "state": "RADAR-ON"
+    },
+    {
+      "entity_id": "select.linp_cn_1161876236_hb01_approach_event_onoff_p_3_32",
+      "name": "走廊靠餐厅人在 * 厂家设置 接近远离事件开关",
+      "state": "APPROACH-ON"
+    },
+    {
+      "entity_id": "select.linp_cn_1161876236_hb01_human_trigger_lv_p_3_34",
+      "name": "走廊靠餐厅人在 * 厂家设置 有人触发等级设置(防误触功能)",
+      "state": "Two Region"
+    },
+    {
+      "entity_id": "select.linp_cn_1161876236_hb01_distance_display_en_p_3_35",
+      "name": "走廊靠餐厅人在 * 厂家设置 距离显示开关",
+      "state": "ON"
+    },
+    {
+      "entity_id": "sensor.lemesh_cn_1155789492_wy0c15_remote_ltype_p_8_4",
+      "name": "餐厅灯 * 遥控器 遥控1-4类型",
+      "state": "1811939328"
+    },
+    {
+      "entity_id": "sensor.lemesh_cn_1155789492_wy0c15_remote_htype_p_8_5",
+      "name": "餐厅灯 * 遥控器 遥控5-8类型",
+      "state": "0"
+    },
+    {
+      "entity_id": "sensor.lemesh_cn_1155789492_wy0c15_remote_a_p_8_6",
+      "name": "餐厅灯 * 遥控器 遥控1",
+      "state": "0"
+    },
+    {
+      "entity_id": "sensor.lemesh_cn_1155789492_wy0c15_remote_b_p_8_7",
+      "name": "餐厅灯 * 遥控器 遥控2",
+      "state": "0"
+    },
+    {
+      "entity_id": "sensor.lemesh_cn_1155789492_wy0c15_remote_c_p_8_8",
+      "name": "餐厅灯 * 遥控器 遥控3",
+      "state": "0"
+    },
+    {
+      "entity_id": "sensor.lemesh_cn_1155789492_wy0c15_remote_d_p_8_9",
+      "name": "餐厅灯 * 遥控器 遥控4",
+      "state": "-65536"
+    },
+    {
+      "entity_id": "sensor.lemesh_cn_1155789492_wy0c15_remote_e_p_8_10",
+      "name": "餐厅灯 * 遥控器 遥控5",
+      "state": "0"
+    },
+    {
+      "entity_id": "sensor.lemesh_cn_1155789492_wy0c15_remote_f_p_8_11",
+      "name": "餐厅灯 * 遥控器 遥控6",
+      "state": "0"
+    },
+    {
+      "entity_id": "sensor.lemesh_cn_1155789492_wy0c15_remote_g_p_8_12",
+      "name": "餐厅灯 * 遥控器 遥控7",
+      "state": "0"
+    },
+    {
+      "entity_id": "sensor.lemesh_cn_1155789492_wy0c15_remote_h_p_8_13",
+      "name": "餐厅灯 * 遥控器 遥控8",
+      "state": "0"
+    },
+    {
+      "entity_id": "sensor.lemesh_cn_1155789492_wy0c15_remote_cmd_p_8_14",
+      "name": "餐厅灯 * 遥控器 遥控指令",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "sensor.linp_cn_blt_3_1n49ffqescc00_es2_has_someone_duration_p_2_1080",
+      "name": "餐厅人体存在传感器  标准 有人持续时长",
+      "state": "0"
+    },
+    {
+      "entity_id": "sensor.linp_cn_blt_3_1n49ffqescc00_es2_illumination_p_2_1005",
+      "name": "餐厅人体存在传感器  标准 光照度",
+      "state": "0"
+    },
+    {
+      "entity_id": "sensor.linp_cn_blt_3_1n49ffqescc00_es2_no_one_duration_p_2_1079",
+      "name": "餐厅人体存在传感器  标准 无人持续时长",
+      "state": "60"
+    },
+    {
+      "entity_id": "sensor.linp_cn_blt_3_1n49ffqescc00_es2_battery_level_p_4_1003",
+      "name": "餐厅人体存在传感器  电池 电池电量",
+      "state": "100"
+    },
+    {
+      "entity_id": "sensor.linp_cn_blt_3_1n49ffqescc00_es2_customized_property_1_p_5_1018",
+      "name": "餐厅人体存在传感器  自定义 近距区间无人0有人1-255",
+      "state": "0"
+    },
+    {
+      "entity_id": "sensor.linp_cn_blt_3_1n49ffqescc00_es2_occupancy_status_p_2_1078",
+      "name": "餐厅人体存在传感器  标准 有人无人(极客版用无人状态取反判断有人，不用勾选全部有人)",
+      "state": "无人"
+    },
+    {
+      "entity_id": "sensor.linp_cn_1161876236_hb01_has_someone_duration_p_2_3",
+      "name": "走廊靠餐厅人在  雷达 有人持续时长",
+      "state": "0"
+    },
+    {
+      "entity_id": "sensor.linp_cn_1161876236_hb01_no_one_duration_p_2_4",
+      "name": "走廊靠餐厅人在  雷达 无人持续时长",
+      "state": "173"
+    },
+    {
+      "entity_id": "sensor.linp_cn_1161876236_hb01_illumination_p_2_5",
+      "name": "走廊靠餐厅人在  雷达 光照度",
+      "state": "4"
+    },
+    {
+      "entity_id": "sensor.linp_cn_1161876236_hb01_approach_aloof_p_3_1",
+      "name": "走廊靠餐厅人在 * 厂家设置 无用",
+      "state": "Aloof"
+    },
+    {
+      "entity_id": "sensor.linp_cn_1161876236_hb01_body_distance_p_3_3",
+      "name": "走廊靠餐厅人在 * 厂家设置 人体距离",
+      "state": "1.91"
+    },
+    {
+      "entity_id": "sensor.linp_cn_1161876236_hb01_distance_bitmap_p_3_24",
+      "name": "走廊靠餐厅人在 * 厂家设置 用于有人进入日志-附触发区段",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "sensor.linp_cn_1161876236_hb01_real_time_bitmap_p_3_33",
+      "name": "走廊靠餐厅人在 * 厂家设置 实时有人状态显示",
+      "state": "252"
+    },
+    {
+      "entity_id": "sensor.linp_cn_1161876236_hb01_is_seq_near_overflow_p_3_37",
+      "name": "走廊靠餐厅人在 * 厂家设置 描述序列号接近溢出状态，用于提醒用户，0未接近，1接近",
+      "state": "Seq-Safe"
+    },
+    {
+      "entity_id": "sensor.linp_cn_1161876236_hb01_occupancy_status_p_2_1",
+      "name": "走廊靠餐厅人在  雷达 有人无人状态",
+      "state": "无人"
+    },
+    {
+      "entity_id": "switch.lemesh_cn_1155789492_wy0c15_flex_switch_p_2_6",
+      "name": "餐厅灯  灯光 凌动开关",
+      "state": "off"
+    },
+    {
+      "entity_id": "sensor.can_ting_deng_ri_liang_deng_shi_chang",
+      "name": "餐厅灯日亮灯时长",
+      "state": "1740.0"
+    },
+    {
+      "entity_id": "sensor.can_ting_deng_zhou_liang_deng_shi_chang",
+      "name": "餐厅灯周亮灯时长",
+      "state": "6360.0"
+    },
+    {
+      "entity_id": "sensor.can_ting_deng_yue_liang_deng_shi_chang_2",
+      "name": "餐厅灯月亮灯时长",
+      "state": "72470.0"
+    },
+    {
+      "entity_id": "sensor.can_ting_deng_nian_liang_deng_shi_chang",
+      "name": "餐厅灯年亮灯时长",
+      "state": "85170.0"
+    },
+    {
+      "entity_id": "automation.liang_deng_can_ting_deng_liang_shi_chang_lei_jia_2",
+      "name": "[亮灯] 餐厅灯亮灯时长累计",
+      "state": "on"
+    },
+    {
+      "entity_id": "automation.qu_yu_can_ting_fang_wen_ji_shu_v2",
+      "name": "[区域] 餐厅访问计数（v2）",
+      "state": "on"
+    },
+    {
+      "entity_id": "automation.can_ting_deng_kai_qi_shi_kai_shi_ji_shi",
+      "name": "餐厅灯开启时开始计时",
+      "state": "unavailable"
+    },
+    {
+      "entity_id": "automation.can_ting_deng_guan_bi_shi_ting_zhi_ji_shi",
+      "name": "餐厅灯关闭时停止计时",
+      "state": "unavailable"
+    }
+  ],
+  "卫生间": [
+    {
+      "entity_id": "counter.bathroom_visits",
+      "name": "卫生间访问次数",
+      "state": "5"
+    },
+    {
+      "entity_id": "sensor.wei_sheng_jian_deng_nian_liang_deng_shi_chang",
+      "name": "卫生间灯年亮灯时长",
+      "state": "0.0"
+    },
+    {
+      "entity_id": "sensor.zou_lang_wei_sheng_jian_deng_zhou_liang_deng_shi_chang",
+      "name": "走廊卫生间灯周亮灯时长",
+      "state": "75.06"
+    },
+    {
+      "entity_id": "input_number.bathroom_duration",
+      "name": "卫生间停留时长（秒）",
+      "state": "0.0"
+    },
+    {
+      "entity_id": "input_number.bathroom_light_duration",
+      "name": "卫生间灯今日亮灯时长（秒）",
+      "state": "0.0"
+    },
+    {
+      "entity_id": "input_number.light_bathroom_duration",
+      "name": "卫生间灯亮灯时长（秒）",
+      "state": "10230.0"
+    },
+    {
+      "entity_id": "input_number.light_hallway_bath_duration",
+      "name": "走廊卫生间灯亮灯时长（秒）",
+      "state": "65050.0"
+    },
+    {
+      "entity_id": "input_datetime.bathroom_entry",
+      "name": "卫生间进入时间",
+      "state": "00:00:00"
+    },
+    {
+      "entity_id": "input_datetime.bathroom_light_on",
+      "name": "卫生间灯开启时间",
+      "state": "00:00:00"
+    },
+    {
+      "entity_id": "sensor.wei_sheng_jian_ting_liu_shi_chang",
+      "name": "卫生间停留时长",
+      "state": "0"
+    },
+    {
+      "entity_id": "sensor.wei_sheng_jian_deng_jin_ri_liang_deng_shi_chang",
+      "name": "卫生间灯今日亮灯时长",
+      "state": "0.0"
+    },
+    {
+      "entity_id": "sensor.wei_sheng_jian_deng_jin_ri_liang_deng",
+      "name": "卫生间灯今日亮灯",
+      "state": "0.0"
+    },
+    {
+      "entity_id": "sensor.wei_sheng_jian_deng_liang_deng_shi_chang",
+      "name": "卫生间灯亮灯时长",
+      "state": "3"
+    },
+    {
+      "entity_id": "sensor.zou_lang_wei_sheng_jian_deng_liang_deng_shi_chang",
+      "name": "走廊卫生间灯亮灯时长",
+      "state": "18"
+    },
+    {
+      "entity_id": "sensor.wei_sheng_jian_deng_jin_ri_liang_deng_2",
+      "name": "卫生间灯今日亮灯",
+      "state": "0.0"
+    },
+    {
+      "entity_id": "button.linp_cn_1137691863_lp1bc_toggle_a_2_1",
+      "name": "卫生间人体存在平板灯 2  灯 开关状态切换",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.linp_cn_1137691863_lp1bc_brightness_up_a_2_2",
+      "name": "卫生间人体存在平板灯 2  灯 亮度+",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.linp_cn_1137691863_lp1bc_brightness_down_a_2_3",
+      "name": "卫生间人体存在平板灯 2  灯 亮度-",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.linp_cn_1137691863_lp1bc_brightness_sw_a_4_1",
+      "name": "卫生间人体存在平板灯 2 * 智能场景 亮度切换",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.linp_cn_1137691863_lp1bc_crossctrl_pair_start_a_4_2",
+      "name": "卫生间人体存在平板灯 2 * 智能场景 互控学习-开始",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.linp_cn_1137691863_lp1bc_crossctrl_pair_clear_a_4_3",
+      "name": "卫生间人体存在平板灯 2 * 智能场景 互控学习-清除",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.linp_cn_1137691863_lp1bc_switch_pair_start_a_4_4",
+      "name": "卫生间人体存在平板灯 2 * 智能场景 自发电开关配对-开始学习",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.linp_cn_1137691863_lp1bc_switch_pair_clear_a_4_5",
+      "name": "卫生间人体存在平板灯 2 * 智能场景 自发电开关配对-清除",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.xiaomi_cn_266748325_lx04_play_radio_a_5_3",
+      "name": "卫生间小爱触屏音箱  智能音箱 播放电台",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.xiaomi_cn_266748325_lx04_stop_alarm_a_6_1",
+      "name": "卫生间小爱触屏音箱  闹钟 停止闹钟",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.linp_cn_2023072411_ld6bcw_toggle_a_2_1",
+      "name": "靠卫生间走廊灯  灯 开关状态切换",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.linp_cn_2023072411_ld6bcw_brightness_up_a_2_2",
+      "name": "靠卫生间走廊灯  灯 亮度+",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.linp_cn_2023072411_ld6bcw_brightness_down_a_2_3",
+      "name": "靠卫生间走廊灯  灯 亮度-",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.linp_cn_2023072411_ld6bcw_color_temperature_down_a_2_4",
+      "name": "靠卫生间走廊灯  灯 色温-",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.linp_cn_2023072411_ld6bcw_color_temperature_up_a_2_5",
+      "name": "靠卫生间走廊灯  灯 色温+",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.linp_cn_2023072411_ld6bcw_brightness_sw_a_4_1",
+      "name": "靠卫生间走廊灯 * 智能场景 亮度切换",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.linp_cn_2023072411_ld6bcw_colortemperature_sw_a_4_2",
+      "name": "靠卫生间走廊灯 * 智能场景 色温切换",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.linp_cn_2023072411_ld6bcw_crossctrl_pair_start_a_4_3",
+      "name": "靠卫生间走廊灯 * 智能场景 互控学习-开始",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.linp_cn_2023072411_ld6bcw_crossctrl_pair_clear_a_4_4",
+      "name": "靠卫生间走廊灯 * 智能场景 互控学习-清除",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.linp_cn_2023072411_ld6bcw_switch_pair_start_a_4_5",
+      "name": "靠卫生间走廊灯 * 智能场景 自发电开关配对-开始",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.linp_cn_2023072411_ld6bcw_switch_pair_clear_a_4_6",
+      "name": "靠卫生间走廊灯 * 智能场景 自发电开关配对-清除",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.linp_cn_2023072411_ld6bcw_illum_report_start_a_4_7",
+      "name": "靠卫生间走廊灯 * 智能场景 开始上报光照强度（仅在光照上报功能关闭时有效）",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.linp_cn_2023072411_ld6bcw_illum_report_stop_a_4_8",
+      "name": "靠卫生间走廊灯 * 智能场景 停止上报光照强度（仅在光照上报功能关闭时有效）",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "event.linp_cn_blt_3_1ll1gt2c10c00_ks2bb_click_e_5_1012",
+      "name": "卫生间温湿度计按键版  BLE专用开关传感器 单击",
+      "state": "2026-04-26T05:16:40.427+00:00"
+    },
+    {
+      "entity_id": "event.linp_cn_blt_3_1ll1gt2c10c00_ks2bb_double_click_e_5_1013",
+      "name": "卫生间温湿度计按键版  BLE专用开关传感器 双击",
+      "state": "2026-04-26T05:19:37.735+00:00"
+    },
+    {
+      "entity_id": "event.linp_cn_blt_3_1ll1gt2c10c00_ks2bb_long_press_e_5_1014",
+      "name": "卫生间温湿度计按键版  BLE专用开关传感器 长按",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "event.linp_cn_blt_3_1ll1gt2c10c00_ks2bb_device_be_reset_e_5_1028",
+      "name": "卫生间温湿度计按键版  BLE专用开关传感器 设备被重置",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "light.linp_cn_1137691863_lp1bc_s_2_light",
+      "name": "卫生间人体存在平板灯 2  灯",
+      "state": "off"
+    },
+    {
+      "entity_id": "light.linp_cn_2023072411_ld6bcw_s_2_light",
+      "name": "靠卫生间走廊灯  灯",
+      "state": "off"
+    },
+    {
+      "entity_id": "media_player.xiaomi_cn_266748325_lx04",
+      "name": "卫生间小爱触屏音箱  音箱",
+      "state": "on"
+    },
+    {
+      "entity_id": "notify.linp_cn_1137691863_lp1bc_set_brightness_a_2_4",
+      "name": "卫生间人体存在平板灯 2  灯 设置亮度并开灯",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "notify.xiaomi_cn_266748325_lx04_play_text_a_5_1",
+      "name": "卫生间小爱触屏音箱  智能音箱 播放文本",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "notify.xiaomi_cn_266748325_lx04_wake_up_a_5_2",
+      "name": "卫生间小爱触屏音箱  智能音箱 唤醒",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "notify.xiaomi_cn_266748325_lx04_execute_text_directive_a_5_4",
+      "name": "卫生间小爱触屏音箱  智能音箱 执行文本指令",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "notify.linp_cn_2023072411_ld6bcw_set_brightness_a_2_6",
+      "name": "靠卫生间走廊灯  灯 设置亮度并开灯",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "notify.linp_cn_2023072411_ld6bcw_set_color_temperature_a_2_7",
+      "name": "靠卫生间走廊灯  灯 设置色温并开灯",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "number.linp_cn_1137691863_lp1bc_light_on_gradient_time_p_2_10",
+      "name": "卫生间人体存在平板灯 2  灯 开灯渐亮时长",
+      "state": "2"
+    },
+    {
+      "entity_id": "number.linp_cn_1137691863_lp1bc_light_off_gradient_time_p_2_11",
+      "name": "卫生间人体存在平板灯 2  灯 关灯渐灭时长",
+      "state": "2"
+    },
+    {
+      "entity_id": "number.linp_cn_1137691863_lp1bc_no_one_determine_time_p_5_2",
+      "name": "卫生间人体存在平板灯 2  雷达 无人判定时长",
+      "state": "120"
+    },
+    {
+      "entity_id": "number.linp_cn_1137691863_lp1bc_lux_threshold_p_4_3",
+      "name": "卫生间人体存在平板灯 2 * 智能场景 灯-人存联动光照阈值",
+      "state": "90"
+    },
+    {
+      "entity_id": "number.linp_cn_1137691863_lp1bc_shielding_distance_p_6_2",
+      "name": "卫生间人体存在平板灯 2 * 人存设置项 屏蔽距离（每个bit代表一个距离门）",
+      "state": "3"
+    },
+    {
+      "entity_id": "number.linp_cn_1137691863_lp1bc_someone_judge_time_p_6_5",
+      "name": "卫生间人体存在平板灯 2 * 人存设置项 有人延时判断时间（毫秒）",
+      "state": "100"
+    },
+    {
+      "entity_id": "number.linp_cn_1137691863_lp1bc_move_threshold_high_p_6_7",
+      "name": "卫生间人体存在平板灯 2 * 人存设置项 运动灵敏度设置高32bit",
+      "state": "826344598"
+    },
+    {
+      "entity_id": "number.linp_cn_1137691863_lp1bc_move_threshold_low_p_6_8",
+      "name": "卫生间人体存在平板灯 2 * 人存设置项 运动灵敏度设置低32bit",
+      "state": "805306368"
+    },
+    {
+      "entity_id": "number.linp_cn_1137691863_lp1bc_miro_move_high_p_6_9",
+      "name": "卫生间人体存在平板灯 2 * 人存设置项 微动灵敏度设置高32bit",
+      "state": "902353664"
+    },
+    {
+      "entity_id": "number.linp_cn_1137691863_lp1bc_miro_move_low_p_6_10",
+      "name": "卫生间人体存在平板灯 2 * 人存设置项 微动灵敏度设置低32bit",
+      "state": "805306368"
+    },
+    {
+      "entity_id": "number.linp_cn_2023072411_ld6bcw_light_on_gradient_time_p_2_10",
+      "name": "靠卫生间走廊灯  灯 开灯渐亮时长",
+      "state": "2"
+    },
+    {
+      "entity_id": "number.linp_cn_2023072411_ld6bcw_light_off_gradient_time_p_2_11",
+      "name": "靠卫生间走廊灯  灯 关灯渐灭时长",
+      "state": "2"
+    },
+    {
+      "entity_id": "number.linp_cn_2023072411_ld6bcw_no_one_determine_time_p_5_2",
+      "name": "靠卫生间走廊灯  雷达 无人判定时长",
+      "state": "120"
+    },
+    {
+      "entity_id": "number.linp_cn_2023072411_ld6bcw_lux_threshold_p_4_3",
+      "name": "靠卫生间走廊灯 * 智能场景 灯-人存联动光照阈值",
+      "state": "20"
+    },
+    {
+      "entity_id": "number.linp_cn_2023072411_ld6bcw_night_mode_data_p_4_9",
+      "name": "靠卫生间走廊灯 * 智能场景 夜间模式数据",
+      "state": "85854921"
+    },
+    {
+      "entity_id": "number.linp_cn_2023072411_ld6bcw_debug_mode_p_4_10",
+      "name": "靠卫生间走廊灯 * 智能场景 工程模式",
+      "state": "0"
+    },
+    {
+      "entity_id": "number.linp_cn_2023072411_ld6bcw_minimum_brightness_p_4_12",
+      "name": "靠卫生间走廊灯 * 智能场景 最低亮度",
+      "state": "10"
+    },
+    {
+      "entity_id": "number.linp_cn_2023072411_ld6bcw_night_mode_color_tem_p_4_14",
+      "name": "靠卫生间走廊灯 * 智能场景 夜间模式色温",
+      "state": "2700"
+    },
+    {
+      "entity_id": "number.linp_cn_2023072411_ld6bcw_shielding_distance_p_6_2",
+      "name": "靠卫生间走廊灯 * 人存设置项 屏蔽距离（每个bit代表一个距离门）",
+      "state": "3"
+    },
+    {
+      "entity_id": "number.linp_cn_2023072411_ld6bcw_someone_judge_time_p_6_5",
+      "name": "靠卫生间走廊灯 * 人存设置项 有人延时判断时间（毫秒）",
+      "state": "100"
+    },
+    {
+      "entity_id": "number.linp_cn_2023072411_ld6bcw_move_threshold_high_p_6_7",
+      "name": "靠卫生间走廊灯 * 人存设置项 运动灵敏度设置高32bit",
+      "state": "913286097"
+    },
+    {
+      "entity_id": "number.linp_cn_2023072411_ld6bcw_move_threshold_low_p_6_8",
+      "name": "靠卫生间走廊灯 * 人存设置项 运动灵敏度设置低32bit",
+      "state": "970056782"
+    },
+    {
+      "entity_id": "number.linp_cn_2023072411_ld6bcw_miro_move_high_p_6_9",
+      "name": "靠卫生间走廊灯 * 人存设置项 微动灵敏度设置高32bit",
+      "state": "978659923"
+    },
+    {
+      "entity_id": "number.linp_cn_2023072411_ld6bcw_miro_move_low_p_6_10",
+      "name": "靠卫生间走廊灯 * 人存设置项 微动灵敏度设置低32bit",
+      "state": "974366932"
+    },
+    {
+      "entity_id": "select.linp_cn_1137691863_lp1bc_default_power_on_state_p_2_9",
+      "name": "卫生间人体存在平板灯 2  灯 默认上电状态",
+      "state": "断电记忆"
+    },
+    {
+      "entity_id": "select.linp_cn_1137691863_lp1bc_human_trigger_lv_p_4_4",
+      "name": "卫生间人体存在平板灯 2 * 智能场景 有人触发等级设置（防误触功能）",
+      "state": "One Region"
+    },
+    {
+      "entity_id": "select.linp_cn_1137691863_lp1bc_sensitivity_p_6_6",
+      "name": "卫生间人体存在平板灯 2 * 人存设置项 灵敏度等级",
+      "state": "User-defined"
+    },
+    {
+      "entity_id": "select.linp_cn_1137691863_lp1bc_radar_function_onoff_p_6_12",
+      "name": "卫生间人体存在平板灯 2 * 人存设置项 用于开启/关闭雷达上报功能",
+      "state": "RADAR-ON"
+    },
+    {
+      "entity_id": "select.linp_cn_2023072411_ld6bcw_default_power_on_state_p_2_9",
+      "name": "靠卫生间走廊灯  灯 默认上电状态",
+      "state": "上电打开"
+    },
+    {
+      "entity_id": "select.linp_cn_2023072411_ld6bcw_human_trigger_lv_p_4_4",
+      "name": "靠卫生间走廊灯 * 智能场景 有人触发等级设置（防误触功能）",
+      "state": "1区"
+    },
+    {
+      "entity_id": "select.linp_cn_2023072411_ld6bcw_sensitivity_p_6_6",
+      "name": "靠卫生间走廊灯 * 人存设置项 灵敏度等级",
+      "state": "自定义"
+    },
+    {
+      "entity_id": "select.linp_cn_2023072411_ld6bcw_radar_function_onoff_p_6_12",
+      "name": "靠卫生间走廊灯 * 人存设置项 雷达感应开关",
+      "state": "雷达开"
+    },
+    {
+      "entity_id": "sensor.linp_cn_1137691863_lp1bc_has_someone_duration_p_5_3",
+      "name": "卫生间人体存在平板灯 2  雷达 有人持续时长",
+      "state": "0"
+    },
+    {
+      "entity_id": "sensor.linp_cn_1137691863_lp1bc_no_one_duration_p_5_4",
+      "name": "卫生间人体存在平板灯 2  雷达 无人持续时长",
+      "state": "168"
+    },
+    {
+      "entity_id": "sensor.linp_cn_1137691863_lp1bc_illumination_p_5_5",
+      "name": "卫生间人体存在平板灯 2  雷达 光照度",
+      "state": "7"
+    },
+    {
+      "entity_id": "sensor.linp_cn_1137691863_lp1bc_remote_num_p_4_8",
+      "name": "卫生间人体存在平板灯 2 * 智能场景 遥控个数",
+      "state": "0"
+    },
+    {
+      "entity_id": "sensor.linp_cn_1137691863_lp1bc_distance_bitmap_p_6_11",
+      "name": "卫生间人体存在平板灯 2 * 人存设置项 用于有人进入日志-附触发区段",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "sensor.linp_cn_1137691863_lp1bc_real_time_bitmap_p_6_14",
+      "name": "卫生间人体存在平板灯 2 * 人存设置项 实时有人状态显示",
+      "state": "0"
+    },
+    {
+      "entity_id": "sensor.linp_cn_1137691863_lp1bc_occupancy_status_p_5_1",
+      "name": "卫生间人体存在平板灯 2  雷达 有人无人状态",
+      "state": "NoOne"
+    },
+    {
+      "entity_id": "sensor.xiaomi_cn_266748325_lx04_audio_id_p_5_4",
+      "name": "卫生间小爱触屏音箱  智能音箱 音频ID ",
+      "state": "3678975780971408733"
+    },
+    {
+      "entity_id": "sensor.linp_cn_blt_3_1ll1gt2c10c00_ks2bb_temperature_p_2_1001",
+      "name": "卫生间温湿度计按键版  温湿度传感器 温度",
+      "state": "19.7"
+    },
+    {
+      "entity_id": "sensor.linp_cn_blt_3_1ll1gt2c10c00_ks2bb_relative_humidity_p_2_1002",
+      "name": "卫生间温湿度计按键版  温湿度传感器 相对湿度",
+      "state": "59"
+    },
+    {
+      "entity_id": "sensor.linp_cn_blt_3_1ll1gt2c10c00_ks2bb_battery_level_p_4_1003",
+      "name": "卫生间温湿度计按键版  电池 电池电量",
+      "state": "53"
+    },
+    {
+      "entity_id": "sensor.linp_cn_2023072411_ld6bcw_has_someone_duration_p_5_3",
+      "name": "靠卫生间走廊灯  雷达 有人持续时长",
+      "state": "0分钟"
+    },
+    {
+      "entity_id": "sensor.linp_cn_2023072411_ld6bcw_no_one_duration_p_5_4",
+      "name": "靠卫生间走廊灯  雷达 无人持续时长",
+      "state": "30分钟"
+    },
+    {
+      "entity_id": "sensor.linp_cn_2023072411_ld6bcw_illumination_p_5_5",
+      "name": "靠卫生间走廊灯  雷达 光照度",
+      "state": "0"
+    },
+    {
+      "entity_id": "sensor.linp_cn_2023072411_ld6bcw_remote_num_p_4_8",
+      "name": "靠卫生间走廊灯 * 智能场景 遥控器数量",
+      "state": "0"
+    },
+    {
+      "entity_id": "sensor.linp_cn_2023072411_ld6bcw_radar_ver_p_6_16",
+      "name": "靠卫生间走廊灯 * 人存设置项 雷达版本号",
+      "state": "3"
+    },
+    {
+      "entity_id": "switch.linp_cn_1137691863_lp1bc_link_human_sensor_p_4_2",
+      "name": "卫生间人体存在平板灯 2 * 智能场景 灯-人存联动（有人开灯，无人关灯）",
+      "state": "on"
+    },
+    {
+      "entity_id": "switch.linp_cn_1137691863_lp1bc_eng_mode_p_6_15",
+      "name": "卫生间人体存在平板灯 2 * 人存设置项 Engineering Mode",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.xiaomi_cn_266748325_lx04_mute_p_4_1",
+      "name": "卫生间小爱触屏音箱  麦克风 静音",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.xiaomi_cn_266748325_lx04_sleep_mode_p_5_3",
+      "name": "卫生间小爱触屏音箱  智能音箱 睡眠模式",
+      "state": "off"
+    },
+    {
+      "entity_id": "switch.linp_cn_2023072411_ld6bcw_link_human_sensor_p_4_2",
+      "name": "靠卫生间走廊灯 * 智能场景 灯-人存联动（有人开灯，无人关灯）",
+      "state": "on"
+    },
+    {
+      "entity_id": "switch.linp_cn_2023072411_ld6bcw_illumination_report_p_4_11",
+      "name": "靠卫生间走廊灯 * 智能场景 光照上报开关",
+      "state": "on"
+    },
+    {
+      "entity_id": "switch.linp_cn_2023072411_ld6bcw_radar_pub_en_p_4_13",
+      "name": "靠卫生间走廊灯 * 智能场景 有人无人上报开关",
+      "state": "on"
+    },
+    {
+      "entity_id": "text.linp_cn_1137691863_lp1bc_set_brightness_a_2_4",
+      "name": "卫生间人体存在平板灯 2  灯 设置亮度并开灯",
+      "state": ""
+    },
+    {
+      "entity_id": "text.xiaomi_cn_266748325_lx04_play_text_a_5_1",
+      "name": "卫生间小爱触屏音箱  智能音箱 播放文本",
+      "state": ""
+    },
+    {
+      "entity_id": "text.xiaomi_cn_266748325_lx04_wake_up_a_5_2",
+      "name": "卫生间小爱触屏音箱  智能音箱 唤醒",
+      "state": ""
+    },
+    {
+      "entity_id": "text.xiaomi_cn_266748325_lx04_execute_text_directive_a_5_4",
+      "name": "卫生间小爱触屏音箱  智能音箱 执行文本指令",
+      "state": ""
+    },
+    {
+      "entity_id": "text.linp_cn_2023072411_ld6bcw_set_brightness_a_2_6",
+      "name": "靠卫生间走廊灯  灯 设置亮度并开灯",
+      "state": ""
+    },
+    {
+      "entity_id": "text.linp_cn_2023072411_ld6bcw_set_color_temperature_a_2_7",
+      "name": "靠卫生间走廊灯  灯 设置色温并开灯",
+      "state": ""
+    },
+    {
+      "entity_id": "sensor.wei_sheng_jian_cun_dun_ri_liang_deng_shi_chang",
+      "name": "卫生间寸伅日亮灯时长",
+      "state": "660.0"
+    },
+    {
+      "entity_id": "sensor.wei_sheng_jian_cun_dun_zhou_liang_deng_shi_chang",
+      "name": "卫生间寸伅周亮灯时长",
+      "state": "2580.0"
+    },
+    {
+      "entity_id": "sensor.wei_sheng_jian_cun_dun_yue_liang_deng_shi_chang",
+      "name": "卫生间寸伅月亮灯时长",
+      "state": "32180.0"
+    },
+    {
+      "entity_id": "sensor.wei_sheng_jian_cun_dun_nian_liang_deng_shi_chang",
+      "name": "卫生间寸伅年亮灯时长",
+      "state": "32180.0"
+    },
+    {
+      "entity_id": "sensor.zou_lang_wei_sheng_jian_cun_dun_ri_liang_deng_shi_chang",
+      "name": "走廊卫生间寸伅日亮灯时长",
+      "state": "1020.0"
+    },
+    {
+      "entity_id": "sensor.zou_lang_wei_sheng_jian_cun_dun_zhou_liang_deng_shi_chang",
+      "name": "走廊卫生间寸伅周亮灯时长",
+      "state": "6270.0"
+    },
+    {
+      "entity_id": "sensor.zou_lang_wei_sheng_jian_cun_dun_yue_liang_deng_shi_chang",
+      "name": "走廊卫生间寸伅月亮灯时长",
+      "state": "130680.0"
+    },
+    {
+      "entity_id": "sensor.zou_lang_wei_sheng_jian_cun_dun_nian_liang_deng_shi_chang",
+      "name": "走廊卫生间寸伅年亮灯时长",
+      "state": "130680.0"
+    },
+    {
+      "entity_id": "automation.liang_deng_wei_sheng_jian_deng_liang_shi_chang_lei_jia_2",
+      "name": "[亮灯] 卫生间灯亮灯时长累计",
+      "state": "on"
+    },
+    {
+      "entity_id": "automation.liang_deng_zou_lang_wei_sheng_jian_deng_liang_shi_chang_lei_jia_2",
+      "name": "[亮灯] 走廊卫生间灯亮灯时长累计",
+      "state": "on"
+    },
+    {
+      "entity_id": "automation.qu_yu_wei_sheng_jian_fang_wen_ji_shu_v2",
+      "name": "[区域] 卫生间访问计数（v2）",
+      "state": "on"
+    },
+    {
+      "entity_id": "automation.wei_sheng_jian_deng_kai_qi_shi_kai_shi_ji_shi",
+      "name": "卫生间灯开启时开始计时",
+      "state": "unavailable"
+    },
+    {
+      "entity_id": "automation.wei_sheng_jian_deng_guan_bi_shi_ting_zhi_ji_shi",
+      "name": "卫生间灯关闭时停止计时",
+      "state": "unavailable"
+    }
+  ],
+  "走廊玄关": [
+    {
+      "entity_id": "counter.hallway_visits",
+      "name": "走廊玄关访问次数",
+      "state": "4"
+    },
+    {
+      "entity_id": "input_number.hallway_duration",
+      "name": "走廊玄关停留时长（秒）",
+      "state": "0.0"
+    },
+    {
+      "entity_id": "input_number.hallway_light_duration",
+      "name": "走廊灯今日亮灯时长（秒）",
+      "state": "0.0"
+    },
+    {
+      "entity_id": "input_number.light_hallway_main_duration",
+      "name": "走廊走道灯亮灯时长（秒）",
+      "state": "27750.0"
+    },
+    {
+      "entity_id": "input_datetime.hallway_entry",
+      "name": "走廊玄关进入时间",
+      "state": "07:47:46"
+    },
+    {
+      "entity_id": "input_datetime.hallway_light_on",
+      "name": "走廊灯开启时间",
+      "state": "07:50:51"
+    },
+    {
+      "entity_id": "sensor.zou_lang_deng_jin_ri_liang_deng_shi_chang",
+      "name": "走廊灯今日亮灯时长",
+      "state": "0.0"
+    },
+    {
+      "entity_id": "sensor.zou_lang_xuan_guan_ting_liu_shi_chang",
+      "name": "走廊玄关停留时长",
+      "state": "0"
+    },
+    {
+      "entity_id": "sensor.zou_lang_deng_jin_ri_liang_deng",
+      "name": "走廊灯今日亮灯",
+      "state": "0.0"
+    },
+    {
+      "entity_id": "sensor.zou_lang_zou_dao_deng_liang_deng_shi_chang",
+      "name": "走廊走道灯亮灯时长",
+      "state": "8"
+    },
+    {
+      "entity_id": "sensor.zou_lang_deng_jin_ri_liang_deng_2",
+      "name": "走廊灯今日亮灯",
+      "state": "0.0"
+    },
+    {
+      "entity_id": "sensor.zou_lang_zou_dao_deng_ri_liang_deng_shi_chang",
+      "name": "走廊走道灯日亮灯时长",
+      "state": "420.0"
+    },
+    {
+      "entity_id": "sensor.zou_lang_zou_dao_deng_zhou_liang_deng_shi_chang",
+      "name": "走廊走道灯周亮灯时长",
+      "state": "2310.0"
+    },
+    {
+      "entity_id": "sensor.zou_lang_zou_dao_deng_yue_liang_deng_shi_chang",
+      "name": "走廊走道灯月亮灯时长",
+      "state": "91130.0"
+    },
+    {
+      "entity_id": "sensor.zou_lang_zou_dao_deng_nian_liang_deng_shi_chang",
+      "name": "走廊走道灯年亮灯时长",
+      "state": "108980.0"
+    },
+    {
+      "entity_id": "automation.liang_deng_zou_lang_zou_dao_deng_liang_shi_chang_lei_jia_2",
+      "name": "[亮灯] 走廊走道灯亮灯时长累计",
+      "state": "on"
+    },
+    {
+      "entity_id": "automation.qu_yu_zou_lang_fang_wen_ji_shu_v2",
+      "name": "[区域] 走廊访问计数（v2）",
+      "state": "on"
+    },
+    {
+      "entity_id": "automation.zou_lang_deng_kai_qi_shi_kai_shi_ji_shi",
+      "name": "走廊灯开启时开始计时",
+      "state": "unavailable"
+    },
+    {
+      "entity_id": "automation.zou_lang_deng_guan_bi_shi_ting_zhi_ji_shi",
+      "name": "走廊灯关闭时停止计时",
+      "state": "unavailable"
+    }
+  ],
+  "门口": [
+    {
+      "entity_id": "counter.doorway_visits",
+      "name": "门口访问次数",
+      "state": "7"
+    },
+    {
+      "entity_id": "sensor.men_kou_tong_deng_yue_liang_deng_shi_chang",
+      "name": "门口筒灯月亮灯时长",
+      "state": "0.09"
+    },
+    {
+      "entity_id": "input_number.doorway_duration",
+      "name": "门口停留时长（秒）",
+      "state": "0.0"
+    },
+    {
+      "entity_id": "input_number.doorway_light_duration",
+      "name": "门口灯今日亮灯时长（秒）",
+      "state": "0.0"
+    },
+    {
+      "entity_id": "input_number.light_doorway_duration",
+      "name": "门口筒灯亮灯时长（秒）",
+      "state": "26010.0"
+    },
+    {
+      "entity_id": "input_datetime.doorway_entry",
+      "name": "门口进入时间",
+      "state": "00:00:00"
+    },
+    {
+      "entity_id": "input_datetime.doorway_light_on",
+      "name": "门口灯开启时间",
+      "state": "10:41:18"
+    },
+    {
+      "entity_id": "sensor.men_kou_deng_jin_ri_liang_deng_shi_chang",
+      "name": "门口灯今日亮灯时长",
+      "state": "0.0"
+    },
+    {
+      "entity_id": "sensor.men_kou_ting_liu_shi_chang",
+      "name": "门口停留时长",
+      "state": "0"
+    },
+    {
+      "entity_id": "sensor.men_kou_deng_jin_ri_liang_deng",
+      "name": "门口灯今日亮灯",
+      "state": "0.0"
+    },
+    {
+      "entity_id": "sensor.men_kou_tong_deng_liang_deng_shi_chang",
+      "name": "门口筒灯亮灯时长",
+      "state": "7"
+    },
+    {
+      "entity_id": "sensor.men_kou_deng_jin_ri_liang_deng_2",
+      "name": "门口灯今日亮灯",
+      "state": "0.0"
+    },
+    {
+      "entity_id": "button.linp_cn_2079761645_ld6bcw_toggle_a_2_1",
+      "name": "门口人体存在筒灯  灯 开关状态切换",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.linp_cn_2079761645_ld6bcw_brightness_up_a_2_2",
+      "name": "门口人体存在筒灯  灯 亮度+",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.linp_cn_2079761645_ld6bcw_brightness_down_a_2_3",
+      "name": "门口人体存在筒灯  灯 亮度-",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.linp_cn_2079761645_ld6bcw_color_temperature_down_a_2_4",
+      "name": "门口人体存在筒灯  灯 色温-",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.linp_cn_2079761645_ld6bcw_color_temperature_up_a_2_5",
+      "name": "门口人体存在筒灯  灯 色温+",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.linp_cn_2079761645_ld6bcw_brightness_sw_a_4_1",
+      "name": "门口人体存在筒灯 * 智能场景 亮度切换",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.linp_cn_2079761645_ld6bcw_colortemperature_sw_a_4_2",
+      "name": "门口人体存在筒灯 * 智能场景 色温切换",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.linp_cn_2079761645_ld6bcw_crossctrl_pair_start_a_4_3",
+      "name": "门口人体存在筒灯 * 智能场景 互控学习-开始",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.linp_cn_2079761645_ld6bcw_crossctrl_pair_clear_a_4_4",
+      "name": "门口人体存在筒灯 * 智能场景 互控学习-清除",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.linp_cn_2079761645_ld6bcw_switch_pair_start_a_4_5",
+      "name": "门口人体存在筒灯 * 智能场景 自发电开关配对-开始",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.linp_cn_2079761645_ld6bcw_switch_pair_clear_a_4_6",
+      "name": "门口人体存在筒灯 * 智能场景 自发电开关配对-清除",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.linp_cn_2079761645_ld6bcw_illum_report_start_a_4_7",
+      "name": "门口人体存在筒灯 * 智能场景 开始上报光照强度（仅在光照上报功能关闭时有效）",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "button.linp_cn_2079761645_ld6bcw_illum_report_stop_a_4_8",
+      "name": "门口人体存在筒灯 * 智能场景 停止上报光照强度（仅在光照上报功能关闭时有效）",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "event.linp_cn_blt_3_1nb2mr6n44s00_ks2bb_click_e_5_1012",
+      "name": "门口温湿度计按键版  BLE专用开关传感器 单击",
+      "state": "2026-04-11T14:42:55.804+00:00"
+    },
+    {
+      "entity_id": "event.linp_cn_blt_3_1nb2mr6n44s00_ks2bb_double_click_e_5_1013",
+      "name": "门口温湿度计按键版  BLE专用开关传感器 双击",
+      "state": "2026-04-11T14:42:53.644+00:00"
+    },
+    {
+      "entity_id": "event.linp_cn_blt_3_1nb2mr6n44s00_ks2bb_long_press_e_5_1014",
+      "name": "门口温湿度计按键版  BLE专用开关传感器 长按",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "event.linp_cn_blt_3_1nb2mr6n44s00_ks2bb_device_be_reset_e_5_1028",
+      "name": "门口温湿度计按键版  BLE专用开关传感器 设备被重置",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "light.linp_cn_2079761645_ld6bcw_s_2_light",
+      "name": "门口人体存在筒灯  灯",
+      "state": "off"
+    },
+    {
+      "entity_id": "notify.linp_cn_2079761645_ld6bcw_set_brightness_a_2_6",
+      "name": "门口人体存在筒灯  灯 设置亮度并开灯",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "notify.linp_cn_2079761645_ld6bcw_set_color_temperature_a_2_7",
+      "name": "门口人体存在筒灯  灯 设置色温并开灯",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "number.linp_cn_2079761645_ld6bcw_light_on_gradient_time_p_2_10",
+      "name": "门口人体存在筒灯  灯 开灯渐亮时长",
+      "state": "2"
+    },
+    {
+      "entity_id": "number.linp_cn_2079761645_ld6bcw_light_off_gradient_time_p_2_11",
+      "name": "门口人体存在筒灯  灯 关灯渐灭时长",
+      "state": "2"
+    },
+    {
+      "entity_id": "number.linp_cn_2079761645_ld6bcw_no_one_determine_time_p_5_2",
+      "name": "门口人体存在筒灯  雷达 无人判定时长",
+      "state": "180"
+    },
+    {
+      "entity_id": "number.linp_cn_2079761645_ld6bcw_lux_threshold_p_4_3",
+      "name": "门口人体存在筒灯 * 智能场景 灯-人存联动光照阈值",
+      "state": "100"
+    },
+    {
+      "entity_id": "number.linp_cn_2079761645_ld6bcw_night_mode_data_p_4_9",
+      "name": "门口人体存在筒灯 * 智能场景 夜间模式数据",
+      "state": "85854561"
+    },
+    {
+      "entity_id": "number.linp_cn_2079761645_ld6bcw_debug_mode_p_4_10",
+      "name": "门口人体存在筒灯 * 智能场景 工程模式",
+      "state": "0"
+    },
+    {
+      "entity_id": "number.linp_cn_2079761645_ld6bcw_minimum_brightness_p_4_12",
+      "name": "门口人体存在筒灯 * 智能场景 最低亮度",
+      "state": "10"
+    },
+    {
+      "entity_id": "number.linp_cn_2079761645_ld6bcw_night_mode_color_tem_p_4_14",
+      "name": "门口人体存在筒灯 * 智能场景 夜间模式色温",
+      "state": "2700"
+    },
+    {
+      "entity_id": "number.linp_cn_2079761645_ld6bcw_shielding_distance_p_6_2",
+      "name": "门口人体存在筒灯 * 人存设置项 屏蔽距离（每个bit代表一个距离门）",
+      "state": "7"
+    },
+    {
+      "entity_id": "number.linp_cn_2079761645_ld6bcw_someone_judge_time_p_6_5",
+      "name": "门口人体存在筒灯 * 人存设置项 有人延时判断时间（毫秒）",
+      "state": "100"
+    },
+    {
+      "entity_id": "number.linp_cn_2079761645_ld6bcw_move_threshold_high_p_6_7",
+      "name": "门口人体存在筒灯 * 人存设置项 运动灵敏度设置高32bit",
+      "state": "911171232"
+    },
+    {
+      "entity_id": "number.linp_cn_2079761645_ld6bcw_move_threshold_low_p_6_8",
+      "name": "门口人体存在筒灯 * 人存设置项 运动灵敏度设置低32bit",
+      "state": "839752767"
+    },
+    {
+      "entity_id": "number.linp_cn_2079761645_ld6bcw_miro_move_high_p_6_9",
+      "name": "门口人体存在筒灯 * 人存设置项 微动灵敏度设置高32bit",
+      "state": "991291707"
+    },
+    {
+      "entity_id": "number.linp_cn_2079761645_ld6bcw_miro_move_low_p_6_10",
+      "name": "门口人体存在筒灯 * 人存设置项 微动灵敏度设置低32bit",
+      "state": "900834895"
+    },
+    {
+      "entity_id": "select.linp_cn_2079761645_ld6bcw_default_power_on_state_p_2_9",
+      "name": "门口人体存在筒灯  灯 默认上电状态",
+      "state": "上电打开"
+    },
+    {
+      "entity_id": "select.linp_cn_2079761645_ld6bcw_human_trigger_lv_p_4_4",
+      "name": "门口人体存在筒灯 * 智能场景 有人触发等级设置（防误触功能）",
+      "state": "2区"
+    },
+    {
+      "entity_id": "select.linp_cn_2079761645_ld6bcw_sensitivity_p_6_6",
+      "name": "门口人体存在筒灯 * 人存设置项 灵敏度等级",
+      "state": "自定义"
+    },
+    {
+      "entity_id": "select.linp_cn_2079761645_ld6bcw_radar_function_onoff_p_6_12",
+      "name": "门口人体存在筒灯 * 人存设置项 雷达感应开关",
+      "state": "雷达开"
+    },
+    {
+      "entity_id": "sensor.linp_cn_2079761645_ld6bcw_has_someone_duration_p_5_3",
+      "name": "门口人体存在筒灯  雷达 有人持续时长",
+      "state": "0分钟"
+    },
+    {
+      "entity_id": "sensor.linp_cn_2079761645_ld6bcw_no_one_duration_p_5_4",
+      "name": "门口人体存在筒灯  雷达 无人持续时长",
+      "state": "30分钟"
+    },
+    {
+      "entity_id": "sensor.linp_cn_2079761645_ld6bcw_illumination_p_5_5",
+      "name": "门口人体存在筒灯  雷达 光照度",
+      "state": "0"
+    },
+    {
+      "entity_id": "sensor.linp_cn_2079761645_ld6bcw_remote_num_p_4_8",
+      "name": "门口人体存在筒灯 * 智能场景 遥控器数量",
+      "state": "0"
+    },
+    {
+      "entity_id": "sensor.linp_cn_2079761645_ld6bcw_radar_ver_p_6_16",
+      "name": "门口人体存在筒灯 * 人存设置项 雷达版本号",
+      "state": "3"
+    },
+    {
+      "entity_id": "sensor.linp_cn_blt_3_1nb2mr6n44s00_ks2bb_temperature_p_2_1001",
+      "name": "门口温湿度计按键版  温湿度传感器 温度",
+      "state": "20.6"
+    },
+    {
+      "entity_id": "sensor.linp_cn_blt_3_1nb2mr6n44s00_ks2bb_relative_humidity_p_2_1002",
+      "name": "门口温湿度计按键版  温湿度传感器 相对湿度",
+      "state": "54"
+    },
+    {
+      "entity_id": "sensor.linp_cn_blt_3_1nb2mr6n44s00_ks2bb_battery_level_p_4_1003",
+      "name": "门口温湿度计按键版  电池 电池电量",
+      "state": "100"
+    },
+    {
+      "entity_id": "switch.linp_cn_2079761645_ld6bcw_link_human_sensor_p_4_2",
+      "name": "门口人体存在筒灯 * 智能场景 灯-人存联动（有人开灯，无人关灯）",
+      "state": "on"
+    },
+    {
+      "entity_id": "switch.linp_cn_2079761645_ld6bcw_illumination_report_p_4_11",
+      "name": "门口人体存在筒灯 * 智能场景 光照上报开关",
+      "state": "on"
+    },
+    {
+      "entity_id": "switch.linp_cn_2079761645_ld6bcw_radar_pub_en_p_4_13",
+      "name": "门口人体存在筒灯 * 智能场景 有人无人上报开关",
+      "state": "on"
+    },
+    {
+      "entity_id": "text.linp_cn_2079761645_ld6bcw_set_brightness_a_2_6",
+      "name": "门口人体存在筒灯  灯 设置亮度并开灯",
+      "state": ""
+    },
+    {
+      "entity_id": "text.linp_cn_2079761645_ld6bcw_set_color_temperature_a_2_7",
+      "name": "门口人体存在筒灯  灯 设置色温并开灯",
+      "state": ""
+    },
+    {
+      "entity_id": "sensor.men_kou_tong_deng_ri_liang_deng_shi_chang",
+      "name": "门口筒灯日亮灯时长",
+      "state": "810.0"
+    },
+    {
+      "entity_id": "sensor.men_kou_tong_deng_zhou_liang_deng_shi_chang",
+      "name": "门口筒灯周亮灯时长",
+      "state": "3090.0"
+    },
+    {
+      "entity_id": "sensor.men_kou_tong_deng_yue_liang_deng_shi_chang_2",
+      "name": "门口筒灯月亮灯时长",
+      "state": "119600.0"
+    },
+    {
+      "entity_id": "sensor.men_kou_tong_deng_nian_liang_deng_shi_chang",
+      "name": "门口筒灯年亮灯时长",
+      "state": "135780.0"
+    },
+    {
+      "entity_id": "automation.liang_deng_men_kou_tong_deng_liang_shi_chang_lei_jia_2",
+      "name": "[亮灯] 门口筒灯亮灯时长累计",
+      "state": "on"
+    },
+    {
+      "entity_id": "automation.qu_yu_men_kou_fang_wen_ji_shu_v2",
+      "name": "[区域] 门口访问计数（v2）",
+      "state": "on"
+    },
+    {
+      "entity_id": "automation.men_kou_deng_kai_qi_shi_kai_shi_ji_shi",
+      "name": "门口灯开启时开始计时",
+      "state": "unavailable"
+    },
+    {
+      "entity_id": "automation.men_kou_deng_guan_bi_shi_ting_zhi_ji_shi",
+      "name": "门口灯关闭时停止计时",
+      "state": "unavailable"
+    },
+    {
+      "entity_id": "automation.men_kou_fang_wen_ji_shu",
+      "name": "[门口] 访问计数",
+      "state": "unavailable"
+    }
+  ],
+  "大阳台": [
+    {
+      "entity_id": "button.vchon_cn_blt_3_1lgrvovgoc400_mbs17_stop_synic_a_8_2",
+      "name": "大阳台温湿度计 * 历史记录 结束查询",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "notify.vchon_cn_blt_3_1lgrvovgoc400_mbs17_start_synic_a_8_1",
+      "name": "大阳台温湿度计 * 历史记录 开始查询",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "sensor.vchon_cn_blt_3_1lgrvovgoc400_mbs17_temperature_p_2_1001",
+      "name": "大阳台温湿度计  温湿度传感器 温度",
+      "state": "18.7"
+    },
+    {
+      "entity_id": "sensor.vchon_cn_blt_3_1lgrvovgoc400_mbs17_relative_humidity_p_2_1002",
+      "name": "大阳台温湿度计  温湿度传感器 相对湿度",
+      "state": "56"
+    },
+    {
+      "entity_id": "sensor.vchon_cn_blt_3_1lgrvovgoc400_mbs17_battery_level_p_3_1003",
+      "name": "大阳台温湿度计  电池 电池电量",
+      "state": "100"
+    },
+    {
+      "entity_id": "text.vchon_cn_blt_3_1lgrvovgoc400_mbs17_start_synic_a_8_1",
+      "name": "大阳台温湿度计 * 历史记录 开始查询",
+      "state": ""
+    }
+  ],
+  "洗衣机阳台": [
+    {
+      "entity_id": "button.ym001_cn_blt_3_1o90bni4h0g00_ymwsdj_stop_synic_a_8_2",
+      "name": "洗衣机阳台温湿度计 * 历史记录 结束查询",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "notify.ym001_cn_blt_3_1o90bni4h0g00_ymwsdj_start_synic_a_8_1",
+      "name": "洗衣机阳台温湿度计 * 历史记录 开始查询",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "sensor.ym001_cn_blt_3_1o90bni4h0g00_ymwsdj_temperature_p_2_1001",
+      "name": "洗衣机阳台温湿度计  温湿度传感器 温度",
+      "state": "20.3"
+    },
+    {
+      "entity_id": "sensor.ym001_cn_blt_3_1o90bni4h0g00_ymwsdj_relative_humidity_p_2_1002",
+      "name": "洗衣机阳台温湿度计  温湿度传感器 相对湿度",
+      "state": "58"
+    },
+    {
+      "entity_id": "sensor.ym001_cn_blt_3_1o90bni4h0g00_ymwsdj_battery_level_p_3_1003",
+      "name": "洗衣机阳台温湿度计  干电池/纽扣电池 电池电量",
+      "state": "100"
+    },
+    {
+      "entity_id": "sensor.ym001_cn_blt_3_1o90bni4h0g00_ymwsdj_temperature_display_unit_p_5_1026",
+      "name": "洗衣机阳台温湿度计  设备显示单位 温度显示单位",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "text.ym001_cn_blt_3_1o90bni4h0g00_ymwsdj_start_synic_a_8_1",
+      "name": "洗衣机阳台温湿度计 * 历史记录 开始查询",
+      "state": ""
+    }
+  ],
+  "主卧": [
+    {
+      "entity_id": "button.vchon_cn_blt_3_1o931kgud0400_mbs17_stop_synic_a_8_2",
+      "name": "主卧温湿度计 * 历史记录 结束查询",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "notify.vchon_cn_blt_3_1o931kgud0400_mbs17_start_synic_a_8_1",
+      "name": "主卧温湿度计 * 历史记录 开始查询",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "sensor.vchon_cn_blt_3_1o931kgud0400_mbs17_temperature_p_2_1001",
+      "name": "主卧温湿度计  温湿度传感器 温度",
+      "state": "20.1"
+    },
+    {
+      "entity_id": "sensor.vchon_cn_blt_3_1o931kgud0400_mbs17_relative_humidity_p_2_1002",
+      "name": "主卧温湿度计  温湿度传感器 相对湿度",
+      "state": "57"
+    },
+    {
+      "entity_id": "sensor.vchon_cn_blt_3_1o931kgud0400_mbs17_battery_level_p_3_1003",
+      "name": "主卧温湿度计  电池 电池电量",
+      "state": "100"
+    },
+    {
+      "entity_id": "text.vchon_cn_blt_3_1o931kgud0400_mbs17_start_synic_a_8_1",
+      "name": "主卧温湿度计 * 历史记录 开始查询",
+      "state": ""
+    }
+  ],
+  "室外": [
+    {
+      "entity_id": "button.ym001_cn_blt_3_1o9vhlvug4403_ymwsdj_stop_synic_a_8_2",
+      "name": "室外温湿度计 * 历史记录 结束查询",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "notify.ym001_cn_blt_3_1o9vhlvug4403_ymwsdj_start_synic_a_8_1",
+      "name": "室外温湿度计 * 历史记录 开始查询",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "sensor.ym001_cn_blt_3_1o9vhlvug4403_ymwsdj_temperature_p_2_1001",
+      "name": "室外温湿度计  温湿度传感器 温度",
+      "state": "18.3"
+    },
+    {
+      "entity_id": "sensor.ym001_cn_blt_3_1o9vhlvug4403_ymwsdj_relative_humidity_p_2_1002",
+      "name": "室外温湿度计  温湿度传感器 相对湿度",
+      "state": "59"
+    },
+    {
+      "entity_id": "sensor.ym001_cn_blt_3_1o9vhlvug4403_ymwsdj_battery_level_p_3_1003",
+      "name": "室外温湿度计  干电池/纽扣电池 电池电量",
+      "state": "100"
+    },
+    {
+      "entity_id": "sensor.ym001_cn_blt_3_1o9vhlvug4403_ymwsdj_temperature_display_unit_p_5_1026",
+      "name": "室外温湿度计  设备显示单位 温度显示单位",
+      "state": "unknown"
+    },
+    {
+      "entity_id": "text.ym001_cn_blt_3_1o9vhlvug4403_ymwsdj_start_synic_a_8_1",
+      "name": "室外温湿度计 * 历史记录 开始查询",
+      "state": ""
+    }
+  ]
+}

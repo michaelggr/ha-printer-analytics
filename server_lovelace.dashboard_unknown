@@ -1,0 +1,141 @@
+﻿{
+  "version": 1,
+  "minor_version": 1,
+  "key": "lovelace.dashboard_unknown",
+  "data": {
+    "config": {
+      "views": [
+        {
+          "type": "sections",
+          "sections": [
+            {
+              "type": "grid",
+              "cards": [
+                {
+                  "type": "heading",
+                  "heading": "新建部件"
+                },
+                {
+                  "type": "tile",
+                  "entity": "automation.da_yin_cuo_wu_tong_zhi_2"
+                },
+                {
+                  "type": "tile",
+                  "entity": "automation.da_yin_ji_sheng_yu_shi_jian_bo_bao"
+                },
+                {
+                  "type": "tile",
+                  "entity": "automation.da_hei_nu_da_yin_wan_cheng_pai_qi_2"
+                },
+                {
+                  "type": "tile",
+                  "entity": "automation.xiao_hei_nu_da_yin_wan_cheng_da_kai_pai_qi_2"
+                },
+                {
+                  "type": "tile",
+                  "entity": "automation.da_yin_a1_mini_da_yin_li_shi_ji_lu"
+                },
+                {
+                  "type": "tile",
+                  "entity": "automation.da_yin_a1_mini_ji_lu_kai_shi_dian_liang"
+                },
+                {
+                  "type": "tile",
+                  "entity": "automation.ams_1shi_du_da_yu_50fa_tong_zhi_2"
+                },
+                {
+                  "type": "tile",
+                  "entity": "automation.da_yin_wan_cheng_tong_zhi_2"
+                },
+                {
+                  "type": "tile",
+                  "entity": "automation.da_yin_p2s_da_yin_li_shi_ji_lu"
+                },
+                {
+                  "type": "tile",
+                  "entity": "automation.da_yin_p2s_ji_lu_kai_shi_dian_liang"
+                },
+                {
+                  "type": "tile",
+                  "entity": "automation.liang_deng_can_ting_deng_liang_shi_chang_lei_jia_2"
+                },
+                {
+                  "type": "tile",
+                  "entity": "automation.liang_deng_chu_fang_deng_liang_shi_chang_lei_jia_2"
+                },
+                {
+                  "type": "tile",
+                  "entity": "automation.liang_deng_ke_ting_sha_fa_deng_liang_shi_chang_lei_jia_2"
+                },
+                {
+                  "type": "tile",
+                  "entity": "automation.liang_deng_ke_ting_xi_ding_deng_liang_shi_chang_lei_jia_2"
+                },
+                {
+                  "type": "tile",
+                  "entity": "automation.liang_deng_mei_ri_zhong_zhi_suo_you_deng_liang_shi_chang_2"
+                },
+                {
+                  "type": "tile",
+                  "entity": "automation.liang_deng_men_kou_tong_deng_liang_shi_chang_lei_jia_2"
+                },
+                {
+                  "type": "tile",
+                  "entity": "automation.liang_deng_wei_sheng_jian_deng_liang_shi_chang_lei_jia_2"
+                },
+                {
+                  "type": "tile",
+                  "entity": "automation.liang_deng_wo_shi_deng_dai_liang_shi_chang_lei_jia_2"
+                },
+                {
+                  "type": "tile",
+                  "entity": "automation.liang_deng_wo_shi_deng_liang_shi_chang_lei_jia_2"
+                },
+                {
+                  "type": "tile",
+                  "entity": "automation.liang_deng_yu_ba_deng_liang_shi_chang_lei_jia_2"
+                },
+                {
+                  "type": "tile",
+                  "entity": "automation.liang_deng_zou_lang_wei_sheng_jian_deng_liang_shi_chang_lei_jia_2"
+                },
+                {
+                  "type": "tile",
+                  "entity": "automation.liang_deng_zou_lang_zou_dao_deng_liang_shi_chang_lei_jia_2"
+                },
+                {
+                  "type": "tile",
+                  "entity": "automation.xi_tong_zhong_shu_wang_guan_xu_ni_shi_jian_bo_bao"
+                },
+                {
+                  "type": "tile",
+                  "entity": "automation.bambu_lab_chao_mian_jian_ce_mi_jia_tong_zhi_ban"
+                }
+              ]
+            },
+            {
+              "type": "grid",
+              "cards": [
+                {
+                  "type": "tile",
+                  "entity": "update.webrtc_camera_update"
+                }
+              ],
+              "title": "WebRTC Camera"
+            },
+            {
+              "type": "grid",
+              "cards": [
+                {
+                  "type": "tile",
+                  "entity": "update.ai_he_ji_ai_hub_update"
+                }
+              ],
+              "title": "AI 合集(AI HUB)"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

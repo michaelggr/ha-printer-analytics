@@ -45,8 +45,10 @@ BAMBULAB_CAMERA_KEYS = {
     "camera": "camera",
 }
 
-HISTORY_VERSION = 2
-MAX_HISTORY_RECORDS = 2000
+HISTORY_VERSION = 3
+# 支持无限历史记录（100年数据保障）
+# 不再限制记录数量，改为按年分片存储
+MAX_HISTORY_RECORDS = 0  # 0表示无限制
 
 DURATION_BUCKETS = [
     ("0-30分钟", 0, 30),
@@ -55,4 +57,10 @@ DURATION_BUCKETS = [
     ("3-6小时", 180, 360),
     ("6-12小时", 360, 720),
     ("12小时+", 720, float("inf")),
+]
+
+FAILURE_STAGE_BUCKETS = [
+    ("早期(0-30%)", 0, 30),
+    ("中期(30-70%)", 30, 70),
+    ("后期(70-99%)", 70, 100),
 ]

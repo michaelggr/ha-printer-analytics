@@ -16,7 +16,7 @@ class PrinterAnalyticsCard extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
-    if (hass &amp;&amp; this.config) {
+    if (hass && this.config) {
       this.updateData();
     }
   }
@@ -41,7 +41,7 @@ class PrinterAnalyticsCard extends HTMLElement {
     if (!container) return;
 
     container.innerHTML = `
-      &lt;style&gt;
+      <style>
         :host { display: block; }
         .card {
           background: var(--card-background-color, #fff);
@@ -98,10 +98,10 @@ class PrinterAnalyticsCard extends HTMLElement {
         .no-data { text-align: center; color: var(--secondary-text-color, #888); padding: 20px; font-style: italic; }
         .error { background: #fce4ec; color: #c62828; padding: 15px; border-radius: 8px; border-left: 4px solid #c62828; }
         .debug { font-family: monospace; font-size: 11px; background: #fff3e0; padding: 10px; border-radius: 6px; white-space: pre-wrap; }
-      &lt;/style&gt;
-      &lt;div class="card" id="card-content"&gt;
-        &lt;div class="no-data"&gt;加载中...&lt;/div&gt;
-      &lt;/div&gt;
+      </style>
+      <div class="card" id="card-content">
+        <div class="no-data">加载中...</div>
+      </div>
     `;
   }
 
@@ -112,11 +112,11 @@ class PrinterAnalyticsCard extends HTMLElement {
     // 检查配置
     if (!this.config.print_history) {
       container.innerHTML = `
-        &lt;div class="error"&gt;
-          &lt;b&gt;配置错误！&lt;/b&gt;&lt;br&gt;&lt;br&gt;
-          请在配置中设置 &lt;code&gt;print_history&lt;/code&gt; 实体 ID。&lt;br&gt;&lt;br&gt;
+        <div class="error">
+          <b>配置错误！</b><br><br>
+          请在配置中设置 <code>print_history</code> 实体 ID。<br><br>
           示例配置：
-          &lt;pre style="background:#fff;padding:10px;border-radius:4px;margin-top:10px;"&gt;
+          <pre style="background:#fff;padding:10px;border-radius:4px;margin-top:10px;">
 type: custom:printer-analytics-card
 title: P2S打印机
 print_history: sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_li_shi
@@ -130,8 +130,8 @@ material_stats_30d: sensor.p2sda_yin_ji_p2sda_yin_ji_30tian_hao_cai_tong_ji
 duration_distribution: sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_shi_chang_fen_bu
 activity_heatmap: sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_huo_dong_re_li_tu
 print_status: sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_zhuang_tai
-          &lt;/pre&gt;
-        &lt;/div&gt;
+          </pre>
+        </div>
       `;
       return;
     }
@@ -146,7 +146,7 @@ print_status: sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_zhuang_tai
     html += this._renderActivityHeatmap();
     html += this._renderFilamentUsage();
 
-    container.innerHTML = html || `&lt;div class="no-data"&gt;暂无数据&lt;/div&gt;`;
+    container.innerHTML = html || `<div class="no-data">暂无数据</div>`;
   }
 
   _renderTimeDimension(title) {
@@ -158,15 +158,15 @@ print_status: sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_zhuang_tai
     const printStatus = this.config.print_status ? this._getState(this.config.print_status) : 'Idle';
 
     return `
-      &lt;div class="section-title"&gt;📊 ${title}&lt;/div&gt;
-      &lt;div class="stats-grid"&gt;
-        &lt;div class="stat-card"&gt;&lt;div class="stat-icon"&gt;🖨️&lt;/div&gt;&lt;div class="stat-value"&gt;${totalPrints}&lt;/div&gt;&lt;div class="stat-label"&gt;Total Prints&lt;br&gt;(总打印次数)&lt;/div&gt;&lt;/div&gt;
-        &lt;div class="stat-card"&gt;&lt;div class="stat-icon"&gt;✅&lt;/div&gt;&lt;div class="stat-value"&gt;${successRate}%&lt;/div&gt;&lt;div class="stat-label"&gt;Success Rate&lt;br&gt;(成功率)&lt;/div&gt;&lt;/div&gt;
-        &lt;div class="stat-card"&gt;&lt;div class="stat-icon"&gt;⏱️&lt;/div&gt;&lt;div class="stat-value"&gt;${avgDuration}&lt;/div&gt;&lt;div class="stat-label"&gt;Avg Duration (min)&lt;br&gt;(平均时长)&lt;/div&gt;&lt;/div&gt;
-        &lt;div class="stat-card"&gt;&lt;div class="stat-icon"&gt;🕐&lt;/div&gt;&lt;div class="stat-value"&gt;${totalDuration}&lt;/div&gt;&lt;div class="stat-label"&gt;Total Duration (min)&lt;br&gt;(总时长)&lt;/div&gt;&lt;/div&gt;
-        &lt;div class="stat-card"&gt;&lt;div class="stat-icon"&gt;⚡&lt;/div&gt;&lt;div class="stat-value"&gt;${totalEnergy}&lt;/div&gt;&lt;div class="stat-label"&gt;Energy&lt;br&gt;(总能耗)&lt;/div&gt;&lt;/div&gt;
-        &lt;div class="stat-card"&gt;&lt;div class="stat-icon"&gt;${printStatus.includes('打印中') || printStatus.includes('printing') ? '🔵' : '⚪'}&lt;/div&gt;&lt;div class="stat-value" style="font-size:16px"&gt;${printStatus}&lt;/div&gt;&lt;div class="stat-label"&gt;Status&lt;br&gt;(打印状态)&lt;/div&gt;&lt;/div&gt;
-      &lt;/div&gt;
+      <div class="section-title">📊 ${title}</div>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-icon">🖨️</div><div class="stat-value">${totalPrints}</div><div class="stat-label">Total Prints<br>(总打印次数)</div></div>
+        <div class="stat-card"><div class="stat-icon">✅</div><div class="stat-value">${successRate}%</div><div class="stat-label">Success Rate<br>(成功率)</div></div>
+        <div class="stat-card"><div class="stat-icon">⏱️</div><div class="stat-value">${avgDuration}</div><div class="stat-label">Avg Duration (min)<br>(平均时长)</div></div>
+        <div class="stat-card"><div class="stat-icon">🕐</div><div class="stat-value">${totalDuration}</div><div class="stat-label">Total Duration (min)<br>(总时长)</div></div>
+        <div class="stat-card"><div class="stat-icon">⚡</div><div class="stat-value">${totalEnergy}</div><div class="stat-label">Energy<br>(总能耗)</div></div>
+        <div class="stat-card"><div class="stat-icon">${printStatus.includes('打印中') || printStatus.includes('printing') ? '🔵' : '⚪'}</div><div class="stat-value" style="font-size:16px">${printStatus}</div><div class="stat-label">Status<br>(打印状态)</div></div>
+      </div>
     `;
   }
 
@@ -190,22 +190,22 @@ print_status: sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_zhuang_tai
       const avgDuration = data.average_duration_minutes || 0;
 
       html += `
-        &lt;div class="section-title"&gt;${period.icon} ${period.label}&lt;/div&gt;
-        &lt;div class="chart-container"&gt;
-          &lt;table class="stats-table"&gt;
-            &lt;thead&gt;&lt;tr&gt;&lt;th&gt;Metric (指标)&lt;/th&gt;&lt;th&gt;Value (值)&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;
-            &lt;tbody&gt;
-              &lt;tr&gt;&lt;td&gt;Prints (打印次数)&lt;/td&gt;&lt;td&gt;${totalPrints}&lt;/td&gt;&lt;/tr&gt;
-              &lt;tr&gt;&lt;td&gt;Successful (成功)&lt;/td&gt;&lt;td&gt;${successful}&lt;/td&gt;&lt;/tr&gt;
-              &lt;tr&gt;&lt;td&gt;Failed (失败)&lt;/td&gt;&lt;td&gt;${failed}&lt;/td&gt;&lt;/tr&gt;
-              &lt;tr&gt;&lt;td&gt;Success Rate (成功率)&lt;/td&gt;&lt;td&gt;${successRate}%&lt;/td&gt;&lt;/tr&gt;
-              &lt;tr&gt;&lt;td&gt;Weight (耗材重量)&lt;/td&gt;&lt;td&gt;${totalWeight}g&lt;/td&gt;&lt;/tr&gt;
-              &lt;tr&gt;&lt;td&gt;Length (耗材长度)&lt;/td&gt;&lt;td&gt;${totalLength}m&lt;/td&gt;&lt;/tr&gt;
-              &lt;tr&gt;&lt;td&gt;Energy (能耗)&lt;/td&gt;&lt;td&gt;${totalEnergy} kWh&lt;/td&gt;&lt;/tr&gt;
-              &lt;tr&gt;&lt;td&gt;Avg Duration (平均时长)&lt;/td&gt;&lt;td&gt;${avgDuration} min&lt;/td&gt;&lt;/tr&gt;
-            &lt;/tbody&gt;
-          &lt;/table&gt;
-        &lt;/div&gt;
+        <div class="section-title">${period.icon} ${period.label}</div>
+        <div class="chart-container">
+          <table class="stats-table">
+            <thead><tr><th>Metric (指标)</th><th>Value (值)</th></tr></thead>
+            <tbody>
+              <tr><td>Prints (打印次数)</td><td>${totalPrints}</td></tr>
+              <tr><td>Successful (成功)</td><td>${successful}</td></tr>
+              <tr><td>Failed (失败)</td><td>${failed}</td></tr>
+              <tr><td>Success Rate (成功率)</td><td>${successRate}%</td></tr>
+              <tr><td>Weight (耗材重量)</td><td>${totalWeight}g</td></tr>
+              <tr><td>Length (耗材长度)</td><td>${totalLength}m</td></tr>
+              <tr><td>Energy (能耗)</td><td>${totalEnergy} kWh</td></tr>
+              <tr><td>Avg Duration (平均时长)</td><td>${avgDuration} min</td></tr>
+            </tbody>
+          </table>
+        </div>
       `;
     }
     return html;
@@ -214,10 +214,10 @@ print_status: sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_zhuang_tai
   _renderSuccessRateTrend() {
     const history = this._getHistory();
     if (!Array.isArray(history) || history.length === 0) {
-      return `&lt;div class="section-title"&gt;📈 Success Rate Trend (打印成功率趋势)&lt;/div&gt;&lt;div class="chart-container"&gt;&lt;div class="no-data"&gt;无历史数据&lt;/div&gt;&lt;/div&gt;`;
+      return `<div class="section-title">📈 Success Rate Trend (打印成功率趋势)</div><div class="chart-container"><div class="no-data">无历史数据</div></div>`;
     }
 
-    const sorted = [...history].sort((a, b) =&gt; new Date(a.end_time) - new Date(b.end_time));
+    const sorted = [...history].sort((a, b) => new Date(a.end_time) - new Date(b.end_time));
     let successCount = 0, totalCount = 0;
     const points = [];
     for (const item of sorted) {
@@ -229,7 +229,7 @@ print_status: sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_zhuang_tai
     const width = 500, height = 100, padding = 20;
     const chartW = width - padding * 2, chartH = height - padding * 2;
 
-    const pathPoints = points.map((p, i) =&gt; {
+    const pathPoints = points.map((p, i) => {
       const x = padding + (i / Math.max(points.length - 1, 1)) * chartW;
       const y = padding + chartH - (p.rate / 100) * chartH;
       return `${x},${y}`;
@@ -239,25 +239,25 @@ print_status: sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_zhuang_tai
     const linePath = `M${pathPoints.join(' L')}`;
 
     return `
-      &lt;div class="section-title"&gt;📈 Success Rate Trend (打印成功率趋势)&lt;/div&gt;
-      &lt;div class="chart-container"&gt;
-        &lt;div class="chart-title"&gt;累计: ${successCount}/${totalCount} = ${Math.round(successCount/totalCount*100)}%&lt;/div&gt;
-        &lt;div class="trend-container"&gt;
-          &lt;svg class="trend-svg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none"&gt;
-            &lt;defs&gt;&lt;linearGradient id="rateGrad" x1="0" y1="0" x2="0" y2="1"&gt;
-              &lt;stop offset="0%" stop-color="var(--primary-color, #03a9f4)" stop-opacity="0.3"/&gt;
-              &lt;stop offset="100%" stop-color="var(--primary-color, #03a9f4)" stop-opacity="0.05"/&gt;
-            &lt;/linearGradient&gt;&lt;/defs&gt;
-            &lt;path d="${areaPath}" fill="url(#rateGrad)" /&gt;
-            &lt;path d="${linePath}" fill="none" stroke="var(--primary-color, #03a9f4)" stroke-width="2"/&gt;
-            ${points.map((p, i) =&gt; {
+      <div class="section-title">📈 Success Rate Trend (打印成功率趋势)</div>
+      <div class="chart-container">
+        <div class="chart-title">累计: ${successCount}/${totalCount} = ${Math.round(successCount/totalCount*100)}%</div>
+        <div class="trend-container">
+          <svg class="trend-svg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
+            <defs><linearGradient id="rateGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="var(--primary-color, #03a9f4)" stop-opacity="0.3"/>
+              <stop offset="100%" stop-color="var(--primary-color, #03a9f4)" stop-opacity="0.05"/>
+            </linearGradient></defs>
+            <path d="${areaPath}" fill="url(#rateGrad)" />
+            <path d="${linePath}" fill="none" stroke="var(--primary-color, #03a9f4)" stroke-width="2"/>
+            ${points.map((p, i) => {
               const x = padding + (i / Math.max(points.length - 1, 1)) * chartW;
               const y = padding + chartH - (p.rate / 100) * chartH;
-              return `&lt;circle cx="${x}" cy="${y}" r="3" fill="var(--primary-color, #03a9f4)"/&gt;`;
+              return `<circle cx="${x}" cy="${y}" r="3" fill="var(--primary-color, #03a9f4)"/>`;
             }).join('')}
-          &lt;/svg&gt;
-        &lt;/div&gt;
-      &lt;/div&gt;
+          </svg>
+        </div>
+      </div>
     `;
   }
 
@@ -275,23 +275,23 @@ print_status: sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_zhuang_tai
       }
     }
 
-    const labels = Object.keys(distribution).filter(k =&gt; !['icon', 'friendly_name', 'device_class', 'unit_of_measurement'].includes(k));
+    const labels = Object.keys(distribution).filter(k => !['icon', 'friendly_name', 'device_class', 'unit_of_measurement'].includes(k));
     if (labels.length === 0) {
-      return `&lt;div class="section-title"&gt;📊 Duration Distribution (打印时长分布)&lt;/div&gt;&lt;div class="chart-container"&gt;&lt;div class="no-data"&gt;无数据&lt;/div&gt;&lt;/div&gt;`;
+      return `<div class="section-title">📊 Duration Distribution (打印时长分布)</div><div class="chart-container"><div class="no-data">无数据</div></div>`;
     }
 
-    const maxVal = Math.max(...labels.map(k =&gt; distribution[k]), 1);
+    const maxVal = Math.max(...labels.map(k => distribution[k]), 1);
     const colors = ['#4CAF50', '#8BC34A', '#FFC107', '#FF9800', '#F44336', '#9C27B0'];
 
     let barsHtml = '';
-    for (let i = 0; i &lt; labels.length; i++) {
+    for (let i = 0; i < labels.length; i++) {
       const label = labels[i];
       const value = distribution[label] || 0;
       const heightPct = (value / maxVal) * 100;
-      barsHtml += `&lt;div class="bar-col"&gt;&lt;div class="bar-value"&gt;${value}&lt;/div&gt;&lt;div class="bar" style="height:${Math.max(heightPct, 2)}%;background:${colors[i % colors.length]}"&gt;&lt;/div&gt;&lt;div class="bar-label"&gt;${label}&lt;/div&gt;&lt;/div&gt;`;
+      barsHtml += `<div class="bar-col"><div class="bar-value">${value}</div><div class="bar" style="height:${Math.max(heightPct, 2)}%;background:${colors[i % colors.length]}"></div><div class="bar-label">${label}</div></div>`;
     }
 
-    return `&lt;div class="section-title"&gt;📊 Duration Distribution (打印时长分布)&lt;/div&gt;&lt;div class="chart-container"&gt;&lt;div class="bar-chart"&gt;${barsHtml}&lt;/div&gt;&lt;/div&gt;`;
+    return `<div class="section-title">📊 Duration Distribution (打印时长分布)</div><div class="chart-container"><div class="bar-chart">${barsHtml}</div></div>`;
   }
 
   _renderActivityHeatmap() {
@@ -299,7 +299,7 @@ print_status: sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_zhuang_tai
     if (!entityId) return '';
 
     let heatmap = this._getAttr(entityId, '') || {};
-    const dateKeys = Object.keys(heatmap).filter(k =&gt; /^\d{4}-\d{2}-\d{2}$/.test(k));
+    const dateKeys = Object.keys(heatmap).filter(k => /^\d{4}-\d{2}-\d{2}$/.test(k));
     if (dateKeys.length === 0) {
       try {
         const state = this._getState(entityId);
@@ -310,17 +310,17 @@ print_status: sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_zhuang_tai
       }
     }
 
-    const sortedDates = Object.keys(heatmap).filter(k =&gt; /^\d{4}-\d{2}-\d{2}$/.test(k)).sort();
+    const sortedDates = Object.keys(heatmap).filter(k => /^\d{4}-\d{2}-\d{2}$/.test(k)).sort();
     if (sortedDates.length === 0) {
-      return `&lt;div class="section-title"&gt;🗓️ Activity Heatmap (打印活动热力图)&lt;/div&gt;&lt;div class="chart-container"&gt;&lt;div class="no-data"&gt;无数据&lt;/div&gt;&lt;/div&gt;`;
+      return `<div class="section-title">🗓️ Activity Heatmap (打印活动热力图)</div><div class="chart-container"><div class="no-data">无数据</div></div>`;
     }
 
-    const maxCount = Math.max(...sortedDates.map(k =&gt; heatmap[k]), 1);
+    const maxCount = Math.max(...sortedDates.map(k => heatmap[k]), 1);
     const recentDates = sortedDates.slice(-35);
-    const startDate = recentDates.length &gt; 0 ? new Date(recentDates[0]) : new Date();
+    const startDate = recentDates.length > 0 ? new Date(recentDates[0]) : new Date();
 
     const allDates = [];
-    for (let i = 0; i &lt; 35; i++) {
+    for (let i = 0; i < 35; i++) {
       const d = new Date(startDate);
       d.setDate(d.getDate() + i);
       allDates.push(d.toISOString().substring(0, 10));
@@ -329,15 +329,15 @@ print_status: sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_zhuang_tai
     let cellsHtml = '';
     for (const dateKey of allDates) {
       const count = heatmap[dateKey] || 0;
-      const intensity = count &gt; 0 ? Math.min(count / maxCount, 1) : 0;
+      const intensity = count > 0 ? Math.min(count / maxCount, 1) : 0;
       let color = 'var(--divider-color, #e0e0e0)';
-      if (count &gt; 0) {
-        color = intensity &lt; 0.33 ? '#c8e6c9' : intensity &lt; 0.66 ? '#66bb6a' : '#2e7d32';
+      if (count > 0) {
+        color = intensity < 0.33 ? '#c8e6c9' : intensity < 0.66 ? '#66bb6a' : '#2e7d32';
       }
-      cellsHtml += `&lt;div class="heatmap-cell" style="background:${color}" data-date="${dateKey}" data-count="${count}"&gt;&lt;/div&gt;`;
+      cellsHtml += `<div class="heatmap-cell" style="background:${color}" data-date="${dateKey}" data-count="${count}"></div>`;
     }
 
-    return `&lt;div class="section-title"&gt;🗓️ Activity Heatmap (打印活动热力图)&lt;/div&gt;&lt;div class="chart-container"&gt;&lt;div class="heatmap-grid"&gt;${cellsHtml}&lt;/div&gt;&lt;/div&gt;`;
+    return `<div class="section-title">🗓️ Activity Heatmap (打印活动热力图)</div><div class="chart-container"><div class="heatmap-grid">${cellsHtml}</div></div>`;
   }
 
   _renderFilamentUsage() {
@@ -366,14 +366,14 @@ print_status: sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_zhuang_tai
   }
 
   _renderPieChart(title, data, colors) {
-    const entries = Object.entries(data).filter(([_, v]) =&gt; v &gt; 0);
-    if (entries.length === 0) return `&lt;div class="section-title"&gt;${title}&lt;/div&gt;&lt;div class="chart-container"&gt;&lt;div class="no-data"&gt;无数据&lt;/div&gt;&lt;/div&gt;`;
+    const entries = Object.entries(data).filter(([_, v]) => v > 0);
+    if (entries.length === 0) return `<div class="section-title">${title}</div><div class="chart-container"><div class="no-data">无数据</div></div>`;
 
-    const total = entries.reduce((sum, [_, v]) =&gt; sum + v, 0);
+    const total = entries.reduce((sum, [_, v]) => sum + v, 0);
     const size = 120, cx = size / 2, cy = size / 2, r = size / 2 - 5;
     let paths = '', startAngle = 0, legendHtml = '';
 
-    for (let i = 0; i &lt; entries.length; i++) {
+    for (let i = 0; i < entries.length; i++) {
       const [label, value] = entries[i];
       const pct = value / total;
       const endAngle = startAngle + pct * 2 * Math.PI;
@@ -381,15 +381,15 @@ print_status: sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_zhuang_tai
       const y1 = cy + r * Math.sin(startAngle - Math.PI / 2);
       const x2 = cx + r * Math.cos(endAngle - Math.PI / 2);
       const y2 = cy + r * Math.sin(endAngle - Math.PI / 2);
-      const largeArc = pct &gt; 0.5 ? 1 : 0;
+      const largeArc = pct > 0.5 ? 1 : 0;
       const d = `M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${largeArc},1 ${x2},${y2} Z`;
       const color = colors[i % colors.length];
-      paths += `&lt;path d="${d}" fill="${color}" stroke="var(--card-background-color, #fff)" stroke-width="2"/&gt;`;
-      legendHtml += `&lt;div class="legend-item"&gt;&lt;div class="legend-dot" style="background:${color}"&gt;&lt;/div&gt;&lt;span&gt;${label}: ${Math.round(value)}g (${Math.round(pct * 100)}%)&lt;/span&gt;&lt;/div&gt;`;
+      paths += `<path d="${d}" fill="${color}" stroke="var(--card-background-color, #fff)" stroke-width="2"/>`;
+      legendHtml += `<div class="legend-item"><div class="legend-dot" style="background:${color}"></div><span>${label}: ${Math.round(value)}g (${Math.round(pct * 100)}%)</span></div>`;
       startAngle = endAngle;
     }
 
-    return `&lt;div class="section-title"&gt;${title}&lt;/div&gt;&lt;div class="chart-container"&gt;&lt;div class="pie-container"&gt;&lt;svg class="pie-svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"&gt;${paths}&lt;/svg&gt;&lt;div class="pie-legend"&gt;${legendHtml}&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;`;
+    return `<div class="section-title">${title}</div><div class="chart-container"><div class="pie-container"><svg class="pie-svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${paths}</svg><div class="pie-legend">${legendHtml}</div></div></div>`;
   }
 
   getCardSize() { return 6; }

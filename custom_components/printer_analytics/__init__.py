@@ -24,35 +24,37 @@ LOGGER = logging.getLogger(__name__)
 PLATFORMS = ["sensor"]
 
 CARD_FILENAME = "printer-analytics-card.js"
+HISTORY_CARD_FILENAME = "printer-history-list-card.js"
 CARD_URL = f"/local/printer_analytics/{CARD_FILENAME}"
 
 
 async def _register_lovelace_resource(hass: HomeAssistant) -> None:
     """将自定义卡片 JS 复制到 www 并注册为 Lovelace 资源"""
     component_dir = os.path.dirname(__file__)
-    src = os.path.join(component_dir, "www", CARD_FILENAME)
     www_dir = hass.config.path("www", "printer_analytics")
-    dst = os.path.join(www_dir, CARD_FILENAME)
 
-    def _copy_card():
+    # 需要复制的所有卡片文件列表
+    card_files = [CARD_FILENAME, HISTORY_CARD_FILENAME]
+
+    def _copy_cards():
         os.makedirs(www_dir, exist_ok=True)
-        if os.path.exists(src):
-            shutil.copy2(src, dst)
-            LOGGER.info("Copied card to %s", dst)
-        else:
-            LOGGER.warning("Card source not found: %s", src)
+        for card_file in card_files:
+            src = os.path.join(component_dir, "www", card_file)
+            dst = os.path.join(www_dir, card_file)
+            if os.path.exists(src):
+                shutil.copy2(src, dst)
+                LOGGER.info("Copied card to %s", dst)
+            else:
+                LOGGER.warning("Card source not found: %s", src)
 
     try:
-        await hass.async_add_executor_job(_copy_card)
+        await hass.async_add_executor_job(_copy_cards)
     except Exception as err:
-        LOGGER.error("Failed to copy card: %s", err)
+        LOGGER.error("Failed to copy cards: %s", err)
         return
 
-    # 注册 Lovelace 资源 - 简化为只复制文件，避免不稳定的 API 调用
     try:
-        # 不尝试自动注册资源（API 不稳定），只复制文件即可
-        # 用户可以手动添加资源或通过 HACS 处理
-        LOGGER.info("Card copied to %s (manual registration may be needed if auto-registration fails)", dst)
+        LOGGER.info("Cards copied to %s (manual registration may be needed if auto-registration fails)", www_dir)
     except Exception as err:
         LOGGER.warning("Failed to complete card setup: %s", err)
 
@@ -96,6 +98,7 @@ def _register_services(hass: HomeAssistant) -> None:
         if coordinator:
             await coordinator.async_request_refresh()
             LOGGER.info("Stats refreshed for %s", coordinator.printer_name)
+            LOGGER.info("Entity map for %s: %s", coordinator.printer_name, coordinator._entity_map)
 
     async def _handle_reset_history(call: ServiceCall) -> None:
         coordinator = _get_coordinator_from_call(hass, call)

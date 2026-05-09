@@ -359,38 +359,38 @@ views:
 
 
 
-      # 今日亮灯时长（使用自动化写入的 _daily_duration_hours 传感器）
+      # 今日亮灯时长（使用自动化写入的 _today_on_hours 传感器）
       - type: entities
         title: ⏱️ 今日亮灯时长统计
         entities:
-          - entity: sensor.light_jdjz_daily_duration_hours
+          - entity: sensor.light_jdjz_today_on_hours
             name: 客厅吸顶灯
             icon: mdi:lightbulb-on
-          - entity: sensor.light_sofa_daily_duration_hours
+          - entity: sensor.light_sofa_today_on_hours
             name: 客厅沙发灯
             icon: mdi:lightbulb-on
-          - entity: sensor.light_bedroom_strip_daily_duration_hours
+          - entity: sensor.light_bedroom_strip_today_on_hours
             name: 卧室灯带
             icon: mdi:lightbulb-on
-          - entity: sensor.light_kitchen_daily_duration_hours
+          - entity: sensor.light_kitchen_today_on_hours
             name: 厨房灯
             icon: mdi:lightbulb-on
-          - entity: sensor.light_bathroom_daily_duration_hours
+          - entity: sensor.light_bathroom_today_on_hours
             name: 卫生间灯
             icon: mdi:lightbulb-on
-          - entity: sensor.light_yuba_daily_duration_hours
+          - entity: sensor.light_yuba_today_on_hours
             name: 浴霸灯
             icon: mdi:heat-wave
-          - entity: sensor.light_hallway_main_daily_duration_hours
+          - entity: sensor.light_hallway_main_today_on_hours
             name: 走廊走道灯
             icon: mdi:lightbulb-on
-          - entity: sensor.light_hallway_bath_daily_duration_hours
+          - entity: sensor.light_hallway_bath_today_on_hours
             name: 走廊卫生间灯
             icon: mdi:lightbulb-on
-          - entity: sensor.light_doorway_daily_duration_hours
+          - entity: sensor.light_doorway_today_on_hours
             name: 门口筒灯
             icon: mdi:lightbulb-on
-          - entity: sensor.total_lights_daily_duration_hours
+          - entity: sensor.all_lights_today_on_hours
             name: 全屋合计
             icon: mdi:home-lightbulb-outline
 
@@ -1662,7 +1662,7 @@ views:
 
         entities:
 
-          - entity: sensor.chu_fang_deng_zhou_liang_deng_shi_chang_h
+          - entity: sensor.chu_fang_deng_zhou_liang_deng_shi_chang
 
             name: 厨房灯周亮灯时长
 
@@ -1734,19 +1734,19 @@ views:
 
             name: 厨房人体存在平板灯 * 人存设置项 Engineering Mode
 
-          - entity: sensor.chu_fang_deng_ri_liang_deng_shi_chang_h
+          - entity: sensor.chu_fang_deng_ri_liang_deng_shi_chang
 
             name: 厨房灯日亮灯时长
 
-          - entity: sensor.chu_fang_deng_zhou_liang_deng_shi_chang_h_2
+          - entity: sensor.chu_fang_deng_zhou_liang_deng_shi_chang_2
 
             name: 厨房灯周亮灯时长
 
-          - entity: sensor.chu_fang_deng_yue_liang_deng_shi_chang_h
+          - entity: sensor.chu_fang_deng_yue_liang_deng_shi_chang
 
             name: 厨房灯月亮灯时长
 
-          - entity: sensor.chu_fang_deng_nian_liang_deng_shi_chang_h
+          - entity: sensor.chu_fang_deng_nian_liang_deng_shi_chang
 
             name: 厨房灯年亮灯时长
 
@@ -1798,7 +1798,7 @@ views:
 
         entities:
 
-          - entity: sensor.can_ting_deng_yue_liang_deng_shi_chang_h
+          - entity: sensor.can_ting_deng_yue_liang_deng_shi_chang
 
             name: 餐厅灯月亮灯时长
 
@@ -2008,11 +2008,11 @@ views:
 
         entities:
 
-          - entity: sensor.wei_sheng_jian_deng_nian_liang_deng_shi_chang_h
+          - entity: sensor.wei_sheng_jian_deng_nian_liang_deng_shi_chang
 
             name: 卫生间灯年亮灯时长
 
-          - entity: sensor.zou_lang_wei_sheng_jian_deng_zhou_liang_deng_shi_chang_h
+          - entity: sensor.zou_lang_wei_sheng_jian_deng_zhou_liang_deng_shi_chang
 
             name: 走廊卫生间灯周亮灯时长
 
@@ -2214,7 +2214,7 @@ views:
 
         entities:
 
-          - entity: sensor.men_kou_tong_deng_yue_liang_deng_shi_chang_h
+          - entity: sensor.men_kou_tong_deng_yue_liang_deng_shi_chang
 
             name: 门口筒灯月亮灯时长
 
@@ -2282,19 +2282,19 @@ views:
 
             name: 门口人体存在筒灯 * 智能场景 有人无人上报开关
 
-          - entity: sensor.men_kou_tong_deng_ri_liang_deng_shi_chang_h
+          - entity: sensor.men_kou_tong_deng_ri_liang_deng_shi_chang
 
             name: 门口筒灯日亮灯时长
 
-          - entity: sensor.men_kou_tong_deng_zhou_liang_deng_shi_chang_h
+          - entity: sensor.men_kou_tong_deng_zhou_liang_deng_shi_chang
 
             name: 门口筒灯周亮灯时长
 
-          - entity: sensor.men_kou_tong_deng_yue_liang_deng_shi_chang_h
+          - entity: sensor.men_kou_tong_deng_yue_liang_deng_shi_chang_2
 
             name: 门口筒灯月亮灯时长
 
-          - entity: sensor.men_kou_tong_deng_nian_liang_deng_shi_chang_h
+          - entity: sensor.men_kou_tong_deng_nian_liang_deng_shi_chang
 
             name: 门口筒灯年亮灯时长
 
@@ -2348,19 +2348,19 @@ views:
 
             name: 走廊灯今日亮灯
 
-          - entity: sensor.zou_lang_zou_dao_deng_ri_liang_deng_shi_chang_h
+          - entity: sensor.zou_lang_zou_dao_deng_ri_liang_deng_shi_chang
 
             name: 走廊走道灯日亮灯时长
 
-          - entity: sensor.zou_lang_zou_dao_deng_zhou_liang_deng_shi_chang_h
+          - entity: sensor.zou_lang_zou_dao_deng_zhou_liang_deng_shi_chang
 
             name: 走廊走道灯周亮灯时长
 
-          - entity: sensor.zou_lang_zou_dao_deng_yue_liang_deng_shi_chang_h
+          - entity: sensor.zou_lang_zou_dao_deng_yue_liang_deng_shi_chang
 
             name: 走廊走道灯月亮灯时长
 
-          - entity: sensor.zou_lang_zou_dao_deng_nian_liang_deng_shi_chang_h
+          - entity: sensor.zou_lang_zou_dao_deng_nian_liang_deng_shi_chang
 
             name: 走廊走道灯年亮灯时长
 
@@ -2460,11 +2460,11 @@ views:
 
         entities:
 
-          - entity: button.yunyi_cn_yunyi_ba10816a68fb22c39805_v1_start_p2p_stream_a_2_1
+          - entity: button.yunyi_cn_yunyi_g5y51h17naf1slx1111a_v1_start_p2p_stream_a_2_1
 
             name: 开始实时视频流
 
-          - entity: button.yunyi_cn_yunyi_ba10816a68fb22c39805_v1_stop_stream_a_2_2
+          - entity: button.yunyi_cn_yunyi_g5y51h17naf1slx1111a_v1_stop_stream_a_2_2
 
             name: 停止视频流
 
@@ -2492,11 +2492,11 @@ views:
 
         entities:
 
-          - entity: button.chuangmi_cn_283777671_v6_start_p2p_stream_a_3_1
+          - entity: button.chuangmi_cn_2837777671_v6_start_p2p_stream_a_3_1
 
             name: 开始视频流
 
-          - entity: button.chuangmi_cn_283777671_v6_stop_stream_a_3_2
+          - entity: button.chuangmi_cn_2837777671_v6_stop_stream_a_3_2
 
             name: 停止视频流
 
@@ -2510,11 +2510,11 @@ views:
 
         entities:
 
-          - entity: button.yunyi_cn_yunyi_ba10816a68fb22c39805_v1_start_p2p_stream_a_2_1
+          - entity: button.yunyi_cn_yunyi_g5y51h17naf1slx1111a_v1_start_p2p_stream_a_2_1
 
             name: 开始视频流
 
-          - entity: button.yunyi_cn_yunyi_ba10816a68fb22c39805_v1_stop_stream_a_2_2
+          - entity: button.yunyi_cn_yunyi_g5y51h17naf1slx1111a_v1_stop_stream_a_2_2
 
             name: 停止视频流
 
