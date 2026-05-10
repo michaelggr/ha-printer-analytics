@@ -5,22 +5,47 @@
 
 A Home Assistant custom integration for tracking and analyzing 3D printer data. Works with Bambu Lab and other printer integrations.
 
-**[中文文档](#中文说明)**
+**[中文说明](#中文说明)**
 
 ## Features
 
-- 🖨️ Track print history with detailed info (task name, layers, nozzle, bed type, filament, etc.)
-- 📊 Time-dimension statistics (total prints, success rate, avg duration, energy, etc.)
-- 📅 7-day and 30-day period statistics with 8 metrics each
-- 📈 Built-in Lovelace card with charts (no external dependencies!)
-  - Success rate trend (SVG line chart)
-  - Print duration distribution (bar chart)
-  - Activity heatmap
-  - Filament type & color usage (pie charts)
-- 📸 Auto-download cover images and print snapshots
-- 📄 Generate complete print info documents (JSON)
-- 🔌 Auto-discover printer entities from bambu_lab integration
-- 🌐 Bilingual UI (English + Chinese)
+### 📊 Data Tracking
+- **Print History** — Automatically record every print job with detailed info: task name, filament type/color/weight/length, duration, energy, nozzle/bed/chamber temperature, speed profile, etc.
+- **Cover Images & Snapshots** — Auto-download print cover images and snapshot images
+- **Print Info Documents** — Generate complete print info JSON documents
+- **Chamber Temperature** — Record chamber temperature during the last 5 minutes of printing (avg/max/min)
+
+### 📈 Statistics & Analytics
+- **Lifetime Stats** — Total prints, success rate, average duration, total duration, total weight, total length, total energy, quality rating
+- **7-Day / 30-Day Period Stats** — 8 metrics in table format per period
+- **Success Rate Trend** — Cumulative success rate SVG line chart
+- **Duration Distribution** — Print count by time bucket (bar chart)
+- **Activity Heatmap** — Daily print activity over the last 5 weeks
+- **Filament Usage** — Pie charts by filament type and color
+- **Failure Stage Distribution** — Failed print stage analysis
+- **Filament Success Stats** — Success rate per filament type
+
+### 🖥️ Lovelace Card (v5.2)
+- **Modern Glass-morphism Design** — Gradient backgrounds, smooth animations, responsive layout
+- **Two Display Modes**:
+  - `stats` — Statistics analysis view only
+  - `history` — All print history view only
+  - Default — Tab switching between both views
+- **Multi-Printer Support** — Merge and display history from multiple printers in one view
+- **Real-time Monitor** — Live nozzle/bed/chamber temperature, print progress, AMS tray info, power consumption
+- **Advanced Filtering** — Filter by status + date range + color + keyword search
+- **Pagination** — Efficient browsing for large datasets (20 records per page)
+- **Detail Modal** — Click any record to see full print details including chamber temperature
+- **CSV Export** — Export filtered history to CSV file (Excel-compatible with BOM header)
+- **Batch Delete** — Select multiple records and delete with confirmation
+- **Dynamic Units** — Auto-format weight (g/kg/t) and duration (h/days/weeks/months) for growing data
+
+### 💾 Data Safety
+- **100-Year Storage** — Data stored by year in separate JSON files
+- **Auto Backup Sync** — Data automatically synced to `www/printer_analytics_data/` (included in HA snapshots)
+- **Compressed Archives** — Monthly full backup with gzip compression, keeps last 12 archives
+- **Auto Restore** — Automatically restore data from backup directory when reinstalling the integration
+- **Legacy Migration** — Automatically migrate old single-file data to new year-sharded format
 
 ## Installation
 
@@ -45,46 +70,80 @@ A Home Assistant custom integration for tracking and analyzing 3D printer data. 
 1. Go to **Settings** → **Devices & Services** → **Add Integration**
 2. Search for **"Printer Analytics"**
 3. Fill in the form:
-   - **Printer Name**: A name for your printer (e.g., "Bambu X1C")
-   - **Print Status Sensor**: Select the print status entity from your printer integration (e.g., `sensor.bambu_lab_print_status`)
+   - **Printer Name**: A name for your printer (e.g., "Bambu P2S")
+   - **Print Status Sensor**: Select the print status entity from your printer integration
    - **Power Sensor** (optional): Select a power sensor
    - **Energy Sensor** (optional): Select an energy sensor
+   - **Chamber Temperature Sensor** (optional): Select a chamber temperature sensor
 
 ## Lovelace Card
 
-The integration automatically deploys a custom Lovelace card when you add the integration. No manual installation needed!
+The integration automatically deploys a custom Lovelace card. Add it to your dashboard:
 
-### Usage
-
-Add a custom card in your Lovelace dashboard (requires full entity configuration):
+### Basic Configuration
 
 ```yaml
 type: custom:printer-analytics-card
-title: P2S打印机
-print_history: sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_li_shi
-total_prints: sensor.p2sda_yin_ji_p2sda_yin_ji_zong_da_yin_ci_shu
-success_rate: sensor.p2sda_yin_ji_p2sda_yin_ji_cheng_gong_lu
-average_duration: sensor.p2sda_yin_ji_p2sda_yin_ji_ping_jun_da_yin_shi_chang
-total_print_duration: sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_zong_shi_chang
-total_energy: sensor.p2sda_yin_ji_p2sda_yin_ji_zong_neng_hao
-material_stats_7d: sensor.p2sda_yin_ji_p2sda_yin_ji_7tian_hao_cai_tong_ji
-material_stats_30d: sensor.p2sda_yin_ji_p2sda_yin_ji_30tian_hao_cai_tong_ji
-duration_distribution: sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_shi_chang_fen_bu
-activity_heatmap: sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_huo_dong_re_li_tu
-print_status: sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_zhuang_tai
+title: My Printer
+print_history: sensor.my_printer_print_history
+total_prints: sensor.my_printer_total_prints
+success_rate: sensor.my_printer_success_rate
+average_duration: sensor.my_printer_average_duration
+total_print_duration: sensor.my_printer_total_print_duration
+total_energy: sensor.my_printer_total_energy
+material_stats_7d: sensor.my_printer_7day_stats
+material_stats_30d: sensor.my_printer_30day_stats
+duration_distribution: sensor.my_printer_duration_distribution
+activity_heatmap: sensor.my_printer_activity_heatmap
+print_status: sensor.my_printer_print_status
 ```
 
-### Card Features
+### Full Configuration
 
-| Section | Description |
-|---------|-------------|
-| 📊 Time Dimension Stats | 6 key metrics at a glance |
-| 📅 7-Day / 30-Day Stats | 8 metrics in table format |
-| 📈 Success Rate Trend | Cumulative success rate over time |
-| 📊 Duration Distribution | Print count by time bucket |
-| 🗓️ Activity Heatmap | Daily print activity (last 5 weeks) |
-| 🎨 Filament Type Usage | Pie chart by filament type |
-| 🎨 Filament Color Usage | Pie chart by filament color |
+```yaml
+type: custom:printer-analytics-card
+title: 🖨️ P2S Printer Analytics
+mode: stats                    # stats | history | (empty for tabs)
+printer_name: P2S
+print_history: sensor.p2s_print_history
+total_prints: sensor.p2s_total_prints
+success_rate: sensor.p2s_success_rate
+average_duration: sensor.p2s_average_duration
+total_print_duration: sensor.p2s_total_print_duration
+total_energy: sensor.p2s_total_energy
+material_stats_7d: sensor.p2s_7day_stats
+material_stats_30d: sensor.p2s_30day_stats
+material_stats_lifetime: sensor.p2s_lifetime_stats
+duration_distribution: sensor.p2s_duration_distribution
+activity_heatmap: sensor.p2s_activity_heatmap
+print_status: sensor.p2s_print_status
+current_task: sensor.p2s_task_name
+print_progress: sensor.p2s_print_progress
+current_weight: sensor.p2s_print_weight
+nozzle_temp: sensor.p2s_nozzle_temperature
+bed_temp: sensor.p2s_bed_temperature
+chamber_temp: sensor.p2s_chamber_temperature
+active_tray: sensor.p2s_active_tray
+power_consumption: sensor.p2s_power
+speed_profile: sensor.p2s_speed_profile
+nozzle_size: sensor.p2s_nozzle_size
+ams_tray_1: sensor.p2s_ams_1_tray_1
+ams_tray_2: sensor.p2s_ams_1_tray_2
+ams_tray_3: sensor.p2s_ams_1_tray_3
+ams_tray_4: sensor.p2s_ams_1_tray_4
+extra_print_histories:
+  - entity: sensor.a1mini_print_history
+    name: a1mini
+```
+
+### Card Configuration Options
+
+| Option | Description |
+|--------|-------------|
+| `mode` | Display mode: `stats` (statistics only), `history` (history only), or empty (tab switching) |
+| `printer_name` | Printer name for multi-printer tag display |
+| `extra_print_histories` | List of additional printer history entities to merge |
+| `material_stats_lifetime` | Lifetime stats entity (hides total filament from summary when set) |
 
 ## Sensors
 
@@ -92,14 +151,16 @@ print_status: sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_zhuang_tai
 |--------|-------------|
 | `sensor.{name}_total_prints` | Total number of prints |
 | `sensor.{name}_success_rate` | Print success rate (%) |
-| `sensor.{name}_average_duration` | Average print duration (min) |
-| `sensor.{name}_total_online_duration` | Total online duration (h) |
+| `sensor.{name}_average_duration` | Average print duration (hours) |
+| `sensor.{name}_total_print_duration` | Total print duration (hours) |
 | `sensor.{name}_total_energy` | Total energy consumption (kWh) |
 | `sensor.{name}_material_stats_lifetime` | Lifetime material statistics |
 | `sensor.{name}_material_stats_7d` | 7-day material statistics |
 | `sensor.{name}_material_stats_30d` | 30-day material statistics |
 | `sensor.{name}_duration_distribution` | Print duration distribution |
 | `sensor.{name}_activity_heatmap` | Print activity heatmap |
+| `sensor.{name}_failure_stage_distribution` | Failure stage distribution |
+| `sensor.{name}_filament_success_stats` | Filament success rate statistics |
 | `sensor.{name}_print_history` | Print history records |
 | `sensor.{name}_print_status` | Current print status |
 
@@ -109,17 +170,31 @@ print_status: sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_zhuang_tai
 |---------|-------------|
 | `printer_analytics.refresh_stats` | Force recalculate all statistics |
 | `printer_analytics.reset_history` | Clear all print history |
+| `printer_analytics.delete_history_records` | Delete specific records by ID |
 
-## Data Storage
+## Data Storage & Backup
 
-- Print history: `config/.printer_analytics/`
-- Cover images & snapshots: `config/www/printer_analytics/`
-- Print info documents: `config/www/printer_analytics/print_info/`
+| Path | Description | HA Backup |
+|------|-------------|-----------|
+| `config/.printer_analytics/history_by_year/` | Main data (by year) | ❌ |
+| `config/.printer_analytics/archives/` | Compressed monthly backups | ❌ |
+| `config/www/printer_analytics_data/` | Auto-synced backup copy | ✅ Included |
+| `config/www/printer_analytics/` | Cover images & snapshots | ✅ Included |
+
+**Data Safety Features:**
+- Data is automatically synced to `www/printer_analytics_data/` on every save (included in HA snapshots)
+- Monthly compressed full backups are created automatically (kept for 12 months)
+- When reinstalling the integration, data is automatically restored from the backup directory
+- Old single-file data format is automatically migrated to year-sharded format
 
 ## Requirements
 
 - Home Assistant 2023.8.0 or later
-- A printer integration (e.g., [bambu_lab](https://github.com/greghesp/ha-bambulab)) for entity discovery
+- A printer integration (e.g., [bambu_lab](https://github.com/greghesp/ha-bambulab)) for entity auto-discovery
+
+## License
+
+MIT License
 
 ---
 
@@ -129,20 +204,45 @@ print_status: sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_zhuang_tai
 
 Home Assistant 自定义集成，用于跟踪和分析 3D 打印机数据。支持拓竹（Bambu Lab）及其他打印机集成。
 
-### 功能
+### 功能特性
 
-- 🖨️ 记录打印历史（任务名称、层数、喷嘴、打印床类型、耗材等）
-- 📊 时间维度统计（总打印次数、成功率、平均时长、能耗等）
-- 📅 7天/30天周期统计，各含 8 个指标
-- 📈 内置 Lovelace 卡片，无需外部依赖
-  - 成功率趋势（SVG 折线图）
-  - 时长分布（柱状图）
-  - 活动热力图
-  - 耗材类型/颜色使用量（饼图）
-- 📸 自动下载封面图和打印快照
-- 📄 生成完整打印信息文档（JSON）
-- 🔌 自动发现 bambu_lab 集成的打印机实体
-- 🌐 中英文双语界面
+#### 📊 数据追踪
+- **打印历史** — 自动记录每次打印的详细信息：任务名称、耗材类型/颜色/重量/长度、时长、能耗、喷嘴/热床/腔体温度、速度配置等
+- **封面图与快照** — 自动下载打印封面图和快照图
+- **打印信息文档** — 生成完整的打印信息 JSON 文档
+- **腔体温度** — 记录打印结束前5分钟的腔体温度（平均/最高/最低）
+
+#### 📈 统计分析
+- **终身统计** — 总打印次数、成功率、平均时长、总时长、总重量、总长度、总能耗、质量评级
+- **7天/30天周期统计** — 每个周期8个指标的表格展示
+- **成功率趋势** — 累计成功率 SVG 折线图
+- **时长分布** — 按时间段统计打印数量（柱状图）
+- **活动热力图** — 最近5周的每日打印活动
+- **耗材使用** — 按耗材类型和颜色的饼图
+- **失败阶段分布** — 失败打印的阶段分析
+- **耗材成功率统计** — 按耗材类型的成功率
+
+#### 🖥️ Lovelace 卡片 (v5.2)
+- **现代玻璃拟态设计** — 渐变背景、流畅动画、响应式布局
+- **两种显示模式**：
+  - `stats` — 仅显示统计分析
+  - `history` — 仅显示全部历史
+  - 默认 — Tab 切换两种视图
+- **多打印机支持** — 合并显示多台打印机的历史记录
+- **实时监控** — 喷嘴/热床/腔体温度、打印进度、AMS 料盘信息、功耗
+- **高级筛选** — 按状态 + 日期范围 + 颜色 + 关键词搜索
+- **分页显示** — 大数据集高效浏览（每页20条）
+- **详情弹窗** — 点击记录查看完整打印详情，含腔体温度
+- **CSV 导出** — 导出筛选后的历史为 CSV 文件（兼容 Excel，含 BOM 头）
+- **批量删除** — 选择多条记录并确认删除
+- **动态单位** — 自动格式化重量(g/kg/t)和时长(h/天/周/月)
+
+#### 💾 数据安全
+- **100年存储** — 数据按年份分片存储在独立 JSON 文件中
+- **自动备份同步** — 每次保存时自动同步到 `www/printer_analytics_data/`（HA 快照会包含）
+- **压缩归档** — 每月自动创建完整 gzip 压缩备份，保留最近12个
+- **自动恢复** — 重装集成时自动从备份目录恢复数据
+- **旧版迁移** — 自动将旧版单文件数据迁移到新的年份分片格式
 
 ### 安装
 
@@ -156,34 +256,13 @@ Home Assistant 自定义集成，用于跟踪和分析 3D 打印机数据。支�
 2. 搜索 **"Printer Analytics"**
 3. 填写打印机名称、选择打印状态传感器等
 
-### Lovelace 卡片
+### 数据存储与备份
 
-在仪表盘中添加自定义卡片（需要配置所有实体）：
+| 路径 | 说明 | HA 备份 |
+|------|------|---------|
+| `config/.printer_analytics/history_by_year/` | 主数据（按年份） | ❌ |
+| `config/.printer_analytics/archives/` | 压缩月度备份 | ❌ |
+| `config/www/printer_analytics_data/` | 自动同步备份副本 | ✅ 包含 |
+| `config/www/printer_analytics/` | 封面图与快照 | ✅ 包含 |
 
-```yaml
-type: custom:printer-analytics-card
-title: P2S打印机
-print_history: sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_li_shi
-total_prints: sensor.p2sda_yin_ji_p2sda_yin_ji_zong_da_yin_ci_shu
-success_rate: sensor.p2sda_yin_ji_p2sda_yin_ji_cheng_gong_lu
-average_duration: sensor.p2sda_yin_ji_p2sda_yin_ji_ping_jun_da_yin_shi_chang
-total_print_duration: sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_zong_shi_chang
-total_energy: sensor.p2sda_yin_ji_p2sda_yin_ji_zong_neng_hao
-material_stats_7d: sensor.p2sda_yin_ji_p2sda_yin_ji_7tian_hao_cai_tong_ji
-material_stats_30d: sensor.p2sda_yin_ji_p2sda_yin_ji_30tian_hao_cai_tong_ji
-duration_distribution: sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_shi_chang_fen_bu
-activity_heatmap: sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_huo_dong_re_li_tu
-print_status: sensor.p2sda_yin_ji_p2sda_yin_ji_da_yin_zhuang_tai
-```
-
-集成安装后自动部署卡片，在仪表板中添加：
-
-```yaml
-type: custom:printer-analytics-card
-entity: sensor.你的打印机_print_history
-title: 我的打印机分析
-```
-
-## License
-
-MIT License
+**重装集成时数据会自动恢复** — 集成启动时如果发现当前 entry_id 没有数据，会自动从备份目录恢复。
