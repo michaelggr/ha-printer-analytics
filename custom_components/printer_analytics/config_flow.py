@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from typing import Any
 
@@ -10,6 +10,7 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import selector
 
 from .const import (
+    CONF_CHAMBER_TEMP_ENTITY,
     CONF_ENERGY_ENTITY,
     CONF_POWER_ENTITY,
     CONF_PRINTER_NAME,
@@ -40,6 +41,7 @@ class PrinterAnalyticsConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_PRINT_STATUS_ENTITY: print_status_entity,
                         CONF_POWER_ENTITY: user_input.get(CONF_POWER_ENTITY, ""),
                         CONF_ENERGY_ENTITY: user_input.get(CONF_ENERGY_ENTITY, ""),
+                        CONF_CHAMBER_TEMP_ENTITY: user_input.get(CONF_CHAMBER_TEMP_ENTITY, ""),
                     },
                 )
         sensor_entities = self._get_sensor_entities(self.hass)
@@ -63,6 +65,12 @@ class PrinterAnalyticsConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         )
                     ),
                     vol.Optional(CONF_ENERGY_ENTITY): selector.EntitySelector(
+                        selector.EntitySelectorConfig(
+                            domain="sensor",
+                            multiple=False,
+                        )
+                    ),
+                    vol.Optional(CONF_CHAMBER_TEMP_ENTITY): selector.EntitySelector(
                         selector.EntitySelectorConfig(
                             domain="sensor",
                             multiple=False,
@@ -102,6 +110,7 @@ class PrinterAnalyticsOptionsFlow(config_entries.OptionsFlow):
                 ),
                 CONF_POWER_ENTITY: user_input.get(CONF_POWER_ENTITY, ""),
                 CONF_ENERGY_ENTITY: user_input.get(CONF_ENERGY_ENTITY, ""),
+                CONF_CHAMBER_TEMP_ENTITY: user_input.get(CONF_CHAMBER_TEMP_ENTITY, ""),
             }
             self.hass.config_entries.async_update_entry(
                 self.config_entry,
@@ -111,6 +120,7 @@ class PrinterAnalyticsOptionsFlow(config_entries.OptionsFlow):
                     CONF_PRINTER_NAME: options[CONF_PRINTER_NAME],
                     CONF_POWER_ENTITY: options[CONF_POWER_ENTITY],
                     CONF_ENERGY_ENTITY: options[CONF_ENERGY_ENTITY],
+                    CONF_CHAMBER_TEMP_ENTITY: options[CONF_CHAMBER_TEMP_ENTITY],
                 },
                 options=options,
             )
@@ -137,6 +147,12 @@ class PrinterAnalyticsOptionsFlow(config_entries.OptionsFlow):
                     vol.Optional(
                         CONF_ENERGY_ENTITY,
                         default=self.config_entry.data.get(CONF_ENERGY_ENTITY, ""),
+                    ): selector.EntitySelector(
+                        selector.EntitySelectorConfig(domain="sensor")
+                    ),
+                    vol.Optional(
+                        CONF_CHAMBER_TEMP_ENTITY,
+                        default=self.config_entry.data.get(CONF_CHAMBER_TEMP_ENTITY, ""),
                     ): selector.EntitySelector(
                         selector.EntitySelectorConfig(domain="sensor")
                     ),

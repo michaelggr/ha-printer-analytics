@@ -25,6 +25,7 @@ from .const import (
     BAMBULAB_ENTITY_KEYS,
     BAMBULAB_IMAGE_KEYS,
     BAMBULAB_CAMERA_KEYS,
+    CONF_CHAMBER_TEMP_ENTITY,
     CONF_ENERGY_ENTITY,
     CONF_POWER_ENTITY,
     CONF_PRINTER_NAME,
@@ -84,6 +85,7 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         self.print_status_entity: str = entry.data.get(CONF_PRINT_STATUS_ENTITY, "")
         self.power_entity: str = entry.data.get(CONF_POWER_ENTITY, "")
         self.energy_entity: str = entry.data.get(CONF_ENERGY_ENTITY, "")
+        self.chamber_temp_entity: str = entry.data.get(CONF_CHAMBER_TEMP_ENTITY, "")
 
         self.history: list[dict] = []
         self.current_print: dict | None = None
@@ -815,10 +817,18 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
                 self.current_print["energy_valid"] = True
 
     def _cache_chamber_temperature(self, now: datetime) -> None:
-        """定时采集腔体温度（每60秒记录一次，打印结束时取最后5分钟）"""
+        """定时采集腔体温度（每60秒记录一次，打印结束时取最后5分钟）
+        
+        优先使用打印机内置chamber_temperature实体，
+        若不存在则使用用户配置的外部温度传感器（如环境温湿度计）
+        """
         if not self.current_print:
             return
+        # 优先使用自动发现的chamber_temperature实体
         chamber_entity = self._entity_map.get("chamber_temperature")
+        # 若未发现，回退到用户配置的外部温度传感器
+        if not chamber_entity:
+            chamber_entity = self.chamber_temp_entity
         if not chamber_entity:
             return
         temp = self._get_float_state(chamber_entity, None)
@@ -1531,5 +1541,6 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
     def update_options(self, options: dict) -> None:
         self.power_entity = options.get(CONF_POWER_ENTITY, self.power_entity)
         self.energy_entity = options.get(CONF_ENERGY_ENTITY, self.energy_entity)
+        self.chamber_temp_entity = options.get(CONF_CHAMBER_TEMP_ENTITY, self.chamber_temp_entity)
         if CONF_PRINTER_NAME in options:
             self.printer_name = options[CONF_PRINTER_NAME]

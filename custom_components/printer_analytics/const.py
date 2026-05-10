@@ -4,6 +4,7 @@ CONF_PRINTER_NAME = "printer_name"
 CONF_PRINT_STATUS_ENTITY = "print_status_entity"
 CONF_POWER_ENTITY = "power_entity"
 CONF_ENERGY_ENTITY = "energy_entity"
+CONF_CHAMBER_TEMP_ENTITY = "chamber_temp_entity"
 
 DATA_COORDINATOR = "coordinator"
 DATA_HISTORY = "history"
