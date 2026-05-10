@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 import logging
@@ -9,8 +9,9 @@ import uuid
 import gzip
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
-from functools import lru_cache
 from typing import Any
+
+from homeassistant.util import dt as dt_util
 
 import aiohttp
 from homeassistant.core import HomeAssistant, Event, callback
@@ -205,6 +206,9 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
 
             self.history = await self.hass.async_add_executor_job(_load)
             
+            # 数据迁移：修复 duration_hours=0 的记录
+            self._fix_duration_hours()
+            
             LOGGER.info(
                 "成功加载 %d 条历史记录（%d 个年份），支持100年数据存储",
                 self._total_records, len(self._yearly_stats),
@@ -213,6 +217,23 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         except Exception as err:
             LOGGER.error("加载历史数据失败: %s", err)
             self.history = []
+
+    def _fix_duration_hours(self) -> None:
+        """数据迁移：修复 duration_hours=0 的历史记录"""
+        fixed = 0
+        for r in self.history:
+            if (not r.get('duration_hours') or r.get('duration_hours') == 0) and r.get('start_time') and r.get('end_time'):
+                start_dt = self._normalize_to_utc(r['start_time'])
+                end_dt = self._normalize_to_utc(r['end_time'])
+                if start_dt and end_dt:
+                    duration = (end_dt - start_dt).total_seconds() / 3600
+                    if duration > 0:
+                        r['duration_hours'] = round(duration, 2)
+                        fixed += 1
+        
+        if fixed > 0:
+            LOGGER.info("数据迁移：修复了 %d 条记录的 duration_hours", fixed)
+            self.hass.async_create_task(self._save_history())
 
     def _migrate_legacy_data(self) -> None:
         """将旧版本的单文件数据迁移到按年分片存储"""
@@ -522,11 +543,9 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
                 uid = getattr(ent, 'unique_id', '')
                 eid = getattr(ent, 'entity_id', '')
                 domain = getattr(ent, 'domain', '')
-                for key, suffix in BAMBULAB_ENTITY_KEYS.items():
-                    if uid.endswith(f"_{suffix}"):
+                for key, suffixes in BAMBULAB_ENTITY_KEYS.items():
+                    if any(uid.endswith(f"_{s}") for s in suffixes):
                         self._entity_map[key] = eid
-                if uid.endswith("_print_weight") or uid.endswith("_print_length"):
-                    self._discover_debug += f"\n  MATCHED: uid={uid}, eid={eid}"
                 for key, suffix in BAMBULAB_IMAGE_KEYS.items():
                     if uid.endswith(f"_{suffix}") and getattr(ent, 'domain', '') == "image":
                         self._entity_map[key] = eid
@@ -549,6 +568,27 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         if state is None:
             return default
         return state.state
+
+    def _get_best_task_name(self) -> str:
+        """
+        获取最佳任务名称：优先云端/原始文件名(gcode_filename)，回退task_name
+        
+        BambuLab的task_name实体通常显示打印参数描述(如'0.2mm层高,3层墙,50%填充')，
+        而gcode_filename包含云端任务原始名称(如'宜家IKEA Skadis...')，
+        后者对历史记录更有意义。
+        """
+        gcode_filename = self._get_entity_state(self._entity_map.get("gcode_filename", ""), "")
+        task_name = self._get_entity_state(self._entity_map.get("task_name", ""), "")
+
+        # 优先使用gcode_filename（云端/原始文件名）
+        if gcode_filename and gcode_filename not in ("unknown", "unavailable", ""):
+            return gcode_filename
+
+        # 回退到task_name
+        if task_name and task_name not in ("unknown", "unavailable", ""):
+            return task_name
+
+        return ""
 
     def _get_entity_attr(self, entity_id: str, attr: str, default: Any = None) -> Any:
         if not entity_id:
@@ -574,11 +614,13 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         return state.state
 
     def _recover_active_print(self) -> None:
+        start_energy = self._get_float_state(self.energy_entity)
         self.current_print = {
             "id": str(uuid.uuid4()),
             "start_time": datetime.now(timezone.utc).isoformat(),
             "status": "running",
-            "start_energy": self._get_float_state(self.energy_entity),
+            "start_energy": start_energy,
+            "energy_valid": start_energy > 0,
         }
         self._previous_status = PRINT_STATUS_RUNNING
         LOGGER.info("Recovered active print for %s", self.printer_name)
@@ -618,46 +660,112 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         self.async_set_updated_data(self._calculate_statistics())
 
     def _cache_print_material_data(self) -> None:
-        """打印过程中持续缓存耗材数据（支持多色用量统计）"""
+        """打印过程中持续缓存耗材数据（基于 AMS tray attributes 的多色用量追踪）"""
         if not self._entity_map.get("print_weight") or not self._entity_map.get("print_length"):
             self.hass.async_create_task(self._discover_entities())
         
-        weight = self._get_float_state(self._entity_map.get("print_weight", ""))
-        length = self._get_float_state(self._entity_map.get("print_length", ""))
+        weight_entity = self._entity_map.get("print_weight", "")
+        length_entity = self._entity_map.get("print_length", "")
         
-        # 获取当前颜色
+        total_weight = self._get_float_state(weight_entity)
+        total_length = self._get_float_state(length_entity)
         current_type, current_color = self._get_current_filament_info()
         
-        if weight:
-            self.current_print["cached_weight"] = weight
-        if length:
-            self.current_print["cached_length"] = length
+        if total_weight:
+            self.current_print["cached_weight"] = total_weight
+        if total_length:
+            self.current_print["cached_length"] = total_length
+
+        if not current_color or not total_weight:
+            return
+
+        # 从 print_weight/print_length 的 attributes 中提取 AMS tray 用量
+        weight_state = self.hass.states.get(weight_entity)
+        length_state = self.hass.states.get(length_entity)
         
-        # 更新当前颜色的累计用量（多色支持）
-        if current_color and weight and "color_usage" in self.current_print:
-            color_usage = self.current_print["color_usage"]
+        if weight_state and length_state:
+            weight_attrs = weight_state.attributes
+            length_attrs = length_state.attributes
             
-            # 查找或创建当前颜色的记录
-            current_entry = None
-            for entry in color_usage:
-                if entry["color"] == current_color:
-                    current_entry = entry
-                    break
+            # 提取 "AMS X Tray Y" 格式的属性值
+            ams_weights = {}
+            ams_lengths = {}
+            for k, v in weight_attrs.items():
+                if k.startswith("AMS") and "Tray" in k:
+                    try:
+                        ams_weights[k] = float(v)
+                    except (ValueError, TypeError):
+                        pass
+            for k, v in length_attrs.items():
+                if k.startswith("AMS") and "Tray" in k:
+                    try:
+                        ams_lengths[k] = float(v)
+                    except (ValueError, TypeError):
+                        pass
             
-            if not current_entry:
-                # 新颜色，添加记录
-                current_entry = {
-                    "color": current_color,
-                    "type": current_type,
-                    "weight_g": 0.0,
-                    "length_m": 0.0,
-                    "start_time": datetime.now(timezone.utc).isoformat(),
-                }
-                color_usage.append(current_entry)
-            
-            # 更新该颜色的累计用量（记录最大值）
-            current_entry["weight_g"] = max(current_entry.get("weight_g", 0), weight)
-            current_entry["length_m"] = max(current_entry.get("length_m", 0), length)
+            if ams_weights:
+                # 构建 tray -> (color, type) 的映射
+                active_state = self.hass.states.get(self._entity_map.get("active_tray", ""))
+                tray_color_map = self._build_tray_color_map()
+                
+                color_usage = self.current_print.setdefault("color_usage", [])
+                color_usage.clear()
+                
+                for tray_key, weight in ams_weights.items():
+                    length = ams_lengths.get(tray_key, 0)
+                    color_info = tray_color_map.get(tray_key, {})
+                    
+                    color_usage.append({
+                        "color": color_info.get("color", current_color),
+                        "type": color_info.get("type", current_type),
+                        "weight_g": round(weight, 2),
+                        "length_m": round(length, 2),
+                        "tray": tray_key,
+                        "start_time": self.current_print.get("start_time"),
+                    })
+                
+                self.current_print["ams_tray_data"] = True
+
+    def _build_tray_color_map(self) -> dict[str, dict]:
+        """构建 AMS tray -> (color, type) 的映射"""
+        result = {}
+        active_entity = self._entity_map.get("active_tray", "")
+        if not active_entity:
+            return result
+        
+        # 遍历所有 AMS tray 实体获取颜色信息
+        for state in self.hass.states.async_all():
+            eid = state.entity_id
+            if "ams" in eid and "tray" in eid and eid.startswith("sensor."):
+                attrs = state.attributes
+                tray_name = attrs.get("friendly_name", "")
+                # 从 entity_id 提取 tray 编号，如 ams_1_tray_1
+                # 从 friendly_name 提取 "AMS 1 Tray 1" 格式
+                parts = eid.split("_")
+                ams_idx = None
+                tray_idx = None
+                for i, p in enumerate(parts):
+                    if p == "ams" and i + 1 < len(parts):
+                        try:
+                            ams_idx = int(parts[i + 1])
+                        except ValueError:
+                            pass
+                    if p == "tray" and i + 1 < len(parts):
+                        try:
+                            tray_idx = int(parts[i + 1])
+                        except ValueError:
+                            pass
+                
+                if ams_idx is not None and tray_idx is not None:
+                    key = f"AMS {ams_idx} Tray {tray_idx}"
+                    color = attrs.get("color", "")
+                    name = state.state if state.state not in ("unknown", "unavailable", "") else ""
+                    result[key] = {
+                        "color": color,
+                        "type": name,
+                    }
+        
+        return result
 
     def _start_material_cache(self) -> None:
         """启动定时缓存耗材数据"""
@@ -675,7 +783,53 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         """定时缓存耗材数据（支持多色追踪）"""
         if self.current_print is not None:
             self._cache_print_material_data()
-            self._track_color_changes()  # 新增：追踪颜色变化
+            self._track_color_changes()
+            self._cache_delayed_fields()
+            self._cache_chamber_temperature(now)
+
+    def _cache_delayed_fields(self) -> None:
+        """补获打印开始时可能延迟就绪的字段（task_name 等）"""
+        if not self.current_print:
+            return
+
+        if not self.current_print.get("task_name"):
+            task_name = self._get_best_task_name()
+            if task_name:
+                self.current_print["task_name"] = task_name
+                LOGGER.debug("Delayed capture task_name: %s", task_name)
+
+        if not self.current_print.get("nozzle_size"):
+            nozzle_size = self._get_entity_state(self._entity_map.get("nozzle_size", ""), "")
+            if nozzle_size:
+                self.current_print["nozzle_size"] = nozzle_size
+
+        if not self.current_print.get("total_layer_count"):
+            total_layer_count = self._get_float_state(self._entity_map.get("total_layer_count", ""), 0)
+            if total_layer_count:
+                self.current_print["total_layer_count"] = int(total_layer_count)
+
+        if not self.current_print.get("energy_valid"):
+            start_energy = self._get_float_state(self.energy_entity)
+            if start_energy > 0:
+                self.current_print["start_energy"] = start_energy
+                self.current_print["energy_valid"] = True
+
+    def _cache_chamber_temperature(self, now: datetime) -> None:
+        """定时采集腔体温度（每60秒记录一次，打印结束时取最后5分钟）"""
+        if not self.current_print:
+            return
+        chamber_entity = self._entity_map.get("chamber_temperature")
+        if not chamber_entity:
+            return
+        temp = self._get_float_state(chamber_entity, None)
+        if temp is None:
+            return
+        if "chamber_temp_timeline" not in self.current_print:
+            self.current_print["chamber_temp_timeline"] = []
+        self.current_print["chamber_temp_timeline"].append({
+            "time": now.isoformat(),
+            "temp": round(temp, 1),
+        })
 
     def _get_current_filament_info(self) -> tuple[str, str]:
         """获取当前激活的耗材信息（类型, 颜色）"""
@@ -756,7 +910,7 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         start_time_val = self._get_entity_state(start_time_entity)
         start_time = start_time_val if start_time_val else datetime.now(timezone.utc).isoformat()
         
-        task_name = self._get_entity_state(self._entity_map.get("task_name", ""), "")
+        task_name = self._get_best_task_name()
         nozzle_type = self._get_entity_state(self._entity_map.get("nozzle_type", ""), "")
         nozzle_size = self._get_entity_state(self._entity_map.get("nozzle_size", ""), "")
         print_bed_type = self._get_entity_state(self._entity_map.get("print_bed_type", ""), "")
@@ -766,41 +920,31 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         filament_type, filament_color = self._get_current_filament_info()
         cover_image_url = self._get_entity_attr(self._entity_map.get("cover_image", ""), "entity_picture", "")
         
+        start_energy = self._get_float_state(self.energy_entity)
+
         self.current_print = {
             "id": str(uuid.uuid4()),
             "start_time": start_time,
             "status": "running",
-            "start_energy": self._get_float_state(self.energy_entity),
+            "start_energy": start_energy,
+            "energy_valid": start_energy > 0,
             "task_name": task_name or None,
             "nozzle_type": nozzle_type or None,
             "nozzle_size": nozzle_size or None,
             "print_bed_type": print_bed_type or None,
             "total_layer_count": int(total_layer_count) if total_layer_count else None,
             
-            # 多色支持（新增）
             "colors_used": [filament_color] if filament_color else [],
             "types_used": [filament_type] if filament_type else [],
-            "color_changes": [],  # 颜色切换历史
+            "color_changes": [],
             "total_colors": 1 if filament_color else 0,
             
-            # 向后兼容（保留）
             "filament_type": filament_type or None,
             "filament_color": filament_color or None,
             "cover_image_url": cover_image_url or None,
             
-            # 新增：每种颜色的用量追踪
-            "color_usage": [],  # [{color, type, weight_g, length_m}, ...]
+            "color_usage": [],
         }
-        
-        # 记录初始颜色用量
-        if filament_color:
-            self.current_print["color_usage"].append({
-                "color": filament_color,
-                "type": filament_type,
-                "weight_g": 0.0,
-                "length_m": 0.0,
-                "start_time": start_time,
-            })
         
         self._start_material_cache()
         LOGGER.info(
@@ -809,7 +953,7 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         )
 
     async def _download_cover_image(self, image_url: str, task_name: str, end_time: str) -> str | None:
-        """下载封面图片"""
+        """下载封面图片（通过HA内部API直接获取，无需HTTP请求）"""
         if not image_url:
             return None
         if not URLValidator.validate_relative_url(image_url):
@@ -817,6 +961,18 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
             return None
 
         try:
+            cover_entity = self._entity_map.get("cover_image")
+            if not cover_entity:
+                LOGGER.debug("No cover_image entity mapped, skipping download")
+                return None
+
+            state = self.hass.states.get(cover_entity)
+            if not state:
+                LOGGER.warning("Cover image entity %s state not available", cover_entity)
+                return None
+
+            entity_picture = state.attributes.get("entity_picture", image_url)
+
             safe_task_name = SecureFileHandler.sanitize_filename(task_name)
             safe_time = re.sub(r'[^\dT]', '_', end_time[:19])
             filename = f"{safe_task_name}_{safe_time}.jpg"
@@ -831,14 +987,23 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
                 return None
 
             base_url = self.hass.config.api.base_url if hasattr(self.hass.config.api, 'base_url') else f"http://127.0.0.1:{self.hass.config.api.port}"
-            full_url = f"{base_url}{image_url}"
+            full_url = f"{base_url}{entity_picture}"
 
             session = await self._get_http_session()
-            async with session.get(full_url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+            headers = {}
+            long_lived_token = self.entry.data.get("ha_token") or self.entry.options.get("ha_token")
+            if long_lived_token:
+                headers["Authorization"] = f"Bearer {long_lived_token}"
+
+            async with session.get(full_url, headers=headers, timeout=aiohttp.ClientTimeout(total=15)) as resp:
                 if resp.status != 200:
-                    LOGGER.warning("Failed to download cover image: HTTP %d", resp.status)
+                    LOGGER.warning("Failed to download cover image: HTTP %d for %s", resp.status, full_url[:80])
                     return None
                 content = await resp.read()
+
+            if len(content) < 100:
+                LOGGER.warning("Cover image too small (%d bytes), likely not a valid image", len(content))
+                return None
 
             def _write():
                 with open(filepath, "wb") as f:
@@ -846,7 +1011,7 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
             await self.hass.async_add_executor_job(_write)
 
             local_path = f"/local/printer_analytics/{filename}"
-            LOGGER.info("Cover image saved: %s", local_path)
+            LOGGER.info("Cover image saved: %s (%d bytes)", local_path, len(content))
             return local_path
         except Exception as err:
             LOGGER.error("Failed to download cover image: %s", err)
@@ -924,7 +1089,12 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
             snapshot_url = f"{base_url}/api/camera_proxy/{camera_entity}"
 
             session = await self._get_http_session()
-            async with session.get(snapshot_url, timeout=aiohttp.ClientTimeout(total=15)) as resp:
+            headers = {}
+            long_lived_token = self.entry.data.get("ha_token") or self.entry.options.get("ha_token")
+            if long_lived_token:
+                headers["Authorization"] = f"Bearer {long_lived_token}"
+
+            async with session.get(snapshot_url, headers=headers, timeout=aiohttp.ClientTimeout(total=15)) as resp:
                 if resp.status != 200:
                     LOGGER.warning("Failed to download snapshot: HTTP %d", resp.status)
                     return None
@@ -942,6 +1112,22 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
             LOGGER.error("Failed to download snapshot: %s", err)
             return None
 
+    def _normalize_to_utc(self, dt_str: str) -> datetime | None:
+        """将任意格式的时间字符串统一转为 UTC aware datetime
+        
+        无时区信息的时间字符串视为 HA 本地时区（bambu_lab 返回的 start_time 是本地时间）
+        """
+        if not dt_str:
+            return None
+        try:
+            dt = datetime.fromisoformat(dt_str)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=dt_util.DEFAULT_TIME_ZONE)
+            return dt.astimezone(timezone.utc)
+        except Exception as err:
+            LOGGER.warning("Failed to normalize time '%s': %s", dt_str[:30], err)
+            return None
+
     async def _on_print_end(self, end_status: str) -> None:
         self._stop_material_cache()
 
@@ -950,11 +1136,12 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
             return
         
         end_time = datetime.now(timezone.utc).isoformat()
-        try:
-            start_dt = datetime.fromisoformat(self.current_print["start_time"])
-            end_dt = datetime.fromisoformat(end_time)
+        start_dt = self._normalize_to_utc(self.current_print["start_time"])
+        end_dt = self._normalize_to_utc(end_time)
+        LOGGER.debug("Duration calc: start='%s' => %s, end='%s' => %s", self.current_print["start_time"][:25], start_dt, end_time[:25], end_dt)
+        if start_dt and end_dt:
             duration_hours = (end_dt - start_dt).total_seconds() / 3600
-        except (ValueError, TypeError):
+        else:
             duration_hours = 0
         
         progress = 100
@@ -964,11 +1151,18 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         total_weight = self.current_print.get("cached_weight") or self._get_float_state(self._entity_map.get("print_weight", ""))
         total_length = self.current_print.get("cached_length") or self._get_float_state(self._entity_map.get("print_length", ""))
         
-        energy_kwh = 0.0
-        if self.energy_entity:
+        energy_kwh = None
+        if self.energy_entity and self.current_print.get("energy_valid"):
             end_energy = self._get_float_state(self.energy_entity)
             start_energy = self.current_print.get("start_energy", 0)
-            energy_kwh = max(0, end_energy - start_energy)
+            delta = end_energy - start_energy
+            if 0 < delta < 10:
+                energy_kwh = round(delta, 4)
+            else:
+                LOGGER.warning(
+                    "Abnormal energy delta %.2f kWh (start=%.2f, end=%.2f) for %s, skipped",
+                    delta, start_energy, end_energy, self.printer_name,
+                )
         
         task_name = self.current_print.get("task_name") or ""
         cover_image_url = self.current_print.get("cover_image_url") or ""
@@ -1021,7 +1215,37 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
                 end_status
             )
         
-        temp_record = {
+        clean_color_usage = [
+            {
+                "color": entry["color"],
+                "type": entry["type"],
+                "weight_g": round(entry.get("weight_g", 0), 2),
+                "length_m": round(entry.get("length_m", 0), 2),
+                "tray": entry.get("tray"),
+            }
+            for entry in color_usage
+        ]
+
+        # 提取打印结束前5分钟的腔体温度
+        chamber_temp_last5min = None
+        chamber_temp_final = None
+        timeline = self.current_print.get("chamber_temp_timeline", [])
+        if timeline:
+            chamber_temp_final = timeline[-1].get("temp")
+            cutoff = (end_dt - timedelta(minutes=5)).isoformat() if end_dt else None
+            if cutoff:
+                last5 = [e for e in timeline if e["time"] >= cutoff]
+            else:
+                last5 = timeline[-5:]
+            if last5:
+                chamber_temp_last5min = {
+                    "entries": last5,
+                    "avg": round(sum(e["temp"] for e in last5) / len(last5), 1),
+                    "max": round(max(e["temp"] for e in last5), 1),
+                    "min": round(min(e["temp"] for e in last5), 1),
+                }
+
+        base_record = {
             "id": self.current_print["id"],
             "start_time": self.current_print["start_time"],
             "end_time": end_time,
@@ -1030,17 +1254,14 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
             "progress": progress,
             "total_weight": round(total_weight, 2) if total_weight else None,
             "total_length": round(total_length, 2) if total_length else None,
-            
-            # 多色支持（新增字段）
             "filament_type": types_used[0] if types_used else self.current_print.get("filament_type"),
             "filament_color": colors_used[0] if colors_used else self.current_print.get("filament_color"),
-            "colors_used": colors_used,           # 所有使用过的颜色
-            "types_used": types_used,             # 对应的材质类型
-            "total_colors": total_colors,         # 颜色总数
-            "color_changes_count": len(color_changes),  # 切换次数
-            "multi_color_summary": multi_color_summary,  # 详细统计（仅多色时）
-            "color_usage": color_usage,          # 每种颜色的用量详情
-            
+            "colors_used": colors_used,
+            "types_used": types_used,
+            "total_colors": total_colors,
+            "color_changes_count": len(color_changes),
+            "multi_color_summary": multi_color_summary,
+            "color_usage": clean_color_usage,
             "energy_kwh": round(energy_kwh, 4) if energy_kwh else None,
             "task_name": task_name or None,
             "nozzle_type": self.current_print.get("nozzle_type"),
@@ -1048,41 +1269,18 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
             "print_bed_type": self.current_print.get("print_bed_type"),
             "total_layer_count": self.current_print.get("total_layer_count"),
             "cover_image_url": cover_image_url or None,
+            "chamber_temp_final": chamber_temp_final,
+            "chamber_temp_last5min": chamber_temp_last5min,
         }
 
         import asyncio
         full_print_info, snapshot_image_local = await asyncio.gather(
-            self._save_full_print_info(temp_record, end_time),
+            self._save_full_print_info(base_record, end_time),
             self._download_print_snapshot(end_time, task_name)
         )
 
         record = {
-            "id": self.current_print["id"],
-            "start_time": self.current_print["start_time"],
-            "end_time": end_time,
-            "duration_hours": round(duration_hours, 2),
-            "status": end_status,
-            "progress": progress,
-            "total_weight": round(total_weight, 2) if total_weight else None,
-            "total_length": round(total_length, 2) if total_length else None,
-            
-            # 多色支持（完整保存）
-            "filament_type": types_used[0] if types_used else self.current_print.get("filament_type"),
-            "filament_color": colors_used[0] if colors_used else self.current_print.get("filament_color"),
-            "colors_used": colors_used,           # 所有使用过的颜色
-            "types_used": types_used,             # 对应的材质类型
-            "total_colors": total_colors,         # 颜色总数
-            "color_changes_count": len(color_changes),  # 切换次数
-            "multi_color_summary": multi_color_summary,  # 详细统计（仅多色时）
-            "color_usage": color_usage,          # 每种颜色的用量详情
-            
-            "energy_kwh": round(energy_kwh, 4) if energy_kwh else None,
-            "task_name": task_name or None,
-            "nozzle_type": self.current_print.get("nozzle_type"),
-            "nozzle_size": self.current_print.get("nozzle_size"),
-            "print_bed_type": self.current_print.get("print_bed_type"),
-            "total_layer_count": self.current_print.get("total_layer_count"),
-            "cover_image_url": cover_image_url or None,
+            **base_record,
             "cover_image_local": cover_image_local,
             "snapshot_image_local": snapshot_image_local,
             "full_print_info_path": full_print_info,
@@ -1301,16 +1499,11 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
             }
         return result
 
-    @staticmethod
-    @lru_cache(maxsize=5000)
-    def _parse_time(time_str: str) -> datetime | None:
-        """解析时间字符串（带LRU缓存优化）"""
+    def _parse_time(self, time_str: str) -> datetime | None:
+        """解析时间字符串并统一转为 UTC（带LRU缓存优化）"""
         if not time_str:
             return None
-        try:
-            return datetime.fromisoformat(time_str)
-        except (ValueError, TypeError):
-            return None
+        return self._normalize_to_utc(time_str)
 
     async def _async_update_data(self) -> PrinterStats:
         return self._calculate_statistics()
@@ -1321,6 +1514,19 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         await self._save_history()
         self.async_set_updated_data(self._calculate_statistics())
         LOGGER.info("History reset for %s", self.printer_name)
+
+    async def async_delete_history_records(self, record_ids: list[str]) -> int:
+        if not record_ids:
+            return 0
+        ids_set = set(record_ids)
+        original_count = len(self.history)
+        self.history = [r for r in self.history if r.get("id") not in ids_set]
+        deleted_count = original_count - len(self.history)
+        if deleted_count > 0:
+            await self._save_history()
+            self.async_set_updated_data(self._calculate_statistics())
+            LOGGER.info("Deleted %d history records for %s", deleted_count, self.printer_name)
+        return deleted_count
 
     def update_options(self, options: dict) -> None:
         self.power_entity = options.get(CONF_POWER_ENTITY, self.power_entity)

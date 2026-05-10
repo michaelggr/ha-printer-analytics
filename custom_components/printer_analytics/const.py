@@ -1,4 +1,4 @@
-DOMAIN = "printer_analytics"
+﻿DOMAIN = "printer_analytics"
 
 CONF_PRINTER_NAME = "printer_name"
 CONF_PRINT_STATUS_ENTITY = "print_status_entity"
@@ -10,6 +10,7 @@ DATA_HISTORY = "history"
 
 SERVICE_REFRESH_STATS = "refresh_stats"
 SERVICE_RESET_HISTORY = "reset_history"
+SERVICE_DELETE_HISTORY_RECORDS = "delete_history_records"
 
 PRINT_STATUS_RUNNING = "running"
 PRINT_STATUS_PAUSE = "pause"
@@ -21,20 +22,21 @@ ACTIVE_PRINT_STATUSES = {PRINT_STATUS_RUNNING, PRINT_STATUS_PAUSE}
 END_PRINT_STATUSES = {PRINT_STATUS_FINISH, PRINT_STATUS_FAIL}
 
 BAMBULAB_ENTITY_KEYS = {
-    "print_progress": "print_progress",
-    "print_weight": "print_weight",
-    "print_length": "print_length",
-    "remaining_time": "remaining_time",
-    "active_tray": "active_tray",
-    "start_time": "start_time",
-    "current_stage": "current_stage",
-    "current_layer": "current_layer",
-    "total_layer_count": "total_layer_count",
-    "task_name": "task_name",
-    "nozzle_type": "nozzle_type",
-    "nozzle_size": "nozzle_size",
-    "print_bed_type": "print_bed_type",
-    "gcode_filename": "gcode_filename",
+    "print_progress": ["print_progress"],
+    "print_weight": ["print_weight"],
+    "print_length": ["print_length"],
+    "remaining_time": ["remaining_time"],
+    "active_tray": ["active_tray"],
+    "start_time": ["start_time"],
+    "current_stage": ["current_stage", "stage"],
+    "current_layer": ["current_layer"],
+    "total_layer_count": ["total_layer_count", "total_layers"],
+    "task_name": ["task_name", "subtask_name"],
+    "nozzle_type": ["nozzle_type"],
+    "nozzle_size": ["nozzle_size", "nozzle_diameter"],
+    "print_bed_type": ["print_bed_type"],
+    "gcode_filename": ["gcode_filename", "gcode_file"],
+    "chamber_temperature": ["chamber_temperature", "chamber_temp"],
 }
 
 BAMBULAB_IMAGE_KEYS = {

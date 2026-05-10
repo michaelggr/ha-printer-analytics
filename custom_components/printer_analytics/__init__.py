@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import logging
 import os
@@ -16,6 +16,7 @@ from .const import (
     DOMAIN,
     SERVICE_REFRESH_STATS,
     SERVICE_RESET_HISTORY,
+    SERVICE_DELETE_HISTORY_RECORDS,
 )
 from .coordinator import PrinterAnalyticsCoordinator
 
@@ -106,8 +107,22 @@ def _register_services(hass: HomeAssistant) -> None:
             await coordinator.async_reset_history()
             LOGGER.info("History reset for %s", coordinator.printer_name)
 
+    async def _handle_delete_history_records(call: ServiceCall) -> None:
+        coordinator = _get_coordinator_from_call(hass, call)
+        if coordinator:
+            record_ids_raw = call.data.get("record_ids", "")
+            if isinstance(record_ids_raw, str):
+                record_ids = [rid.strip() for rid in record_ids_raw.split(",") if rid.strip()]
+            elif isinstance(record_ids_raw, list):
+                record_ids = record_ids_raw
+            else:
+                record_ids = []
+            deleted = await coordinator.async_delete_history_records(record_ids)
+            LOGGER.info("Deleted %d history records for %s", deleted, coordinator.printer_name)
+
     hass.services.async_register(DOMAIN, SERVICE_REFRESH_STATS, _handle_refresh_stats)
     hass.services.async_register(DOMAIN, SERVICE_RESET_HISTORY, _handle_reset_history)
+    hass.services.async_register(DOMAIN, SERVICE_DELETE_HISTORY_RECORDS, _handle_delete_history_records)
 
 
 def _get_coordinator_from_call(

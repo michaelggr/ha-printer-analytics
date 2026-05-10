@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 打印机分析卡片 - v3.4.6 极简无动画版（Material Design 3）
  * 版本: 3.4.6 (2026-05-08) - 无动画 + 内置历史记录
  *
@@ -2003,7 +2003,21 @@ class PrinterAnalyticsCard extends HTMLElement {
             <span class="meta-item">⏱️ ${duration}</span>
             <span class="meta-item">🧵 ${filamentType}</span>
             ${colorsUsed.length > 1 ? `<span class="meta-item">🎨 ${colorsUsed.length}色</span>` : ''}
+            ${item.chamber_temp_final != null ? `<span class="meta-item">💨 ${item.chamber_temp_final}°C</span>` : ''}
           </div>
+
+          ${item.chamber_temp_last5min ? `
+          <div style="margin-top:6px;padding:8px 10px;background:rgba(79,195,247,0.08);border-radius:8px;font-size:11px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+              <span style="color:#4fc3f7;font-weight:600">💨 结束前5分钟腔体温度</span>
+              <span style="color:#94a3b8">平均 ${item.chamber_temp_last5min.avg}°C</span>
+            </div>
+            <div style="display:flex;gap:12px;color:#c0c0c0">
+              <span>最高 <b style="color:#ef9a9a">${item.chamber_temp_last5min.max}°C</b></span>
+              <span>最低 <b style="color:#90caf9">${item.chamber_temp_last5min.min}°C</b></span>
+            </div>
+            ${this._renderChamberTempMiniChart(item.chamber_temp_last5min.entries)}
+          </div>` : ''}
 
           <div class="history-datetime">
             📅 ${endTime}
@@ -2021,6 +2035,23 @@ class PrinterAnalyticsCard extends HTMLElement {
     const hours = Math.floor(minutes / 60);
     const mins = Math.round(minutes % 60);
     return mins > 0 ? `${hours}.${(mins/6).toFixed(1).substring(2)}h` : `${hours}h`;
+  }
+
+  _renderChamberTempMiniChart(entries) {
+    if (!Array.isArray(entries) || entries.length < 2) return '';
+    const temps = entries.map(e => e.temp);
+    const minT = Math.min(...temps);
+    const maxT = Math.max(...temps);
+    const range = maxT - minT || 1;
+    const w = 200, h = 32, pad = 2;
+    const points = temps.map((t, i) => {
+      const x = pad + (i / (temps.length - 1)) * (w - pad * 2);
+      const y = pad + (1 - (t - minT) / range) * (h - pad * 2);
+      return `${x},${y}`;
+    }).join(' ');
+    return `<svg viewBox="0 0 ${w} ${h}" style="width:100%;height:32px;margin-top:4px;opacity:0.8">
+      <polyline points="${points}" fill="none" stroke="#4fc3f7" stroke-width="1.5" stroke-linejoin="round"/>
+    </svg>`;
   }
 
   getCardSize() { return 10; }

@@ -1507,7 +1507,7 @@ class PrinterAnalyticsCard extends HTMLElement {
     const bedTemp = this._getState(this.config.bed_temp) || 'N/A';
     const chamberTemp = this._getState(this.config.chamber_temp) || 'N/A';
     const activeTray = this._getState(this.config.active_tray);
-    const wifiSignal = this._getState(this.config.wifi_signal) || 'N/A';
+    const powerConsumption = this._getState(this.config.power_consumption) || 'N/A';
     const speedProfile = this._getState(this.config.speed_profile) || 'N/A';
     const nozzleSize = this._getState(this.config.nozzle_size) || 'N/A';
 
@@ -1605,10 +1605,10 @@ class PrinterAnalyticsCard extends HTMLElement {
                   <div class="realtime-item-value">${chamberTemp}<small style="font-size:12px;color:#666;font-weight:500">°C</small></div>
                 </div>` : ''}
                 
-                ${wifiSignal ? `
+                ${powerConsumption !== 'N/A' ? `
                 <div class="realtime-item">
-                  <div class="realtime-item-label">📶 WiFi信号</div>
-                  <div class="realtime-item-value">${wifiSignal}<small style="font-size:12px;color:#666;font-weight:500">dBm</small></div>
+                  <div class="realtime-item-label">⚡ 功耗</div>
+                  <div class="realtime-item-value">${powerConsumption}<small style="font-size:12px;color:#666;font-weight:500">W</small></div>
                 </div>` : ''}
                 
                 ${speedProfile ? `
