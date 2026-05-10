@@ -33,7 +33,7 @@ class PrinterAnalyticsCard extends HTMLElement {
     this._pendingDateFrom = '';
     this._pendingDateTo = '';
     this._pendingSearchQuery = '';
-    console.log('🎨 打印机分析 v5.0 初始化完成');
+    console.log('🎨 打印机分析 v5.1 初始化完成');
   }
 
   setConfig(config) {
@@ -1575,7 +1575,7 @@ class PrinterAnalyticsCard extends HTMLElement {
               <div class="header-title">${title}</div>
             </div>
           </div>
-          <div class="header-badge">v5.0</div>
+          <div class="header-badge">v5.1</div>
         </div>
 
         <div class="tab-container">
@@ -2277,7 +2277,7 @@ class PrinterAnalyticsCard extends HTMLElement {
     let multiColorPrints = [];
     let hasData = false;
 
-    console.log('🎨 v4.0 耗材数据处理开始:', history ? history.length : 0, '条记录');
+    console.log('🎨 v5.1 耗材数据处理开始:', history ? history.length : 0, '条记录');
 
     if (Array.isArray(history) && history.length > 0 &&
       history.some(item => item.status === 'finish' && (item.total_weight > 0 || item.filament_type))) {

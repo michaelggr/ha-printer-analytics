@@ -15,6 +15,8 @@ class SecureFileHandler:
 
     # 危险字符黑名单（覆盖Windows和Linux）
     DANGEROUS_CHAR_PATTERN = re.compile(r'[\\/:*?"<>|\x00-\x1f]')
+    # URL不安全字符（%会导致URL编码解析失败，逗号/空格/中文在某些服务器上有问题）
+    URL_UNSAFE_PATTERN = re.compile(r'[%,;#\s]')
     # 路径遍历检测模式
     PATH_TRAVERSAL_PATTERN = re.compile(r'\.\.')
     # 文件名长度限制（防止超长文件名导致系统问题）
@@ -24,33 +26,16 @@ class SecureFileHandler:
 
     @classmethod
     def sanitize_filename(cls, filename: str) -> str:
-        """
-        安全的文件名处理
-        - 移除所有危险字符（包括控制字符）
-        - 防止路径遍历攻击（..序列）
-        - 限制文件名长度防止系统问题
-        - 确保返回非空字符串
-
-        Args:
-            filename: 原始文件名（可能来自用户输入）
-
-        Returns:
-            安全处理后的文件名
-        """
         if not filename:
             return 'unknown'
-
-        # 移除危险字符（替换为下划线）
         safe = cls.DANGEROUS_CHAR_PATTERN.sub('_', filename)
-        # 移除路径遍历序列（防止 ../../etc/passwd 等攻击）
+        safe = cls.URL_UNSAFE_PATTERN.sub('_', safe)
         safe = cls.PATH_TRAVERSAL_PATTERN.sub('_', safe)
-        # 移除首尾空格和点号（防止隐藏文件或特殊文件）
-        safe = safe.strip(' .')
-        # 截断过长的文件名（防止文件系统错误）
+        safe = safe.strip(' ._')
+        # 合并连续下划线
+        safe = re.sub(r'_+', '_', safe)
         if len(safe) > cls.MAX_FILENAME_LENGTH:
             safe = safe[:cls.MAX_FILENAME_LENGTH]
-
-        # 确保最终结果非空
         return safe or 'unknown'
 
     @classmethod

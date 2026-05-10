@@ -1,6 +1,6 @@
-/**
- * 打印机分析卡片 - v3.4.6 极简无动画版（Material Design 3）
- * 版本: 3.4.6 (2026-05-08) - 无动画 + 内置历史记录
+﻿/**
+ * 打印机分析卡片 - v3.4.8.1 极简无动画版（Material Design 3）
+ * 版本: 3.4.8.1 (2026-05-10) - 修复所有时间显示的时区问题
  *
  * 更新日志:
  * - ✅ 完全中文化界面
@@ -1270,7 +1270,18 @@ class PrinterAnalyticsCard extends HTMLElement {
       const recentMulti = multiColorPrints.slice(-5).reverse();
       for (const print of recentMulti) {
         const taskName = this._escapeHtml(print.task_name || '未知任务');
-        const endTime = (print.end_time || '').substring(0, 16);
+        
+        // 统一时区处理
+        const _fmt = (ts) => {
+          if (!ts) return '';
+          try {
+            let d = ts.includes('T') ? new Date(ts) : new Date(ts.replace(' ', 'T'));
+            if (isNaN(d.getTime())) return ts.substring(0, 16);
+            const p = (n) => String(n).padStart(2, '0');
+            return `${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+          } catch(e) { return ts; }
+        };
+        const endTime = _fmt(print.end_time);
         const colorsCount = print.total_colors || (print.colors_used || []).length;
         const changeCount = print.color_changes_count || 0;
 
@@ -1700,12 +1711,12 @@ class PrinterAnalyticsCard extends HTMLElement {
         }
       }
 
-      if (totalColors > 1 || typesUsed.length > 1) {
+      if (totalColors > 1) {
         multiColorPrints.push({
           ...item,
           colors_used: colorsUsed,
           types_used: typesUsed,
-          total_colors: Math.max(totalColors, typesUsed.length)
+          total_colors: totalColors
         });
 
         if (item.color_usage && Array.isArray(item.color_usage)) {
@@ -1965,7 +1976,24 @@ class PrinterAnalyticsCard extends HTMLElement {
     const layers = item.layers || item.total_layers || '-';
     const infill = item.infill ? `${item.infill}%` : '-';
 
-    const endTime = (item.end_time || '').substring(0, 16).replace('T', ' ');
+    // 统一处理时区：将UTC时间转换为本地时间显示
+    const _formatLocalTime = (timeStr) => {
+      if (!timeStr) return '';
+      try {
+        let d;
+        if (timeStr.includes('T')) {
+          d = new Date(timeStr);
+        } else {
+          d = new Date(timeStr.replace(' ', 'T'));
+        }
+        if (isNaN(d.getTime())) return timeStr.substring(0, 16).replace('T', ' ');
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      } catch (e) { return timeStr; }
+    };
+    const startTime = _formatLocalTime(item.start_time);
+    const endTime = _formatLocalTime(item.end_time);
+    const timeDisplay = (startTime && endTime) ? `${startTime} ~ ${endTime}` : (endTime || startTime);
     const duration = this._formatDuration(item.duration_minutes || item.print_duration);
 
     const filamentType = this._escapeHtml(item.filament_type || '未知');
@@ -2006,7 +2034,7 @@ class PrinterAnalyticsCard extends HTMLElement {
           </div>
 
           <div class="history-datetime">
-            📅 ${endTime}
+            📅 ${timeDisplay}
           </div>
         </div>
       </div>

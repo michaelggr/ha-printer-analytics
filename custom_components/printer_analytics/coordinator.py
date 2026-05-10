@@ -91,6 +91,7 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         self.current_print: dict | None = None
         self._previous_status: str | None = None
         self._entity_map: dict[str, str] = {}
+        self._locked_task_name: str = ""
         self._unsub_listener = None
         self._material_cache_interval = None
 
@@ -573,24 +574,45 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
 
     def _get_best_task_name(self) -> str:
         """
-        获取最佳任务名称：优先云端/原始文件名(gcode_filename)，回退task_name
+        获取最佳任务名称
         
-        BambuLab的task_name实体通常显示打印参数描述(如'0.2mm层高,3层墙,50%填充')，
-        而gcode_filename包含云端任务原始名称(如'宜家IKEA Skadis...')，
-        后者对历史记录更有意义。
+        策略：
+        1. 如果已锁定过名称（打印开始时捕获），直接返回
+        2. 否则优先使用task_name（云端任务名或原始文件名）
+        3. 仅当task_name为空时才回退gcode_filename（取basename去路径）
+        
+        BambuLab的task_name在云打印时显示云端任务名(如'宜家IKEA Skadis...')，
+        gcode_filename通常是本地文件路径(如'/data/Metadata/plate_1.gcode')
         """
-        gcode_filename = self._get_entity_state(self._entity_map.get("gcode_filename", ""), "")
+        if self._locked_task_name:
+            return self._locked_task_name
+
         task_name = self._get_entity_state(self._entity_map.get("task_name", ""), "")
+        gcode_filename = self._get_entity_state(self._entity_map.get("gcode_filename", ""), "")
 
-        # 优先使用gcode_filename（云端/原始文件名）
-        if gcode_filename and gcode_filename not in ("unknown", "unavailable", ""):
-            return gcode_filename
-
-        # 回退到task_name
+        # 优先task_name（云端任务名）
         if task_name and task_name not in ("unknown", "unavailable", ""):
             return task_name
 
+        # 回退gcode_filename，去掉路径前缀只保留文件名
+        if gcode_filename and gcode_filename not in ("unknown", "unavailable", ""):
+            import os
+            basename = os.path.basename(gcode_filename)
+            if basename and basename != gcode_filename:
+                return basename
+            return gcode_filename
+
         return ""
+
+    def _lock_task_name(self, name: str) -> None:
+        """锁定任务名称，防止后续被BambuLab更新为参数描述覆盖"""
+        if name and name not in ("unknown", "unavailable", ""):
+            self._locked_task_name = name
+            LOGGER.debug("Task name locked: %s", name)
+
+    def _clear_locked_task_name(self) -> None:
+        """清除锁定的任务名称（打印结束时调用）"""
+        self._locked_task_name = ""
 
     def _get_entity_attr(self, entity_id: str, attr: str, default: Any = None) -> Any:
         if not entity_id:
@@ -852,17 +874,20 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         return (ftype or "", color or "")
 
     def _track_color_changes(self) -> None:
-        """追踪打印过程中的颜色变化（支持最多16色）"""
+        """
+        追踪打印过程中的颜色变化（支持最多16色）
+        
+        防误判策略：只有当新颜色连续2次被检测到（间隔60秒），
+        才确认为真正的颜色切换，避免AMS短暂切换导致的误判。
+        """
         if not self.current_print:
             return
         
         current_type, current_color = self._get_current_filament_info()
         
-        # 获取已记录的颜色列表（兼容旧格式）
         colors_used = self.current_print.get("colors_used", [])
         types_used = self.current_print.get("types_used", [])
         
-        # 如果是旧格式（单字符串），转换为数组
         old_color = self.current_print.get("filament_color")
         old_type = self.current_print.get("filament_type")
         
@@ -871,42 +896,49 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         if not types_used and old_type:
             types_used = [old_type]
         
-        # 检测是否有新颜色
+        # 颜色变化确认机制：连续2次检测到新颜色才确认
         if current_color and current_color not in colors_used:
-            colors_used.append(current_color)
-            
-            change_count = len(colors_used) - 1
-            
-            # 记录颜色切换事件
-            if "color_changes" not in self.current_print:
-                self.current_print["color_changes"] = []
-            
-            self.current_print["color_changes"].append({
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "from_color": colors_used[-2] if len(colors_used) > 1 else None,
-                "to_color": current_color,
-                "from_type": types_used[-1] if types_used else None,
-                "to_type": current_type,
-                "change_number": change_count,
-            })
-            
-            LOGGER.info(
-                "🎨 耗材切换 #%d: %s → %s (%s)",
-                change_count,
-                colors_used[-2] if len(colors_used) > 1 else "初始",
-                current_color,
-                current_type or "未知"
-            )
+            pending = self.current_print.get("_pending_color")
+            if pending == current_color:
+                # 第2次检测到同一新颜色，确认为真正的颜色切换
+                colors_used.append(current_color)
+                change_count = len(colors_used) - 1
+                
+                if "color_changes" not in self.current_print:
+                    self.current_print["color_changes"] = []
+                
+                self.current_print["color_changes"].append({
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "from_color": colors_used[-2] if len(colors_used) > 1 else None,
+                    "to_color": current_color,
+                    "from_type": types_used[-1] if types_used else None,
+                    "to_type": current_type,
+                    "change_number": change_count,
+                })
+                
+                LOGGER.info(
+                    "耗材切换 #%d: %s → %s (%s)",
+                    change_count,
+                    colors_used[-2] if len(colors_used) > 1 else "初始",
+                    current_color,
+                    current_type or "未知"
+                )
+                # 清除待确认状态
+                self.current_print["_pending_color"] = None
+            else:
+                # 第1次检测到新颜色，记录为待确认
+                self.current_print["_pending_color"] = current_color
+                LOGGER.debug("待确认颜色切换: %s (%s)", current_color, current_type)
+        else:
+            # 当前颜色已在列表中，清除待确认状态
+            self.current_print["_pending_color"] = None
         
-        # 同步更新类型列表
         if current_type and current_type not in types_used:
             types_used.append(current_type)
         
-        # 保存回current_print对象
         self.current_print["colors_used"] = colors_used
         self.current_print["types_used"] = types_used
         
-        # 保持向后兼容：primary_color始终是第一个颜色
         if colors_used:
             self.current_print["filament_color"] = colors_used[0]
             self.current_print["filament_type"] = types_used[0] if types_used else None
@@ -921,6 +953,7 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         start_time = start_time_val if start_time_val else datetime.now(timezone.utc).isoformat()
         
         task_name = self._get_best_task_name()
+        self._lock_task_name(task_name)
         nozzle_type = self._get_entity_state(self._entity_map.get("nozzle_type", ""), "")
         nozzle_size = self._get_entity_state(self._entity_map.get("nozzle_size", ""), "")
         print_bed_type = self._get_entity_state(self._entity_map.get("print_bed_type", ""), "")
@@ -1140,6 +1173,7 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
 
     async def _on_print_end(self, end_status: str) -> None:
         self._stop_material_cache()
+        self._clear_locked_task_name()
 
         if self.current_print is None:
             LOGGER.warning("Print end detected for %s but no active print record", self.printer_name)
