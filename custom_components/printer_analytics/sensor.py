@@ -17,6 +17,8 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import DOMAIN
 from .coordinator import PrinterAnalyticsCoordinator, PrinterStats
 
+MAX_ATTR_BYTES = 15360
+
 
 SENSORS: dict[str, SensorEntityDescription] = {
     "total_prints": SensorEntityDescription(
@@ -169,14 +171,41 @@ def _get_sensor_attrs(sensor_key: str, data: PrinterStats) -> dict | None:
         case "filament_success_stats":
             return data.filament_success_stats
         case "print_history":
-            result = {"history": data.history, "current_print": data.current_print}
-            if hasattr(data, '_entity_map_debug'):
-                result["entity_map"] = data._entity_map_debug
-            if hasattr(data, '_discover_debug') and data._discover_debug:
-                result["discover_debug"] = data._discover_debug
-            return result
+            return _truncate_history_attrs(data)
         case _:
             return None
+
+
+def _truncate_history_attrs(data: PrinterStats) -> dict:
+    """构建 print_history 属性，确保不超过 HA recorder 的 16384 字节限制"""
+    result: dict[str, Any] = {"current_print": data.current_print}
+
+    history = data.history or []
+    total_count = len(history)
+
+    # 先尝试全部放入
+    full_result = {"history": history, "current_print": data.current_print, "total_count": total_count}
+    full_size = len(json.dumps(full_result, ensure_ascii=False).encode('utf-8'))
+    if full_size <= MAX_ATTR_BYTES:
+        return full_result
+
+    # 二分查找最大可容纳条数
+    lo, hi = 0, total_count
+    best = 0
+    while lo <= hi:
+        mid = (lo + hi) // 2
+        test = {"history": history[:mid], "current_print": data.current_print, "total_count": total_count}
+        if len(json.dumps(test, ensure_ascii=False).encode('utf-8')) <= MAX_ATTR_BYTES:
+            best = mid
+            lo = mid + 1
+        else:
+            hi = mid - 1
+
+    result["history"] = history[:best]
+    result["total_count"] = total_count
+    if best < total_count:
+        result["truncated"] = True
+    return result
 
 
 async def async_setup_entry(
