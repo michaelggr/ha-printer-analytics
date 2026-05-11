@@ -18,6 +18,7 @@ class PrinterAnalyticsCard extends HTMLElement {
     this._renderDebounce = null;
     this._isRendering = false;
     this._activeTab = 'stats';
+    this._mode = ''; // 'stats'=仅统计, 'history'=仅全部历史, ''=默认含tab切换
     this._selectedRecords = new Set();
     this._deleteConfirmVisible = false;
     this._detailRecord = null;
@@ -38,6 +39,8 @@ class PrinterAnalyticsCard extends HTMLElement {
 
   setConfig(config) {
     this.config = config;
+    this._mode = config.mode || '';
+    if (this._mode === 'history') this._activeTab = 'merged';
     this.render();
   }
 
@@ -1575,58 +1578,57 @@ class PrinterAnalyticsCard extends HTMLElement {
               <div class="header-title">${title}</div>
             </div>
           </div>
-          <div class="header-badge">v5.1</div>
+        <div class="header-badge">v5.1</div>
         </div>
 
+        ${this._mode === '' ? `
         <div class="tab-container">
           <button class="tab-button ${this._activeTab === 'stats' ? 'active' : ''}" data-tab="stats">📊 统计分析</button>
-          <button class="tab-button ${this._activeTab === 'history' ? 'active' : ''}" data-tab="history">📋 本机历史</button>
           <button class="tab-button ${this._activeTab === 'merged' ? 'active' : ''}" data-tab="merged">🗂️ 全部历史</button>
         </div>
+        ` : ''}
 
-        <div class="tab-content ${this._activeTab === 'stats' ? 'active' : ''}" id="tab-stats">
+        ${this._mode !== 'history' ? `<div class="tab-content ${this._activeTab === 'stats' ? 'active' : ''}" id="tab-stats">` : ''}
       `;
 
-      try {
-        html += this._renderTimeDimension();
-        html += '<div style="height:1px;background:linear-gradient(90deg,transparent,var(--primary),transparent);margin:20px 0;opacity:0.3;"></div>';
-        html += this._renderPeriodStats();
-      } catch (e) {
-        html += `<div class="error-state">统计渲染失败: ${this._escapeHtml(e.message)}</div>`;
+      if (this._mode !== 'history') {
+        try {
+          html += this._renderTimeDimension();
+          html += '<div style="height:1px;background:linear-gradient(90deg,transparent,var(--primary),transparent);margin:20px 0;opacity:0.3;"></div>';
+          html += this._renderPeriodStats();
+        } catch (e) {
+          html += `<div class="error-state">统计渲染失败: ${this._escapeHtml(e.message)}</div>`;
+        }
+
+        try { html += this._renderSuccessRateTrend(); } catch (e) {
+          html += `<div class="error-state">趋势图渲染失败: ${this._escapeHtml(e.message)}</div>`;
+        }
+        try { html += this._renderDurationDistribution(); } catch (e) {
+          html += `<div class="error-state">分布图渲染失败: ${this._escapeHtml(e.message)}</div>`;
+        }
+        try { html += this._renderActivityHeatmap(); } catch (e) {
+          html += `<div class="error-state">热力图渲染失败: ${this._escapeHtml(e.message)}</div>`;
+        }
+        try { html += this._renderFilamentUsage(); } catch (e) {
+          html += `<div class="error-state">耗材使用渲染失败: ${this._escapeHtml(e.message)}</div>`;
+        }
+        try { html += this._renderRealtimeMonitor(); } catch (e) {
+          html += `<div class="error-state">实时监控渲染失败: ${this._escapeHtml(e.message)}</div>`;
+        }
+        try { html += this._renderLifetimeStats(); } catch (e) {
+          html += `<div class="error-state">终身统计渲染失败: ${this._escapeHtml(e.message)}</div>`;
+        }
+
+        html += `</div>`;
       }
 
-      try { html += this._renderSuccessRateTrend(); } catch (e) {
-        html += `<div class="error-state">趋势图渲染失败: ${this._escapeHtml(e.message)}</div>`;
+      if (this._mode !== 'stats') {
+        html += `
+          <div class="tab-content ${this._activeTab === 'merged' ? 'active' : ''}" id="tab-merged">
+        `;
+        html += this._renderMergedHistoryPage();
+        html += `</div>`;
       }
-      try { html += this._renderDurationDistribution(); } catch (e) {
-        html += `<div class="error-state">分布图渲染失败: ${this._escapeHtml(e.message)}</div>`;
-      }
-      try { html += this._renderActivityHeatmap(); } catch (e) {
-        html += `<div class="error-state">热力图渲染失败: ${this._escapeHtml(e.message)}</div>`;
-      }
-      try { html += this._renderFilamentUsage(); } catch (e) {
-        html += `<div class="error-state">耗材使用渲染失败: ${this._escapeHtml(e.message)}</div>`;
-      }
-      try { html += this._renderRealtimeMonitor(); } catch (e) {
-        html += `<div class="error-state">实时监控渲染失败: ${this._escapeHtml(e.message)}</div>`;
-      }
-      try { html += this._renderLifetimeStats(); } catch (e) {
-        html += `<div class="error-state">终身统计渲染失败: ${this._escapeHtml(e.message)}</div>`;
-      }
-
-      html += `</div>`;
-
-      html += `
-        <div class="tab-content ${this._activeTab === 'history' ? 'active' : ''}" id="tab-history">
-      `;
-      html += this._renderHistoryPage();
-      html += `</div>`;
-
-      html += `
-        <div class="tab-content ${this._activeTab === 'merged' ? 'active' : ''}" id="tab-merged">
-      `;
-      html += this._renderMergedHistoryPage();
-      html += `</div>`;
 
       if (this._detailRecord) {
         html += this._renderDetailModal(this._detailRecord);
@@ -2825,56 +2827,6 @@ class PrinterAnalyticsCard extends HTMLElement {
     return '📊';
   }
 
-  _renderHistoryPage() {
-    const history = this._getHistory();
-    const allRecords = this._getAllMergedRecords();
-
-    // 提取所有用过的颜色
-    const colorSet = new Set();
-    for (const r of allRecords) {
-      const colors = r.colors_used || [];
-      for (const c of colors) {
-        if (c) colorSet.add(c);
-      }
-      if (r.filament_color && !colors.length) colorSet.add(r.filament_color);
-    }
-    const colorOptions = [...colorSet].map(c =>
-      `<option value="${this._escapeHtml(c)}"><span class="color-dot" style="background:${c}"></span>${c}</option>`
-    ).join('');
-
-    return `
-      <div class="filter-bar">
-        <select class="filter-select" id="filter-status">
-          <option value="">全部状态</option>
-          <option value="finish">✅ 成功</option>
-          <option value="failed">❌ 失败</option>
-          <option value="printing">🔵 进行中</option>
-          <option value="cancelled">⚠️ 已取消</option>
-        </select>
-        <select class="filter-select" id="filter-color">
-          <option value="">全部颜色</option>
-          ${colorOptions}
-        </select>
-        <input type="date" class="date-input" id="date-from" title="起始日期">
-        <input type="date" class="date-input" id="date-to" title="结束日期">
-        <div class="search-box">
-          <span class="search-icon">🔍</span>
-          <input type="text" class="search-input" id="search-input" placeholder="搜索任务名称或耗材...">
-        </div>
-        <div class="filter-actions">
-          <button class="btn-filter btn-filter-apply" id="btn-apply-filter">确定</button>
-          <button class="btn-filter btn-filter-reset" id="btn-reset-filter">重置</button>
-        </div>
-      </div>
-      <div class="summary-bar">
-        ${this._renderHistoryStats(history)}
-      </div>
-      <div class="history-wrapper">
-        ${this._renderHistoryList(history)}
-      </div>
-    `;
-  }
-
   _renderHistoryStats(history) {
     if (!Array.isArray(history) || history.length === 0) {
       return `
@@ -2913,84 +2865,6 @@ class PrinterAnalyticsCard extends HTMLElement {
     const hours = Math.floor(totalMinutes / 60);
     const mins = Math.round(totalMinutes % 60);
     return mins > 0 ? `${hours}h${mins}m` : `${hours}h`;
-  }
-
-  _renderHistoryList(history) {
-    if (!Array.isArray(history) || history.length === 0) {
-      return `<div class="history-empty-state"><div class="history-empty-icon">📭</div><div class="history-empty-text">暂无打印历史记录</div></div>`;
-    }
-    const sorted = [...history].sort((a, b) => {
-      const timeA = a.end_time || a.start_time || '';
-      const timeB = b.end_time || b.start_time || '';
-      return new Date(timeB) - new Date(timeA);
-    });
-
-    // 多重筛选：状态 + 颜色 + 日期 + 搜索
-    let filtered = sorted;
-    if (this._filterStatus) {
-      filtered = filtered.filter(item => item.status === this._filterStatus);
-    }
-    if (this._filterColor) {
-      filtered = filtered.filter(item => {
-        const colors = item.colors_used || [];
-        if (colors.includes(this._filterColor)) return true;
-        if (item.filament_color === this._filterColor) return true;
-        return false;
-      });
-    }
-    if (this._dateFrom) {
-      filtered = filtered.filter(item => {
-        const t = item.start_time || item.end_time || '';
-        return t >= this._dateFrom;
-      });
-    }
-    if (this._dateTo) {
-      filtered = filtered.filter(item => {
-        const t = item.start_time || item.end_time || '';
-        return t <= this._dateTo + 'T23:59:59';
-      });
-    }
-    if (this._searchQuery) {
-      const q = this._searchQuery.toLowerCase();
-      filtered = filtered.filter(item =>
-        (item.task_name || '').toLowerCase().includes(q) ||
-        (item.filament_type || '').toLowerCase().includes(q)
-      );
-    }
-
-    // 分页
-    const total = filtered.length;
-    const totalPages = Math.max(1, Math.ceil(total / this._pageSize));
-    if (this._currentPage > totalPages) this._currentPage = totalPages;
-    const startIdx = (this._currentPage - 1) * this._pageSize;
-    const pageItems = filtered.slice(startIdx, startIdx + this._pageSize);
-
-    const itemsHtml = pageItems.map((item, index) => this._renderHistoryItem(item, startIdx + index)).join('');
-
-    // 分页控件
-    let paginationHtml = '';
-    if (totalPages > 1) {
-      let pageButtons = '';
-      // 上一页
-      pageButtons += `<button class="page-btn" data-page="${this._currentPage - 1}" ${this._currentPage <= 1 ? 'disabled' : ''}>◀</button>`;
-      // 页码按钮（最多显示7个）
-      const maxVisible = 7;
-      let startPage = Math.max(1, this._currentPage - 3);
-      let endPage = Math.min(totalPages, startPage + maxVisible - 1);
-      if (endPage - startPage < maxVisible - 1) startPage = Math.max(1, endPage - maxVisible + 1);
-      for (let p = startPage; p <= endPage; p++) {
-        pageButtons += `<button class="page-btn ${p === this._currentPage ? 'active' : ''}" data-page="${p}">${p}</button>`;
-      }
-      // 下一页
-      pageButtons += `<button class="page-btn" data-page="${this._currentPage + 1}" ${this._currentPage >= totalPages ? 'disabled' : ''}>▶</button>`;
-      paginationHtml = `
-        <div class="pagination">
-          ${pageButtons}
-          <span class="page-info">${total} 条记录，第 ${this._currentPage}/${totalPages} 页</span>
-        </div>`;
-    }
-
-    return itemsHtml + paginationHtml;
   }
 
   _renderHistoryItem(item, index, options = {}) {
@@ -3124,6 +2998,10 @@ class PrinterAnalyticsCard extends HTMLElement {
         if (this._dateTo && date > this._dateTo) return false;
       }
       if (this._filterStatus && r.status !== this._filterStatus) return false;
+      if (this._filterColor) {
+        const colors = r.colors_used || [];
+        if (!colors.includes(this._filterColor) && r.filament_color !== this._filterColor) return false;
+      }
       if (this._searchQuery) {
         const q = this._searchQuery.toLowerCase();
         const name = (r.task_name || '').toLowerCase();
@@ -3138,6 +3016,45 @@ class PrinterAnalyticsCard extends HTMLElement {
     const allRecords = this._getAllMergedRecords();
     const filtered = this._filterRecordsByDate(allRecords);
 
+    // 提取所有用过的颜色
+    const colorSet = new Set();
+    for (const r of allRecords) {
+      const colors = r.colors_used || [];
+      for (const c of colors) {
+        if (c) colorSet.add(c);
+      }
+      if (r.filament_color && !colors.length) colorSet.add(r.filament_color);
+    }
+    const colorOptions = [...colorSet].map(c =>
+      `<option value="${this._escapeHtml(c)}" ${this._filterColor === c ? 'selected' : ''}>${this._formatColorName(c)}</option>`
+    ).join('');
+
+    // 分页
+    const total = filtered.length;
+    const totalPages = Math.max(1, Math.ceil(total / this._pageSize));
+    if (this._currentPage > totalPages) this._currentPage = totalPages;
+    const startIdx = (this._currentPage - 1) * this._pageSize;
+    const pageItems = filtered.slice(startIdx, startIdx + this._pageSize);
+
+    let paginationHtml = '';
+    if (totalPages > 1) {
+      let pageButtons = '';
+      pageButtons += `<button class="page-btn" data-page="${this._currentPage - 1}" ${this._currentPage <= 1 ? 'disabled' : ''}>◀</button>`;
+      const maxVisible = 7;
+      let startPage = Math.max(1, this._currentPage - 3);
+      let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+      if (endPage - startPage < maxVisible - 1) startPage = Math.max(1, endPage - maxVisible + 1);
+      for (let p = startPage; p <= endPage; p++) {
+        pageButtons += `<button class="page-btn ${p === this._currentPage ? 'active' : ''}" data-page="${p}">${p}</button>`;
+      }
+      pageButtons += `<button class="page-btn" data-page="${this._currentPage + 1}" ${this._currentPage >= totalPages ? 'disabled' : ''}>▶</button>`;
+      paginationHtml = `
+        <div class="pagination">
+          ${pageButtons}
+          <span class="page-info">${total} 条记录，第 ${this._currentPage}/${totalPages} 页</span>
+        </div>`;
+    }
+
     return `
       <div class="filter-bar">
         <select class="filter-select" id="filter-status">
@@ -3145,6 +3062,10 @@ class PrinterAnalyticsCard extends HTMLElement {
           <option value="finish" ${this._filterStatus === 'finish' ? 'selected' : ''}>✅ 成功</option>
           <option value="failed" ${this._filterStatus === 'failed' ? 'selected' : ''}>❌ 失败</option>
           <option value="cancelled" ${this._filterStatus === 'cancelled' ? 'selected' : ''}>⚠️ 已取消</option>
+        </select>
+        <select class="filter-select" id="filter-color">
+          <option value="" ${!this._filterColor ? 'selected' : ''}>全部颜色</option>
+          ${colorOptions}
         </select>
         <div class="date-filter">
           <input type="date" class="date-input" id="date-from" value="${this._dateFrom}">
@@ -3155,6 +3076,10 @@ class PrinterAnalyticsCard extends HTMLElement {
           <span class="search-icon">🔍</span>
           <input type="text" class="search-input" id="search-input" placeholder="搜索任务名称或耗材类型..." value="${this._escapeHtml(this._searchQuery)}">
         </div>
+        <div class="filter-actions">
+          <button class="btn-filter btn-filter-apply" id="btn-apply-filter">确定</button>
+          <button class="btn-filter btn-filter-reset" id="btn-reset-filter">重置</button>
+        </div>
       </div>
       <div class="summary-bar">
         ${this._renderHistoryStats(filtered)}
@@ -3164,11 +3089,12 @@ class PrinterAnalyticsCard extends HTMLElement {
         <button class="btn btn-danger" id="btn-delete-selected">🗑️ 删除选中</button>
       </div>
       <div class="history-wrapper">
-        ${filtered.length > 0
-          ? filtered.map((item, index) => this._renderHistoryItem(item, index, { showCheckbox: true, showPrinterTag: true })).join('')
+        ${pageItems.length > 0
+          ? pageItems.map((item, index) => this._renderHistoryItem(item, startIdx + index, { showCheckbox: true, showPrinterTag: true })).join('')
           : `<div class="history-empty-state"><div class="history-empty-icon">📭</div><div class="history-empty-text">暂无打印历史记录</div></div>`
         }
       </div>
+      ${paginationHtml}
     `;
   }
 

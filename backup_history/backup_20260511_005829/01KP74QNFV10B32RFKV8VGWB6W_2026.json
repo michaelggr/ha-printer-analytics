@@ -1,0 +1,32 @@
+{
+  "version": 3,
+  "printer_name": "a1mini",
+  "year": 2026,
+  "record_count": 1,
+  "last_updated": "2026-05-10T05:57:12.432578+00:00",
+  "history": [
+    {
+      "id": "eda3a087-fad3-4faa-ac09-bf816a8b2cff",
+      "start_time": "2026-04-26T11:11:21.588108+00:00",
+      "end_time": "2026-04-26T11:22:27.410270+00:00",
+      "duration_minutes": 11.1,
+      "status": "finish",
+      "progress": 100,
+      "total_weight": null,
+      "total_length": null,
+      "filament_type": null,
+      "filament_color": null,
+      "energy_kwh": null,
+      "task_name": null,
+      "nozzle_type": null,
+      "nozzle_size": null,
+      "print_bed_type": null,
+      "total_layer_count": null,
+      "cover_image_url": null,
+      "cover_image_local": null,
+      "snapshot_image_local": null,
+      "full_print_info_path": null,
+      "duration_hours": 0.18
+    }
+  ]
+}

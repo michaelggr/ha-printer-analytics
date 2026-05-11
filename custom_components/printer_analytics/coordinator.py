@@ -172,7 +172,7 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
                 self._http_session = None
 
     async def _load_history(self) -> None:
-        """加载历史记录（支持100年数据存储）"""
+        """加载历史记录（支持100年数据存储 + 重装后自动恢复）"""
         try:
             def _load():
                 os.makedirs(self._history_dir, exist_ok=True)
@@ -187,6 +187,12 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
                 
                 year_files = [f for f in os.listdir(self._history_dir) 
                              if f.startswith(f"{self.entry.entry_id}_") and f.endswith(".json")]
+                
+                # 如果当前entry_id没有数据，尝试从备份目录恢复
+                if not year_files:
+                    self._restore_from_backup_dir()
+                    year_files = [f for f in os.listdir(self._history_dir) 
+                                 if f.startswith(f"{self.entry.entry_id}_") and f.endswith(".json")]
                 
                 for year_file in sorted(year_files):
                     file_path = os.path.join(self._history_dir, year_file)
@@ -413,6 +419,61 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         except Exception as err:
             LOGGER.warning("清理旧备份失败: %s", err)
 
+    def _restore_from_backup_dir(self) -> None:
+        """从HA备份目录恢复数据（重装集成后entry_id变化时自动恢复）"""
+        try:
+            ha_history_dir = os.path.join(self._ha_backup_dir, "history_by_year")
+            if not os.path.exists(ha_history_dir):
+                LOGGER.info("备份目录不存在，跳过恢复: %s", ha_history_dir)
+                return
+
+            # 读取metadata获取打印机名称匹配
+            metadata_path = os.path.join(self._ha_backup_dir, "_backup_metadata.json")
+            target_printer = self.printer_name
+
+            # 查找备份中所有年份文件（可能来自不同entry_id）
+            backup_files = [f for f in os.listdir(ha_history_dir) if f.endswith(".json")]
+            if not backup_files:
+                LOGGER.info("备份目录中无数据文件")
+                return
+
+            restored_count = 0
+            for backup_file in backup_files:
+                src_path = os.path.join(ha_history_dir, backup_file)
+                try:
+                    with open(src_path, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+
+                    # 验证数据格式
+                    if not isinstance(data, dict) or "history" not in data:
+                        continue
+
+                    records = data.get("history", [])
+                    if not records:
+                        continue
+
+                    # 按当前entry_id重命名并复制到主数据目录
+                    # 从原文件名提取年份部分
+                    parts = backup_file.replace(".json", "").split("_", 1)
+                    year = parts[-1] if len(parts) > 1 else backup_file.replace(".json", "")
+
+                    dst_file = f"{self.entry.entry_id}_{year}.json"
+                    dst_path = os.path.join(self._history_dir, dst_file)
+                    shutil.copy2(src_path, dst_path)
+                    restored_count += 1
+                    LOGGER.info("从备份恢复: %s -> %s (%d 条记录)", backup_file, dst_file, len(records))
+
+                except Exception as err:
+                    LOGGER.warning("恢复备份文件失败 %s: %s", backup_file, err)
+
+            if restored_count > 0:
+                LOGGER.info("从备份目录恢复了 %d 个年份数据文件（打印机: %s）", restored_count, target_printer)
+            else:
+                LOGGER.info("备份目录中无可恢复的数据")
+
+        except Exception as err:
+            LOGGER.error("从备份目录恢复数据失败: %s", err)
+
     def _sync_to_ha_backup_dir(self) -> None:
         """同步数据到HA标准备份路径"""
         try:
@@ -614,6 +675,38 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         """清除锁定的任务名称（打印结束时调用）"""
         self._locked_task_name = ""
 
+    def _is_param_description(self, task_name: str) -> bool:
+        """
+        检测任务名称是否为BambuLab的打印参数描述
+        
+        BambuLab在打印过程中会将task_name更新为参数描述格式，如：
+        - "0.24mm 层高, 2 层墙, 15% 填充"
+        - "0.2mm layer_height, 2 shell, 15% infill"
+        
+        这些不是真正的任务名，应该被过滤掉。
+        """
+        if not task_name:
+            return False
+
+        param_patterns = [
+            r'层高',           # 中文：层高
+            r'层墙',           # 中文：层墙
+            r'填充',           # 中文：填充
+            r'layer_height',   # 英文：层高
+            r'shell',          # 英文：层墙/外壳
+            r'infill',         # 英文：填充
+            r'^\d+\.\d+mm\s',  # 以"0.2mm "开头的参数描述
+            r'\d+%\s*填充',    # "15%填充"格式
+            r'\d+%\s*infill',  # "15%infill"格式
+        ]
+
+        import re
+        for pattern in param_patterns:
+            if re.search(pattern, task_name, re.IGNORECASE):
+                return True
+
+        return False
+
     def _get_entity_attr(self, entity_id: str, attr: str, default: Any = None) -> Any:
         if not entity_id:
             return default
@@ -804,12 +897,61 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
 
     @callback
     def _on_material_cache_tick(self, now: datetime) -> None:
-        """定时缓存耗材数据（支持多色追踪）"""
+        """定时缓存耗材数据（支持多色追踪 + 任务名持续捕获）"""
         if self.current_print is not None:
             self._cache_print_material_data()
             self._track_color_changes()
             self._cache_delayed_fields()
+            self._try_capture_task_name()
             self._cache_chamber_temperature(now)
+
+    def _try_capture_task_name(self) -> None:
+        """
+        在打印开始后的1分钟窗口期内捕获任务名称
+        
+        BambuLab的task_name实体在打印开始后的变化：
+        - 0-10秒：空/"unknown"
+        - 10-30秒：云任务名出现 "洞洞板拓展（兼容宜家IKEA Skadis）" ← 目标！
+        - 30秒+：被覆盖为 "0.24mm 层高, 2 层墙, 15% 填充"
+        
+        只需在开始后1分钟内持续检查，一旦发现有效非参数描述就锁定
+        """
+        if not self.current_print:
+            return
+
+        current_name = self.current_print.get("task_name")
+        if current_name and not self._is_param_description(current_name):
+            return
+
+        start_time = self.current_print.get("start_time", "")
+        if not start_time:
+            return
+
+        try:
+            from datetime import datetime, timezone
+            start_dt = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+            elapsed = (datetime.now(timezone.utc) - start_dt).total_seconds()
+            if elapsed > 60:
+                return
+        except (ValueError, TypeError):
+            return
+
+        task_entity = self._entity_map.get("task_name", "")
+        if not task_entity:
+            return
+
+        new_name = self._get_entity_state(task_entity, "")
+        if not new_name or new_name in ("unknown", "unavailable", ""):
+            return
+
+        if self._is_param_description(new_name):
+            LOGGER.debug("[%ds] task_name是参数描述，跳过: %s", int(elapsed), new_name)
+            return
+
+        if new_name != current_name:
+            self.current_print["task_name"] = new_name
+            self._lock_task_name(new_name)
+            LOGGER.info("✅ [%ds] 成功捕获任务名称: %s", int(elapsed), new_name)
 
     def _cache_delayed_fields(self) -> None:
         """补获打印开始时可能延迟就绪的字段（task_name 等）"""
@@ -818,9 +960,12 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
 
         if not self.current_print.get("task_name"):
             task_name = self._get_best_task_name()
-            if task_name:
+            if task_name and not self._is_param_description(task_name):
                 self.current_print["task_name"] = task_name
+                self._lock_task_name(task_name)
                 LOGGER.debug("Delayed capture task_name: %s", task_name)
+            elif task_name:
+                LOGGER.debug("Ignoring param description as task_name: %s", task_name)
 
         if not self.current_print.get("nozzle_size"):
             nozzle_size = self._get_entity_state(self._entity_map.get("nozzle_size", ""), "")
