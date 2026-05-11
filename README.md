@@ -1,4 +1,4 @@
-# Printer Analytics
+﻿# Printer Analytics
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 [![GitHub Release](https://img.shields.io/github/v/release/michaelggr/ha-printer-analytics)](https://github.com/michaelggr/ha-printer-analytics)
@@ -191,8 +191,10 @@ extra_print_histories:
 
 ## Requirements
 
-- Home Assistant 2023.8.0 or later
+- Home Assistant 2024.1.0 or later (tested up to 2026.4.4)
 - A printer integration (e.g., [bambu_lab](https://github.com/greghesp/ha-bambulab)) for entity auto-discovery
+
+> **Compatibility Note**: HA 2026.x changed the internal `LovelaceData` structure from dict to object. This integration has been updated to support both old and new HA versions.
 
 ## License
 
@@ -390,8 +392,10 @@ extra_print_histories:
 
 ### 系统要求
 
-- Home Assistant 2023.8.0 或更新版本
+- Home Assistant 2024.1.0 或更新版本（已测试至 2026.4.4）
 - 一个打印机集成（如 [bambu_lab](https://github.com/greghesp/ha-bambulab)）用于实体自动发现
+
+> **兼容性说明**：HA 2026.x 将内部 `LovelaceData` 结构从 dict 改为对象，本集成已更新以同时支持新旧版本。
 
 ## 许可证
 

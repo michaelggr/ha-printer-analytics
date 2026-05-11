@@ -85,7 +85,10 @@ async def _ensure_v52_resource(hass: HomeAssistant) -> None:
 
     try:
         if LOVELACE_DOMAIN in hass.data:
-            resources = hass.data[LOVELACE_DOMAIN].get("resources")
+            lovelace_data = hass.data[LOVELACE_DOMAIN]
+            resources = getattr(lovelace_data, 'resources', None)
+            if resources is None and isinstance(lovelace_data, dict):
+                resources = lovelace_data.get("resources")
             if resources and hasattr(resources, "async_create"):
                 exists = any(
                     r.get("url", "").startswith("/local/pa-v5.2.js")
@@ -208,41 +211,44 @@ async def _generate_dashboard_yaml(hass: HomeAssistant) -> None:
 
 async def _ensure_dashboard_registered(hass: HomeAssistant) -> None:
     """确保打印机分析仪表板在 Lovelace 中已注册"""
-    if LOVELACE_DOMAIN not in hass.data:
-        LOGGER.warning("Lovelace component not available, skipping dashboard registration")
-        return
-
-    dashboards = hass.data[LOVELACE_DOMAIN].get("dashboards")
-    if not dashboards:
-        LOGGER.warning("Lovelace dashboards not available")
-        return
-
-    dashboard_id = "printer-analytics"
-
-    async def _create_or_update():
-        exists = dashboard_id in dashboards
-        config = {
-            "mode": "yaml",
-            "filename": DASHBOARD_FILE,
-            "title": "打印机分析",
-            "icon": "mdi:chart-line",
-            "show_in_sidebar": True,
-        }
-
-        if hasattr(dashboards, "async_create_or_update"):
-            await dashboards.async_create_or_update(dashboard_id, config)
-        elif hasattr(dashboards, "async_create") and not exists:
-            await dashboards.async_create(dashboard_id, config)
-
-        if not exists:
-            LOGGER.info("✅ 已自动创建打印机分析仪表板")
-        else:
-            LOGGER.debug("打印机分析仪表板已存在")
-
     try:
+        if LOVELACE_DOMAIN not in hass.data:
+            LOGGER.warning("Lovelace component not available, skipping dashboard registration")
+            return
+
+        lovelace_data = hass.data[LOVELACE_DOMAIN]
+        dashboards = getattr(lovelace_data, 'dashboards', None)
+        if dashboards is None and isinstance(lovelace_data, dict):
+            dashboards = lovelace_data.get("dashboards")
+        if not dashboards:
+            LOGGER.warning("Lovelace dashboards not available")
+            return
+
+        dashboard_id = "printer-analytics"
+
+        async def _create_or_update():
+            exists = dashboard_id in dashboards
+            config = {
+                "mode": "yaml",
+                "filename": DASHBOARD_FILE,
+                "title": "打印机分析",
+                "icon": "mdi:chart-timeline-variant",
+                "show_in_sidebar": True,
+            }
+
+            if hasattr(dashboards, "async_create_or_update"):
+                await dashboards.async_create_or_update(dashboard_id, config)
+            elif hasattr(dashboards, "async_create") and not exists:
+                await dashboards.async_create(dashboard_id, config)
+
+            if not exists:
+                LOGGER.info("已自动创建打印机分析仪表板")
+            else:
+                LOGGER.debug("打印机分析仪表板已存在")
+
         await _create_or_update()
     except Exception as err:
-        LOGGER.error("Failed to register dashboard: %s", err)
+        LOGGER.warning("Could not register dashboard: %s", err)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -260,6 +266,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # 生成仪表板配置
     await _generate_dashboard_yaml(hass)
     await _ensure_dashboard_registered(hass)
+
+    # 设置设备图标（集成在HA集成页面显示的图标）
+    try:
+        dr = async_get_device_registry(hass)
+        device = dr.async_get_device(identifiers={(DOMAIN, entry.entry_id)})
+        if device:
+            supported_kwargs = {}
+            if "icon" in dr.async_update_device.__code__.co_varnames:
+                supported_kwargs["icon"] = "mdi:chart-timeline-variant"
+            if supported_kwargs:
+                dr.async_update_device(device.id, **supported_kwargs)
+                LOGGER.debug("设备图标已设置")
+    except Exception as err:
+        LOGGER.debug("设置设备图标跳过: %s", err)
 
     LOGGER.info("Printer Analytics setup for %s", entry.data.get(CONF_PRINTER_NAME))
     return True
