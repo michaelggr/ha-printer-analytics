@@ -13,3 +13,19 @@ reset_history:
     entity:
       integration: printer_analytics
       domain: sensor
+
+delete_history_records:
+  name: 删除历史记录
+  description: 按ID删除指定的打印历史记录
+  target:
+    entity:
+      integration: printer_analytics
+      domain: sensor
+  fields:
+    record_ids:
+      name: 记录ID列表
+      description: 要删除的历史记录ID列表，多个ID用逗号分隔
+      example: "abc123,def456"
+      required: true
+      selector:
+        text:

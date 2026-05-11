@@ -177,19 +177,13 @@ def _get_sensor_attrs(sensor_key: str, data: PrinterStats) -> dict | None:
 
 
 def _truncate_history_attrs(data: PrinterStats) -> dict:
-    """构建 print_history 属性，确保不超过 HA recorder 的 16384 字节限制"""
     result: dict[str, Any] = {"current_print": data.current_print}
-
     history = data.history or []
     total_count = len(history)
-
-    # 先尝试全部放入
     full_result = {"history": history, "current_print": data.current_print, "total_count": total_count}
     full_size = len(json.dumps(full_result, ensure_ascii=False).encode('utf-8'))
     if full_size <= MAX_ATTR_BYTES:
         return full_result
-
-    # 二分查找最大可容纳条数
     lo, hi = 0, total_count
     best = 0
     while lo <= hi:
@@ -200,7 +194,6 @@ def _truncate_history_attrs(data: PrinterStats) -> dict:
             lo = mid + 1
         else:
             hi = mid - 1
-
     result["history"] = history[:best]
     result["total_count"] = total_count
     if best < total_count:
