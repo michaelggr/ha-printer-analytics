@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 from typing import Any
@@ -22,7 +22,7 @@ SENSORS: dict[str, SensorEntityDescription] = {
     "total_prints": SensorEntityDescription(
         key="total_prints",
         name="总打印次数",
-        icon="mdi:printer-3d",
+        icon="mdi:chart-timeline-variant",
         native_unit_of_measurement="次",
         state_class=SensorStateClass.TOTAL_INCREASING,
     ),
@@ -101,7 +101,7 @@ SENSORS: dict[str, SensorEntityDescription] = {
     "print_status": SensorEntityDescription(
         key="print_status",
         name="打印状态",
-        icon="mdi:printer-3d",
+        icon="mdi:chart-timeline-variant",
     ),
 }
 
