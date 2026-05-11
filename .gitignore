@@ -10,12 +10,14 @@ __pycache__/
 
 # 备份文件
 backups/
+backup_history/
 ha_export_server/
 ha_server_backup/
 *.bak
 *.zip
 
-# 临时脚本
+# 临时脚本和工具
+_*.py
 check_*.py
 restart_*.py
 verify_*.py
@@ -23,6 +25,43 @@ fix_*.py
 pull_*.py
 upload_*.py
 write_*.py
+add_*.py
+create_*.py
+find_*.py
+get_*.py
+search_*.py
+validate_*.py
+patch_*.py
+reset_*.py
+restore_*.py
+update_*.py
+cleanup_*.py
+do_*.py
+final_*.py
+simple_*.py
+only_*.py
+audit_*.py
+delete_*.py
+reload_*.py
+test_*.py
+backup_*.py
+
+# PowerShell 脚本
+*.ps1
+
+# 翻译文件
+*_translations.json
+
+# 服务器配置快照和JSON数据
+server_lovelace*
+server_ws_config*
+server_ui-*
+backup_*.json
+modified_*.json
+entities_by_area.json
+utility_meters_list.json
+a1mini_history_*.json
+_to_delete.json
 
 # IDE 和工具
 .trae/
@@ -39,3 +78,4 @@ write_*.py
 BACKUP_README.md
 blueprints/
 python_scripts/
+.storage/
