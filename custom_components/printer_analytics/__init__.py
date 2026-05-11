@@ -29,59 +29,24 @@ LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = ["sensor"]
 
-CARD_FILENAME = "printer-analytics-card.js"
-HISTORY_CARD_FILENAME = "printer-history-list-card.js"
-CARD_URL = f"/local/printer_analytics/{CARD_FILENAME}"
+CARD_URL = "/local/pa-v5.2.js?v=5.2.1"
 DASHBOARD_FILE = "ui-printer-analytics.yaml"
 
-# v5.2 卡片配置
-V52_CARD_URL = "/local/pa-v5.2.js?v=5.2"
 
-
-async def _register_lovelace_resource(hass: HomeAssistant) -> None:
-    """将自定义卡片 JS 复制到 www 并注册为 Lovelace 资源"""
-    component_dir = os.path.dirname(__file__)
-    www_dir = hass.config.path("www", "printer_analytics")
-
-    card_files = [CARD_FILENAME, HISTORY_CARD_FILENAME]
-
-    def _copy_cards():
-        os.makedirs(www_dir, exist_ok=True)
-        for card_file in card_files:
-            src = os.path.join(component_dir, "www", card_file)
-            dst = os.path.join(www_dir, card_file)
-            if os.path.exists(src):
-                shutil.copy2(src, dst)
-                LOGGER.info("Copied card to %s", dst)
-            else:
-                LOGGER.warning("Card source not found: %s", src)
-
-    try:
-        await hass.async_add_executor_job(_copy_cards)
-    except Exception as err:
-        LOGGER.error("Failed to copy cards: %s", err)
-        return
-
-    try:
-        LOGGER.info("Cards copied to %s", www_dir)
-    except Exception as err:
-        LOGGER.warning("Failed to complete card setup: %s", err)
-
-
-async def _ensure_v52_resource(hass: HomeAssistant) -> None:
-    """确保 v5.2 卡片 JS 文件存在于 www 并注册为资源"""
+async def _ensure_card_resource(hass: HomeAssistant) -> None:
+    """确保卡片 JS 文件存在于 www 并注册为资源"""
     component_www = os.path.join(os.path.dirname(__file__), "www")
     src = os.path.join(component_www, "pa-v5.2.js")
     dst = hass.config.path("www", "pa-v5.2.js")
 
-    def _copy_v52():
+    def _copy_card():
         if os.path.exists(src):
             shutil.copy2(src, dst)
             LOGGER.info("Copied pa-v5.2.js to www")
         elif not os.path.exists(dst):
             LOGGER.warning("pa-v5.2.js not found at %s or %s", src, dst)
 
-    await hass.async_add_executor_job(_copy_v52)
+    await hass.async_add_executor_job(_copy_card)
 
     try:
         if LOVELACE_DOMAIN in hass.data:
@@ -95,7 +60,7 @@ async def _ensure_v52_resource(hass: HomeAssistant) -> None:
                     for r in (resources.async_items() if hasattr(resources, "async_items") else [])
                 )
                 if not exists:
-                    await resources.async_create({"url": V52_CARD_URL, "type": "module"})
+                    await resources.async_create({"url": CARD_URL, "type": "module"})
                     LOGGER.info("Registered pa-v5.2.js as Lovelace resource")
     except Exception as err:
         LOGGER.warning("Could not register resource: %s", err)
@@ -260,14 +225,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
     _register_services(hass)
 
-    await _register_lovelace_resource(hass)
-    await _ensure_v52_resource(hass)
+    await _ensure_card_resource(hass)
 
     # 生成仪表板配置
     await _generate_dashboard_yaml(hass)
     await _ensure_dashboard_registered(hass)
 
-    # 设置设备图标（集成在HA集成页面显示的图标）
+    # 设置集成页面图标（Config Entry Icon）
+    try:
+        hass.config_entries.async_update_entry(entry, icon="mdi:chart-timeline-variant")
+        LOGGER.debug("集成页面图标已设置为 chart-timeline-variant")
+    except Exception as err:
+        LOGGER.debug("设置集成图标跳过: %s", err)
+
+    # 设置设备图标（设备页面显示的图标）
     try:
         dr = async_get_device_registry(hass)
         device = dr.async_get_device(identifiers={(DOMAIN, entry.entry_id)})

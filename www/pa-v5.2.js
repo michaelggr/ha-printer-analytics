@@ -1,6 +1,6 @@
 ﻿/**
- * 打印机分析卡片 - v5.2.1
- * 版本: 5.2.1 (2026-05-11) - 统计数据合并单格+图标去底图+对齐优化
+ * 打印机分析卡片 - v5.2.2
+ * 版本: 5.2.2 (2026-05-12) - 多色记录显示优化+A1Mini支持验证
  *
  * 设计特点:
  * - 现代化渐变设计 + 玻璃拟态效果
@@ -986,8 +986,7 @@ class PrinterAnalyticsCard extends HTMLElement {
           color: var(--primary-light);
           line-height: 1.1;
           white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
+          overflow: visible;
         }
 
         .summary-text {
@@ -1602,7 +1601,6 @@ class PrinterAnalyticsCard extends HTMLElement {
       let html = `
         <div class="header">
           <div class="header-left">
-            <div class="header-icon">${ICON_3D_PRINTER()}</div>
             <div>
               <div class="header-title">${title}</div>
             </div>
@@ -2129,52 +2127,62 @@ class PrinterAnalyticsCard extends HTMLElement {
   }
 
   /**
-   * 渲染周期统计（7天/30天）
+   * 渲染周期统计（7天/30天合并表格）
    */
   _renderPeriodStats() {
-    const periods = [
-      { key: 'material_stats_7d', label: '最近 7 天', icon: '📅' },
-      { key: 'material_stats_30d', label: '最近 30 天', icon: '📆' },
-    ];
-    let html = '';
-    for (const period of periods) {
-      const entityId = this.config[period.key];
+    const periodKeys = ['material_stats_7d', 'material_stats_30d'];
+    const periodLabels = ['📅 7天', '📆 30天'];
+
+    // 获取两个周期的数据
+    const periods = [];
+    for (const key of periodKeys) {
+      const entityId = this.config[key];
       const attrs = entityId ? this._getAttr(entityId) : {};
-      const data = attrs || {};
-
-      const totalPrints = this._escapeHtml(String(data.total_prints || 0));
-      const successful = this._escapeHtml(String(data.successful || 0));
-      const failed = this._escapeHtml(String(data.failed || 0));
-      const successRate = this._escapeHtml(String(data.success_rate || 0));
-      const totalWeight = this._escapeHtml(String(data.total_weight_g || 0));
-      const totalLength = this._escapeHtml(String(data.total_length_m || 0));
-      const totalEnergy = this._escapeHtml(String(data.total_energy_kwh || 0));
-      const avgDuration = this._escapeHtml(String(data.average_duration_hours || 0));
-
-      html += `
-        <div class="section-header">
-          <div class="section-title">
-            <span class="section-icon">${period.icon}</span>
-            <span>${this._escapeHtml(period.label)}</span>
-          </div>
-        </div>
-        <div class="chart-container">
-          <table class="stats-table">
-            <thead><tr><th>指标</th><th style="text-align:right;">数值</th></tr></thead>
-            <tbody>
-              <tr><td>${ICON_3D_PRINTER(14, true)} 打印次数</td><td style="text-align:right;" class="table-value">${totalPrints}</td></tr>
-              <tr><td>✅ 成功次数</td><td style="text-align:right;color:var(--success);font-weight:600;">${successful}</td></tr>
-              <tr><td>❌ 失败次数</td><td style="text-align:right;color:var(--danger);font-weight:600;">${failed}</td></tr>
-              <tr><td>📈 成功率</td><td style="text-align:right;" class="table-value">${successRate}%</td></tr>
-              <tr><td>🎨 耗材重量</td><td style="text-align:right;" class="table-value">${totalWeight} g</td></tr>
-              <tr><td>📏 耗材长度</td><td style="text-align:right;" class="table-value">${totalLength} m</td></tr>
-              <tr><td>⚡ 能耗</td><td style="text-align:right;" class="table-value">${totalEnergy} kWh</td></tr>
-              <tr><td>⏱️ 平均时长</td><td style="text-align:right;" class="table-value">${avgDuration} h</td></tr>
-            </tbody>
-          </table>
-        </div>
-      `;
+      periods.push(attrs || {});
     }
+
+    // 辅助函数：格式化数值
+    const val = (data, field, suffix) => this._escapeHtml(String(data[field] || 0)) + (suffix || '');
+
+    html = `
+      <div class="section-header">
+        <div class="section-title">
+          <span class="section-icon">📊</span>
+          <span>周期统计</span>
+        </div>
+      </div>
+      <div class="chart-container">
+        <table class="stats-table">
+          <thead><tr><th>指标</th><th style="text-align:center;">${periodLabels[0]}</th><th style="text-align:center;">${periodLabels[1]}</th></tr></thead>
+          <tbody>
+            <tr><td>${ICON_3D_PRINTER(14, true)} 打印次数</td>
+              <td style="text-align:center;" class="table-value">${val(periods[0], 'total_prints', '')}</td>
+              <td style="text-align:center;" class="table-value">${val(periods[1], 'total_prints', '')}</td></tr>
+            <tr><td>✅ 成功次数</td>
+              <td style="text-align:center;color:var(--success);font-weight:600;">${val(periods[0], 'successful', '')}</td>
+              <td style="text-align:center;color:var(--success);font-weight:600;">${val(periods[1], 'successful', '')}</td></tr>
+            <tr><td>❌ 失败次数</td>
+              <td style="text-align:center;color:var(--danger);font-weight:600;">${val(periods[0], 'failed', '')}</td>
+              <td style="text-align:center;color:var(--danger);font-weight:600;">${val(periods[1], 'failed', '')}</td></tr>
+            <tr><td>📈 成功率</td>
+              <td style="text-align:center;" class="table-value">${val(periods[0], 'success_rate', '%')}</td>
+              <td style="text-align:center;" class="table-value">${val(periods[1], 'success_rate', '%')}</td></tr>
+            <tr><td>🎨 耗材重量</td>
+              <td style="text-align:center;" class="table-value">${val(periods[0], 'total_weight_g', ' g')}</td>
+              <td style="text-align:center;" class="table-value">${val(periods[1], 'total_weight_g', ' g')}</td></tr>
+            <tr><td>📏 耗材长度</td>
+              <td style="text-align:center;" class="table-value">${val(periods[0], 'total_length_m', ' m')}</td>
+              <td style="text-align:center;" class="table-value">${val(periods[1], 'total_length_m', ' m')}</td></tr>
+            <tr><td>⚡ 能耗</td>
+              <td style="text-align:center;" class="table-value">${val(periods[0], 'total_energy_kwh', ' kWh')}</td>
+              <td style="text-align:center;" class="table-value">${val(periods[1], 'total_energy_kwh', ' kWh')}</td></tr>
+            <tr><td>⏱️ 平均时长</td>
+              <td style="text-align:center;" class="table-value">${val(periods[0], 'average_duration_hours', ' h')}</td>
+              <td style="text-align:center;" class="table-value">${val(periods[1], 'average_duration_hours', ' h')}</td></tr>
+          </tbody>
+        </table>
+      </div>
+    `;
     return html;
   }
 

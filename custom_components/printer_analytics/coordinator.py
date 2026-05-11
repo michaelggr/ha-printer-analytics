@@ -651,9 +651,11 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         task_name = self._get_entity_state(self._entity_map.get("task_name", ""), "")
         gcode_filename = self._get_entity_state(self._entity_map.get("gcode_filename", ""), "")
 
-        # 优先task_name（云端任务名）
+        # 优先task_name（云端任务名），但过滤参数描述
         if task_name and task_name not in ("unknown", "unavailable", ""):
-            return task_name
+            real_name = self._extract_real_task_name(task_name)
+            if real_name:
+                return real_name
 
         # 回退gcode_filename，去掉路径前缀只保留文件名
         if gcode_filename and gcode_filename not in ("unknown", "unavailable", ""):
@@ -676,28 +678,20 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         self._locked_task_name = ""
 
     def _is_param_description(self, task_name: str) -> bool:
-        """
-        检测任务名称是否为BambuLab的打印参数描述
-        
-        BambuLab在打印过程中会将task_name更新为参数描述格式，如：
-        - "0.24mm 层高, 2 层墙, 15% 填充"
-        - "0.2mm layer_height, 2 shell, 15% infill"
-        
-        这些不是真正的任务名，应该被过滤掉。
-        """
+        """检测任务名称是否包含BambuLab的打印参数描述"""
         if not task_name:
             return False
 
         param_patterns = [
-            r'层高',           # 中文：层高
-            r'层墙',           # 中文：层墙
-            r'填充',           # 中文：填充
-            r'layer_height',   # 英文：层高
-            r'shell',          # 英文：层墙/外壳
-            r'infill',         # 英文：填充
-            r'^\d+\.\d+mm\s',  # 以"0.2mm "开头的参数描述
-            r'\d+%\s*填充',    # "15%填充"格式
-            r'\d+%\s*infill',  # "15%infill"格式
+            r'层高',
+            r'层墙',
+            r'填充',
+            r'layer_height',
+            r'shell',
+            r'infill',
+            r'^\d+\.\d+mm\s',
+            r'\d+%\s*填充',
+            r'\d+%\s*infill',
         ]
 
         import re
@@ -706,6 +700,45 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
                 return True
 
         return False
+
+    def _extract_real_task_name(self, task_name: str) -> str | None:
+        """从混合了参数描述的任务名中提取真实名称
+        
+        如 "添加进料微动安装孔位 0.28mm 层高, 2 层墙, 15% 填充"
+        -> "添加进料微动安装孔位"
+        
+        如 "0.24mm 层高, 2 层墙, 15% 填充" -> None（纯参数描述）
+        """
+        if not task_name:
+            return None
+        
+        if not self._is_param_description(task_name):
+            return task_name
+        
+        import re
+        
+        # 以数字+mm开头，整个名称就是参数描述
+        if re.match(r'^\d+\.\d+mm', task_name) or re.match(r'^\d+mm', task_name):
+            return None
+        
+        # 尝试在参数描述前截取真实名称
+        separators = [
+            r'\s+\d+\.\d+mm',       # "名称 0.2mm"
+            r'\s+\d+mm\s',          # "名称 2mm "
+            r',\s*\d+\.\d+mm',      # "名称, 0.2mm"
+            r'\s+layer_height',      # "名称 layer_height"
+            r'\s+层高',              # "名称 层高"
+        ]
+        
+        for sep in separators:
+            match = re.search(sep, task_name, re.IGNORECASE)
+            if match:
+                real_name = task_name[:match.start()].strip().rstrip(',').strip()
+                if real_name and len(real_name) >= 2 and not re.match(r'^\d+\.\d+mm', real_name):
+                    return real_name
+        
+        # 纯参数描述，没有真实名称
+        return None
 
     def _get_entity_attr(self, entity_id: str, attr: str, default: Any = None) -> Any:
         if not entity_id:
@@ -1022,8 +1055,8 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         """
         追踪打印过程中的颜色变化（支持最多16色）
         
-        防误判策略：只有当新颜色连续2次被检测到（间隔60秒），
-        才确认为真正的颜色切换，避免AMS短暂切换导致的误判。
+        防误判策略：新颜色必须连续3次被检测到才确认，
+        避免AMS短暂误读（如灰色被读成白色）导致的误判。
         """
         if not self.current_print:
             return
@@ -1041,42 +1074,51 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         if not types_used and old_type:
             types_used = [old_type]
         
-        # 颜色变化确认机制：连续2次检测到新颜色才确认
+        # 颜色变化确认机制：连续3次检测到新颜色才确认
         if current_color and current_color not in colors_used:
             pending = self.current_print.get("_pending_color")
+            pending_count = self.current_print.get("_pending_color_count", 0)
+            
             if pending == current_color:
-                # 第2次检测到同一新颜色，确认为真正的颜色切换
-                colors_used.append(current_color)
-                change_count = len(colors_used) - 1
-                
-                if "color_changes" not in self.current_print:
-                    self.current_print["color_changes"] = []
-                
-                self.current_print["color_changes"].append({
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                    "from_color": colors_used[-2] if len(colors_used) > 1 else None,
-                    "to_color": current_color,
-                    "from_type": types_used[-1] if types_used else None,
-                    "to_type": current_type,
-                    "change_number": change_count,
-                })
-                
-                LOGGER.info(
-                    "耗材切换 #%d: %s → %s (%s)",
-                    change_count,
-                    colors_used[-2] if len(colors_used) > 1 else "初始",
-                    current_color,
-                    current_type or "未知"
-                )
-                # 清除待确认状态
-                self.current_print["_pending_color"] = None
+                pending_count += 1
+                if pending_count >= 3:
+                    # 连续3次检测到同一新颜色，确认为真正的颜色切换
+                    colors_used.append(current_color)
+                    change_count = len(colors_used) - 1
+                    
+                    if "color_changes" not in self.current_print:
+                        self.current_print["color_changes"] = []
+                    
+                    self.current_print["color_changes"].append({
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "from_color": colors_used[-2] if len(colors_used) > 1 else None,
+                        "to_color": current_color,
+                        "from_type": types_used[-1] if types_used else None,
+                        "to_type": current_type,
+                        "change_number": change_count,
+                    })
+                    
+                    LOGGER.info(
+                        "耗材切换 #%d: %s → %s (%s)",
+                        change_count,
+                        colors_used[-2] if len(colors_used) > 1 else "初始",
+                        current_color,
+                        current_type or "未知"
+                    )
+                    self.current_print["_pending_color"] = None
+                    self.current_print["_pending_color_count"] = 0
+                else:
+                    self.current_print["_pending_color_count"] = pending_count
+                    LOGGER.debug("待确认颜色切换: %s (%s) %d/3", current_color, current_type, pending_count)
             else:
-                # 第1次检测到新颜色，记录为待确认
+                # 检测到不同颜色，重置计数
                 self.current_print["_pending_color"] = current_color
-                LOGGER.debug("待确认颜色切换: %s (%s)", current_color, current_type)
+                self.current_print["_pending_color_count"] = 1
+                LOGGER.debug("新颜色检测: %s (%s) 1/3", current_color, current_type)
         else:
             # 当前颜色已在列表中，清除待确认状态
             self.current_print["_pending_color"] = None
+            self.current_print["_pending_color_count"] = 0
         
         if current_type and current_type not in types_used:
             types_used.append(current_type)
@@ -1095,7 +1137,10 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         
         start_time_entity = self._entity_map.get("start_time")
         start_time_val = self._get_entity_state(start_time_entity)
-        start_time = start_time_val if start_time_val else datetime.now(timezone.utc).isoformat()
+        if start_time_val:
+            start_time = self._ensure_timezone(start_time_val)
+        else:
+            start_time = datetime.now(timezone.utc).isoformat()
         
         task_name = self._get_best_task_name()
         self._lock_task_name(task_name)
@@ -1299,6 +1344,22 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         except Exception as err:
             LOGGER.error("Failed to download snapshot: %s", err)
             return None
+
+    def _ensure_timezone(self, dt_str: str) -> str:
+        """确保时间字符串带有时区信息，格式与end_time一致
+        
+        Bambu Lab的start_time实体返回本地时间无时区（如 2026-05-10 20:14:00），
+        需要统一转为UTC+00:00格式（如 2026-05-10T12:14:00+00:00）
+        """
+        if not dt_str:
+            return datetime.now(timezone.utc).isoformat()
+        try:
+            dt = datetime.fromisoformat(dt_str)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=dt_util.DEFAULT_TIME_ZONE)
+            return dt.astimezone(timezone.utc).isoformat()
+        except Exception:
+            return datetime.now(timezone.utc).isoformat()
 
     def _normalize_to_utc(self, dt_str: str) -> datetime | None:
         """将任意格式的时间字符串统一转为 UTC aware datetime

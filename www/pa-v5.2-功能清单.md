@@ -3,8 +3,8 @@
 ## 📋 基本信息
 - **开发文件**: `www/pa-v5.2.js`
 - **服务器文件**: `Y:\www\pa-v5.2.js`（上传目标）
-- **配置引用**: `configuration.yaml` → `/local/pa-v5.2.js?v=5.2`
-- **版本**: v5.2 (2026-05-11)
+- **配置引用**: `configuration.yaml` → `/local/pa-v5.2.js?v=5.2.1`
+- **版本**: v5.2.1 (2026-05-12)
 - **类型**: Home Assistant 自定义 Lovelace 卡片 (`custom:printer-analytics-card`)
 - **适用**: BambuLab 打印机 (P2S / A1 Mini)
 
@@ -208,3 +208,11 @@ extra_print_histories:
 | 条件渲染优化 | mode: stats时不渲染历史，mode: history时不渲染统计 |
 | 全部历史增加颜色筛选 | 合并历史页增加颜色下拉筛选 |
 | 全部历史增加分页 | 合并历史页增加分页控件，每页20条 |
+| 去除页签图标 | 移除侧边栏视图（P2S打印机、a1mini打印机、全部历史）的icon属性，去掉标题前的白色图标 |
+| 去除卡片标题图标 | 移除卡片header中的打印机图片图标（header-icon），只保留纯文字标题 |
+
+## ✅ v5.2.1 修改记录
+
+| 修改 | 说明 |
+|------|------|
+| 修复总耗材单位显示不全 | `.summary-number` 移除 `overflow: hidden` + `text-overflow: ellipsis`，改为 `overflow: visible`，确保"445.9g"中的"g"完整显示 |
