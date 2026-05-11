@@ -1,4 +1,4 @@
-# Printer Analytics
+﻿# Printer Analytics
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 [![GitHub Release](https://img.shields.io/github/v/release/michaelggr/ha-printer-analytics)](https://github.com/michaelggr/ha-printer-analytics)
@@ -177,7 +177,7 @@ extra_print_histories:
 ## Data Storage & Backup
 
 | Path | Description | HA Backup |
-|------|-------------|------------|
+|------|-------------|-----------|
 | `config/.printer_analytics/history_by_year/` | Main data (by year) | ❌ |
 | `config/.printer_analytics/archives/` | Compressed monthly backups | ❌ |
 | `config/www/printer_analytics_data/` | Auto-synced backup copy | ✅ Included |
@@ -378,7 +378,7 @@ extra_print_histories:
 ### 数据存储与备份
 
 | 路径 | 说明 | HA 备份 |
-|------|------|----------|
+|------|------|---------|
 | `config/.printer_analytics/history_by_year/` | 主数据（按年份分片） | ❌ |
 | `config/.printer_analytics/archives/` | 压缩月度备份 | ❌ |
 | `config/www/printer_analytics_data/` | 自动同步的备份副本 | ✅ 包含 |
