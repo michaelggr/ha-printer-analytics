@@ -29,56 +29,24 @@ LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = ["sensor"]
 
-CARD_FILENAME = "printer-analytics-card.js"
-HISTORY_CARD_FILENAME = "printer-history-list-card.js"
-CARD_URL = f"/local/printer_analytics/{CARD_FILENAME}"
+CARD_URL = "/local/pa-v5.2.js?v=5.2.1"
 DASHBOARD_FILE = "ui-printer-analytics.yaml"
 
-V52_CARD_URL = "/local/pa-v5.2.js?v=5.2"
 
-
-async def _register_lovelace_resource(hass: HomeAssistant) -> None:
-    component_dir = os.path.dirname(__file__)
-    www_dir = hass.config.path("www", "printer_analytics")
-
-    card_files = [CARD_FILENAME, HISTORY_CARD_FILENAME]
-
-    def _copy_cards():
-        os.makedirs(www_dir, exist_ok=True)
-        for card_file in card_files:
-            src = os.path.join(component_dir, "www", card_file)
-            dst = os.path.join(www_dir, card_file)
-            if os.path.exists(src):
-                shutil.copy2(src, dst)
-                LOGGER.info("Copied card to %s", dst)
-            else:
-                LOGGER.warning("Card source not found: %s", src)
-
-    try:
-        await hass.async_add_executor_job(_copy_cards)
-    except Exception as err:
-        LOGGER.error("Failed to copy cards: %s", err)
-        return
-
-    try:
-        LOGGER.info("Cards copied to %s", www_dir)
-    except Exception as err:
-        LOGGER.warning("Failed to complete card setup: %s", err)
-
-
-async def _ensure_v52_resource(hass: HomeAssistant) -> None:
+async def _ensure_card_resource(hass: HomeAssistant) -> None:
+    """确保卡片 JS 文件存在于 www 并注册为资源"""
     component_www = os.path.join(os.path.dirname(__file__), "www")
     src = os.path.join(component_www, "pa-v5.2.js")
     dst = hass.config.path("www", "pa-v5.2.js")
 
-    def _copy_v52():
+    def _copy_card():
         if os.path.exists(src):
             shutil.copy2(src, dst)
             LOGGER.info("Copied pa-v5.2.js to www")
         elif not os.path.exists(dst):
             LOGGER.warning("pa-v5.2.js not found at %s or %s", src, dst)
 
-    await hass.async_add_executor_job(_copy_v52)
+    await hass.async_add_executor_job(_copy_card)
 
     try:
         if LOVELACE_DOMAIN in hass.data:
@@ -92,13 +60,14 @@ async def _ensure_v52_resource(hass: HomeAssistant) -> None:
                     for r in (resources.async_items() if hasattr(resources, "async_items") else [])
                 )
                 if not exists:
-                    await resources.async_create({"url": V52_CARD_URL, "type": "module"})
+                    await resources.async_create({"url": CARD_URL, "type": "module"})
                     LOGGER.info("Registered pa-v5.2.js as Lovelace resource")
     except Exception as err:
         LOGGER.warning("Could not register resource: %s", err)
 
 
 async def _generate_dashboard_yaml(hass: HomeAssistant) -> None:
+    """自动生成仪表板 YAML 配置文件"""
     entry_ids = list(hass.data.get(DOMAIN, {}).keys())
     if not entry_ids:
         LOGGER.warning("No printer analytics entries found, skipping dashboard YAML generation")
@@ -168,7 +137,7 @@ async def _generate_dashboard_yaml(hass: HomeAssistant) -> None:
         activity_heatmap: {e['activity_heatmap']}
         failure_stage_distribution: {e['failure_stage_distribution']}
         filament_success_stats: {e['filament_success_stats']}
-        print_status: {e['print_status']}")
+        print_status: {e['print_status']}""")
 
     all_history_entities = [p for p in printers if p["entity_ids"]["print_history"]]
     if all_history_entities:
@@ -182,14 +151,12 @@ async def _generate_dashboard_yaml(hass: HomeAssistant) -> None:
         title: "🗂️ 全部打印历史"
         mode: history
         printer_name: 全部打印机
-        print_history: {first_p['entity_ids']['print_history']}")
+        print_history: {first_p['entity_ids']['print_history']}""")
 
         if len(all_history_entities) > 1:
             lines[-1] += "\n        extra_print_histories:"
             for p in all_history_entities[1:]:
-                lines[-1] += f"""
-          - entity: {p['entity_ids']['print_history']}
-            name: {p['printer_name']}"""
+                lines[-1] += f"""\n          - entity: {p['entity_ids']['print_history']}\n            name: {p['printer_name']}"""
 
     yaml_content = "\n".join(lines)
 
@@ -204,6 +171,7 @@ async def _generate_dashboard_yaml(hass: HomeAssistant) -> None:
 
 
 async def _ensure_dashboard_registered(hass: HomeAssistant) -> None:
+    """确保打印机分析仪表板在 Lovelace 中已注册"""
     try:
         if LOVELACE_DOMAIN not in hass.data:
             LOGGER.warning("Lovelace component not available, skipping dashboard registration")
@@ -253,11 +221,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
     _register_services(hass)
 
-    await _register_lovelace_resource(hass)
-    await _ensure_v52_resource(hass)
+    await _ensure_card_resource(hass)
 
     await _generate_dashboard_yaml(hass)
     await _ensure_dashboard_registered(hass)
+
+    try:
+        hass.config_entries.async_update_entry(entry, icon="mdi:chart-timeline-variant")
+        LOGGER.debug("集成页面图标已设置为 chart-timeline-variant")
+    except Exception as err:
+        LOGGER.debug("设置集成图标跳过: %s", err)
 
     try:
         dr = async_get_device_registry(hass)
