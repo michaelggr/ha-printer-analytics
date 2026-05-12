@@ -42,7 +42,6 @@ class PrinterAnalyticsCard extends HTMLElement {
     this._pendingDateFrom = '';
     this._pendingDateTo = '';
     this._pendingSearchQuery = '';
-    console.log('🎨 打印机分析 v5.2 初始化完成');
   }
 
   setConfig(config) {
@@ -62,6 +61,15 @@ class PrinterAnalyticsCard extends HTMLElement {
         this.updateData();
       }, 300);
     }
+  }
+
+  disconnectedCallback() {
+    if (this._renderDebounce) {
+      clearTimeout(this._renderDebounce);
+      this._renderDebounce = null;
+    }
+    this._selectedRecords.clear();
+    this._detailRecord = null;
   }
 
   /**
@@ -129,6 +137,15 @@ class PrinterAnalyticsCard extends HTMLElement {
     const div = document.createElement('div');
     div.textContent = String(str);
     return div.innerHTML;
+  }
+
+  _sanitizeColor(color) {
+    if (!color || typeof color !== 'string') return 'transparent';
+    const hex = color.trim();
+    if (/^#[0-9a-fA-F]{3,8}$/.test(hex)) return hex;
+    const rgba = hex.match(/^rgba?\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+\s*(?:,\s*[\d.]+\s*)?\)$/);
+    if (rgba) return hex;
+    return 'transparent';
   }
 
   /**
@@ -423,6 +440,20 @@ class PrinterAnalyticsCard extends HTMLElement {
         .chart-container:hover {
           box-shadow: var(--shadow);
           border-color: rgba(99, 102, 241, 0.3);
+        }
+
+        .heatmap-cell {
+          aspect-ratio: 1;
+          border-radius: 8px;
+          min-height: 18px;
+          cursor: default;
+          border: 1px solid var(--border-light);
+          transition: all 0.2s ease;
+        }
+
+        .heatmap-cell:hover {
+          transform: scale(1.1);
+          box-shadow: var(--shadow-sm);
         }
 
         .chart-header {
@@ -2486,15 +2517,10 @@ class PrinterAnalyticsCard extends HTMLElement {
         else if (intensity < 0.66) bgColor = 'rgba(34, 197, 94, 0.6)';
         else bgColor = 'rgba(34, 197, 94, 0.9)';
       }
-      cellsHtml += `<div style="
-        aspect-ratio:1;border-radius:8px;min-height:18px;cursor:default;
-        background:${bgColor};border:1px solid var(--border-light);
-        transition:all 0.2s ease;" 
+      cellsHtml += `<div class="heatmap-cell" style="background:${bgColor};" 
         title="${dateKey}: ${count}次"
         data-date="${this._escapeHtml(dateKey)}" 
-        data-count="${this._escapeHtml(String(count))}"
-        onmouseover="this.style.transform='scale(1.1)';this.style.boxShadow='var(--shadow-sm)'"
-        onmouseout="this.style.transform='scale(1)';this.style.boxShadow='none'">
+        data-count="${this._escapeHtml(String(count))}">
       </div>`;
     }
 
@@ -2512,26 +2538,20 @@ class PrinterAnalyticsCard extends HTMLElement {
     let multiColorPrints = [];
     let hasData = false;
 
-    console.log('🎨 v5.2 耗材数据处理开始:', history ? history.length : 0, '条记录');
-
     if (Array.isArray(history) && history.length > 0 &&
       history.some(item => item.status === 'finish' && (item.total_weight > 0 || item.filament_type))) {
 
-      console.log('✅ 使用历史记录数据');
       const result = this._extractFilamentFromHistory(history, typeUsage, colorUsage);
       hasData = result.hasData;
       multiColorPrints = result.multiColorPrints || [];
 
-      console.log('📊 提取结果 - 有数据:', hasData, '类型数:', Object.keys(typeUsage).length, '颜色数:', Object.keys(colorUsage).length);
     }
 
     if (!hasData && Object.keys(typeUsage).length === 0 && Object.keys(colorUsage).length === 0) {
-      console.log('⚠️ 使用备用数据源');
       hasData = this._extractFilamentFromStats(typeUsage, colorUsage);
     }
 
     if (!hasData || (Object.keys(typeUsage).length === 0 && Object.keys(colorUsage).length === 0)) {
-      console.log('❌ 无耗材数据，跳过渲染');
       return '';
     }
 
@@ -2624,7 +2644,7 @@ class PrinterAnalyticsCard extends HTMLElement {
             const colorDetail = colorDetails.find(d => d.color === colorCode);
             const colorWeight = colorDetail ? colorDetail.weight_g : 0;
             const colorPct = totalPrintWeight > 0 ? ((colorWeight / totalPrintWeight) * 100).toFixed(0) : '?';
-            html += `<span class="color-tag" style="background:${colorCode};color:${this._getContrastColor(colorCode)}">
+            html += `<span class="color-tag" style="background:${this._sanitizeColor(colorCode)};color:${this._getContrastColor(colorCode)}">
               ● ${displayName}${colorWeight > 0 ? ` (${colorWeight}g, ${colorPct}%)` : ''}
             </span>`;
           }
@@ -2640,7 +2660,7 @@ class PrinterAnalyticsCard extends HTMLElement {
             const pct = totalPrintWeight > 0 ? ((detail.weight_g / totalPrintWeight) * 100).toFixed(0) : '?';
             html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-radius:6px;">
               <span style="display:flex;align-items:center;gap:8px;">
-                <span style="width:12px;height:12px;border-radius:50%;background:${detail.color};border:2px solid rgba(255,255,255,0.2);"></span>
+                <span style="width:12px;height:12px;border-radius:50%;background:${this._sanitizeColor(detail.color)};border:2px solid rgba(255,255,255,0.2);"></span>
                 <span style="color:var(--text-secondary);">${this._formatColorName(detail.color)}</span>
               </span>
               <span style="font-weight:700;color:var(--primary-light);">${detail.weight_g}g</span>
@@ -3144,12 +3164,12 @@ class PrinterAnalyticsCard extends HTMLElement {
     const printerName = item._printer_name || '';
 
     const coverImg = item.cover_image_local || item.cover_image_url;
-    const colorBarHtml = colorsUsed.length > 0 ? `<div class="thumbnail-color-bar">${colorsUsed.map(color => `<div class="thumbnail-color-segment" style="background:${color}"></div>`).join('')}</div>` : '';
+    const colorBarHtml = colorsUsed.length > 0 ? `<div class="thumbnail-color-bar">${colorsUsed.map(color => `<div class="thumbnail-color-segment" style="background:${this._sanitizeColor(color)}"></div>`).join('')}</div>` : '';
 
     const coverHtml = coverImg
-      ? `<img class="history-cover-img" src="${coverImg}" alt="${taskName}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
-         <div class="history-thumbnail" style="display:none;background:linear-gradient(135deg, ${colorsUsed[0] || 'rgba(99,102,241,0.2)'}, ${colorsUsed[1] || colorsUsed[0] || 'rgba(6,182,212,0.1)'});">${statusInfo.icon}${colorBarHtml}</div>`
-      : `<div class="history-thumbnail" style="background:linear-gradient(135deg, ${colorsUsed[0] || 'rgba(99,102,241,0.2)'}, ${colorsUsed[1] || colorsUsed[0] || 'rgba(6,182,212,0.1)'});">${statusInfo.icon}${colorBarHtml}</div>`;
+      ? `<img class="history-cover-img" src="${this._escapeHtml(coverImg)}" alt="${taskName}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+         <div class="history-thumbnail" style="display:none;background:linear-gradient(135deg, ${this._sanitizeColor(colorsUsed[0]) || 'rgba(99,102,241,0.2)'}, ${this._sanitizeColor(colorsUsed[1]) || this._sanitizeColor(colorsUsed[0]) || 'rgba(6,182,212,0.1)'});">${statusInfo.icon}${colorBarHtml}</div>`
+      : `<div class="history-thumbnail" style="background:linear-gradient(135deg, ${this._sanitizeColor(colorsUsed[0]) || 'rgba(99,102,241,0.2)'}, ${this._sanitizeColor(colorsUsed[1]) || this._sanitizeColor(colorsUsed[0]) || 'rgba(6,182,212,0.1)'});">${statusInfo.icon}${colorBarHtml}</div>`;
 
     return `
       <div class="history-item" data-status="${status}" data-name="${taskName.toLowerCase()}" data-type="${filamentType.toLowerCase()}" data-record-id="${recordId}">
@@ -3447,7 +3467,7 @@ class PrinterAnalyticsCard extends HTMLElement {
     let fieldsHtml = fields.map(f => `
       <div class="detail-field">
         <div class="detail-field-label">${f.label}</div>
-        <div class="detail-field-value" ${f.color ? `style="color:${f.color}"` : ''}>${this._escapeHtml(String(f.value))}</div>
+        <div class="detail-field-value" ${f.color ? `style="color:${this._sanitizeColor(f.color)}"` : ''}>${this._escapeHtml(String(f.value))}</div>
       </div>
     `).join('');
 
@@ -3457,7 +3477,7 @@ class PrinterAnalyticsCard extends HTMLElement {
         <div style="font-size:14px;font-weight:700;color:var(--text-primary);margin-bottom:10px;">🎨 耗材颜色详情</div>`;
       for (const cu of record.color_usage) {
         colorsHtml += `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface-card);border-radius:var(--radius);margin-bottom:6px;border:1px solid var(--border);">
-          <span style="width:18px;height:18px;border-radius:50%;background:${cu.color};border:2px solid rgba(255,255,255,0.2);flex-shrink:0;"></span>
+          <span style="width:18px;height:18px;border-radius:50%;background:${this._sanitizeColor(cu.color)};border:2px solid rgba(255,255,255,0.2);flex-shrink:0;"></span>
           <span style="flex:1;font-size:13px;color:var(--text-secondary);">${this._escapeHtml(cu.type || '未知')} ${this._formatColorName(cu.color)}</span>
           <span style="font-size:13px;font-weight:700;color:var(--primary-light);">${cu.weight_g ? cu.weight_g.toFixed(1) + 'g' : '-'}</span>
           <span style="font-size:11px;color:var(--text-muted);">${cu.length_m ? cu.length_m.toFixed(1) + 'm' : ''}</span>
@@ -3470,7 +3490,7 @@ class PrinterAnalyticsCard extends HTMLElement {
     if (snapshotImg) {
       snapshotHtml = `<div style="margin-top:16px;">
         <div style="font-size:14px;font-weight:700;color:var(--text-primary);margin-bottom:10px;">📸 打印快照</div>
-        <img class="detail-snapshot" src="${snapshotImg}" alt="打印快照" onerror="this.style.display='none';">
+        <img class="detail-snapshot" src="${this._escapeHtml(snapshotImg)}" alt="打印快照" onerror="this.style.display='none';">
       </div>`;
     }
 
@@ -3478,7 +3498,7 @@ class PrinterAnalyticsCard extends HTMLElement {
       <div class="modal-overlay">
         <div class="modal-content">
           <button class="modal-close" id="btn-close-modal">✕</button>
-          ${coverImg ? `<img class="detail-cover" src="${coverImg}" alt="${taskName}" onerror="this.style.display='none';">` : ''}
+          ${coverImg ? `<img class="detail-cover" src="${this._escapeHtml(coverImg)}" alt="${taskName}" onerror="this.style.display='none';">` : ''}
           <div class="detail-title">${taskName}</div>
           <div class="detail-grid">${fieldsHtml}</div>
           ${colorsHtml}

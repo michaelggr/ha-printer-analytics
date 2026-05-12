@@ -277,8 +277,8 @@ class URLValidator:
             LOGGER.warning("Protocol-relative URL detected: %s", url[:50])
             return False
 
-        # 检查是否包含可疑的控制字符
-        if any(char in url for char in '\x00-\x1f'):
+        # 检查是否包含控制字符（ASCII 0x00-0x1F）
+        if re.search(r'[\x00-\x1f]', url):
             LOGGER.warning("URL contains control characters")
             return False
 

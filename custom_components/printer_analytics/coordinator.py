@@ -215,8 +215,7 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
 
             self.history = await self.hass.async_add_executor_job(_load)
             
-            # 数据迁移：修复 duration_hours=0 的记录
-            self._fix_duration_hours()
+            await self._fix_duration_hours()
             
             LOGGER.info(
                 "成功加载 %d 条历史记录（%d 个年份），支持100年数据存储",
@@ -227,7 +226,7 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
             LOGGER.error("加载历史数据失败: %s", err)
             self.history = []
 
-    def _fix_duration_hours(self) -> None:
+    async def _fix_duration_hours(self) -> None:
         """数据迁移：修复 duration_hours=0 的历史记录"""
         fixed = 0
         for r in self.history:
@@ -242,7 +241,7 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         
         if fixed > 0:
             LOGGER.info("数据迁移：修复了 %d 条记录的 duration_hours", fixed)
-            self.hass.async_create_task(self._save_history())
+            await self._save_history()
 
     def _migrate_legacy_data(self) -> None:
         """将旧版本的单文件数据迁移到按年分片存储"""

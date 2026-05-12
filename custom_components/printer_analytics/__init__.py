@@ -281,7 +281,6 @@ def _register_services(hass: HomeAssistant) -> None:
         if coordinator:
             await coordinator.async_request_refresh()
             LOGGER.info("Stats refreshed for %s", coordinator.printer_name)
-            LOGGER.info("Entity map for %s: %s", coordinator.printer_name, coordinator._entity_map)
 
     async def _handle_reset_history(call: ServiceCall) -> None:
         coordinator = _get_coordinator_from_call(hass, call)
@@ -316,6 +315,10 @@ def _get_coordinator_from_call(
     if isinstance(entity_id, list):
         entity_id = entity_id[0]
     for entry_id, coordinator in hass.data.get(DOMAIN, {}).items():
-        if isinstance(coordinator, PrinterAnalyticsCoordinator):
-            return coordinator
+        if not isinstance(coordinator, PrinterAnalyticsCoordinator):
+            continue
+        entity_reg = async_get_entity_registry(hass)
+        for entity in entity_reg.entities.values():
+            if entity.entity_id == entity_id and entity.config_entry_id == entry_id:
+                return coordinator
     return None
