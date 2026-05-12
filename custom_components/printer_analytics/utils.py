@@ -146,7 +146,7 @@ class URLValidator:
         if url.startswith('//'):
             LOGGER.warning("Protocol-relative URL detected: %s", url[:50])
             return False
-        if any(char in url for char in '\x00-\x1f'):
+        if re.search(r'[\x00-\x1f]', url):
             LOGGER.warning("URL contains control characters")
             return False
         return True
