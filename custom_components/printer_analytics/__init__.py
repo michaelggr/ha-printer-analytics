@@ -13,12 +13,16 @@ from homeassistant.helpers.device_registry import async_get as async_get_device_
 from homeassistant.helpers.entity_registry import async_get as async_get_entity_registry
 
 from .const import (
+    CARD_FILENAME,
+    CARD_URL,
     CONF_CHAMBER_TEMP_ENTITY,
     CONF_ENERGY_ENTITY,
     CONF_POWER_ENTITY,
     CONF_PRINTER_NAME,
     CONF_PRINT_STATUS_ENTITY,
+    DASHBOARD_FILE,
     DOMAIN,
+    PLATFORMS,
     SERVICE_REFRESH_STATS,
     SERVICE_RESET_HISTORY,
     SERVICE_DELETE_HISTORY_RECORDS,
@@ -27,23 +31,18 @@ from .coordinator import PrinterAnalyticsCoordinator
 
 LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = ["sensor"]
-
-CARD_URL = "/local/pa-v5.2.js?v=5.2.1"
-DASHBOARD_FILE = "ui-printer-analytics.yaml"
-
 
 async def _ensure_card_resource(hass: HomeAssistant) -> None:
     component_www = os.path.join(os.path.dirname(__file__), "www")
-    src = os.path.join(component_www, "pa-v5.2.js")
-    dst = hass.config.path("www", "pa-v5.2.js")
+    src = os.path.join(component_www, CARD_FILENAME)
+    dst = hass.config.path("www", CARD_FILENAME)
 
     def _copy_card():
         if os.path.exists(src):
             shutil.copy2(src, dst)
-            LOGGER.info("Copied pa-v5.2.js to www")
+            LOGGER.info("Copied %s to www", CARD_FILENAME)
         elif not os.path.exists(dst):
-            LOGGER.warning("pa-v5.2.js not found at %s or %s", src, dst)
+            LOGGER.warning("%s not found", CARD_FILENAME)
 
     await hass.async_add_executor_job(_copy_card)
 
@@ -55,12 +54,12 @@ async def _ensure_card_resource(hass: HomeAssistant) -> None:
                 resources = lovelace_data.get("resources")
             if resources and hasattr(resources, "async_create"):
                 exists = any(
-                    r.get("url", "").startswith("/local/pa-v5.2.js")
+                    r.get("url", "").startswith(f"/local/{CARD_FILENAME}")
                     for r in (resources.async_items() if hasattr(resources, "async_items") else [])
                 )
                 if not exists:
                     await resources.async_create({"url": CARD_URL, "type": "module"})
-                    LOGGER.info("Registered pa-v5.2.js as Lovelace resource")
+                    LOGGER.info("Registered %s as Lovelace resource", CARD_FILENAME)
     except Exception as err:
         LOGGER.warning("Could not register resource: %s", err)
 
@@ -119,7 +118,7 @@ async def _generate_dashboard_yaml(hass: HomeAssistant) -> None:
     path: {p['slug']}
     cards:
       - type: custom:printer-analytics-card
-        title: "🖨️ {p['printer_name']}打印机分析"
+        title: "\U0001f5a8 {p['printer_name']}打印机分析"
         mode: stats
         printer_name: {p['printer_name']}
         print_history: {e['print_history']}
@@ -146,9 +145,9 @@ async def _generate_dashboard_yaml(hass: HomeAssistant) -> None:
     path: all-history
     cards:
       - type: custom:printer-analytics-card
-        title: "🗂️ 全部打印历史"
+        title: "\U0001f5c2 \u5168\u90e8\u6253\u5370\u5386\u53f2"
         mode: history
-        printer_name: 全部打印机
+        printer_name: \u5168\u90e8\u6253\u5370\u673a
         print_history: {first_p['entity_ids']['print_history']}""")
 
         if len(all_history_entities) > 1:
@@ -191,7 +190,7 @@ async def _ensure_dashboard_registered(hass: HomeAssistant) -> None:
             config = {
                 "mode": "yaml",
                 "filename": DASHBOARD_FILE,
-                "title": "打印机分析",
+                "title": "\u6253\u5370\u673a\u5206\u6790",
                 "icon": "mdi:chart-timeline-variant",
                 "show_in_sidebar": True,
             }
@@ -202,9 +201,9 @@ async def _ensure_dashboard_registered(hass: HomeAssistant) -> None:
                 await dashboards.async_create(dashboard_id, config)
 
             if not exists:
-                LOGGER.info("已自动创建打印机分析仪表板")
+                LOGGER.info("\u5df2\u81ea\u52a8\u521b\u5efa\u6253\u5370\u673a\u5206\u6790\u4eea\u8868\u677f")
             else:
-                LOGGER.debug("打印机分析仪表板已存在")
+                LOGGER.debug("\u6253\u5370\u673a\u5206\u6790\u4eea\u8868\u677f\u5df2\u5b58\u5728")
 
         await _create_or_update()
     except Exception as err:
@@ -227,9 +226,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     try:
         hass.config_entries.async_update_entry(entry, icon="mdi:chart-timeline-variant")
-        LOGGER.debug("集成页面图标已设置为 chart-timeline-variant")
+        LOGGER.debug("\u96c6\u6210\u9875\u9762\u56fe\u6807\u5df2\u8bbe\u7f6e\u4e3a chart-timeline-variant")
     except Exception as err:
-        LOGGER.debug("设置集成图标跳过: %s", err)
+        LOGGER.debug("\u8bbe\u7f6e\u96c6\u6210\u56fe\u6807\u8df3\u8fc7: %s", err)
 
     try:
         dr = async_get_device_registry(hass)
@@ -240,9 +239,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 supported_kwargs["icon"] = "mdi:chart-timeline-variant"
             if supported_kwargs:
                 dr.async_update_device(device.id, **supported_kwargs)
-                LOGGER.debug("设备图标已设置")
+                LOGGER.debug("\u8bbe\u5907\u56fe\u6807\u5df2\u8bbe\u7f6e")
     except Exception as err:
-        LOGGER.debug("设置设备图标跳过: %s", err)
+        LOGGER.debug("\u8bbe\u7f6e\u8bbe\u5907\u56fe\u6807\u8df3\u8fc7: %s", err)
 
     LOGGER.info("Printer Analytics setup for %s", entry.data.get(CONF_PRINTER_NAME))
     return True
