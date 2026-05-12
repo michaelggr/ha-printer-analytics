@@ -1,4 +1,4 @@
-# Home Assistant 配置文件（不属于集成）
+﻿﻿﻿# Home Assistant 配置文件（不属于集成）
 *.yaml
 !custom_components/printer_analytics/services.yaml
 !hacs.json
@@ -28,54 +28,46 @@ write_*.py
 add_*.py
 create_*.py
 find_*.py
-get_*.py
-search_*.py
-validate_*.py
-patch_*.py
-reset_*.py
-restore_*.py
-update_*.py
 cleanup_*.py
 do_*.py
-final_*.py
-simple_*.py
-only_*.py
-audit_*.py
+reset_*.py
 delete_*.py
-reload_*.py
-test_*.py
-backup_*.py
-
-# PowerShell 脚本
-*.ps1
-
-# 翻译文件
-*_translations.json
-
-# 服务器配置快照和JSON数据
-server_lovelace*
-server_ws_config*
-server_ui-*
-backup_*.json
-modified_*.json
-entities_by_area.json
-utility_meters_list.json
-a1mini_history_*.json
-_to_delete.json
-
-# IDE 和工具
-.trae/
-.vscode/
-.idea/
+deploy_*.py
+force_*.py
+quick_*.py
+do_*.ps1
+*\.bak.*
+*_bak*
+*_backup*
 
 # 连接信息
 .ha_connection_info.json
 
-# 日志
-*.log
+# PowerShell 脚本
+*.ps1
 
-# 其他
-BACKUP_README.md
-blueprints/
-python_scripts/
-.storage/
+# 编译文件
+*.class
+*.so
+
+# 系统文件
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 节点
+node_modules/
+
+# 项目文件
+capture/
+_from_server/
+sensitive_paths.txt
+sensitive_paths2.txt
+ftp_upload.py
+push_to_github.py
