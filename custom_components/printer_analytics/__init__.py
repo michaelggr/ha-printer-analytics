@@ -34,7 +34,6 @@ DASHBOARD_FILE = "ui-printer-analytics.yaml"
 
 
 async def _ensure_card_resource(hass: HomeAssistant) -> None:
-    """确保卡片 JS 文件存在于 www 并注册为资源"""
     component_www = os.path.join(os.path.dirname(__file__), "www")
     src = os.path.join(component_www, "pa-v5.2.js")
     dst = hass.config.path("www", "pa-v5.2.js")
@@ -67,7 +66,6 @@ async def _ensure_card_resource(hass: HomeAssistant) -> None:
 
 
 async def _generate_dashboard_yaml(hass: HomeAssistant) -> None:
-    """自动生成仪表板 YAML 配置文件"""
     entry_ids = list(hass.data.get(DOMAIN, {}).keys())
     if not entry_ids:
         LOGGER.warning("No printer analytics entries found, skipping dashboard YAML generation")
@@ -156,7 +154,9 @@ async def _generate_dashboard_yaml(hass: HomeAssistant) -> None:
         if len(all_history_entities) > 1:
             lines[-1] += "\n        extra_print_histories:"
             for p in all_history_entities[1:]:
-                lines[-1] += f"""\n          - entity: {p['entity_ids']['print_history']}\n            name: {p['printer_name']}"""
+                lines[-1] += f"""
+          - entity: {p['entity_ids']['print_history']}
+            name: {p['printer_name']}"""
 
     yaml_content = "\n".join(lines)
 
@@ -171,7 +171,6 @@ async def _generate_dashboard_yaml(hass: HomeAssistant) -> None:
 
 
 async def _ensure_dashboard_registered(hass: HomeAssistant) -> None:
-    """确保打印机分析仪表板在 Lovelace 中已注册"""
     try:
         if LOVELACE_DOMAIN not in hass.data:
             LOGGER.warning("Lovelace component not available, skipping dashboard registration")
@@ -274,7 +273,6 @@ def _register_services(hass: HomeAssistant) -> None:
         if coordinator:
             await coordinator.async_request_refresh()
             LOGGER.info("Stats refreshed for %s", coordinator.printer_name)
-            LOGGER.info("Entity map for %s: %s", coordinator.printer_name, coordinator._entity_map)
 
     async def _handle_reset_history(call: ServiceCall) -> None:
         coordinator = _get_coordinator_from_call(hass, call)
@@ -309,6 +307,10 @@ def _get_coordinator_from_call(
     if isinstance(entity_id, list):
         entity_id = entity_id[0]
     for entry_id, coordinator in hass.data.get(DOMAIN, {}).items():
-        if isinstance(coordinator, PrinterAnalyticsCoordinator):
-            return coordinator
+        if not isinstance(coordinator, PrinterAnalyticsCoordinator):
+            continue
+        entity_reg = async_get_entity_registry(hass)
+        for entity in entity_reg.entities.values():
+            if entity.entity_id == entity_id and entity.config_entry_id == entry_id:
+                return coordinator
     return None
