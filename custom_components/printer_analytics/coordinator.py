@@ -25,6 +25,8 @@ from .const import (
     BAMBULAB_ENTITY_KEYS,
     BAMBULAB_IMAGE_KEYS,
     BAMBULAB_CAMERA_KEYS,
+    CHAMBER_TEMP_WINDOW_MINUTES,
+    COLOR_CONFIRM_THRESHOLD,
     CONF_CHAMBER_TEMP_ENTITY,
     CONF_ENERGY_ENTITY,
     CONF_POWER_ENTITY,
@@ -35,11 +37,16 @@ from .const import (
     DOMAIN,
     END_PRINT_STATUSES,
     HISTORY_VERSION,
+    HTTP_CONNECTION_LIMIT,
+    HTTP_CONNECTION_PER_HOST,
+    MATERIAL_CACHE_INTERVAL_SECONDS,
+    MAX_FULL_BACKUPS,
     MAX_HISTORY_RECORDS,
     PRINT_STATUS_FAIL,
     PRINT_STATUS_FINISH,
     PRINT_STATUS_IDLE,
     PRINT_STATUS_RUNNING,
+    SYNC_ARCHIVE_COUNT,
 )
 from .utils import BackupManager, SecureFileHandler, URLValidator
 
@@ -78,7 +85,6 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
             hass,
             logger=LOGGER,
             name=f"Printer Analytics - {entry.data.get(CONF_PRINTER_NAME, 'Unknown')}",
-            update_interval=timedelta(minutes=5),
         )
         self.entry = entry
         self.printer_name: str = entry.data.get(CONF_PRINTER_NAME, "Printer")
@@ -150,8 +156,8 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         if self._http_session is None or self._http_session.closed:
             self._http_session = aiohttp.ClientSession(
                 connector=aiohttp.TCPConnector(
-                    limit=10,
-                    limit_per_host=5,
+                    limit=HTTP_CONNECTION_LIMIT,
+                    limit_per_host=HTTP_CONNECTION_PER_HOST,
                     force_close=False,
                     enable_cleanup_closed=True,
                 ),
@@ -409,7 +415,7 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
                 if f.startswith(f"full_backup_{self.printer_name}_") and f.endswith(".json.gz")
             ])
             
-            while len(backups) > 12:
+            while len(backups) > MAX_FULL_BACKUPS:
                 old_backup = backups.pop(0)
                 old_path = os.path.join(self._archive_dir, old_backup)
                 os.remove(old_path)
@@ -489,7 +495,7 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
                 shutil.copy2(src, dst)
                 LOGGER.debug("同步年份数据: %s", year_file)
             
-            archive_files = sorted([f for f in os.listdir(self._archive_dir) if f.endswith(".gz")], reverse=True)[:3]
+            archive_files = sorted([f for f in os.listdir(self._archive_dir) if f.endswith(".gz")], reverse=True)[:SYNC_ARCHIVE_COUNT]
             
             for archive_file in archive_files:
                 src = os.path.join(self._archive_dir, archive_file)
@@ -919,7 +925,7 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
     def _start_material_cache(self) -> None:
         """启动定时缓存耗材数据"""
         self._stop_material_cache()
-        self._material_cache_interval = async_track_time_interval(self.hass, self._on_material_cache_tick, timedelta(seconds=60))
+        self._material_cache_interval = async_track_time_interval(self.hass, self._on_material_cache_tick, timedelta(seconds=MATERIAL_CACHE_INTERVAL_SECONDS))
 
     def _stop_material_cache(self) -> None:
         """停止定时缓存"""
@@ -1080,8 +1086,8 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
             
             if pending == current_color:
                 pending_count += 1
-                if pending_count >= 3:
-                    # 连续3次检测到同一新颜色，确认为真正的颜色切换
+                if pending_count >= COLOR_CONFIRM_THRESHOLD:
+                    # 连续N次检测到同一新颜色，确认为真正的颜色切换
                     colors_used.append(current_color)
                     change_count = len(colors_used) - 1
                     
@@ -1108,12 +1114,12 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
                     self.current_print["_pending_color_count"] = 0
                 else:
                     self.current_print["_pending_color_count"] = pending_count
-                    LOGGER.debug("待确认颜色切换: %s (%s) %d/3", current_color, current_type, pending_count)
+                    LOGGER.debug("待确认颜色切换: %s (%s) %d/%d", current_color, current_type, pending_count, COLOR_CONFIRM_THRESHOLD)
             else:
                 # 检测到不同颜色，重置计数
                 self.current_print["_pending_color"] = current_color
                 self.current_print["_pending_color_count"] = 1
-                LOGGER.debug("新颜色检测: %s (%s) 1/3", current_color, current_type)
+                LOGGER.debug("新颜色检测: %s (%s) 1/%d", current_color, current_type, COLOR_CONFIRM_THRESHOLD)
         else:
             # 当前颜色已在列表中，清除待确认状态
             self.current_print["_pending_color"] = None
@@ -1481,7 +1487,7 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         timeline = self.current_print.get("chamber_temp_timeline", [])
         if timeline:
             chamber_temp_final = timeline[-1].get("temp")
-            cutoff = (end_dt - timedelta(minutes=5)).isoformat() if end_dt else None
+            cutoff = (end_dt - timedelta(minutes=CHAMBER_TEMP_WINDOW_MINUTES)).isoformat() if end_dt else None
             if cutoff:
                 last5 = [e for e in timeline if e["time"] >= cutoff]
             else:

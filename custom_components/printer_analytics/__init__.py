@@ -13,12 +13,16 @@ from homeassistant.helpers.device_registry import async_get as async_get_device_
 from homeassistant.helpers.entity_registry import async_get as async_get_entity_registry
 
 from .const import (
+    CARD_FILENAME,
+    CARD_URL,
     CONF_CHAMBER_TEMP_ENTITY,
     CONF_ENERGY_ENTITY,
     CONF_POWER_ENTITY,
     CONF_PRINTER_NAME,
     CONF_PRINT_STATUS_ENTITY,
+    DASHBOARD_FILE,
     DOMAIN,
+    PLATFORMS,
     SERVICE_REFRESH_STATS,
     SERVICE_RESET_HISTORY,
     SERVICE_DELETE_HISTORY_RECORDS,
@@ -27,24 +31,19 @@ from .coordinator import PrinterAnalyticsCoordinator
 
 LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = ["sensor"]
-
-CARD_URL = "/local/pa-v5.2.js?v=5.2.1"
-DASHBOARD_FILE = "ui-printer-analytics.yaml"
-
 
 async def _ensure_card_resource(hass: HomeAssistant) -> None:
     """确保卡片 JS 文件存在于 www 并注册为资源"""
     component_www = os.path.join(os.path.dirname(__file__), "www")
-    src = os.path.join(component_www, "pa-v5.2.js")
-    dst = hass.config.path("www", "pa-v5.2.js")
+    src = os.path.join(component_www, CARD_FILENAME)
+    dst = hass.config.path("www", CARD_FILENAME)
 
     def _copy_card():
         if os.path.exists(src):
             shutil.copy2(src, dst)
-            LOGGER.info("Copied pa-v5.2.js to www")
+            LOGGER.info("Copied %s to www", CARD_FILENAME)
         elif not os.path.exists(dst):
-            LOGGER.warning("pa-v5.2.js not found at %s or %s", src, dst)
+            LOGGER.warning("%s not found", CARD_FILENAME)
 
     await hass.async_add_executor_job(_copy_card)
 
@@ -56,12 +55,12 @@ async def _ensure_card_resource(hass: HomeAssistant) -> None:
                 resources = lovelace_data.get("resources")
             if resources and hasattr(resources, "async_create"):
                 exists = any(
-                    r.get("url", "").startswith("/local/pa-v5.2.js")
+                    r.get("url", "").startswith(f"/local/{CARD_FILENAME}")
                     for r in (resources.async_items() if hasattr(resources, "async_items") else [])
                 )
                 if not exists:
                     await resources.async_create({"url": CARD_URL, "type": "module"})
-                    LOGGER.info("Registered pa-v5.2.js as Lovelace resource")
+                    LOGGER.info("Registered %s as Lovelace resource", CARD_FILENAME)
     except Exception as err:
         LOGGER.warning("Could not register resource: %s", err)
 
