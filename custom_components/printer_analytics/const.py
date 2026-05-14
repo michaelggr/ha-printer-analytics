@@ -41,7 +41,12 @@ BAMBULAB_ENTITY_KEYS = {
     "nozzle_size": ["nozzle_size", "nozzle_diameter"],
     "print_bed_type": ["print_bed_type"],
     "gcode_filename": ["gcode_filename", "gcode_file"],
-    "chamber_temperature": ["chamber_temperature", "chamber_temp"],
+    "chamber_temperature": [
+        "chamber_temperature",
+        "chamber_temp",
+        " enclosure_temp",  # A1 Mini 命名
+        "chamber",
+    ],
 }
 
 BAMBULAB_IMAGE_KEYS = {

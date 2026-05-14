@@ -1175,6 +1175,13 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         if not chamber_entity:
             chamber_entity = self.chamber_temp_entity
         if not chamber_entity:
+            # 调试：每10分钟输出一次未配置腔温传感器的警告
+            if not hasattr(self, '_chamber_warn_count'):
+                self._chamber_warn_count = 0
+            self._chamber_warn_count += 1
+            if self._chamber_warn_count <= 1:
+                LOGGER.warning("[%s] 未配置腔体温度传感器，entity_map=%s, user_config=%s",
+                    self.printer_name, self._entity_map.get("chamber_temperature"), self.chamber_temp_entity)
             return
         temp = self._get_float_state(chamber_entity, None)
         if temp is None:
