@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from typing import Any
 
@@ -80,13 +80,6 @@ class PrinterAnalyticsConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             ),
             errors=errors,
         )
-
-    @staticmethod
-    def _get_sensor_entities(hass: HomeAssistant) -> list[str]:
-        return [
-            state.entity_id
-            for state in hass.states.async_all("sensor")
-        ]
 
     @staticmethod
     def async_get_options_flow(

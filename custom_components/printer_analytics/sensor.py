@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+﻿﻿from __future__ import annotations
 
 import json
 from typing import Any
@@ -194,14 +194,14 @@ def _truncate_history_attrs(data: PrinterStats) -> dict:
     best = 0
     while lo <= hi:
         mid = (lo + hi) // 2
-        test = {"history": history[:mid], "current_print": data.current_print, "total_count": total_count}
+        test = {"history": history[-mid:] if mid > 0 else [], "current_print": data.current_print, "total_count": total_count}
         if len(json.dumps(test, ensure_ascii=False).encode('utf-8')) <= MAX_ATTR_BYTES:
             best = mid
             lo = mid + 1
         else:
             hi = mid - 1
 
-    result["history"] = history[:best]
+    result["history"] = history[-best:] if best > 0 else []
     result["total_count"] = total_count
     if best < total_count:
         result["truncated"] = True

@@ -4,6 +4,7 @@ import logging
 import os
 import re
 import shutil
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -167,7 +168,6 @@ class BackupManager:
             os.makedirs(backup_dir, exist_ok=True)
 
             # 生成带时间戳的备份文件名
-            from datetime import datetime, timezone
             timestamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
             basename = os.path.basename(filepath)
             backup_name = f"{basename}.{timestamp}.bak"

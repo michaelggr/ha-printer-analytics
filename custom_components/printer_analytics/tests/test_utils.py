@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿"""
+"""
 安全工具类单元测试
 测试 SecureFileHandler, BackupManager, URLValidator 的所有功能
 

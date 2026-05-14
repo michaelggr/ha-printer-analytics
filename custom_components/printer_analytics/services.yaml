@@ -1,4 +1,4 @@
-﻿refresh_stats:
+refresh_stats:
   name: 刷新统计
   description: 强制重新计算指定打印机的所有统计数据
   target:

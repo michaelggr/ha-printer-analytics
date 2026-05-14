@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+﻿﻿from __future__ import annotations
 
 import json
 import logging
@@ -26,6 +26,9 @@ from .const import (
     SERVICE_REFRESH_STATS,
     SERVICE_RESET_HISTORY,
     SERVICE_DELETE_HISTORY_RECORDS,
+    SERVICE_BACKFILL_COVER_IMAGES,
+    SERVICE_BACKFILL_SNAPSHOTS,
+    SERVICE_BACKFILL_TASK_NAMES,
 )
 from .coordinator import PrinterAnalyticsCoordinator
 
@@ -54,19 +57,29 @@ async def _ensure_card_resource(hass: HomeAssistant) -> None:
             if resources is None and isinstance(lovelace_data, dict):
                 resources = lovelace_data.get("resources")
             if resources and hasattr(resources, "async_create"):
-                exists = any(
-                    r.get("url", "").startswith(f"/local/{CARD_FILENAME}")
-                    for r in (resources.async_items() if hasattr(resources, "async_items") else [])
-                )
-                if not exists:
+                items = list(resources.async_items() if hasattr(resources, "async_items") else [])
+                old_item = None
+                for r in items:
+                    url = r.get("url", "")
+                    if url.startswith(f"/local/{CARD_FILENAME}"):
+                        old_item = r
+                        break
+                if old_item is None:
                     await resources.async_create({"url": CARD_URL, "type": "module"})
                     LOGGER.info("Registered %s as Lovelace resource", CARD_FILENAME)
+                elif old_item.get("url") != CARD_URL:
+                    # 版本号变化，删除旧资源并注册新的
+                    old_id = old_item.get("id")
+                    if old_id and hasattr(resources, "async_delete"):
+                        await resources.async_delete(old_id)
+                    await resources.async_create({"url": CARD_URL, "type": "module"})
+                    LOGGER.info("Updated Lovelace resource to %s", CARD_URL)
     except Exception as err:
         LOGGER.warning("Could not register resource: %s", err)
 
 
 async def _generate_dashboard_yaml(hass: HomeAssistant) -> None:
-    """自动生成仪表板 YAML 配置文件"""
+    """自动生成仪表板 YAML - 监控置顶 + 统计分析/之最/全部历史 三页签"""
     entry_ids = list(hass.data.get(DOMAIN, {}).keys())
     if not entry_ids:
         LOGGER.warning("No printer analytics entries found, skipping dashboard YAML generation")
@@ -75,91 +88,106 @@ async def _generate_dashboard_yaml(hass: HomeAssistant) -> None:
     entity_reg = async_get_entity_registry(hass)
     printers = []
 
+    # 每台打印机需要查找的传感器实体
+    _SENSOR_KEYS = [
+        "print_history", "total_prints", "success_rate", "average_duration",
+        "total_print_duration", "total_energy", "material_stats_7d",
+        "material_stats_30d", "material_stats_lifetime", "duration_distribution",
+        "activity_heatmap", "failure_stage_distribution", "filament_success_stats",
+        "print_status",
+    ]
+    # 每台打印机需要查找的 BambuLab 实时实体
+    _REALTIME_KEYS = [
+        "current_task", "print_progress", "current_weight", "current_length",
+        "total_usage", "nozzle_temperature", "bed_temperature",
+        "chamber_temperature", "active_tray", "ams_1_tray_1", "ams_1_tray_2",
+        "ams_1_tray_3", "ams_1_tray_4", "wifi_signal", "speed_profile",
+        "nozzle_size",
+    ]
+
+    # BambuLab 实时实体 key 到 HA 实体 ID 后缀的映射
+    _REALTIME_KEY_MAP = {
+        "current_task": "task_name",
+        "print_progress": "print_progress",
+        "current_weight": "print_weight",
+        "current_length": "print_length",
+        "total_usage": "total_usage",
+        "nozzle_temperature": "nozzle_temperature",
+        "bed_temperature": "bed_temperature",
+        "chamber_temperature": "chamber_temperature",
+        "active_tray": "active_tray",
+        "ams_1_tray_1": "ams_1_tray_1",
+        "ams_1_tray_2": "ams_1_tray_2",
+        "ams_1_tray_3": "ams_1_tray_3",
+        "ams_1_tray_4": "ams_1_tray_4",
+        "wifi_signal": "wi_fi_signal",
+        "speed_profile": "speed_profile",
+        "nozzle_size": "nozzle_size",
+    }
+
     for entry_id in entry_ids:
         coordinator = hass.data[DOMAIN].get(entry_id)
         if not coordinator or not hasattr(coordinator, "printer_name"):
             continue
         printer_name = coordinator.printer_name
-        slug = printer_name.lower().replace(" ", "_")
 
-        def _find_entity(sensor_key: str) -> str:
+        def _find_entity(sensor_key: str, _eid=entry_id) -> str:
             for entity in entity_reg.entities.values():
-                if entity.config_entry_id == entry_id and entity.unique_id == f"{entry_id}_{sensor_key}":
+                if entity.config_entry_id == _eid and entity.unique_id == f"{_eid}_{sensor_key}":
                     return entity.entity_id
             return ""
 
-        entity_ids = {
-            "print_history": _find_entity("print_history"),
-            "total_prints": _find_entity("total_prints"),
-            "success_rate": _find_entity("success_rate"),
-            "average_duration": _find_entity("average_duration"),
-            "total_print_duration": _find_entity("total_print_duration"),
-            "total_energy": _find_entity("total_energy"),
-            "material_stats_7d": _find_entity("material_stats_7d"),
-            "material_stats_30d": _find_entity("material_stats_30d"),
-            "material_stats_lifetime": _find_entity("material_stats_lifetime"),
-            "duration_distribution": _find_entity("duration_distribution"),
-            "activity_heatmap": _find_entity("activity_heatmap"),
-            "failure_stage_distribution": _find_entity("failure_stage_distribution"),
-            "filament_success_stats": _find_entity("filament_success_stats"),
-            "print_status": _find_entity("print_status"),
-        }
+        def _find_bambu_entity(entity_suffix: str, _pname=printer_name) -> str:
+            # 按 entity_id 模式匹配: sensor.{prefix}_{serial}_{suffix}
+            prefix = _pname.lower()
+            for entity in entity_reg.entities.values():
+                eid = entity.entity_id
+                if eid.startswith(f"sensor.{prefix}_") and eid.endswith(f"_{entity_suffix}"):
+                    return eid
+            return ""
+
+        sensor_entities = {k: _find_entity(k) for k in _SENSOR_KEYS}
+        realtime_entities = {}
+        for k, suffix in _REALTIME_KEY_MAP.items():
+            eid = _find_bambu_entity(suffix)
+            if eid:
+                realtime_entities[k] = eid
+
         printers.append({
             "printer_name": printer_name,
-            "slug": slug,
-            "entity_ids": entity_ids,
+            "sensor_entities": sensor_entities,
+            "realtime_entities": realtime_entities,
         })
 
-    # 构建 YAML
-    lines = ["title: 打印机分析", "views:"]
+    if not printers:
+        return
 
+    lines = [
+        '# ==================== 打印机分析 - 监控置顶 + 三页签 ====================',
+        '# 自动生成 - 顶部监控 / 统计分析 / 之最 / 全部历史',
+        'views:',
+        '  - title: "🖨️ 打印机分析"',
+        '    icon: mdi:printer-3d-eye',
+        '    panel: true',
+        '    cards:',
+        '      - type: custom:printer-analytics-card',
+        '        title: "🖨️ 打印机分析"',
+    ]
+
+    # 生成 printers 列表（每台打印机的传感器实体 + 实时实体）
+    lines.append('        printers:')
     for p in printers:
-        e = p["entity_ids"]
-        lines.append(f"""
-  - title: "{p['printer_name']}打印机"
-    icon: mdi:printer-3d
-    path: {p['slug']}
-    cards:
-      - type: custom:printer-analytics-card
-        title: "🖨️ {p['printer_name']}打印机分析"
-        mode: stats
-        printer_name: {p['printer_name']}
-        print_history: {e['print_history']}
-        total_prints: {e['total_prints']}
-        success_rate: {e['success_rate']}
-        average_duration: {e['average_duration']}
-        total_print_duration: {e['total_print_duration']}
-        total_energy: {e['total_energy']}
-        material_stats_7d: {e['material_stats_7d']}
-        material_stats_30d: {e['material_stats_30d']}
-        material_stats_lifetime: {e['material_stats_lifetime']}
-        duration_distribution: {e['duration_distribution']}
-        activity_heatmap: {e['activity_heatmap']}
-        failure_stage_distribution: {e['failure_stage_distribution']}
-        filament_success_stats: {e['filament_success_stats']}
-        print_status: {e['print_status']}""")
-
-    # 全部历史页签
-    all_history_entities = [p for p in printers if p["entity_ids"]["print_history"]]
-    if all_history_entities:
-        first_p = all_history_entities[0]
-        lines.append(f"""
-  - title: 全部历史
-    icon: mdi:history
-    path: all-history
-    cards:
-      - type: custom:printer-analytics-card
-        title: "🗂️ 全部打印历史"
-        mode: history
-        printer_name: 全部打印机
-        print_history: {first_p['entity_ids']['print_history']}""")
-
-        if len(all_history_entities) > 1:
-            lines[-1] += "\n        extra_print_histories:"
-            for p in all_history_entities[1:]:
-                lines[-1] += f"""
-          - entity: {p['entity_ids']['print_history']}
-            name: {p['printer_name']}"""
+        lines.append(f'          - printer_name: "{p["printer_name"]}"')
+        # 传感器实体
+        for k in _SENSOR_KEYS:
+            v = p["sensor_entities"].get(k, "")
+            if v:
+                lines.append(f'            {k}: {v}')
+        # 实时实体
+        for k in _REALTIME_KEYS:
+            v = p["realtime_entities"].get(k, "")
+            if v:
+                lines.append(f'            {k}: {v}')
 
     yaml_content = "\n".join(lines)
 
@@ -168,7 +196,7 @@ async def _generate_dashboard_yaml(hass: HomeAssistant) -> None:
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(yaml_content)
-        LOGGER.info("Generated dashboard YAML: %s", filepath)
+        LOGGER.info("Generated dashboard YAML (monitor+3tabs): %s", filepath)
 
     await hass.async_add_executor_job(_write)
 
@@ -278,8 +306,9 @@ def _register_services(hass: HomeAssistant) -> None:
     async def _handle_refresh_stats(call: ServiceCall) -> None:
         coordinator = _get_coordinator_from_call(hass, call)
         if coordinator:
+            await coordinator._load_history()
             await coordinator.async_request_refresh()
-            LOGGER.info("Stats refreshed for %s", coordinator.printer_name)
+            LOGGER.info("Stats and history refreshed for %s", coordinator.printer_name)
 
     async def _handle_reset_history(call: ServiceCall) -> None:
         coordinator = _get_coordinator_from_call(hass, call)
@@ -300,9 +329,30 @@ def _register_services(hass: HomeAssistant) -> None:
             deleted = await coordinator.async_delete_history_records(record_ids)
             LOGGER.info("Deleted %d history records for %s", deleted, coordinator.printer_name)
 
+    async def _handle_backfill_cover_images(call: ServiceCall) -> None:
+        coordinator = _get_coordinator_from_call(hass, call)
+        if coordinator:
+            count = await coordinator.backfill_cover_images()
+            LOGGER.info("Backfilled %d cover images for %s", count, coordinator.printer_name)
+
+    async def _handle_backfill_snapshots(call: ServiceCall) -> None:
+        coordinator = _get_coordinator_from_call(hass, call)
+        if coordinator:
+            count = await coordinator.backfill_snapshots()
+            LOGGER.info("Backfilled %d snapshots for %s", count, coordinator.printer_name)
+
+    async def _handle_backfill_task_names(call: ServiceCall) -> None:
+        coordinator = _get_coordinator_from_call(hass, call)
+        if coordinator:
+            count = await coordinator.backfill_task_names()
+            LOGGER.info("Backfilled %d task names for %s", count, coordinator.printer_name)
+
     hass.services.async_register(DOMAIN, SERVICE_REFRESH_STATS, _handle_refresh_stats)
     hass.services.async_register(DOMAIN, SERVICE_RESET_HISTORY, _handle_reset_history)
     hass.services.async_register(DOMAIN, SERVICE_DELETE_HISTORY_RECORDS, _handle_delete_history_records)
+    hass.services.async_register(DOMAIN, SERVICE_BACKFILL_COVER_IMAGES, _handle_backfill_cover_images)
+    hass.services.async_register(DOMAIN, SERVICE_BACKFILL_SNAPSHOTS, _handle_backfill_snapshots)
+    hass.services.async_register(DOMAIN, SERVICE_BACKFILL_TASK_NAMES, _handle_backfill_task_names)
 
 
 def _get_coordinator_from_call(

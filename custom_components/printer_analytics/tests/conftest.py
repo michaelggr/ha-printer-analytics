@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿"""
+"""
 Printer Analytics 测试套件 - 配置和Fixtures
 提供共享的测试数据和mock对象
 """
