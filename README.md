@@ -168,11 +168,35 @@ extra_print_histories:
 
 ## Services
 
-| Service | Description |
-|---------|-------------|
-| `printer_analytics.refresh_stats` | Force recalculate all statistics |
-| `printer_analytics.reset_history` | Clear all print history |
-| `printer_analytics.delete_history_records` | Delete specific records by ID |
+| Service | Description | Parameters |
+|---------|-------------|------------|
+| `printer_analytics.refresh_stats` | Force recalculate all statistics and reload history | `entity_id` (required) |
+| `printer_analytics.reset_history` | Clear all print history | `entity_id` (required) |
+| `printer_analytics.delete_history_records` | Delete specific records by ID | `entity_id` (required), `record_ids` (required, comma-separated) |
+| `printer_analytics.backfill_cover_images` | Download missing cover images for existing history | `entity_id` (required) |
+| `printer_analytics.backfill_snapshots` | Download missing snapshot images for existing history | `entity_id` (required) |
+| `printer_analytics.backfill_task_names` | Fill missing task names from Bambu Cloud | `entity_id` (required) |
+
+### Service Examples
+
+```yaml
+# Refresh statistics
+service: printer_analytics.refresh_stats
+target:
+  entity_id: sensor.p2s_total_prints
+
+# Delete specific records
+service: printer_analytics.delete_history_records
+target:
+  entity_id: sensor.p2s_total_prints
+data:
+  record_ids: "abc123,def456"
+
+# Backfill cover images
+service: printer_analytics.backfill_cover_images
+target:
+  entity_id: sensor.p2s_total_prints
+```
 
 ## Data Storage & Backup
 
@@ -188,6 +212,78 @@ extra_print_histories:
 - Monthly compressed full backups are created automatically (kept for 12 months)
 - When reinstalling the integration, data is automatically restored from the backup directory
 - Old single-file data format is automatically migrated to year-sharded format
+
+## Architecture
+
+```
+custom_components/printer_analytics/
+├── __init__.py           # Entry point, service registration, dashboard auto-deploy
+├── config_flow.py        # UI configuration flow
+├── const.py              # Constants and configuration
+├── coordinator.py        # DataUpdateCoordinator, print lifecycle orchestration
+├── data_models.py        # Data classes (PrinterStats, PrintRecord)
+├── entity_discovery.py   # Auto-discover printer entities from bambu_lab
+├── image_manager.py      # Cover image & snapshot download, Bambu Cloud auth
+├── print_tracker.py      # Print start/end detection, material tracking
+├── sensor.py             # HA sensor entities (14 sensors per printer)
+├── statistics.py         # Statistics calculation with incremental cache
+├── storage.py            # Year-sharded JSON storage, backup & restore
+├── utils.py              # Security utilities (SecureFileHandler, URLValidator)
+├── www/
+│   └── pa-v5.2.js        # Lovelace custom card (3,366 lines)
+└── tests/                # Test suite
+```
+
+### Data Flow
+
+```
+bambu_lab entities → entity_discovery → coordinator → print_tracker
+                                                       ↓ (print end)
+                                                  statistics (cached)
+                                                       ↓
+                                                  storage (year-sharded)
+                                                       ↓
+                                                  sensor (14 entities)
+                                                       ↓
+                                                  Lovelace card (JS)
+```
+
+## Changelog
+
+### v5.8.3 (2026-05-15) — Performance Optimization
+
+**Python Backend:**
+- Statistics incremental cache (O(1) when data unchanged)
+- Time parsing dictionary cache (max 512 entries)
+- AMS entity ID cache (avoid full entity scan every 60s)
+- Storage dirty flag (only write changed year files)
+- Fix nested executor in `StorageManager._save_year_data`
+- Year extraction: regex → string slice
+- Move placeholder image detection to executor
+- Sensor JSON truncation: binary search → estimation
+- Snapshot download loop: add 24h safety limit
+- Remove 8 delegate methods from Coordinator
+- Add `vol.Schema` validation to all 6 services
+- Unify `INVALID_ENTITY_STATES` to `const.py`
+- Remove BOM from all files
+- Fix `energy_kwh:` typo in conftest.py
+
+**Frontend JS:**
+- CSS extracted to constant, inject only once
+- Merged records cache + shallow copy (no data mutation)
+- Aggregated stats cache (3 traversals → 1)
+- Unified status mapping to `STATUS_CONFIG`
+- Unified time formatting to `_formatDateTime`
+- `_escapeHtml`: DOM creation → string replace
+- Delete 3 dead code methods
+- JS reduced from 3,856 to 3,366 lines (-12.7%)
+
+### v5.3.0 — Modular Architecture Refactor
+
+- Split monolithic `coordinator.py` into 6 sub-modules
+- Add year-sharded storage with backup & restore
+- Add Bambu Cloud authentication for cover images
+- Add multi-printer support in Lovelace card
 
 ## Requirements
 
@@ -369,11 +465,35 @@ extra_print_histories:
 
 ### 服务
 
-| 服务 | 说明 |
-|------|------|
-| `printer_analytics.refresh_stats` | 强制重新计算所有统计数据 |
-| `printer_analytics.reset_history` | 清除所有打印历史记录 |
-| `printer_analytics.delete_history_records` | 按ID删除指定记录 |
+| 服务 | 说明 | 参数 |
+|------|------|------|
+| `printer_analytics.refresh_stats` | 强制重新计算所有统计数据并重新加载历史 | `entity_id`（必填） |
+| `printer_analytics.reset_history` | 清除所有打印历史记录 | `entity_id`（必填） |
+| `printer_analytics.delete_history_records` | 按ID删除指定记录 | `entity_id`（必填），`record_ids`（必填，逗号分隔） |
+| `printer_analytics.backfill_cover_images` | 补全历史记录中缺失的封面图 | `entity_id`（必填） |
+| `printer_analytics.backfill_snapshots` | 补全历史记录中缺失的快照图 | `entity_id`（必填） |
+| `printer_analytics.backfill_task_names` | 从拓竹云补全缺失的任务名称 | `entity_id`（必填） |
+
+#### 服务调用示例
+
+```yaml
+# 刷新统计
+service: printer_analytics.refresh_stats
+target:
+  entity_id: sensor.p2s_total_prints
+
+# 删除指定记录
+service: printer_analytics.delete_history_records
+target:
+  entity_id: sensor.p2s_total_prints
+data:
+  record_ids: "abc123,def456"
+
+# 补全封面图
+service: printer_analytics.backfill_cover_images
+target:
+  entity_id: sensor.p2s_total_prints
+```
 
 ### 数据存储与备份
 
@@ -389,6 +509,78 @@ extra_print_histories:
 - 每月自动创建完整 gzip 压缩备份，保留最近12个
 - **重装集成时自动从备份目录恢复数据**（entry_id 变化也不影响）
 - 旧版单文件数据格式自动迁移到新的年份分片格式
+
+### 架构说明
+
+```
+custom_components/printer_analytics/
+├── __init__.py           # 入口，服务注册，仪表盘自动部署
+├── config_flow.py        # UI 配置流程
+├── const.py              # 常量与配置
+├── coordinator.py        # 数据更新协调器，打印生命周期管理
+├── data_models.py        # 数据类（PrinterStats, PrintRecord）
+├── entity_discovery.py   # 自动发现 bambu_lab 打印机实体
+├── image_manager.py      # 封面图与快照下载，拓竹云认证
+├── print_tracker.py      # 打印开始/结束检测，耗材追踪
+├── sensor.py             # HA 传感器实体（每台打印机14个传感器）
+├── statistics.py         # 统计计算（带增量缓存）
+├── storage.py            # 年份分片 JSON 存储，备份与恢复
+├── utils.py              # 安全工具（SecureFileHandler, URLValidator）
+├── www/
+│   └── pa-v5.2.js        # Lovelace 自定义卡片（3,366行）
+└── tests/                # 测试套件
+```
+
+#### 数据流
+
+```
+bambu_lab 实体 → entity_discovery → coordinator → print_tracker
+                                                    ↓ (打印结束)
+                                               statistics (带缓存)
+                                                    ↓
+                                               storage (年份分片)
+                                                    ↓
+                                               sensor (14个实体)
+                                                    ↓
+                                               Lovelace 卡片 (JS)
+```
+
+### 更新日志
+
+#### v5.8.3 (2026-05-15) — 性能优化
+
+**Python 后端：**
+- 统计计算增量缓存（数据未变化时 O(1) 返回）
+- 时间解析字典缓存（最大 512 条）
+- AMS 实体 ID 缓存（避免每 60 秒遍历全部 HA 实体）
+- 存储脏标记（只写入变化的年份文件）
+- 修复 `StorageManager._save_year_data` 嵌套 executor 问题
+- 年份提取：正则 → 字符串切片
+- 占位图检测移到 executor（消除启动阻塞）
+- 传感器 JSON 截断优化：二分查找 → 估算+单次验证
+- 快照下载循环添加 24 小时安全上限
+- 删除 Coordinator 8 个纯委托方法
+- 6 个服务添加 `vol.Schema` 参数验证
+- 统一 `INVALID_ENTITY_STATES` 到 `const.py`
+- 移除所有文件 BOM
+- 修复 `energy_kwh:` 拼写错误
+
+**前端 JS：**
+- CSS 提取为常量，只注入一次
+- 合并记录缓存 + 浅拷贝（不再修改 HA 原始数据）
+- 统计计算合并缓存（3 次遍历 → 1 次）
+- 状态判断统一为 `STATUS_CONFIG` 静态常量
+- 时间格式化统一为 `_formatDateTime` 方法
+- `_escapeHtml`：DOM 创建 → 字符串替换
+- 删除 3 个死代码方法
+- JS 从 3,856 行瘦身到 3,366 行（-12.7%）
+
+#### v5.3.0 — 模块化架构重构
+
+- 将单体 `coordinator.py` 拆分为 6 个子模块
+- 添加年份分片存储与备份恢复
+- 添加拓竹云认证用于封面图下载
+- 添加 Lovelace 卡片多打印机支持
 
 ### 系统要求
 
