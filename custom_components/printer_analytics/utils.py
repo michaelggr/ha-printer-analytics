@@ -10,6 +10,25 @@ from typing import Optional
 
 LOGGER = logging.getLogger(__name__)
 
+# 无效实体状态集合
+INVALID_ENTITY_STATES = frozenset({"unknown", "unavailable", ""})
+
+# 参数描述正则模式
+PARAM_DESCRIPTION_PATTERNS = [
+    r"^\d+\.?\d*\s*mm",
+    r"层高",
+    r"填充",
+    r"墙.*?层",
+    r"^/\w+/",
+]
+
+
+def is_param_description(task_name: str) -> bool:
+    """判断是否为参数描述"""
+    if not task_name:
+        return False
+    return any(re.search(p, task_name) for p in PARAM_DESCRIPTION_PATTERNS)
+
 
 class SecureFileHandler:
     """安全的文件操作处理器 - 防止路径遍历和文件注入攻击"""
