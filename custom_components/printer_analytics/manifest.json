@@ -8,7 +8,7 @@
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/michaelggr/ha-printer-analytics/issues",
   "requirements": [],
-  "version": "5.2.1",
+  "version": "5.3.0",
   "icon": "mdi:chart-timeline-variant",
   "homeassistant": "2024.1.0"
 }
