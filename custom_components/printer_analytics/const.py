@@ -26,6 +26,8 @@ PRINT_STATUS_CANCELLED = "cancelled"
 ACTIVE_PRINT_STATUSES = {PRINT_STATUS_RUNNING, PRINT_STATUS_PAUSE}
 END_PRINT_STATUSES = {PRINT_STATUS_FINISH, PRINT_STATUS_FAIL}
 
+INVALID_ENTITY_STATES = frozenset({"unknown", "unavailable", ""})
+
 BAMBULAB_ENTITY_KEYS = {
     "print_progress": ["print_progress"],
     "print_weight": ["print_weight"],

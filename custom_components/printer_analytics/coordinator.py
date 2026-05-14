@@ -30,6 +30,7 @@ from .const import (
     HTTP_CONNECTION_LIMIT,
     HTTP_CONNECTION_PER_HOST,
     HTTP_SESSION_TIMEOUT_SECS,
+    INVALID_ENTITY_STATES,
     MATERIAL_CACHE_INTERVAL_SECONDS,
     PRINT_STATUS_CANCELLED,
     PRINT_STATUS_FAIL,
@@ -46,8 +47,6 @@ from .image_manager import ImageManager
 from .statistics import StatisticsCalculator
 
 LOGGER = logging.getLogger(__name__)
-
-_INVALID_ENTITY_STATES = frozenset({"unknown", "unavailable", ""})
 
 
 class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
@@ -74,6 +73,7 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         self._unsub_listener = None
         self._material_cache_interval = None
         self._http_session: aiohttp.ClientSession | None = None
+        self._time_cache: dict[str, datetime] = {}
 
         # 存储路径
         self._history_base_dir = hass.config.path(".printer_analytics")
@@ -105,7 +105,7 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
 
         await self.storage.load_history()
         await self.entity_discovery.discover()
-        self.image_manager.detect_placeholder_images()
+        await self.hass.async_add_executor_job(self.image_manager.detect_placeholder_images)
 
         self._previous_status = self._get_current_print_status()
         if self._previous_status in ACTIVE_PRINT_STATUSES:
@@ -171,6 +171,8 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         self._total_records = len(self.history)
         await self._fix_duration_hours()
         await self._fix_multi_color_misclassification()
+        if self.statistics:
+            self.statistics.invalidate_cache()
 
     async def _save_history(self) -> None:
         """保存历史数据"""
@@ -270,7 +272,7 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
 
     def _extract_real_task_name(self, task_name: str) -> str | None:
         """提取真实任务名"""
-        if not task_name or task_name in _INVALID_ENTITY_STATES:
+        if not task_name or task_name in INVALID_ENTITY_STATES:
             return None
         if task_name.startswith("/data/") or self._is_param_description(task_name) or len(task_name) < 3:
             return None
@@ -291,33 +293,45 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
             self.print_tracker.handle_state_change(event)
 
     def _build_tray_color_map(self) -> dict[str, dict]:
-        """构建AMS tray颜色映射"""
+        """构建AMS tray颜色映射（使用缓存的实体列表）"""
         result = {}
         active_entity = self._entity_map.get("active_tray", "")
         if not active_entity:
             return result
-        for state in self.hass.states.async_all():
-            eid = state.entity_id
-            if "ams" in eid and "tray" in eid and eid.startswith("sensor."):
-                attrs = state.attributes
-                parts = eid.split("_")
-                ams_idx = tray_idx = None
-                for i, p in enumerate(parts):
-                    if p == "ams" and i + 1 < len(parts):
-                        try:
-                            ams_idx = int(parts[i + 1])
-                        except ValueError:
-                            pass
-                    if p == "tray" and i + 1 < len(parts):
-                        try:
-                            tray_idx = int(parts[i + 1])
-                        except ValueError:
-                            pass
-                if ams_idx is not None and tray_idx is not None:
-                    key = f"AMS {ams_idx} Tray {tray_idx}"
-                    color = attrs.get("color", "")
-                    name = state.state if state.state not in _INVALID_ENTITY_STATES else ""
-                    result[key] = {"color": color, "type": name}
+
+        # 复用 print_tracker 的 AMS 实体缓存
+        ams_entities = []
+        if self.print_tracker:
+            ams_entities = self.print_tracker._get_ams_tray_entities()
+        else:
+            for state in self.hass.states.async_all():
+                eid = state.entity_id
+                if "ams" in eid and "tray" in eid and eid.startswith("sensor."):
+                    ams_entities.append(eid)
+
+        for eid in ams_entities:
+            state = self.hass.states.get(eid)
+            if not state:
+                continue
+            attrs = state.attributes
+            parts = eid.split("_")
+            ams_idx = tray_idx = None
+            for i, p in enumerate(parts):
+                if p == "ams" and i + 1 < len(parts):
+                    try:
+                        ams_idx = int(parts[i + 1])
+                    except ValueError:
+                        pass
+                if p == "tray" and i + 1 < len(parts):
+                    try:
+                        tray_idx = int(parts[i + 1])
+                    except ValueError:
+                        pass
+            if ams_idx is not None and tray_idx is not None:
+                key = f"AMS {ams_idx} Tray {tray_idx}"
+                color = attrs.get("color", "")
+                name = state.state if state.state not in INVALID_ENTITY_STATES else ""
+                result[key] = {"color": color, "type": name}
         return result
 
     def _on_print_start(self) -> None:
@@ -348,15 +362,21 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
                 self.current_print["cover_image_local"] = local_path
 
     async def _delayed_snapshot_download(self, task_name: str, start_time: str) -> None:
-        """延迟下载快照"""
+        """延迟下载快照 - 每30秒获取最新快照，新快照替换旧快照，只保留最新一张"""
         interval = 30
-        while True:
+        max_iterations = 2880  # 最多运行24小时（30s * 2880 = 86400s）
+        iteration = 0
+
+        while iteration < max_iterations:
             await asyncio.sleep(interval)
+            iteration += 1
+
             if not self.current_print:
                 return
             status = self.current_print.get("status", "")
             if status in (PRINT_STATUS_FINISH, PRINT_STATUS_FAIL, PRINT_STATUS_CANCELLED, "idle"):
                 return
+
             old_path = self.current_print.get("snapshot_image_local")
             if self.image_manager:
                 local_path = await self.image_manager._download_print_snapshot(start_time, task_name)
@@ -365,29 +385,7 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
                     if old_path:
                         self.hass.async_create_task(self.image_manager._delete_image_file(old_path))
 
-    async def _download_cover_from_cloud(self, task_name: str, end_time: str, start_time: str = "") -> str | None:
-        """从云端下载封面"""
-        if self.image_manager:
-            return await self.image_manager._download_cover_from_cloud(task_name, end_time, start_time)
-        return None
-
-    async def _download_cover_image(self, image_url: str, task_name: str, end_time: str) -> str | None:
-        """下载封面"""
-        if self.image_manager:
-            return await self.image_manager._download_cover_image(image_url, task_name, end_time)
-        return None
-
-    async def _try_get_cover_from_entity(self, task_name: str, end_time: str) -> str | None:
-        """从实体获取封面"""
-        if self.image_manager:
-            return await self.image_manager._try_get_cover_from_entity(task_name, end_time)
-        return None
-
-    async def _download_image_via_http(self, download_url: str) -> bytes | None:
-        """HTTP下载图片"""
-        if self.image_manager:
-            return await self.image_manager._download_image_via_http(download_url)
-        return None
+        LOGGER.warning("Snapshot download reached max iterations (24h), stopping")
 
     async def _save_full_print_info(self, record: dict, end_time: str) -> str | None:
         """保存完整打印信息"""
@@ -418,17 +416,6 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
             LOGGER.error("Failed to save full print info: %s", err)
             return None
 
-    async def _download_print_snapshot(self, end_time: str, task_name: str) -> str | None:
-        """下载打印快照"""
-        if self.image_manager:
-            return await self.image_manager._download_print_snapshot(end_time, task_name)
-        return None
-
-    async def _delete_image_file(self, local_path: str) -> None:
-        """删除图片文件"""
-        if self.image_manager:
-            await self.image_manager._delete_image_file(local_path)
-
     def _ensure_timezone(self, dt_str: str) -> str:
         """确保时区信息"""
         if not dt_str:
@@ -442,14 +429,20 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
             return datetime.now(timezone.utc).isoformat()
 
     def _normalize_to_utc(self, dt_str: str) -> datetime | None:
-        """标准化为UTC"""
+        """标准化为UTC（带缓存，避免重复解析同一时间字符串）"""
         if not dt_str:
             return None
+        cached = self._time_cache.get(dt_str)
+        if cached is not None:
+            return cached
         try:
             dt = datetime.fromisoformat(dt_str)
             if dt.tzinfo is None:
                 dt = dt.replace(tzinfo=dt_util.DEFAULT_TIME_ZONE)
-            return dt.astimezone(timezone.utc)
+            result = dt.astimezone(timezone.utc)
+            if len(self._time_cache) < 512:
+                self._time_cache[dt_str] = result
+            return result
         except Exception as err:
             LOGGER.warning("Failed to normalize time '%s': %s", dt_str[:30], err)
             return None
@@ -516,18 +509,6 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         }
         return chamber_temp_last5min, chamber_temp_final
 
-    def _get_bambu_cloud_client(self):
-        """获取Bambu Cloud客户端"""
-        if self.image_manager:
-            return self.image_manager._get_bambu_cloud_client()
-        return None
-
-    def _get_printer_serial(self) -> str:
-        """获取打印机序列号"""
-        if self.image_manager:
-            return self.image_manager._get_printer_serial()
-        return ""
-
     async def backfill_cover_images(self) -> int:
         """补全封面图"""
         if self.image_manager:
@@ -542,11 +523,14 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
 
     async def backfill_task_names(self) -> int:
         """补全任务名"""
-        cloud = self._get_bambu_cloud_client()
+        if not self.image_manager:
+            LOGGER.warning("No image manager")
+            return 0
+        cloud = self.image_manager._get_bambu_cloud_client()
         if not cloud:
             LOGGER.warning("No Bambu Cloud client")
             return 0
-        serial = self._get_printer_serial()
+        serial = self.image_manager._get_printer_serial()
         if not serial:
             return 0
         try:
@@ -628,6 +612,8 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         """重置历史"""
         self.history = []
         self.current_print = None
+        if self.statistics:
+            self.statistics.invalidate_cache()
         await self._save_history()
         self.async_set_updated_data(self._calculate_statistics())
         LOGGER.info("History reset for %s", self.printer_name)
@@ -641,6 +627,8 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         self.history = [r for r in self.history if r.get("id") not in ids_set]
         deleted_count = original_count - len(self.history)
         if deleted_count > 0:
+            if self.statistics:
+                self.statistics.invalidate_cache()
             await self._save_history()
             self.async_set_updated_data(self._calculate_statistics())
             LOGGER.info("Deleted %d records", deleted_count)

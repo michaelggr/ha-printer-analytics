@@ -12,14 +12,13 @@ from .const import (
     BAMBULAB_CAMERA_KEYS,
     ENTITY_DISCOVERY_DELAY_SECS,
     ENTITY_DISCOVERY_RETRY_SECS,
+    INVALID_ENTITY_STATES,
 )
 
 if TYPE_CHECKING:
     from .coordinator import PrinterAnalyticsCoordinator
 
 LOGGER = logging.getLogger(__name__)
-
-_INVALID_ENTITY_STATES = frozenset({"unknown", "unavailable", ""})
 
 
 class EntityDiscovery:
@@ -124,7 +123,7 @@ class EntityDiscovery:
         if not entity_id:
             return default
         state = self.hass.states.get(entity_id)
-        return state.state if state and state.state not in _INVALID_ENTITY_STATES else default
+        return state.state if state and state.state not in INVALID_ENTITY_STATES else default
 
     def get_entity_attr(self, entity_id: str, attr: str, default: Any = None) -> Any:
         """获取实体属性"""

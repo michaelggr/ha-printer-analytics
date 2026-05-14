@@ -17,6 +17,7 @@ from .const import (
     END_PRINT_STATUSES,
     ENERGY_MAX_DELTA_KWH,
     FAILURE_STAGE_BUCKETS,
+    INVALID_ENTITY_STATES,
     MATERIAL_CACHE_INTERVAL_SECONDS,
     PRINT_STATUS_CANCELLED,
     PRINT_STATUS_FAIL,
@@ -33,8 +34,6 @@ if TYPE_CHECKING:
 
 LOGGER = logging.getLogger(__name__)
 
-_INVALID_ENTITY_STATES = frozenset({"unknown", "unavailable", ""})
-
 
 class PrintTracker:
     """打印跟踪管理器"""
@@ -44,6 +43,7 @@ class PrintTracker:
         self.hass = coordinator.hass
         self._entity_map = coordinator._entity_map
         self._material_cache_interval = None
+        self._ams_tray_entity_ids: list[str] | None = None
 
     def get_current_status(self) -> str | None:
         """获取当前打印状态"""
@@ -51,7 +51,7 @@ class PrintTracker:
         if not status_entity:
             return None
         state = self.hass.states.get(status_entity)
-        return state.state if state and state.state not in _INVALID_ENTITY_STATES else None
+        return state.state if state and state.state not in INVALID_ENTITY_STATES else None
 
     def recover_active_print(self) -> None:
         """恢复活跃打印"""
@@ -61,7 +61,7 @@ class PrintTracker:
         start_time_entity = self._entity_map.get("start_time")
         if start_time_entity:
             start_time = self.coordinator.get_entity_state(start_time_entity)
-            if start_time and start_time not in _INVALID_ENTITY_STATES:
+            if start_time and start_time not in INVALID_ENTITY_STATES:
                 self.coordinator.current_print = {
                     "id": str(uuid.uuid4()),
                     "start_time": self.coordinator._ensure_timezone(start_time),
@@ -134,22 +134,41 @@ class PrintTracker:
 
         self._update_ams_color_usage()
 
+    def _get_ams_tray_entities(self) -> list[str]:
+        """获取 AMS tray 实体列表（首次遍历后缓存）"""
+        if self._ams_tray_entity_ids is not None:
+            return self._ams_tray_entity_ids
+
+        prefix = self.coordinator.printer_name.lower()
+        result = []
+        for eid in self.hass.states.async_entity_ids("sensor"):
+            if eid.startswith(f"sensor.{prefix}_") and "ams" in eid and "tray" in eid:
+                result.append(eid)
+        self._ams_tray_entity_ids = result
+        return result
+
+    def invalidate_ams_cache(self) -> None:
+        """失效 AMS 实体缓存"""
+        self._ams_tray_entity_ids = None
+
     def _update_ams_color_usage(self) -> None:
-        """更新AMS耗材使用情况"""
+        """更新AMS耗材使用情况（优化：只遍历已知 AMS 实体）"""
         tray_color_map = self.coordinator._build_tray_color_map()
         active_tray = self.coordinator.get_entity_state(self._entity_map.get("active_tray", ""), "")
 
         if not tray_color_map:
             return
 
+        ams_entities = self._get_ams_tray_entities()
+
         color_agg = {}
-        for state in self.hass.states.async_all():
-            eid = state.entity_id
-            if "ams" not in eid or "tray" not in eid or not eid.startswith("sensor."):
+        for eid in ams_entities:
+            state = self.hass.states.get(eid)
+            if not state:
                 continue
 
             try:
-                weight = float(state.state) if state.state not in _INVALID_ENTITY_STATES else 0
+                weight = float(state.state) if state.state not in INVALID_ENTITY_STATES else 0
             except (ValueError, TypeError):
                 continue
 
@@ -158,7 +177,7 @@ class PrintTracker:
 
             attrs = state.attributes
             color = attrs.get("color", "")
-            name = attrs.get("name", "") or state.attributes.get("friendly_name", "")
+            name = attrs.get("name", "") or attrs.get("friendly_name", "")
 
             tray_key = eid.replace("sensor.", "")
 
@@ -284,7 +303,7 @@ class PrintTracker:
             return
 
         new_name = self.coordinator.get_entity_state(task_entity, "")
-        if not new_name or new_name in _INVALID_ENTITY_STATES:
+        if not new_name or new_name in INVALID_ENTITY_STATES:
             return
 
         if self._is_param_description(new_name):
@@ -306,9 +325,9 @@ class PrintTracker:
             raw_task_name = self.coordinator.get_entity_state(self._entity_map.get("task_name", ""), "")
             raw_gcode = self.coordinator.get_entity_state(self._entity_map.get("gcode_filename", ""), "")
             candidate = None
-            if raw_task_name and raw_task_name not in _INVALID_ENTITY_STATES:
+            if raw_task_name and raw_task_name not in INVALID_ENTITY_STATES:
                 candidate = self._extract_real_task_name(raw_task_name)
-            if not candidate and raw_gcode and raw_gcode not in _INVALID_ENTITY_STATES:
+            if not candidate and raw_gcode and raw_gcode not in INVALID_ENTITY_STATES:
                 basename = os.path.basename(raw_gcode)
                 if basename and basename != raw_gcode and not self._is_param_description(basename):
                     candidate = basename
@@ -362,7 +381,7 @@ class PrintTracker:
 
     def _extract_real_task_name(self, task_name: str) -> str | None:
         """提取真实任务名"""
-        if not task_name or task_name in _INVALID_ENTITY_STATES:
+        if not task_name or task_name in INVALID_ENTITY_STATES:
             return None
         if task_name.startswith("/data/"):
             return None
@@ -476,10 +495,10 @@ class PrintTracker:
         cover_image_local = self.coordinator.current_print.get("cover_image_local")
         start_time = self.coordinator.current_print.get("start_time") or ""
 
-        if not cover_image_local:
-            cover_image_local = await self.coordinator._download_cover_from_cloud(task_name, end_time, start_time)
-        if not cover_image_local:
-            cover_image_local = await self.coordinator._download_cover_image(cover_image_url, task_name, end_time)
+        if not cover_image_local and self.coordinator.image_manager:
+            cover_image_local = await self.coordinator.image_manager._download_cover_from_cloud(task_name, end_time, start_time)
+        if not cover_image_local and self.coordinator.image_manager:
+            cover_image_local = await self.coordinator.image_manager._download_cover_image(cover_image_url, task_name, end_time)
 
         colors_used, types_used, color_changes, color_usage, total_colors, multi_color_summary, clean_color_usage = \
             self.coordinator._build_color_data(end_status, progress)
@@ -515,10 +534,10 @@ class PrintTracker:
         }
 
         snapshot_image_local = self.coordinator.current_print.get("snapshot_image_local")
-        if not snapshot_image_local:
+        if not snapshot_image_local and self.coordinator.image_manager:
             _, snapshot_image_local = await asyncio.gather(
                 self.coordinator._save_full_print_info(base_record, end_time),
-                self.coordinator._download_print_snapshot(end_time, task_name)
+                self.coordinator.image_manager._download_print_snapshot(end_time, task_name)
             )
         else:
             full_print_info = await self.coordinator._save_full_print_info(base_record, end_time)

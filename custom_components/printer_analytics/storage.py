@@ -3,7 +3,6 @@ import gzip
 import json
 import logging
 import os
-import re
 import shutil
 from typing import TYPE_CHECKING
 
@@ -22,7 +21,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 class StorageManager:
-    """历史数据存储管理器"""
+    """历史数据存储管理器 - 支持脏标记只写变化年份"""
 
     def __init__(self, coordinator: "PrinterAnalyticsCoordinator") -> None:
         self.coordinator = coordinator
@@ -34,6 +33,17 @@ class StorageManager:
         self._legacy_history_file = coordinator._legacy_history_file
         self._images_dir = coordinator._images_dir
         self._ha_backup_dir = coordinator._ha_backup_dir
+        self._dirty_years: set[int] = set()
+        self._save_debounce = None
+
+    def mark_dirty(self, year: int | None = None) -> None:
+        """标记需要保存的年份"""
+        if year is not None:
+            self._dirty_years.add(year)
+        elif self.coordinator.history:
+            last = self.coordinator.history[-1]
+            y = self._extract_year_from_end_time(last.get("end_time", ""))
+            self._dirty_years.add(y)
 
     def migrate_legacy_data(self) -> None:
         """迁移旧版数据到分片存储"""
@@ -67,27 +77,23 @@ class StorageManager:
         except Exception as err:
             LOGGER.error("迁移旧版数据失败: %s", err)
 
-    def _extract_year_from_end_time(self, end_time: str) -> int:
-        """从结束时间提取年份"""
-        if not end_time:
+    @staticmethod
+    def _extract_year_from_end_time(end_time: str) -> int:
+        """从结束时间提取年份（直接切片，避免正则开销）"""
+        if not end_time or len(end_time) < 4:
             return 2020
         try:
-            year_str = re.match(r"(\d{4})", end_time)
-            return int(year_str.group(1)) if year_str else 2020
-        except (ValueError, AttributeError):
+            return int(end_time[:4])
+        except ValueError:
             return 2020
 
     def _save_year_data(self, year: int, records: list[dict]) -> None:
-        """保存单年份数据"""
+        """保存单年份数据（直接写入，由外层 executor 调度）"""
         os.makedirs(self._history_dir, exist_ok=True)
         year_file = os.path.join(self._history_dir, f"{self.entry.entry_id}_{year}.json")
         data = {"version": HISTORY_VERSION, "year": year, "history": records}
-
-        def _write():
-            with open(year_file, "w", encoding="utf-8") as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
-
-        self.hass.async_add_executor_job(_write)
+        with open(year_file, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
         LOGGER.debug("已保存 %d 年数据: %d 条记录", year, len(records))
 
     async def load_history(self) -> list[dict]:
@@ -155,8 +161,13 @@ class StorageManager:
             return []
 
     async def save_history(self) -> None:
-        """保存历史记录到分片存储"""
+        """保存历史记录到分片存储（只写脏年份，减少 I/O）"""
         try:
+            dirty = set(self._dirty_years)
+            self._dirty_years.clear()
+
+            # 如果没有脏标记，保存所有年份（兼容旧调用方式）
+            save_all = len(dirty) == 0
 
             def _write():
                 records_by_year: dict[int, list[dict]] = {}
@@ -166,7 +177,10 @@ class StorageManager:
                         records_by_year[year] = []
                     records_by_year[year].append(record)
 
-                for year, records in records_by_year.items():
+                years_to_save = records_by_year.keys() if save_all else dirty & records_by_year.keys()
+
+                for year in years_to_save:
+                    records = records_by_year.get(year, [])
                     self._save_year_file(year, records)
                     self.coordinator._yearly_stats[str(year)] = len(records)
 
@@ -174,23 +188,20 @@ class StorageManager:
                 self._create_full_backup()
 
             await self.hass.async_add_executor_job(_write)
-            LOGGER.debug("历史数据已保存")
+            LOGGER.debug("历史数据已保存（%s）", "全量" if save_all else f"增量: {dirty}")
 
         except Exception as err:
             LOGGER.error("保存历史数据失败: %s", err)
 
     def _save_year_file(self, year: int, records: list[dict]) -> None:
-        """保存单年份文件"""
+        """保存单年份文件（直接写入，外层已在 executor 中）"""
         os.makedirs(self._history_dir, exist_ok=True)
         year_file = os.path.join(self._history_dir, f"{self.entry.entry_id}_{year}.json")
         data = {"version": HISTORY_VERSION, "year": year, "history": records}
 
-        def _write_file():
+        try:
             with open(year_file, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
-
-        try:
-            _write_file()
             self._sync_to_ha_backup_dir()
         except Exception as err:
             LOGGER.error("保存年份文件失败 %d: %s", year, err)

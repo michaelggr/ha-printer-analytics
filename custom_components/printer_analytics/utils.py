@@ -10,10 +10,6 @@ from typing import Optional
 
 LOGGER = logging.getLogger(__name__)
 
-# 无效实体状态集合
-INVALID_ENTITY_STATES = frozenset({"unknown", "unavailable", ""})
-
-# 参数描述正则模式
 PARAM_DESCRIPTION_PATTERNS = [
     r"^\d+\.?\d*\s*mm",
     r"层高",

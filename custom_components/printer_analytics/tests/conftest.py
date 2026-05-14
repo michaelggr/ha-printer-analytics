@@ -51,7 +51,7 @@ def create_mock_history_record(
         "progress": progress if status != "finish" else 100,
         "total_weight": total_weight if status == "finish" else None,
         "total_length": total_length if status == "finish" else None,
-        "energy_kwh:": energy_kwh,
+        "energy_kwh": energy_kwh,
         "task_name": task_name,
         "filament_type": "PLA",
         "filament_color": "#FF0000",

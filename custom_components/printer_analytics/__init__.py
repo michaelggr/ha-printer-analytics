@@ -1,10 +1,11 @@
-﻿﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 import logging
 import os
 import shutil
 
+import voluptuous as vol
 from homeassistant.components.lovelace import DOMAIN as LOVELACE_DOMAIN
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_ENTITY_ID
@@ -303,6 +304,16 @@ def _register_services(hass: HomeAssistant) -> None:
     if hass.services.has_service(DOMAIN, SERVICE_REFRESH_STATS):
         return
 
+    # 服务参数 Schema 定义
+    ENTITY_ID_SCHEMA = vol.Schema({
+        vol.Required(ATTR_ENTITY_ID): vol.Any(str, [str]),
+    })
+
+    DELETE_RECORDS_SCHEMA = vol.Schema({
+        vol.Required(ATTR_ENTITY_ID): vol.Any(str, [str]),
+        vol.Required("record_ids"): vol.Any(str, [str]),
+    })
+
     async def _handle_refresh_stats(call: ServiceCall) -> None:
         coordinator = _get_coordinator_from_call(hass, call)
         if coordinator:
@@ -347,12 +358,12 @@ def _register_services(hass: HomeAssistant) -> None:
             count = await coordinator.backfill_task_names()
             LOGGER.info("Backfilled %d task names for %s", count, coordinator.printer_name)
 
-    hass.services.async_register(DOMAIN, SERVICE_REFRESH_STATS, _handle_refresh_stats)
-    hass.services.async_register(DOMAIN, SERVICE_RESET_HISTORY, _handle_reset_history)
-    hass.services.async_register(DOMAIN, SERVICE_DELETE_HISTORY_RECORDS, _handle_delete_history_records)
-    hass.services.async_register(DOMAIN, SERVICE_BACKFILL_COVER_IMAGES, _handle_backfill_cover_images)
-    hass.services.async_register(DOMAIN, SERVICE_BACKFILL_SNAPSHOTS, _handle_backfill_snapshots)
-    hass.services.async_register(DOMAIN, SERVICE_BACKFILL_TASK_NAMES, _handle_backfill_task_names)
+    hass.services.async_register(DOMAIN, SERVICE_REFRESH_STATS, _handle_refresh_stats, schema=ENTITY_ID_SCHEMA)
+    hass.services.async_register(DOMAIN, SERVICE_RESET_HISTORY, _handle_reset_history, schema=ENTITY_ID_SCHEMA)
+    hass.services.async_register(DOMAIN, SERVICE_DELETE_HISTORY_RECORDS, _handle_delete_history_records, schema=DELETE_RECORDS_SCHEMA)
+    hass.services.async_register(DOMAIN, SERVICE_BACKFILL_COVER_IMAGES, _handle_backfill_cover_images, schema=ENTITY_ID_SCHEMA)
+    hass.services.async_register(DOMAIN, SERVICE_BACKFILL_SNAPSHOTS, _handle_backfill_snapshots, schema=ENTITY_ID_SCHEMA)
+    hass.services.async_register(DOMAIN, SERVICE_BACKFILL_TASK_NAMES, _handle_backfill_task_names, schema=ENTITY_ID_SCHEMA)
 
 
 def _get_coordinator_from_call(

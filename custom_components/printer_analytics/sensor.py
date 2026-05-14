@@ -1,4 +1,4 @@
-﻿﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 from typing import Any
@@ -178,8 +178,6 @@ def _get_sensor_attrs(sensor_key: str, data: PrinterStats) -> dict | None:
 
 def _truncate_history_attrs(data: PrinterStats) -> dict:
     """构建 print_history 属性，确保不超过 HA recorder 的 16384 字节限制"""
-    result: dict[str, Any] = {"current_print": data.current_print}
-
     history = data.history or []
     total_count = len(history)
 
@@ -189,21 +187,31 @@ def _truncate_history_attrs(data: PrinterStats) -> dict:
     if full_size <= MAX_ATTR_BYTES:
         return full_result
 
-    # 二分查找最大可容纳条数
-    lo, hi = 0, total_count
-    best = 0
-    while lo <= hi:
-        mid = (lo + hi) // 2
-        test = {"history": history[-mid:] if mid > 0 else [], "current_print": data.current_print, "total_count": total_count}
-        if len(json.dumps(test, ensure_ascii=False).encode('utf-8')) <= MAX_ATTR_BYTES:
-            best = mid
-            lo = mid + 1
-        else:
-            hi = mid - 1
+    # 估算每条记录平均大小，避免二分查找中的多次 JSON 序列化
+    overhead_result = {"history": [], "current_print": data.current_print, "total_count": total_count}
+    overhead_size = len(json.dumps(overhead_result, ensure_ascii=False).encode('utf-8'))
+    available = MAX_ATTR_BYTES - overhead_size
 
-    result["history"] = history[-best:] if best > 0 else []
-    result["total_count"] = total_count
-    if best < total_count:
+    if available <= 0:
+        return {"current_print": data.current_print, "total_count": total_count, "truncated": True}
+
+    # 用最近10条记录估算平均大小
+    sample = history[-10:] if len(history) >= 10 else history
+    sample_size = len(json.dumps(sample, ensure_ascii=False).encode('utf-8'))
+    avg_size = sample_size / max(len(sample), 1)
+
+    # 估算可容纳条数，留10%余量
+    estimated_count = max(int(available / avg_size * 0.9), 1)
+    truncated = history[-estimated_count:]
+
+    # 单次验证
+    result = {"history": truncated, "current_print": data.current_print, "total_count": total_count}
+    if len(json.dumps(result, ensure_ascii=False).encode('utf-8')) > MAX_ATTR_BYTES:
+        # 超了就再砍一半
+        truncated = truncated[:len(truncated) // 2]
+        result = {"history": truncated, "current_print": data.current_print, "total_count": total_count}
+
+    if len(truncated) < total_count:
         result["truncated"] = True
     return result
 

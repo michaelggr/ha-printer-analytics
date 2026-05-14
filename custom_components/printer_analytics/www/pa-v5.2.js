@@ -1,4 +1,4 @@
-﻿﻿/**
+/**
  * 打印机分析卡片 - v5.8.3
  * 版本: 5.8.3 (2026-05-14) - 新增颜色/类型使用量对比图，最近打印记录，单色颜色点显示，之最移至最近打印上方
  *
@@ -18,305 +18,8 @@ const ICON_3D_PRINTER = (size = 28, inline = false) => {
   const displayStyle = inline ? 'display:inline-block;vertical-align:middle;' : 'display:block;margin:0 auto;';
   return `<img src="${PRINTER_ICON_URL}" width="${size}" height="${size}" style="${baseStyle}${displayStyle}" alt="3D Printer" />`;
 };
-class PrinterAnalyticsCard extends HTMLElement {
-  constructor() {
-    super();
-    this.attachShadow({ mode: 'open' });
-    this._lastRenderedData = null;
-    this._renderDebounce = null;
-    this._isRendering = false;
-    this._activeTab = 'stats';
-    this._mode = '';
-    this._selectedPrinter = '全部';
-    this._selectedRecords = new Set();
-    this._deleteConfirmVisible = false;
-    this._detailRecord = null;
-    this._dateFrom = '';
-    this._dateTo = '';
-    this._filterStatus = '';
-    this._filterColor = '';
-    this._filterPrinter = '';
-    this._searchQuery = '';
-    this._currentPage = 1;
-    this._pageSize = 20;
-    this._pendingFilterStatus = '';
-    this._pendingFilterColor = '';
-    this._pendingDateFrom = '';
-    this._pendingDateTo = '';
-    this._pendingSearchQuery = '';
-  }
 
-  setConfig(config) {
-    this.config = config;
-    this._mode = config.mode || '';
-    if (this._mode === 'history') this._activeTab = 'merged';
-    this.render();
-  }
-
-  set hass(hass) {
-    this._hass = hass;
-    if (hass && this.config) {
-      if (this._renderDebounce) {
-        clearTimeout(this._renderDebounce);
-      }
-      this._renderDebounce = setTimeout(() => {
-        this.updateData();
-      }, 300);
-    }
-  }
-
-  disconnectedCallback() {
-    if (this._renderDebounce) {
-      clearTimeout(this._renderDebounce);
-      this._renderDebounce = null;
-    }
-    this._selectedRecords.clear();
-    this._detailRecord = null;
-  }
-
-  // 获取实体属性，"全部"模式下聚合所有打印机同名属性（数值求和）
-  _getAggregatedAttr(entityKey) {
-    if (this._selectedPrinter !== '全部') {
-      const eid = this._getEntityForPrinter(this._selectedPrinter, entityKey);
-      return eid ? this._getAttr(eid) : {};
-    }
-    const printers = this._getPrintersConfig();
-    const merged = {};
-    for (const p of printers) {
-      const eid = p.entities[entityKey];
-      if (!eid) continue;
-      const attrs = this._getAttr(eid);
-      for (const k in attrs) {
-        if (k === 'icon' || k === 'friendly_name') continue;
-        const v = attrs[k];
-        if (typeof v === 'number') {
-          merged[k] = (merged[k] || 0) + v;
-        } else if (typeof v === 'object' && v !== null) {
-          if (!merged[k]) merged[k] = Array.isArray(v) ? [] : {};
-          if (Array.isArray(v)) {
-            merged[k] = [...(merged[k] || []), ...v];
-          } else {
-            for (const sk in v) {
-              if (typeof v[sk] === 'number') {
-                merged[k][sk] = ((merged[k][sk] || 0)) + v[sk];
-              } else if (typeof v[sk] === 'object' && v[sk] !== null) {
-                if (!merged[k][sk]) merged[k][sk] = {};
-                for (const ssk in v[sk]) {
-                  if (typeof v[sk][ssk] === 'number') {
-                    merged[k][sk][ssk] = (merged[k][sk][ssk] || 0) + v[sk][ssk];
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-    return merged;
-  }
-
-  /**
-   * 获取实体状态值
-   * @param {string} entityId 实体ID
-   * @returns {string} 状态值
-   */
-  _getState(entityId) {
-    const entity = this._hass?.states[entityId];
-    return entity?.state || '0';
-  }
-
-  /**
-   * 获取实体属性
-   * @param {string} entityId 实体ID
-   * @returns {object} 属性对象
-   */
-  _getAttr(entityId) {
-    const entity = this._hass?.states[entityId];
-    return entity?.attributes || {};
-  }
-
-  _formatWeight(grams) {
-    const g = parseFloat(grams) || 0;
-    if (g >= 1000000) return `${(g / 1000).toFixed(1)}t`;
-    if (g >= 1000) return `${(g / 1000).toFixed(1)}kg`;
-    return `${g.toFixed(1)}g`;
-  }
-
-  _formatDurationHours(hours) {
-    const h = parseFloat(hours) || 0;
-    if (h < 100) return `${h.toFixed(1)}h`;
-    const d = h / 24;
-    if (d < 30) return `${d.toFixed(1)}天`;
-    const w = d / 7;
-    if (w < 52) return `${w.toFixed(1)}周`;
-    const m = d / 30.44;
-    return `${m.toFixed(1)}月`;
-  }
-
-  _formatDurationMinutes(totalMinutes) {
-    const m = totalMinutes || 0;
-    if (m < 60) return `${Math.round(m)}分`;
-    if (m < 1440) return `${Math.floor(m / 60)}h${Math.round(m % 60)}m`;
-    const h = m / 60;
-    return this._formatDurationHours(h);
-  }
-
-  /**
-   * 获取历史记录数据
-   * @returns {Array} 历史记录数组
-   */
-  _getHistory() {
-    const historyEntity = this._hass?.states[this.config.print_history];
-    return historyEntity?.attributes?.history || [];
-  }
-
-  _getPrintersConfig() {
-    if (this.config.printers && Array.isArray(this.config.printers)) {
-      return this.config.printers.map(p => ({
-        printer_name: p.printer_name || '未命名',
-        entities: p,
-      }));
-    }
-
-    const entities = {};
-    const knownKeys = [
-      'print_history', 'total_prints', 'success_rate', 'average_duration',
-      'total_print_duration', 'total_energy', 'material_stats_7d',
-      'material_stats_30d', 'material_stats_lifetime', 'duration_distribution',
-      'activity_heatmap', 'failure_stage_distribution', 'filament_success_stats',
-      'print_status', 'current_task', 'print_progress', 'current_weight',
-      'current_length', 'total_usage', 'nozzle_temperature', 'bed_temperature',
-      'chamber_temperature', 'active_tray', 'ams_1_tray_1', 'ams_1_tray_2',
-      'ams_1_tray_3', 'ams_1_tray_4', 'wifi_signal', 'speed_profile', 'nozzle_size',
-    ];
-    for (const k of knownKeys) {
-      if (this.config[k]) entities[k] = this.config[k];
-    }
-    return [{
-      printer_name: this.config.printer_name || this.config.title?.replace(/[🖨️ ]/g, '') || '本机',
-      entities,
-    }];
-  }
-
-  /**
-   * 获取指定打印机的历史记录（支持"全部"聚合）
-   */
-  _getHistoryForPrinter(printerName) {
-    const printers = this._getPrintersConfig();
-    if (printerName === '全部') {
-      return this._getAllMergedRecords();
-    }
-    const p = printers.find(x => x.printer_name === printerName);
-    if (!p || !p.entities.print_history) return [];
-    const entity = this._hass?.states[p.entities.print_history];
-    const records = entity?.attributes?.history || [];
-    records.forEach(r => { r._printer_name = printerName; });
-    return records;
-  }
-
-  /**
-   * 判断打印记录是否为成功状态（兼容中英文）
-   */
-  _isSuccessStatus(status) {
-    return status === 'finish' || status === '完成' || status === '成功';
-  }
-
-  /**
-   * 判断打印记录是否为失败状态（兼容中英文）
-   */
-  _isFailedStatus(status) {
-    return status === 'fail' || status === 'failed' || status === '失败';
-  }
-
-  /**
-   * 判断打印记录是否为取消状态（兼容中英文）
-   */
-  _isCancelledStatus(status) {
-    return status === 'cancelled' || status === '已取消';
-  }
-
-  _isStatusMatch(status, filter) {
-    if (!filter) return true;
-    if (filter === 'finish') return this._isSuccessStatus(status);
-    if (filter === 'failed') return this._isFailedStatus(status);
-    if (filter === 'cancelled') return this._isCancelledStatus(status);
-    return status === filter;
-  }
-
-  /**
-   * 获取指定打印机的传感器实体ID
-   */
-  _getEntityForPrinter(printerName, entityKey) {
-    const printers = this._getPrintersConfig();
-    const p = printers.find(x => x.printer_name === printerName);
-    return p?.entities?.[entityKey] || '';
-  }
-
-  /**
-   * 获取打印机切换器 HTML
-   */
-  _renderPrinterSelector() {
-    const printers = this._getPrintersConfig();
-    if (printers.length <= 1) return '';
-    const options = ['全部', ...printers.map(p => p.printer_name)];
-    const buttons = options.map(name => {
-      const active = this._selectedPrinter === name ? 'active' : '';
-      return `<button class="printer-selector-btn ${active}" data-printer="${this._escapeHtml(name)}">${this._escapeHtml(name)}</button>`;
-    }).join('');
-    return `<div class="printer-selector">${buttons}</div>`;
-  }
-
-  /**
-   * HTML字符转义
-   * @param {string} str 输入字符串
-   * @returns {string} 转义后的字符串
-   */
-  _escapeHtml(str) {
-    if (str === null || str === undefined) return '';
-    const div = document.createElement('div');
-    div.textContent = String(str);
-    return div.innerHTML;
-  }
-
-  _sanitizeColor(color) {
-    if (!color || typeof color !== 'string') return 'transparent';
-    const hex = color.trim();
-    if (/^#[0-9a-fA-F]{3,8}$/.test(hex)) return hex;
-    const rgba = hex.match(/^rgba?\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+\s*(?:,\s*[\d.]+\s*)?\)$/);
-    if (rgba) return hex;
-    return 'transparent';
-  }
-
-  /**
-   * 数据降采样（用于大量数据显示）
-   * @param {Array} data 原始数据
-   * @param {number} threshold 阈值
-   * @returns {Array} 降采样后的数据
-   */
-  _downsampleData(data, threshold) {
-    if (data.length <= threshold) return data;
-    const sampled = [];
-    const step = (data.length - 2) / (threshold - 2);
-    sampled.push(data[0]);
-    for (let i = 1; i < threshold - 1; i++) {
-      const index = Math.floor(i * step);
-      if (index < data.length - 1) {
-        sampled.push(data[index]);
-      }
-    }
-    sampled.push(data[data.length - 1]);
-    return sampled;
-  }
-
-  /**
-   * 初始化卡片渲染
-   */
-  render() {
-    const container = this.shadowRoot;
-    if (!container) return;
-
-    container.innerHTML = `
-      <style>
+const PRINTER_ANALYTICS_CSS = `
         /* ==================== 基础样式 ==================== */
         :host {
           display: block;
@@ -1754,16 +1457,321 @@ class PrinterAnalyticsCard extends HTMLElement {
             grid-template-columns: repeat(2, 1fr);
           }
         }
-      </style>
-      <div class="card">
-        <div class="card-content">
-          <div class="empty-state">
-            <div class="empty-state-icon">${ICON_3D_PRINTER()}</div>
-            <div class="empty-state-text">加载打印机分析数据...</div>
-          </div>
+`;
+
+class PrinterAnalyticsCard extends HTMLElement {
+  constructor() {
+    super();
+    this.attachShadow({ mode: 'open' });
+    this._lastRenderedData = null;
+    this._renderDebounce = null;
+    this._isRendering = false;
+    this._activeTab = 'stats';
+    this._mode = '';
+    this._selectedPrinter = '全部';
+    this._selectedRecords = new Set();
+    this._deleteConfirmVisible = false;
+    this._detailRecord = null;
+    this._dateFrom = '';
+    this._dateTo = '';
+    this._filterStatus = '';
+    this._filterColor = '';
+    this._filterPrinter = '';
+    this._searchQuery = '';
+    this._currentPage = 1;
+    this._pageSize = 20;
+    this._pendingFilterStatus = '';
+    this._pendingFilterColor = '';
+    this._pendingDateFrom = '';
+    this._pendingDateTo = '';
+    this._pendingSearchQuery = '';
+  }
+
+  setConfig(config) {
+    this.config = config;
+    this._mode = config.mode || '';
+    if (this._mode === 'history') this._activeTab = 'merged';
+    this.render();
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    if (hass && this.config) {
+      if (this._renderDebounce) {
+        clearTimeout(this._renderDebounce);
+      }
+      this._renderDebounce = setTimeout(() => {
+        this.updateData();
+      }, 300);
+    }
+  }
+
+  disconnectedCallback() {
+    if (this._renderDebounce) {
+      clearTimeout(this._renderDebounce);
+      this._renderDebounce = null;
+    }
+    this._selectedRecords.clear();
+    this._detailRecord = null;
+  }
+
+  connectedCallback() {
+    super.connectedCallback();
+    if (!this.shadowRoot.querySelector('style')) {
+      const style = document.createElement('style');
+      style.textContent = PRINTER_ANALYTICS_CSS;
+      this.shadowRoot.appendChild(style);
+    }
+    if (!this.shadowRoot.querySelector('.card')) {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = '<div class="card-content"></div>';
+      this.shadowRoot.appendChild(card);
+    }
+  }
+
+  // 获取实体属性，"全部"模式下聚合所有打印机同名属性（数值求和）
+  _getAggregatedAttr(entityKey) {
+    if (this._selectedPrinter !== '全部') {
+      const eid = this._getEntityForPrinter(this._selectedPrinter, entityKey);
+      return eid ? this._getAttr(eid) : {};
+    }
+    const printers = this._getPrintersConfig();
+    const merged = {};
+    for (const p of printers) {
+      const eid = p.entities[entityKey];
+      if (!eid) continue;
+      const attrs = this._getAttr(eid);
+      for (const k in attrs) {
+        if (k === 'icon' || k === 'friendly_name') continue;
+        const v = attrs[k];
+        if (typeof v === 'number') {
+          merged[k] = (merged[k] || 0) + v;
+        } else if (typeof v === 'object' && v !== null) {
+          if (!merged[k]) merged[k] = Array.isArray(v) ? [] : {};
+          if (Array.isArray(v)) {
+            merged[k] = [...(merged[k] || []), ...v];
+          } else {
+            for (const sk in v) {
+              if (typeof v[sk] === 'number') {
+                merged[k][sk] = ((merged[k][sk] || 0)) + v[sk];
+              } else if (typeof v[sk] === 'object' && v[sk] !== null) {
+                if (!merged[k][sk]) merged[k][sk] = {};
+                for (const ssk in v[sk]) {
+                  if (typeof v[sk][ssk] === 'number') {
+                    merged[k][sk][ssk] = (merged[k][sk][ssk] || 0) + v[sk][ssk];
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    return merged;
+  }
+
+  /**
+   * 获取实体状态值
+   * @param {string} entityId 实体ID
+   * @returns {string} 状态值
+   */
+  _getState(entityId) {
+    const entity = this._hass?.states[entityId];
+    return entity?.state || '0';
+  }
+
+  /**
+   * 获取实体属性
+   * @param {string} entityId 实体ID
+   * @returns {object} 属性对象
+   */
+  _getAttr(entityId) {
+    const entity = this._hass?.states[entityId];
+    return entity?.attributes || {};
+  }
+
+  _formatWeight(grams) {
+    const g = parseFloat(grams) || 0;
+    if (g >= 1000000) return `${(g / 1000).toFixed(1)}t`;
+    if (g >= 1000) return `${(g / 1000).toFixed(1)}kg`;
+    return `${g.toFixed(1)}g`;
+  }
+
+  _formatDurationHours(hours) {
+    const h = parseFloat(hours) || 0;
+    if (h < 100) return `${h.toFixed(1)}h`;
+    const d = h / 24;
+    if (d < 30) return `${d.toFixed(1)}天`;
+    const w = d / 7;
+    if (w < 52) return `${w.toFixed(1)}周`;
+    const m = d / 30.44;
+    return `${m.toFixed(1)}月`;
+  }
+
+  _formatDurationMinutes(totalMinutes) {
+    const m = totalMinutes || 0;
+    if (m < 60) return `${Math.round(m)}分`;
+    if (m < 1440) return `${Math.floor(m / 60)}h${Math.round(m % 60)}m`;
+    const h = m / 60;
+    return this._formatDurationHours(h);
+  }
+
+  /**
+   * 获取历史记录数据
+   * @returns {Array} 历史记录数组
+   */
+  _getHistory() {
+    const historyEntity = this._hass?.states[this.config.print_history];
+    return historyEntity?.attributes?.history || [];
+  }
+
+  _getPrintersConfig() {
+    if (this.config.printers && Array.isArray(this.config.printers)) {
+      return this.config.printers.map(p => ({
+        printer_name: p.printer_name || '未命名',
+        entities: p,
+      }));
+    }
+
+    const entities = {};
+    const knownKeys = [
+      'print_history', 'total_prints', 'success_rate', 'average_duration',
+      'total_print_duration', 'total_energy', 'material_stats_7d',
+      'material_stats_30d', 'material_stats_lifetime', 'duration_distribution',
+      'activity_heatmap', 'failure_stage_distribution', 'filament_success_stats',
+      'print_status', 'current_task', 'print_progress', 'current_weight',
+      'current_length', 'total_usage', 'nozzle_temperature', 'bed_temperature',
+      'chamber_temperature', 'active_tray', 'ams_1_tray_1', 'ams_1_tray_2',
+      'ams_1_tray_3', 'ams_1_tray_4', 'wifi_signal', 'speed_profile', 'nozzle_size',
+    ];
+    for (const k of knownKeys) {
+      if (this.config[k]) entities[k] = this.config[k];
+    }
+    return [{
+      printer_name: this.config.printer_name || this.config.title?.replace(/[🖨️ ]/g, '') || '本机',
+      entities,
+    }];
+  }
+
+  /**
+   * 获取指定打印机的历史记录（支持"全部"聚合）
+   */
+  _getHistoryForPrinter(printerName) {
+    const printers = this._getPrintersConfig();
+    if (printerName === '全部') {
+      return this._getAllMergedRecords();
+    }
+    const p = printers.find(x => x.printer_name === printerName);
+    if (!p || !p.entities.print_history) return [];
+    const entity = this._hass?.states[p.entities.print_history];
+    const records = entity?.attributes?.history || [];
+    records.forEach(r => { r._printer_name = printerName; });
+    return records;
+  }
+
+  static STATUS_CONFIG = {
+    finish: { text: '成功', class: 'success', icon: '✅', color: 'var(--success)' },
+    '完成': { text: '成功', class: 'success', icon: '✅', color: 'var(--success)' },
+    '成功': { text: '成功', class: 'success', icon: '✅', color: 'var(--success)' },
+    failed: { text: '失败', class: 'failed', icon: '❌', color: 'var(--danger)' },
+    fail: { text: '失败', class: 'failed', icon: '❌', color: 'var(--danger)' },
+    '失败': { text: '失败', class: 'failed', icon: '❌', color: 'var(--danger)' },
+    cancelled: { text: '已取消', class: 'failed', icon: '⚠️', color: 'var(--warning)' },
+    '已取消': { text: '已取消', class: 'failed', icon: '⚠️', color: 'var(--warning)' },
+    '取消': { text: '已取消', class: 'failed', icon: '⚠️', color: 'var(--warning)' },
+    printing: { text: '进行中', class: 'printing', icon: '🔵', color: 'var(--primary)' },
+    '进行中': { text: '进行中', class: 'printing', icon: '🔵', color: 'var(--primary)' },
+  };
+
+  _getStatusInfo(status) {
+    const normalized = (status || '').trim().toLowerCase();
+    const info = this.constructor.STATUS_CONFIG[status] || this.constructor.STATUS_CONFIG[normalized];
+    if (info) return info;
+    const prog = parseInt(status?.progress || 0);
+    if (prog >= 100) return { text: '成功', class: 'success', icon: '✅', color: 'var(--success)' };
+    return { text: '未知', class: '', icon: '❓', color: 'var(--text-muted)' };
+  }
+
+  _isSuccessStatus(status) {
+    const info = this._getStatusInfo(status);
+    return info.text === '成功';
+  }
+
+  _isFailedStatus(status) {
+    const info = this._getStatusInfo(status);
+    return info.text === '失败';
+  }
+
+  _isCancelledStatus(status) {
+    const info = this._getStatusInfo(status);
+    return info.text === '已取消';
+  }
+
+  _isStatusMatch(status, filter) {
+    if (!filter) return true;
+    if (filter === 'finish') return this._isSuccessStatus(status);
+    if (filter === 'failed') return this._isFailedStatus(status);
+    if (filter === 'cancelled') return this._isCancelledStatus(status);
+    return status === filter;
+  }
+
+  /**
+   * 获取指定打印机的传感器实体ID
+   */
+  _getEntityForPrinter(printerName, entityKey) {
+    const printers = this._getPrintersConfig();
+    const p = printers.find(x => x.printer_name === printerName);
+    return p?.entities?.[entityKey] || '';
+  }
+
+  /**
+   * 获取打印机切换器 HTML
+   */
+  _renderPrinterSelector() {
+    const printers = this._getPrintersConfig();
+    if (printers.length <= 1) return '';
+    const options = ['全部', ...printers.map(p => p.printer_name)];
+    const buttons = options.map(name => {
+      const active = this._selectedPrinter === name ? 'active' : '';
+      return `<button class="printer-selector-btn ${active}" data-printer="${this._escapeHtml(name)}">${this._escapeHtml(name)}</button>`;
+    }).join('');
+    return `<div class="printer-selector">${buttons}</div>`;
+  }
+
+  /**
+   * HTML字符转义
+   * @param {string} str 输入字符串
+   * @returns {string} 转义后的字符串
+   */
+  _escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    const div = document.createElement('div');
+    div.textContent = String(str);
+    return div.innerHTML;
+  }
+
+  _sanitizeColor(color) {
+    if (!color || typeof color !== 'string') return 'transparent';
+    const hex = color.trim();
+    if (/^#[0-9a-fA-F]{3,8}$/.test(hex)) return hex;
+    const rgba = hex.match(/^rgba?\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+\s*(?:,\s*[\d.]+\s*)?\)$/);
+    if (rgba) return hex;
+    return 'transparent';
+  }
+
+  render() {
+    const container = this.shadowRoot;
+    if (!container) return;
+    const cardContent = container.querySelector('.card-content');
+    if (cardContent) {
+      cardContent.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">${ICON_3D_PRINTER()}</div>
+          <div class="empty-state-text">加载打印机分析数据...</div>
         </div>
-      </div>
-    `;
+      `;
+    }
   }
 
   /**
@@ -2816,19 +2824,7 @@ class PrinterAnalyticsCard extends HTMLElement {
     let html = `<div class="section-header"><div class="section-title"><span class="section-icon">📋</span><span>最近打印</span></div></div>`;
     html += `<div style="display:flex;flex-direction:column;gap:8px;">`;
     for (const item of recent) {
-      const status = item.status || 'unknown';
-      const statusMap = {
-        'finish': { icon: '✅', color: 'var(--success)' },
-        '完成': { icon: '✅', color: 'var(--success)' },
-        '成功': { icon: '✅', color: 'var(--success)' },
-        'failed': { icon: '❌', color: 'var(--danger)' },
-        'fail': { icon: '❌', color: 'var(--danger)' },
-        '失败': { icon: '❌', color: 'var(--danger)' },
-        'cancelled': { icon: '⚠️', color: 'var(--warning)' },
-        '已取消': { icon: '⚠️', color: 'var(--warning)' },
-        'printing': { icon: '🔵', color: 'var(--primary)' }
-      };
-      const si = statusMap[status] || { icon: '❓', color: 'var(--text-muted)' };
+      const statusInfo = this._getStatusInfo(item.status);
       const taskName = this._escapeHtml(item.task_name || '未命名');
       const ft = this._escapeHtml(item.filament_type || '');
       const wt = item.total_weight ? `${item.total_weight.toFixed(1)}g` : '';
@@ -2860,7 +2856,7 @@ class PrinterAnalyticsCard extends HTMLElement {
         if (colorsUsed.length > 4) colorDots += `<span style="font-size:10px;color:var(--text-muted);vertical-align:middle;">+${colorsUsed.length - 4}</span>`;
       }
       html += `<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surface-card);border-radius:8px;border:1px solid var(--border);flex-wrap:wrap;">
-        <span style="font-size:14px;flex-shrink:0;">${si.icon}</span>
+        <span style="font-size:14px;flex-shrink:0;">${statusInfo.icon}</span>
         <span style="flex:1;min-width:100px;font-size:13px;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${taskName}</span>
         ${dur ? `<span style="font-size:11px;color:var(--text-secondary);white-space:nowrap;">⏱${dur}</span>` : ''}
         ${endTime ? `<span style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${endTime}</span>` : ''}
@@ -2893,42 +2889,6 @@ class PrinterAnalyticsCard extends HTMLElement {
     if (Object.keys(typeUsage).length === 0 && Object.keys(colorUsage).length === 0) return '';
 
     let html = '';
-    html += this._renderColorUsageBarChart(colorUsage);
-    html += this._renderTypeUsageBarChart(typeUsage);
-    return html;
-  }
-
-  _renderFilamentUsage() {
-    const history = this._getHistoryForPrinter(this._selectedPrinter);
-    let typeUsage = {};
-    let colorUsage = {};
-    let multiColorPrints = [];
-    let hasData = false;
-
-    if (Array.isArray(history) && history.length > 0 &&
-      history.some(item => this._isSuccessStatus(item.status) && (item.total_weight > 0 || item.filament_type))) {
-
-      const result = this._extractFilamentFromHistory(history, typeUsage, colorUsage);
-      hasData = result.hasData;
-      multiColorPrints = result.multiColorPrints || [];
-
-    }
-
-    if (!hasData && Object.keys(typeUsage).length === 0 && Object.keys(colorUsage).length === 0) {
-      hasData = this._extractFilamentFromStats(typeUsage, colorUsage);
-    }
-
-    if (!hasData || (Object.keys(typeUsage).length === 0 && Object.keys(colorUsage).length === 0)) {
-      return '';
-    }
-
-    const pieColors = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#a855f7', '#06b6d4', '#84cc16', '#78350f',
-      '#db2777', '#14b8a6', '#f97316', '#64748b', '#4f46e5', '#65a30d', '#ea580c', '#0d9488'];
-
-    let html = '';
-
-    html += this._renderPieChart('耗材类型使用量', typeUsage, pieColors);
-    html += this._renderPieChart('耗材颜色使用量', colorUsage, pieColors);
     html += this._renderColorUsageBarChart(colorUsage);
     html += this._renderTypeUsageBarChart(typeUsage);
     return html;
@@ -3181,30 +3141,6 @@ class PrinterAnalyticsCard extends HTMLElement {
     return html;
   }
 
-  _renderLifetimeStats() {
-    const lifetimeStats = this._getEntityForPrinter(this._selectedPrinter, 'material_stats_lifetime');
-    if (this._selectedPrinter !== '全部' && !lifetimeStats) return '';
-    const lifetimeData = this._getAggregatedAttr('material_stats_lifetime');
-    if (!lifetimeData || !lifetimeData.total_weight_g) return '';
-    const totalWeight = lifetimeData.total_weight_g || 0;
-    const totalLength = lifetimeData.total_length_m || 0;
-    const totalEnergy = lifetimeData.total_energy_kwh || 0;
-    const totalPrints = lifetimeData.total_prints || 0;
-
-    return `<div class="section-header"><div class="section-title"><span class="section-icon">🏆</span><span>终身统计（累计）</span></div></div>
-      <div class="chart-container">
-        <table class="stats-table">
-          <thead><tr><th>指标</th><th style="text-align:right;">数值</th></tr></thead>
-          <tbody>
-            <tr><td>${ICON_3D_PRINTER(14, true)} 总打印次数</td><td style="text-align:right;" class="table-value">${totalPrints} 次</td></tr>
-            <tr><td>🎨 总耗材重量</td><td style="text-align:right;" class="table-value">${totalWeight.toFixed(1)} 克</td></tr>
-            <tr><td>📏 总耗材长度</td><td style="text-align:right;" class="table-value">${totalLength.toFixed(1)} 米</td></tr>
-            <tr><td>⚡ 总能耗</td><td style="text-align:right;" class="table-value">${totalEnergy.toFixed(2)} kWh</td></tr>
-          </tbody>
-        </table>
-      </div>`;
-  }
-
   _extractFilamentFromHistory(history, typeUsage, colorUsage) {
     let hasData = false;
     const multiColorPrints = [];
@@ -3408,23 +3344,11 @@ class PrinterAnalyticsCard extends HTMLElement {
   _renderHistoryItem(item, index, options = {}) {
     const taskName = this._escapeHtml(item.task_name || '未命名任务');
     const status = (item.status || '').trim().toLowerCase();
-    const statusConfig = {
-      'finish': { text: '成功', class: 'success', icon: '✅' },
-      '完成': { text: '成功', class: 'success', icon: '✅' },
-      '成功': { text: '成功', class: 'success', icon: '✅' },
-      'failed': { text: '失败', class: 'failed', icon: '❌' },
-      'fail': { text: '失败', class: 'failed', icon: '❌' },
-      '失败': { text: '失败', class: 'failed', icon: '❌' },
-      'printing': { text: '进行中', class: 'printing', icon: '🔵' },
-      'cancelled': { text: '已取消', class: 'failed', icon: '⚠️' },
-      '已取消': { text: '已取消', class: 'failed', icon: '⚠️' }
-    };
-    let statusInfo = statusConfig[status] || statusConfig[item.status];
-    if (!statusInfo) {
+    let statusInfo = this._getStatusInfo(status);
+    if (statusInfo.text === '未知') {
       const prog = parseInt(item.progress) || 0;
-      if (prog >= 100) statusInfo = { text: '成功', class: 'success', icon: '✅' };
-      else if (item.end_time && prog > 0 && prog < 100) statusInfo = { text: '失败', class: 'failed', icon: '❌' };
-      else statusInfo = { text: '未知', class: '', icon: '❓' };
+      if (prog >= 100) statusInfo = { text: '成功', class: 'success', icon: '✅', color: 'var(--success)' };
+      else if (item.end_time && prog > 0 && prog < 100) statusInfo = { text: '失败', class: 'failed', icon: '❌', color: 'var(--danger)' };
     }
 
     // 统一时区：UTC/本地时间都转为本地显示
@@ -3551,7 +3475,6 @@ class PrinterAnalyticsCard extends HTMLElement {
       return;
     }
 
-    const statusMap = { 'finish': '成功', '完成': '成功', '成功': '成功', 'failed': '失败', 'fail': '失败', '失败': '失败', 'cancelled': '已取消', '已取消': '已取消' };
     const headers = ['序号', '任务名称', '打印机', '状态', '开始时间', '结束时间', '时长(分钟)', '耗材类型', '耗材颜色', '耗材重量(g)', '耗材长度(m)', '能耗(kWh)', '喷嘴温度(°C)', '热床温度(°C)', '腔温(°C)', '速度配置', '喷嘴尺寸'];
     const rows = filtered.map((r, i) => {
       const chamberTemp = r.chamber_temp_last5min?.avg ?? r.chamber_temp_final ?? '';
@@ -3559,7 +3482,7 @@ class PrinterAnalyticsCard extends HTMLElement {
         i + 1,
         r.task_name || '',
         r._printer_name || '',
-        statusMap[r.status] || r.status || '',
+        this._getStatusInfo(r.status).text,
         r.start_time || '',
         r.end_time || '',
         r.duration_minutes || r.print_duration || '',
@@ -3709,22 +3632,8 @@ class PrinterAnalyticsCard extends HTMLElement {
   _renderDetailModal(record) {
     const taskName = this._escapeHtml(record.task_name || '未命名任务');
     const status = record.status || '';
-    const normalizedStatus = status.trim().toLowerCase();
-    const statusConfig = {
-      'finish': { text: '成功', icon: '✅', color: 'var(--success)' },
-      '完成': { text: '成功', icon: '✅', color: 'var(--success)' },
-      '成功': { text: '成功', icon: '✅', color: 'var(--success)' },
-      'failed': { text: '失败', icon: '❌', color: 'var(--danger)' },
-      'fail': { text: '失败', icon: '❌', color: 'var(--danger)' },
-      '失败': { text: '失败', icon: '❌', color: 'var(--danger)' },
-      'cancelled': { text: '已取消', icon: '⚠️', color: 'var(--warning)' },
-      '已取消': { text: '已取消', icon: '⚠️', color: 'var(--warning)' },
-      '取消': { text: '已取消', icon: '⚠️', color: 'var(--warning)' },
-      'printing': { text: '进行中', icon: '🔵', color: 'var(--primary)' },
-      '进行中': { text: '进行中', icon: '🔵', color: 'var(--primary)' },
-    };
-    let statusInfo = statusConfig[status] || statusConfig[normalizedStatus];
-    if (!statusInfo) {
+    let statusInfo = this._getStatusInfo(status);
+    if (statusInfo.text === '未知') {
       const prog = parseInt(record.progress) || 0;
       if (prog >= 100) statusInfo = { text: '成功', icon: '✅', color: 'var(--success)' };
       else if (record.end_time && prog > 0 && prog < 100) statusInfo = { text: '失败', icon: '❌', color: 'var(--danger)' };
