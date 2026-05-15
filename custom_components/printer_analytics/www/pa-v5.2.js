@@ -1,6 +1,6 @@
 ﻿/**
- * 打印机分析卡片 - v5.8.7
- * 版本: 5.8.7 (2026-05-15) - 配置界面中文化（代码层面中文标签双保险）
+ * 打印机分析卡片 - v5.8.8
+ * 版本: 5.8.8 (2026-05-15) - 修复 connectedCallback 错误 + 属性超限问题
  *
  * 设计特点:
  * - 顶部打印机实时监控（多打印机卡片）
@@ -1817,7 +1817,7 @@ class PrinterAnalyticsCard extends HTMLElement {
               <div class="header-title">${title}</div>
             </div>
           </div>
-        <div class="header-badge">v5.8.7</div>
+        <div class="header-badge">v5.8.8</div>
         </div>
       `;
 
@@ -3755,7 +3755,11 @@ class PrinterAnalyticsCard extends HTMLElement {
   }
 }
 
-customElements.define('printer-analytics-card', PrinterAnalyticsCard);
+(function() {
+  if (!customElements.get('printer-analytics-card')) {
+    customElements.define('printer-analytics-card', PrinterAnalyticsCard);
+  }
+})();
 
 window.customCards = window.customCards || [];
 window.customCards.push({
