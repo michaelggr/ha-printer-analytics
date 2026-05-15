@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 from typing import Any
@@ -17,7 +17,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import DOMAIN
 from .coordinator import PrinterAnalyticsCoordinator, PrinterStats
 
-MAX_ATTR_BYTES = 15360
+MAX_ATTR_BYTES = 14336
 
 
 SENSORS: dict[str, SensorEntityDescription] = {
@@ -103,7 +103,7 @@ SENSORS: dict[str, SensorEntityDescription] = {
     "print_status": SensorEntityDescription(
         key="print_status",
         name="打印状态",
-        icon="mdi:chart-timeline-variant",
+        icon="mdi:chart-timeline",
     ),
 }
 
@@ -176,40 +176,62 @@ def _get_sensor_attrs(sensor_key: str, data: PrinterStats) -> dict | None:
             return None
 
 
+def _sanitize_for_attrs(obj):
+    """递归清理数据，移除内部字段（以_开头），确保值类型安全"""
+    if obj is None:
+        return None
+    if isinstance(obj, dict):
+        return {k: _sanitize_for_attrs(v) for k, v in obj.items()
+             if isinstance(k, str) and not k.startswith('_')}
+    if isinstance(obj, list):
+        return [_sanitize_for_attrs(item) for item in obj]
+    if isinstance(obj, (str, int, float, bool)):
+        return obj
+    return str(obj)
+
+
 def _truncate_history_attrs(data: PrinterStats) -> dict:
     """构建 print_history 属性，确保不超过 HA recorder 的 16384 字节限制"""
     history = data.history or []
     total_count = len(history)
+    current_print = _sanitize_for_attrs(data.current_print)
 
-    # 先尝试全部放入
-    full_result = {"history": history, "current_print": data.current_print, "total_count": total_count}
+    full_result = {"history": history, "current_print": current_print, "total_count": total_count}
     full_size = len(json.dumps(full_result, ensure_ascii=False).encode('utf-8'))
     if full_size <= MAX_ATTR_BYTES:
         return full_result
 
-    # 估算每条记录平均大小，避免二分查找中的多次 JSON 序列化
-    overhead_result = {"history": [], "current_print": data.current_print, "total_count": total_count}
+    # current_print 过大时只保留关键字段
+    if current_print and isinstance(current_print, dict):
+        compact_print = {
+            k: current_print[k] for k in ('status', 'task_name', 'start_time', 'end_time',
+                                           'duration_hours', 'total_weight', 'total_length',
+                                           'progress', 'filament_type', 'cover_image_local')
+            if k in current_print
+        }
+        full_result = {"history": history, "current_print": compact_print, "total_count": total_count}
+        full_size = len(json.dumps(full_result, ensure_ascii=False).encode('utf-8'))
+        if full_size <= MAX_ATTR_BYTES:
+            return full_result
+
+    overhead_result = {"history": [], "current_print": current_print, "total_count": total_count}
     overhead_size = len(json.dumps(overhead_result, ensure_ascii=False).encode('utf-8'))
     available = MAX_ATTR_BYTES - overhead_size
 
     if available <= 0:
-        return {"current_print": data.current_print, "total_count": total_count, "truncated": True}
+        return {"current_print": current_print, "total_count": total_count, "truncated": True}
 
-    # 用最近10条记录估算平均大小
     sample = history[-10:] if len(history) >= 10 else history
     sample_size = len(json.dumps(sample, ensure_ascii=False).encode('utf-8'))
     avg_size = sample_size / max(len(sample), 1)
 
-    # 估算可容纳条数，留10%余量
-    estimated_count = max(int(available / avg_size * 0.9), 1)
+    estimated_count = max(int(available / avg_size * 0.85), 1)
     truncated = history[-estimated_count:]
 
-    # 单次验证
-    result = {"history": truncated, "current_print": data.current_print, "total_count": total_count}
+    result = {"history": truncated, "current_print": current_print, "total_count": total_count}
     if len(json.dumps(result, ensure_ascii=False).encode('utf-8')) > MAX_ATTR_BYTES:
-        # 超了就再砍一半
         truncated = truncated[:len(truncated) // 2]
-        result = {"history": truncated, "current_print": data.current_print, "total_count": total_count}
+        result = {"history": truncated, "current_print": current_print, "total_count": total_count}
 
     if len(truncated) < total_count:
         result["truncated"] = True
