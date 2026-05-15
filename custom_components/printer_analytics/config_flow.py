@@ -44,7 +44,6 @@ class PrinterAnalyticsConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_CHAMBER_TEMP_ENTITY: user_input.get(CONF_CHAMBER_TEMP_ENTITY, ""),
                     },
                 )
-        sensor_entities = self._get_sensor_entities(self.hass)
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema(
