@@ -17,7 +17,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import DOMAIN
 from .coordinator import PrinterAnalyticsCoordinator, PrinterStats
 
-MAX_ATTR_BYTES = 14336
+MAX_ATTR_BYTES = 15800
 
 
 SENSORS: dict[str, SensorEntityDescription] = {
