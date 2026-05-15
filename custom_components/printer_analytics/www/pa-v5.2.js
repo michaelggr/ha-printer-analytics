@@ -1,6 +1,6 @@
-/**
- * 打印机分析卡片 - v5.8.3
- * 版本: 5.8.3 (2026-05-14) - 新增颜色/类型使用量对比图，最近打印记录，单色颜色点显示，之最移至最近打印上方
+﻿/**
+ * 打印机分析卡片 - v5.8.7
+ * 版本: 5.8.7 (2026-05-15) - 配置界面中文化（代码层面中文标签双保险）
  *
  * 设计特点:
  * - 顶部打印机实时监控（多打印机卡片）
@@ -1817,7 +1817,7 @@ class PrinterAnalyticsCard extends HTMLElement {
               <div class="header-title">${title}</div>
             </div>
           </div>
-        <div class="header-badge">v5.8.3</div>
+        <div class="header-badge">v5.8.7</div>
         </div>
       `;
 
