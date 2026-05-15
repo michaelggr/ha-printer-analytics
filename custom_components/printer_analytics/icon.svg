@@ -1,0 +1,31 @@
+﻿﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a237e"/>
+      <stop offset="100%" style="stop-color:#0d47a1"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#00bcd4"/>
+      <stop offset="100%" style="stop-color:#26c6da"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="72" fill="url(#bg)"/>
+  <!-- 打印机主体 -->
+  <rect x="96" y="200" width="320" height="160" rx="16" fill="#e3f2fd" opacity="0.95"/>
+  <rect x="120" y="224" width="272" height="96" rx="8" fill="#bbdefb"/>
+  <!-- 打印机出纸口 -->
+  <rect x="128" y="320" width="256" height="24" rx="4" fill="#90caf9"/>
+  <!-- 打印出来的纸张 -->
+  <path d="M160 280 L200 240 L240 270 L300 210 L352 260 L352 320 L160 320 Z" fill="#4caf50" opacity="0.8"/>
+  <!-- 图表柱状 -->
+  <rect x="140" y="380" width="36" height="64" rx="6" fill="url(#accent)"/>
+  <rect x="196" y="340" width="36" height="104" rx="6" fill="url(#accent)" opacity="0.85"/>
+  <rect x="252" y="360" width="36" height="84" rx="6" fill="url(#accent)" opacity="0.7"/>
+  <rect x="308" y="324" width="36" height="120" rx="6" fill="#fff" opacity="0.9"/>
+  <!-- 趋势线 -->
+  <polyline points="148,420 214,388 270,404 326,356" stroke="#ffca28" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="326" cy="356" r="7" fill="#ffca28"/>
+  <!-- 打印机指示灯 -->
+  <circle cx="340" cy="248" r="8" fill="#4caf50"/>
+  <circle cx="340" cy="272" r="5" fill="#90caf9" opacity="0.6"/>
+</svg>

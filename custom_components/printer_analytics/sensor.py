@@ -1,6 +1,7 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 
 from homeassistant.components.sensor import (
@@ -17,7 +18,8 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import DOMAIN
 from .coordinator import PrinterAnalyticsCoordinator, PrinterStats
 
-MAX_ATTR_BYTES = 14336
+_LOGGER = logging.getLogger(__name__)
+MAX_ATTR_BYTES = 14000
 
 
 SENSORS: dict[str, SensorEntityDescription] = {
@@ -137,13 +139,17 @@ def _get_sensor_value(sensor_key: str, data: PrinterStats) -> Any:
         case "total_energy":
             return data.total_energy_kwh
         case "duration_distribution":
-            return json.dumps(data.duration_distribution, ensure_ascii=False)
+            total = sum(data.duration_distribution.values()) if isinstance(data.duration_distribution, dict) else 0
+            return total
         case "activity_heatmap":
-            return json.dumps(data.activity_heatmap, ensure_ascii=False)
+            total = sum(data.activity_heatmap.values()) if isinstance(data.activity_heatmap, dict) else 0
+            return total
         case "failure_stage_distribution":
-            return json.dumps(data.failure_stage_distribution, ensure_ascii=False)
+            total = sum(data.failure_stage_distribution.values()) if isinstance(data.failure_stage_distribution, dict) else 0
+            return total
         case "filament_success_stats":
-            return json.dumps(data.filament_success_stats, ensure_ascii=False)
+            total = len(data.filament_success_stats) if isinstance(data.filament_success_stats, dict) else 0
+            return total
         case "print_history":
             return data.last_update or "暂无数据"
         case "print_status":
@@ -192,50 +198,59 @@ def _sanitize_for_attrs(obj):
 
 def _truncate_history_attrs(data: PrinterStats) -> dict:
     """构建 print_history 属性，确保不超过 HA recorder 的 16384 字节限制"""
-    history = data.history or []
-    total_count = len(history)
-    current_print = _sanitize_for_attrs(data.current_print)
+    try:
+        history = _sanitize_for_attrs(data.history) or []
+        total_count = len(history) if isinstance(history, list) else 0
+        current_print = _sanitize_for_attrs(data.current_print)
 
-    full_result = {"history": history, "current_print": current_print, "total_count": total_count}
-    full_size = len(json.dumps(full_result, ensure_ascii=False).encode('utf-8'))
-    if full_size <= MAX_ATTR_BYTES:
-        return full_result
-
-    # current_print 过大时只保留关键字段
-    if current_print and isinstance(current_print, dict):
-        compact_print = {
-            k: current_print[k] for k in ('status', 'task_name', 'start_time', 'end_time',
-                                           'duration_hours', 'total_weight', 'total_length',
-                                           'progress', 'filament_type', 'cover_image_local')
-            if k in current_print
-        }
-        full_result = {"history": history, "current_print": compact_print, "total_count": total_count}
+        full_result = {"history": history, "current_print": current_print, "total_count": total_count}
         full_size = len(json.dumps(full_result, ensure_ascii=False).encode('utf-8'))
+
         if full_size <= MAX_ATTR_BYTES:
             return full_result
 
-    overhead_result = {"history": [], "current_print": current_print, "total_count": total_count}
-    overhead_size = len(json.dumps(overhead_result, ensure_ascii=False).encode('utf-8'))
-    available = MAX_ATTR_BYTES - overhead_size
+        # 尝试压缩 current_print
+        if current_print and isinstance(current_print, dict):
+            compact_print = {
+                k: current_print[k] for k in ('status', 'task_name', 'start_time', 'end_time',
+                                               'duration_hours', 'total_weight', 'total_length',
+                                               'progress', 'filament_type', 'cover_image_local')
+                if k in current_print
+            }
+            full_result = {"history": history, "current_print": compact_print, "total_count": total_count}
+            full_size = len(json.dumps(full_result, ensure_ascii=False).encode('utf-8'))
+            if full_size <= MAX_ATTR_BYTES:
+                return full_result
 
-    if available <= 0:
-        return {"current_print": current_print, "total_count": total_count, "truncated": True}
+        # 计算可用空间并截断 history
+        overhead_result = {"history": [], "current_print": current_print, "total_count": total_count}
+        overhead_size = len(json.dumps(overhead_result, ensure_ascii=False).encode('utf-8'))
+        available = MAX_ATTR_BYTES - overhead_size
 
-    sample = history[-10:] if len(history) >= 10 else history
-    sample_size = len(json.dumps(sample, ensure_ascii=False).encode('utf-8'))
-    avg_size = sample_size / max(len(sample), 1)
+        if available <= 0:
+            return {"current_print": current_print, "total_count": total_count, "truncated": True}
 
-    estimated_count = max(int(available / avg_size * 0.85), 1)
-    truncated = history[-estimated_count:]
+        if isinstance(history, list) and len(history) > 0:
+            sample = history[-10:] if len(history) >= 10 else history
+            sample_size = len(json.dumps(sample, ensure_ascii=False).encode('utf-8'))
+            avg_size = sample_size / max(len(sample), 1)
+            estimated_count = max(int(available / avg_size * 0.85), 1)
+            truncated = history[-estimated_count:]
+        else:
+            truncated = []
 
-    result = {"history": truncated, "current_print": current_print, "total_count": total_count}
-    if len(json.dumps(result, ensure_ascii=False).encode('utf-8')) > MAX_ATTR_BYTES:
-        truncated = truncated[:len(truncated) // 2]
         result = {"history": truncated, "current_print": current_print, "total_count": total_count}
+        if len(json.dumps(result, ensure_ascii=False).encode('utf-8')) > MAX_ATTR_BYTES:
+            truncated = truncated[:len(truncated) // 2]
+            result = {"history": truncated, "current_print": current_print, "total_count": total_count}
 
-    if len(truncated) < total_count:
-        result["truncated"] = True
-    return result
+        if len(truncated) < total_count:
+            result["truncated"] = True
+        return result
+    except Exception as err:
+        import logging
+        logging.getLogger(__name__).error("print_history 截断失败: %s", err)
+        return {"total_count": len(data.history) if data.history else 0, "truncated": True}
 
 
 async def async_setup_entry(
@@ -265,6 +280,8 @@ class PrinterAnalyticsSensor(CoordinatorEntity[PrinterAnalyticsCoordinator], Sen
         self._attr_unique_id = f"{coordinator.entry.entry_id}_{sensor_key}"
         self._attr_name = f"{coordinator.printer_name} {description.name}"
         self._attr_has_entity_name = True
+        if sensor_key == "print_history":
+            self._attr_entity_id = f"sensor.{coordinator.printer_name}_print_history"
 
     @property
     def device_info(self) -> dict:

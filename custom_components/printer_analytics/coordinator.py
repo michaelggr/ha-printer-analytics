@@ -1,4 +1,4 @@
-"""Printer Analytics Coordinator - 主协调器"""
+﻿"""Printer Analytics Coordinator - 主协调器"""
 from __future__ import annotations
 
 import asyncio
@@ -35,6 +35,8 @@ from .const import (
     PRINT_STATUS_CANCELLED,
     PRINT_STATUS_FAIL,
     PRINT_STATUS_FINISH,
+    PRINT_STATUS_IDLE,
+    PRINT_STATUS_RUNNING,
     TASK_NAME_CAPTURE_WINDOW_SECS,
 )
 from .utils import SecureFileHandler, is_param_description
@@ -103,7 +105,7 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         self.image_manager = ImageManager(self)
         self.statistics = StatisticsCalculator(self)
 
-        await self.storage.load_history()
+        await self._load_history()
         await self.entity_discovery.discover()
         await self.hass.async_add_executor_job(self.image_manager.detect_placeholder_images)
 
@@ -169,8 +171,12 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         if self.storage:
             self.history = await self.storage.load_history()
         self._total_records = len(self.history)
+        LOGGER.debug("_load_history: 加载了 %d 条历史记录", len(self.history))
         await self._fix_duration_hours()
-        await self._fix_multi_color_misclassification()
+        migrated = self._migrate_history_records()
+        LOGGER.debug("_load_history: 迁移结果=%s, 当前记录数=%d", migrated, len(self.history))
+        if migrated:
+            await self._save_history()
         if self.statistics:
             self.statistics.invalidate_cache()
 
@@ -220,6 +226,121 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
             if record.get("multi_color_summary"):
                 record["multi_color_summary"]["total_colors"] = 1
                 record["multi_color_summary"]["all_colors"] = colors
+
+    # 老格式 status 中文到英文的映射
+    _STATUS_MAP = {
+        "完成": PRINT_STATUS_FINISH,
+        "失败": PRINT_STATUS_FAIL,
+        "取消": PRINT_STATUS_CANCELLED,
+        "空闲": PRINT_STATUS_IDLE,
+        "运行中": PRINT_STATUS_RUNNING,
+    }
+
+    def _migrate_history_records(self) -> bool:
+        """迁移历史记录：老格式→新格式，确保所有字段完整，返回是否有变更"""
+        migrated = 0
+        for record in self.history:
+            changed = False
+
+            # 转换老格式 status（中文→英文）
+            old_status = record.get("status", "")
+            if old_status in self._STATUS_MAP:
+                record["status"] = self._STATUS_MAP[old_status]
+                changed = True
+            elif old_status not in (PRINT_STATUS_FINISH, PRINT_STATUS_FAIL,
+                                     PRINT_STATUS_CANCELLED, PRINT_STATUS_IDLE, PRINT_STATUS_RUNNING):
+                if old_status:
+                    LOGGER.warning("未知 status '%s'，保留原值", old_status)
+
+            # 转换 duration_minutes → duration_hours
+            if "duration_minutes" in record and "duration_hours" not in record:
+                dm = record.pop("duration_minutes", 0) or 0
+                record["duration_hours"] = round(dm / 60, 2) if dm else 0
+                changed = True
+            elif "duration_minutes" in record and "duration_hours" in record:
+                record.pop("duration_minutes", None)
+                changed = True
+
+            # 转换 timestamp → end_time
+            if "timestamp" in record and "end_time" not in record:
+                record["end_time"] = record.pop("timestamp")
+                changed = True
+            elif "timestamp" in record and "end_time" in record:
+                record.pop("timestamp", None)
+                changed = True
+
+            # 转换 energy_wh → energy_kwh
+            if "energy_wh" in record and "energy_kwh" not in record:
+                wh = record.pop("energy_wh", 0) or 0
+                record["energy_kwh"] = round(wh / 1000, 4) if wh else None
+                changed = True
+            elif "energy_wh" in record and "energy_kwh" in record:
+                record.pop("energy_wh", None)
+                changed = True
+
+            # 移除老格式独有字段
+            for old_key in ("printer", "file_name"):
+                if old_key in record:
+                    record.pop(old_key, None)
+                    changed = True
+
+            # 确保 id 存在
+            if "id" not in record:
+                record["id"] = str(uuid.uuid4())
+                changed = True
+
+            # 确保 progress 存在
+            if "progress" not in record:
+                status = record.get("status", "")
+                record["progress"] = 100 if status == PRINT_STATUS_FINISH else 0
+                changed = True
+
+            # 确保颜色相关字段存在
+            if "colors_used" not in record:
+                color = record.get("filament_color")
+                record["colors_used"] = [color] if color else []
+                changed = True
+
+            if "types_used" not in record:
+                ftype = record.get("filament_type")
+                record["types_used"] = [ftype] if ftype else []
+                changed = True
+
+            if "total_colors" not in record:
+                record["total_colors"] = len(record.get("colors_used", []))
+                changed = True
+
+            if "color_changes_count" not in record:
+                record["color_changes_count"] = 0
+                changed = True
+
+            if "color_usage" not in record:
+                record["color_usage"] = []
+                changed = True
+
+            # 确保其他新版本字段存在
+            new_fields = {
+                "nozzle_type": None,
+                "nozzle_size": None,
+                "print_bed_type": None,
+                "total_layer_count": None,
+                "chamber_temp_final": None,
+                "chamber_temp_last5min": None,
+                "cover_image_local": None,
+                "snapshot_image_local": None,
+                "multi_color_summary": None,
+            }
+            for key, default in new_fields.items():
+                if key not in record:
+                    record[key] = default
+                    changed = True
+
+            if changed:
+                migrated += 1
+
+        if migrated > 0:
+            LOGGER.info("Migrated %d history records to new format", migrated)
+        return migrated > 0
 
     async def _discover_entities(self) -> None:
         """发现实体"""

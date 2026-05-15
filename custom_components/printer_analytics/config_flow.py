@@ -49,28 +49,32 @@ class PrinterAnalyticsConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=vol.Schema(
                 {
                     vol.Required(CONF_PRINTER_NAME): selector.TextSelector(
-                        selector.TextSelectorConfig()
+                        selector.TextSelectorConfig(label="打印机名称")
                     ),
                     vol.Required(CONF_PRINT_STATUS_ENTITY): selector.EntitySelector(
                         selector.EntitySelectorConfig(
+                            label="打印状态传感器 *",
                             domain="sensor",
                             multiple=False,
                         )
                     ),
                     vol.Optional(CONF_POWER_ENTITY): selector.EntitySelector(
                         selector.EntitySelectorConfig(
+                            label="功率传感器（可选）",
                             domain="sensor",
                             multiple=False,
                         )
                     ),
                     vol.Optional(CONF_ENERGY_ENTITY): selector.EntitySelector(
                         selector.EntitySelectorConfig(
+                            label="能耗传感器（可选）",
                             domain="sensor",
                             multiple=False,
                         )
                     ),
                     vol.Optional(CONF_CHAMBER_TEMP_ENTITY): selector.EntitySelector(
                         selector.EntitySelectorConfig(
+                            label="腔体温度传感器（可选）",
                             domain="sensor",
                             multiple=False,
                         )
@@ -129,27 +133,27 @@ class PrinterAnalyticsOptionsFlow(config_entries.OptionsFlow):
                     vol.Optional(
                         CONF_PRINTER_NAME,
                         default=self.config_entry.data.get(CONF_PRINTER_NAME, ""),
-                    ): selector.TextSelector(selector.TextSelectorConfig()),
+                    ): selector.TextSelector(selector.TextSelectorConfig(label="打印机名称")),
                     vol.Optional(
                         CONF_POWER_ENTITY,
                         default=self.config_entry.data.get(CONF_POWER_ENTITY, ""),
                     ): selector.EntitySelector(
-                        selector.EntitySelectorConfig(domain="sensor")
+                        selector.EntitySelectorConfig(label="功率传感器（可选）", domain="sensor")
                     ),
                     vol.Optional(
                         CONF_ENERGY_ENTITY,
                         default=self.config_entry.data.get(CONF_ENERGY_ENTITY, ""),
                     ): selector.EntitySelector(
-                        selector.EntitySelectorConfig(domain="sensor")
+                        selector.EntitySelectorConfig(label="能耗传感器（可选）", domain="sensor")
                     ),
                     vol.Optional(
                         CONF_CHAMBER_TEMP_ENTITY,
                         default=self.config_entry.data.get(CONF_CHAMBER_TEMP_ENTITY, ""),
                     ): selector.EntitySelector(
-                        selector.EntitySelectorConfig(domain="sensor")
+                        selector.EntitySelectorConfig(label="腔体温度传感器（可选）", domain="sensor")
                     ),
                     vol.Optional("reset_history", default=False): selector.BooleanSelector(
-                        selector.BooleanSelectorConfig()
+                        selector.BooleanSelectorConfig(label="重置历史数据")
                     ),
                 }
             ),

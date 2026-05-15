@@ -1,6 +1,6 @@
-/**
- * 打印机分析卡片 - v5.8.3
- * 版本: 5.8.3 (2026-05-14) - 新增颜色/类型使用量对比图，最近打印记录，单色颜色点显示，之最移至最近打印上方
+﻿/**
+ * 打印机分析卡片 - v5.9.0
+ * 版本: 5.9.0 (2026-05-15) - 修复 connectedCallback 安全检查 + 属性截断增强
  *
  * 设计特点:
  * - 顶部打印机实时监控（多打印机卡片）
@@ -1507,6 +1507,9 @@ class PrinterAnalyticsCard extends HTMLElement {
   }
 
   disconnectedCallback() {
+    if (super.disconnectedCallback) {
+      super.disconnectedCallback();
+    }
     if (this._renderDebounce) {
       clearTimeout(this._renderDebounce);
       this._renderDebounce = null;
@@ -1516,7 +1519,9 @@ class PrinterAnalyticsCard extends HTMLElement {
   }
 
   connectedCallback() {
-    super.connectedCallback();
+    if (super.connectedCallback) {
+      super.connectedCallback();
+    }
     if (!this.shadowRoot.querySelector('style')) {
       const style = document.createElement('style');
       style.textContent = PRINTER_ANALYTICS_CSS;
@@ -1817,7 +1822,7 @@ class PrinterAnalyticsCard extends HTMLElement {
               <div class="header-title">${title}</div>
             </div>
           </div>
-        <div class="header-badge">v5.8.3</div>
+        <div class="header-badge">v5.9.0</div>
         </div>
       `;
 
@@ -3755,7 +3760,11 @@ class PrinterAnalyticsCard extends HTMLElement {
   }
 }
 
-customElements.define('printer-analytics-card', PrinterAnalyticsCard);
+(function() {
+  if (!customElements.get('printer-analytics-card')) {
+    customElements.define('printer-analytics-card', PrinterAnalyticsCard);
+  }
+})();
 
 window.customCards = window.customCards || [];
 window.customCards.push({

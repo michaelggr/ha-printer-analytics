@@ -113,6 +113,8 @@ class PrintTracker:
             self._cache_delayed_fields()
             self._try_capture_task_name()
             self._cache_chamber_temperature(now)
+            # 通知 coordinator 数据已更新，触发 sensor 属性重新计算
+            self.coordinator.async_set_updated_data(self.coordinator._calculate_statistics())
 
     def _cache_print_material_data(self) -> None:
         """缓存耗材数据（支持多色追踪）"""
@@ -455,6 +457,9 @@ class PrintTracker:
         self.hass.async_create_task(self.coordinator._delayed_cover_download(task_name or "unknown", start_time))
         self.hass.async_create_task(self.coordinator._delayed_snapshot_download(task_name or "unknown", start_time))
 
+        # 通知 coordinator 数据已更新，触发 sensor 属性重新计算
+        self.coordinator.async_set_updated_data(self.coordinator._calculate_statistics())
+
     async def _on_print_end(self, end_status: str) -> None:
         """打印结束"""
         self.stop_material_cache()
@@ -552,4 +557,6 @@ class PrintTracker:
         self.coordinator.history.append(record)
         self.coordinator.current_print = None
         self.hass.async_create_task(self.coordinator._save_history())
+        # 通知 coordinator 数据已更新，触发 sensor 属性重新计算
+        self.coordinator.async_set_updated_data(self.coordinator._calculate_statistics())
         LOGGER.info("Print ended: status=%s, duration=%.2f hours", end_status, duration_hours)
