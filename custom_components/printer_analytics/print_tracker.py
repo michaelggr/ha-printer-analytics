@@ -56,24 +56,102 @@ class PrintTracker:
         return state.state if state and state.state not in INVALID_ENTITY_STATES else None
 
     def recover_active_print(self) -> None:
-        """恢复活跃打印"""
+        """恢复活跃打印 - 完整收集打印信息"""
         if self.coordinator.current_print:
             return
 
+        # 检查当前状态是否在打印中
+        current_status = self.get_current_status()
+        if current_status not in ACTIVE_PRINT_STATUSES:
+            return
+
+        # 获取开始时间
+        start_time = datetime.now(timezone.utc).isoformat()  # 默认
         start_time_entity = self._entity_map.get("start_time")
         if start_time_entity:
-            start_time = self.coordinator.get_entity_state(start_time_entity)
-            if start_time and start_time not in INVALID_ENTITY_STATES:
-                self.coordinator.current_print = {
-                    "id": str(uuid.uuid4()),
-                    "start_time": self.coordinator._ensure_timezone(start_time),
-                    "status": "running",
-                    "colors_used": [],
-                    "types_used": [],
-                    "color_changes": [],
-                    "color_usage": [],
-                }
-                LOGGER.info("已恢复活跃打印记录")
+            start_time_val = self.coordinator.get_entity_state(start_time_entity)
+            if start_time_val and start_time_val not in INVALID_ENTITY_STATES:
+                start_time = self.coordinator._ensure_timezone(start_time_val)
+
+        # 收集任务名称
+        task_entity = self._entity_map.get("task_name", "")
+        immediate_name = ""
+        if task_entity:
+            immediate_name = self.coordinator.get_entity_state(task_entity, "") or ""
+
+        model_name = ""
+        config_name = ""
+        if immediate_name and immediate_name not in INVALID_ENTITY_STATES:
+            self._task_name_variants = [immediate_name]
+            if self._is_param_description(immediate_name):
+                config_name = immediate_name
+                model_name = self._infer_model_name_from_history(immediate_name) or ""
+            else:
+                model_name = immediate_name
+
+        task_name = model_name or config_name or ""
+        self.coordinator._lock_task_name(task_name)
+
+        # 收集耗材信息
+        filament_type, filament_color = self._get_current_filament_info()
+        if filament_color:
+            filament_color = filament_color.lower()
+
+        # 收集封面图
+        cover_entity = self._entity_map.get("cover_image", "")
+        if not cover_entity:
+            prefix = self.coordinator.printer_name.lower()
+            image_entities = list(self.hass.states.async_entity_ids("image"))
+            for eid in image_entities:
+                if eid.startswith(f"image.{prefix}_") and eid.endswith("_cover_image"):
+                    cover_entity = eid
+                    break
+        cover_image_url = self.coordinator.get_entity_attr(cover_entity, "entity_picture", "")
+
+        # 收集开始能耗
+        start_energy = self.coordinator.get_float_state(self.coordinator.energy_entity)
+
+        # 收集其他信息
+        nozzle_type = self.coordinator.get_entity_state(self._entity_map.get("nozzle_type", ""), "")
+        nozzle_size = self.coordinator.get_entity_state(self._entity_map.get("nozzle_size", ""), "")
+        print_bed_type = self.coordinator.get_entity_state(self._entity_map.get("print_bed_type", ""), "")
+        total_layer_count = self.coordinator.get_float_state(self._entity_map.get("total_layer_count", ""), 0)
+
+        # 构建完整的 current_print
+        self.coordinator.current_print = {
+            "id": str(uuid.uuid4()),
+            "start_time": start_time,
+            "status": "running",
+            "start_energy": start_energy,
+            "energy_valid": start_energy > 0,
+            "task_name": task_name or None,
+            "task_name_model": model_name or None,
+            "task_name_config": config_name or None,
+            "config_name": config_name or None,
+            "nozzle_type": nozzle_type or None,
+            "nozzle_size": nozzle_size or None,
+            "print_bed_type": print_bed_type or None,
+            "total_layer_count": int(total_layer_count) if total_layer_count else None,
+            "colors_used": [filament_color] if filament_color else [],
+            "types_used": [filament_type] if filament_type else [],
+            "color_changes": [],
+            "total_colors": 1 if filament_color else 0,
+            "filament_type": filament_type or None,
+            "filament_color": filament_color or None,
+            "cover_image_url": cover_image_url or None,
+            "cover_image_local": None,
+            "snapshot_image_local": None,
+            "color_usage": [],
+        }
+
+        self.start_material_cache()
+        LOGGER.info("已完整恢复活跃打印记录: %s | 初始颜色: %s (%s)", task_name, filament_color, filament_type)
+
+        # 触发封面图和快照下载
+        self.hass.async_create_task(self.coordinator._delayed_cover_download(task_name or "unknown", start_time))
+        self.hass.async_create_task(self.coordinator._delayed_snapshot_download(task_name or "unknown", start_time))
+
+        self.coordinator.async_set_updated_data(self.coordinator._calculate_statistics())
 
     def handle_state_change(self, event: Any) -> None:
         """处理状态变化"""
