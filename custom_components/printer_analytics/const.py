@@ -42,6 +42,7 @@ BAMBULAB_ENTITY_KEYS = {
     "nozzle_type": ["nozzle_type"],
     "nozzle_size": ["nozzle_size", "nozzle_diameter"],
     "print_bed_type": ["print_bed_type"],
+    "speed_profile": ["speed_profile"],
     "gcode_filename": ["gcode_filename", "gcode_file"],
     "chamber_temperature": [
         "chamber_temperature",

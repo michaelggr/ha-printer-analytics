@@ -7,6 +7,8 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any
 
+from homeassistant.components.recorder import get_instance
+from homeassistant.components.recorder.history import get_significant_states
 from homeassistant.util import dt as dt_util
 
 from .const import (
@@ -85,7 +87,7 @@ class PrintTracker:
         self.coordinator._previous_status = new_status
 
         if new_status in ACTIVE_PRINT_STATUSES and old_status not in ACTIVE_PRINT_STATUSES:
-            self._on_print_start()
+            self.on_print_start()
         elif new_status in END_PRINT_STATUSES and old_status in ACTIVE_PRINT_STATUSES:
             self.hass.async_create_task(self._on_print_end(new_status))
 
@@ -280,13 +282,12 @@ class PrintTracker:
             self.coordinator.current_print["filament_type"] = types_used[0] if types_used else None
 
     def _try_capture_task_name(self) -> None:
-        """捕获任务名称"""
+        """捕获任务名称（同时捕获模型名和配置名）"""
         if not self.coordinator.current_print:
             return
 
         current_name = self.coordinator.current_print.get("task_name")
-        if current_name and not self._is_param_description(current_name):
-            return
+        current_config = self.coordinator.current_print.get("config_name")
 
         start_time = self.coordinator.current_print.get("start_time", "")
         if not start_time:
@@ -308,13 +309,20 @@ class PrintTracker:
         if not new_name or new_name in INVALID_ENTITY_STATES:
             return
 
-        if self._is_param_description(new_name):
+        is_param = self._is_param_description(new_name)
+
+        # 非参数描述 → 作为主任务名称（模型名）
+        if not is_param:
+            if new_name != current_name:
+                self.coordinator.current_print["task_name"] = new_name
+                self.coordinator._lock_task_name(new_name)
+                LOGGER.info("成功捕获任务名称(模型): %s", new_name)
             return
 
-        if new_name != current_name:
-            self.coordinator.current_print["task_name"] = new_name
-            self.coordinator._lock_task_name(new_name)
-            LOGGER.info("成功捕获任务名称: %s", new_name)
+        # 参数描述 → 作为配置名（如 "5mm版"），与模型名共存
+        if is_param and new_name != current_name and new_name != current_config:
+            self.coordinator.current_print["config_name"] = new_name
+            LOGGER.info("捕获到配置名称: %s", new_name)
 
     def _cache_delayed_fields(self) -> None:
         """缓存延迟字段"""
@@ -322,21 +330,25 @@ class PrintTracker:
             return
 
         current_name = self.coordinator.current_print.get("task_name", "")
-        need_better = not current_name or self._is_param_description(current_name) or current_name.startswith("/data/")
-        if need_better:
-            raw_task_name = self.coordinator.get_entity_state(self._entity_map.get("task_name", ""), "")
-            raw_gcode = self.coordinator.get_entity_state(self._entity_map.get("gcode_filename", ""), "")
-            candidate = None
-            if raw_task_name and raw_task_name not in INVALID_ENTITY_STATES:
-                candidate = self._extract_real_task_name(raw_task_name)
-            if not candidate and raw_gcode and raw_gcode not in INVALID_ENTITY_STATES:
-                basename = os.path.basename(raw_gcode)
-                if basename and basename != raw_gcode and not self._is_param_description(basename):
-                    candidate = basename
+        current_config = self.coordinator.current_print.get("config_name")
+        raw_task_name = self.coordinator.get_entity_state(self._entity_map.get("task_name", ""), "")
+
+        # 尝试获取更好的模型名（非参数描述）
+        need_better_model = not current_name or self._is_param_description(current_name) or current_name.startswith("/data/")
+        if need_better_model and raw_task_name and raw_task_name not in INVALID_ENTITY_STATES:
+            candidate = self._extract_real_task_name(raw_task_name)
             if candidate and candidate != current_name:
                 LOGGER.info("Task name improved: '%s' -> '%s'", (current_name or "")[:40], candidate[:40])
                 self.coordinator.current_print["task_name"] = candidate
                 self.coordinator._lock_task_name(candidate)
+                current_name = candidate
+
+        # 尝试捕获配置名（参数描述，如 "5mm版"）
+        if raw_task_name and raw_task_name not in INVALID_ENTITY_STATES:
+            is_raw_param = self._is_param_description(raw_task_name)
+            if is_raw_param and raw_task_name != current_name and raw_task_name != current_config:
+                self.coordinator.current_print["config_name"] = raw_task_name
+                LOGGER.info("延迟捕获到配置名称: %s", raw_task_name)
 
         if not self.coordinator.current_print.get("nozzle_size"):
             nozzle_size = self.coordinator.get_entity_state(self._entity_map.get("nozzle_size", ""), "")
@@ -347,6 +359,11 @@ class PrintTracker:
             total_layer_count = self.coordinator.get_float_state(self._entity_map.get("total_layer_count", ""), 0)
             if total_layer_count:
                 self.coordinator.current_print["total_layer_count"] = int(total_layer_count)
+
+        if not self.coordinator.current_print.get("speed_profile"):
+            speed_profile = self.coordinator.get_entity_state(self._entity_map.get("speed_profile", ""), "")
+            if speed_profile and speed_profile not in INVALID_ENTITY_STATES:
+                self.coordinator.current_print["speed_profile"] = speed_profile
 
         if not self.coordinator.current_print.get("energy_valid"):
             start_energy = self.coordinator.get_float_state(self.coordinator.energy_entity)
@@ -359,9 +376,9 @@ class PrintTracker:
         if not self.coordinator.current_print:
             return
 
-        chamber_entity = self._entity_map.get("chamber_temperature")
+        chamber_entity = self.coordinator.chamber_temp_entity
         if not chamber_entity:
-            chamber_entity = self.coordinator.chamber_temp_entity
+            chamber_entity = self._entity_map.get("chamber_temperature")
         if not chamber_entity:
             return
 
@@ -393,6 +410,79 @@ class PrintTracker:
             return None
         return task_name
 
+    def _infer_model_name_from_history(self, config_name: str) -> str | None:
+        if not config_name:
+            return None
+        target = config_name.strip()
+        if not target:
+            return None
+
+        for record in reversed(self.coordinator.history):
+            stored_model = (record.get("task_name_model") or "").strip()
+            stored_config = (record.get("task_name_config") or "").strip()
+            stored_task = (record.get("task_name") or "").strip()
+
+            if stored_config == target and stored_model:
+                return stored_model
+            if stored_task and " + " in stored_task:
+                model_part, config_part = stored_task.rsplit(" + ", 1)
+                if config_part == target and model_part.strip() and not self._is_param_description(model_part.strip()):
+                    return model_part.strip()
+            if stored_task == target and stored_model:
+                return stored_model
+        return None
+
+    async def _infer_model_name_from_entity_history(self, task_entity: str, start_time: str) -> None:
+        if not self.coordinator.current_print or not task_entity or not start_time:
+            return
+        if self.coordinator.current_print.get("task_name_model"):
+            return
+
+        start_dt = self.coordinator._normalize_to_utc(start_time)
+        if not start_dt:
+            return
+
+        query_start = start_dt - timedelta(minutes=2)
+        query_end = start_dt + timedelta(minutes=2)
+
+        try:
+            history_by_entity = await get_instance(self.hass).async_add_executor_job(
+                get_significant_states,
+                self.hass,
+                query_start,
+                query_end,
+                [task_entity],
+                None,
+                True,
+                False,
+            )
+        except Exception as err:
+            LOGGER.warning("读取 task_name 历史失败: %s", err)
+            return
+
+        states = history_by_entity.get(task_entity, [])
+        model_name = ""
+        config_name = self.coordinator.current_print.get("task_name_config") or ""
+        for state in states:
+            value = (state.state or "").strip()
+            if not value or value in INVALID_ENTITY_STATES:
+                continue
+            if self._is_param_description(value):
+                config_name = config_name or value
+                continue
+            model_name = value
+
+        if not self.coordinator.current_print:
+            return
+        if model_name:
+            self.coordinator.current_print["task_name_model"] = model_name
+            self.coordinator.current_print["task_name"] = model_name
+            self.coordinator._lock_task_name(model_name)
+            LOGGER.info("从 HA task_name 历史反查到模型名: %s", model_name)
+        if config_name and not self.coordinator.current_print.get("task_name_config"):
+            self.coordinator.current_print["task_name_config"] = config_name
+            self.coordinator.current_print["config_name"] = config_name
+
     def on_print_start(self) -> None:
         """打印开始"""
         if not self._entity_map.get("print_weight"):
@@ -405,7 +495,62 @@ class PrintTracker:
         else:
             start_time = datetime.now(timezone.utc).isoformat()
 
-        task_name = self.coordinator._get_best_task_name()
+        task_entity = self._entity_map.get("task_name", "")
+        immediate_name = ""
+        if task_entity:
+            immediate_name = self.coordinator.get_entity_state(task_entity, "") or ""
+
+        self._task_name_variants = []
+        model_name = ""
+        config_name = ""
+
+        if immediate_name and immediate_name not in INVALID_ENTITY_STATES:
+            self._task_name_variants.append(immediate_name)
+            if self._is_param_description(immediate_name):
+                config_name = immediate_name
+                model_name = self._infer_model_name_from_history(immediate_name) or ""
+            else:
+                model_name = immediate_name
+
+        async def _delayed_task_name_capture() -> None:
+            await asyncio.sleep(8)
+            if not self.coordinator.current_print:
+                return
+            delayed_name = self.coordinator.get_entity_state(task_entity, "") or ""
+            if not delayed_name or delayed_name in INVALID_ENTITY_STATES or delayed_name in self._task_name_variants:
+                return
+            self._task_name_variants.append(delayed_name)
+            if self._is_param_description(delayed_name):
+                if not self.coordinator.current_print.get("task_name_config"):
+                    self.coordinator.current_print["task_name_config"] = delayed_name
+                    self.coordinator.current_print["config_name"] = delayed_name
+                    LOGGER.info("延迟捕获 task_name 配置名: %s", delayed_name)
+                return
+            if not self.coordinator.current_print.get("task_name_model"):
+                self.coordinator.current_print["task_name_model"] = delayed_name
+                self.coordinator.current_print["task_name"] = delayed_name
+                self.coordinator._lock_task_name(delayed_name)
+                LOGGER.info("延迟捕获 task_name 模型名: %s", delayed_name)
+
+        if task_entity:
+            self.hass.async_create_task(_delayed_task_name_capture())
+            self.hass.async_create_task(self._infer_model_name_from_entity_history(task_entity, start_time))
+
+        if config_name and not model_name:
+            model_name = self._infer_model_name_from_history(config_name) or ""
+
+        if not model_name:
+            for variant in self._task_name_variants:
+                if not self._is_param_description(variant):
+                    model_name = variant
+                    break
+        if not config_name:
+            for variant in self._task_name_variants:
+                if self._is_param_description(variant):
+                    config_name = variant
+                    break
+
+        task_name = model_name or config_name or ""
         self.coordinator._lock_task_name(task_name)
         nozzle_type = self.coordinator.get_entity_state(self._entity_map.get("nozzle_type", ""), "")
         nozzle_size = self.coordinator.get_entity_state(self._entity_map.get("nozzle_size", ""), "")
@@ -435,6 +580,9 @@ class PrintTracker:
             "start_energy": start_energy,
             "energy_valid": start_energy > 0,
             "task_name": task_name or None,
+            "task_name_model": model_name or None,
+            "task_name_config": config_name or None,
+            "config_name": config_name or None,
             "nozzle_type": nozzle_type or None,
             "nozzle_size": nozzle_size or None,
             "print_bed_type": print_bed_type or None,
@@ -457,7 +605,6 @@ class PrintTracker:
         self.hass.async_create_task(self.coordinator._delayed_cover_download(task_name or "unknown", start_time))
         self.hass.async_create_task(self.coordinator._delayed_snapshot_download(task_name or "unknown", start_time))
 
-        # 通知 coordinator 数据已更新，触发 sensor 属性重新计算
         self.coordinator.async_set_updated_data(self.coordinator._calculate_statistics())
 
     async def _on_print_end(self, end_status: str) -> None:
@@ -496,6 +643,10 @@ class PrintTracker:
                 LOGGER.warning("Abnormal energy delta %.2f kWh, skipped", delta)
 
         task_name = self.coordinator.current_print.get("task_name") or ""
+        config_name = self.coordinator.current_print.get("config_name") or ""
+        # 拼接模型名 + 配置名（如 "宜家洞洞板适配...三重钩 + 5mm版"）
+        if config_name and config_name != task_name:
+            task_name = f"{task_name} + {config_name}"
         cover_image_url = self.coordinator.current_print.get("cover_image_url") or ""
         cover_image_local = self.coordinator.current_print.get("cover_image_local")
         start_time = self.coordinator.current_print.get("start_time") or ""
@@ -529,8 +680,12 @@ class PrintTracker:
             "color_usage": clean_color_usage,
             "energy_kwh": round(energy_kwh, 4) if energy_kwh else None,
             "task_name": task_name or None,
+            "task_name_model": self.coordinator.current_print.get("task_name_model") or None,
+            "task_name_config": self.coordinator.current_print.get("task_name_config") or None,
+            "config_name": self.coordinator.current_print.get("task_name_config") or None,
             "nozzle_type": self.coordinator.current_print.get("nozzle_type"),
             "nozzle_size": self.coordinator.current_print.get("nozzle_size"),
+            "speed_profile": self.coordinator.current_print.get("speed_profile"),
             "print_bed_type": self.coordinator.current_print.get("print_bed_type"),
             "total_layer_count": self.coordinator.current_print.get("total_layer_count"),
             "cover_image_url": cover_image_url or None,
@@ -540,7 +695,7 @@ class PrintTracker:
 
         snapshot_image_local = self.coordinator.current_print.get("snapshot_image_local")
         if not snapshot_image_local and self.coordinator.image_manager:
-            _, snapshot_image_local = await asyncio.gather(
+            full_print_info, snapshot_image_local = await asyncio.gather(
                 self.coordinator._save_full_print_info(base_record, end_time),
                 self.coordinator.image_manager._download_print_snapshot(end_time, task_name)
             )
