@@ -148,8 +148,8 @@ class PrintTracker:
         LOGGER.info("已完整恢复活跃打印记录: %s | 初始颜色: %s (%s)", task_name, filament_color, filament_type)
 
         # 触发封面图和快照下载
-        self.hass.async_create_task(self.coordinator._delayed_cover_download(task_name or "unknown", start_time))
-        self.hass.async_create_task(self.coordinator._delayed_snapshot_download(task_name or "unknown", start_time))
+        self.hass.add_job(self.coordinator._delayed_cover_download(task_name or "unknown", start_time))
+        self.hass.add_job(self.coordinator._delayed_snapshot_download(task_name or "unknown", start_time))
 
         self.coordinator.async_set_updated_data(self.coordinator._calculate_statistics())
 
@@ -167,7 +167,7 @@ class PrintTracker:
         if new_status in ACTIVE_PRINT_STATUSES and old_status not in ACTIVE_PRINT_STATUSES:
             self.on_print_start()
         elif new_status in END_PRINT_STATUSES and old_status in ACTIVE_PRINT_STATUSES:
-            self.hass.async_create_task(self._on_print_end(new_status))
+            self.hass.add_job(self._on_print_end(new_status))
 
     def start_material_cache(self) -> None:
         """启动耗材缓存"""
@@ -564,7 +564,7 @@ class PrintTracker:
     def on_print_start(self) -> None:
         """打印开始"""
         if not self._entity_map.get("print_weight"):
-            self.hass.async_create_task(self.coordinator._discover_entities())
+            self.hass.add_job(self.coordinator._discover_entities())
 
         start_time_entity = self._entity_map.get("start_time")
         start_time_val = self.coordinator.get_entity_state(start_time_entity)
@@ -611,8 +611,8 @@ class PrintTracker:
                 LOGGER.info("延迟捕获 task_name 模型名: %s", delayed_name)
 
         if task_entity:
-            self.hass.async_create_task(_delayed_task_name_capture())
-            self.hass.async_create_task(self._infer_model_name_from_entity_history(task_entity, start_time))
+            self.hass.add_job(_delayed_task_name_capture())
+            self.hass.add_job(self._infer_model_name_from_entity_history(task_entity, start_time))
 
         if config_name and not model_name:
             model_name = self._infer_model_name_from_history(config_name) or ""
@@ -680,8 +680,8 @@ class PrintTracker:
         self.start_material_cache()
         LOGGER.info("Print started: %s | 初始颜色: %s (%s)", task_name, filament_color, filament_type)
 
-        self.hass.async_create_task(self.coordinator._delayed_cover_download(task_name or "unknown", start_time))
-        self.hass.async_create_task(self.coordinator._delayed_snapshot_download(task_name or "unknown", start_time))
+        self.hass.add_job(self.coordinator._delayed_cover_download(task_name or "unknown", start_time))
+        self.hass.add_job(self.coordinator._delayed_snapshot_download(task_name or "unknown", start_time))
 
         self.coordinator.async_set_updated_data(self.coordinator._calculate_statistics())
 
