@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 import logging
@@ -168,55 +168,31 @@ async def _generate_dashboard_yaml(hass: HomeAssistant) -> None:
         return
 
     lines = [
-        '# ==================== 打印机分析 - 标签页模式 ====================',
-        '# 自动生成 - 每台打印机一页 + 全部历史',
-        'title: 打印机分析',
+        '# ==================== 打印机分析 - 监控置顶 + 三页签 ====================',
+        '# 自动生成 - 顶部监控 / 统计分析 / 之最 / 全部历史',
         'views:',
+        '  - title: "🖨️ 打印机分析"',
+        '    icon: mdi:printer-3d-eye',
+        '    panel: true',
+        '    cards:',
+        '      - type: custom:printer-analytics-card',
+        '        title: "🖨️ 打印机分析"',
     ]
     
-    # 为每台打印机生成单独的标签页
+    # 生成 printers 列表（每台打印机的传感器实体 + 实时实体）
+    lines.append('        printers:')
     for p in printers:
-        p_name = p["printer_name"]
-        lines.append(f'  - title: "{p_name}打印机"')
-        lines.append(f'    icon: mdi:printer-3d')
-        lines.append(f'    path: {p_name.lower()}')
-        lines.append('    cards:')
-        lines.append(f'      - type: custom:printer-analytics-card')
-        lines.append(f'        title: "🖨️ {p_name}打印机分析"')
-        lines.append('        mode: stats')
-        lines.append(f'        printer_name: "{p_name}"')
-        
+        lines.append(f'          - printer_name: "{p["printer_name"]}"')
         # 传感器实体
         for k in _SENSOR_KEYS:
             v = p["sensor_entities"].get(k, "")
             if v:
-                lines.append(f'        {k}: {v}')
-        
+                lines.append(f'            {k}: {v}')
         # 实时实体
         for k in _REALTIME_KEYS:
             v = p["realtime_entities"].get(k, "")
             if v:
-                lines.append(f'        {k}: {v}')
-    
-    # 生成全部历史标签页
-    if len(printers) > 0:
-        lines.append('  - title: "全部历史"')
-        lines.append('    icon: mdi:history')
-        lines.append('    path: all-history')
-        lines.append('    cards:')
-        lines.append('      - type: custom:printer-analytics-card')
-        lines.append('        title: "🗂️ 全部打印历史"')
-        lines.append('        mode: history')
-        lines.append('        printer_name: "全部打印机"')
-        lines.append(f'        print_history: {printers[0]["sensor_entities"].get("print_history", "")}')
-        
-        if len(printers) > 1:
-            lines.append('        extra_print_histories:')
-            for p in printers[1:]:
-                h = p["sensor_entities"].get("print_history", "")
-                if h:
-                    lines.append(f'          - entity: {h}')
-                    lines.append(f'            name: {p["printer_name"]}')
+                lines.append(f'            {k}: {v}')
 
     yaml_content = "\n".join(lines)
 
