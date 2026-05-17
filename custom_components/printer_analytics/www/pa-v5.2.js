@@ -1,4 +1,4 @@
-﻿/**
+﻿﻿/**
  * 打印机分析卡片 - v5.9.0
  * 版本: 5.9.0 (2026-05-15) - 修复 connectedCallback 安全检查 + 属性截断增强
  *
@@ -317,9 +317,9 @@ const PRINTER_ANALYTICS_CSS = `
         }
 
         .heatmap-cell {
-          aspect-ratio: 1;
-          border-radius: 3px;
-          min-height: 8px;
+          width: 11px;
+          height: 11px;
+          border-radius: 2px;
           cursor: default;
           border: 1px solid rgba(255,255,255,0.08);
           transition: all 0.15s ease;
@@ -640,6 +640,11 @@ const PRINTER_ANALYTICS_CSS = `
         .status-badge.idle {
           background: linear-gradient(135deg, #64748b, #94a3b8);
           color: white;
+        }
+
+        .status-badge.offline {
+          background: linear-gradient(135deg, #475569, #334155);
+          color: #94a3b8;
         }
 
         @keyframes pulse {
@@ -1583,7 +1588,9 @@ class PrinterAnalyticsCard extends HTMLElement {
    */
   _getState(entityId) {
     const entity = this._hass?.states[entityId];
-    return entity?.state || '0';
+    const state = entity?.state;
+    if (!state || state === 'unavailable' || state === 'unknown') return null;
+    return state;
   }
 
   /**
@@ -1855,14 +1862,11 @@ class PrinterAnalyticsCard extends HTMLElement {
       try { html += this._renderFilamentBarCharts(); } catch (e) {
         html += `<div class="error-state">耗材使用量对比图渲染失败: ${this._escapeHtml(e.message)}</div>`;
       }
-      try { html += this._renderDurationDistribution(); } catch (e) {
-        html += `<div class="error-state">分布图渲染失败: ${this._escapeHtml(e.message)}</div>`;
-      }
       try { html += this._renderFailureStageDistribution(); } catch (e) {
         html += `<div class="error-state">失败阶段分布渲染失败: ${this._escapeHtml(e.message)}</div>`;
       }
-      try { html += this._renderActivityHeatmap(); } catch (e) {
-        html += `<div class="error-state">热力图渲染失败: ${this._escapeHtml(e.message)}</div>`;
+      try { html += this._renderHeatmapWithDuration(); } catch (e) {
+        html += `<div class="error-state">热力图与时长分布渲染失败: ${this._escapeHtml(e.message)}</div>`;
       }
       try { html += this._renderFilamentSuccessStats(); } catch (e) {
         html += `<div class="error-state">耗材成功率渲染失败: ${this._escapeHtml(e.message)}</div>`;
@@ -2479,6 +2483,165 @@ class PrinterAnalyticsCard extends HTMLElement {
     `;
   }
 
+  _renderHeatmapWithDuration() {
+    const heatmapHtml = this._buildHeatmapContent();
+    const durationHtml = this._buildDurationContent();
+    if (!heatmapHtml && !durationHtml) return '';
+    const leftPart = heatmapHtml
+      ? `<div style="flex:0 0 auto;">${heatmapHtml}</div>`
+      : '';
+    const rightPart = durationHtml
+      ? `<div style="flex:1;min-width:0;">${durationHtml}</div>`
+      : '';
+    return `<div class="section-header"><div class="section-title"><span class="section-icon">🗓️</span><span>打印活动与时长分布</span></div></div><div class="chart-container" style="padding:12px 16px;"><div style="display:flex;gap:24px;align-items:flex-start;">${leftPart}${rightPart}</div></div>`;
+  }
+
+  _buildHeatmapContent() {
+    const entityId = this._getEntityForPrinter(this._selectedPrinter, 'activity_heatmap');
+    if (this._selectedPrinter !== '全部' && !entityId) return '';
+
+    let heatmap = this._getAggregatedAttr('activity_heatmap');
+    const cleaned = {};
+    for (const key in heatmap) {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(key)) {
+        cleaned[key] = heatmap[key];
+      }
+    }
+    heatmap = cleaned;
+
+    if (Object.keys(heatmap).length === 0) {
+      try {
+        const state = this._getState(entityId);
+        const parsed = typeof state === 'string' ? JSON.parse(state) : state || {};
+        for (const key in parsed) {
+          if (/^\d{4}-\d{2}-\d{2}$/.test(key)) {
+            heatmap[key] = parsed[key];
+          }
+        }
+      } catch { heatmap = {}; }
+    }
+
+    const sortedDates = Object.keys(heatmap).filter(k => /^\d{4}-\d{2}-\d{2}$/.test(k)).sort();
+    if (sortedDates.length === 0) return '';
+
+    const maxCount = Math.max(...sortedDates.map(k => heatmap[k]), 1);
+    const totalDays = 91;
+    const endDate = new Date();
+    const startDate = new Date(endDate);
+    startDate.setDate(startDate.getDate() - totalDays + 1);
+    const startDayOfWeek = startDate.getDay();
+    const gridStartDate = new Date(startDate);
+    gridStartDate.setDate(gridStartDate.getDate() - startDayOfWeek);
+    const allDates = [];
+    const gridEndDate = new Date(endDate);
+    while (gridEndDate.getDay() !== 6) {
+      gridEndDate.setDate(gridEndDate.getDate() + 1);
+    }
+    const totalGridDays = Math.round((gridEndDate - gridStartDate) / 86400000) + 1;
+    for (let i = 0; i < totalGridDays; i++) {
+      const d = new Date(gridStartDate);
+      d.setDate(d.getDate() + i);
+      allDates.push(d.toISOString().substring(0, 10));
+    }
+    const weeksCount = Math.ceil(totalGridDays / 7);
+
+    let cellsHtml = '';
+    for (const dateKey of allDates) {
+      const count = heatmap[dateKey] || 0;
+      const intensity = count > 0 ? Math.min(count / maxCount, 1) : 0;
+      let bgColor = 'rgba(30, 41, 59, 0.6)';
+      if (count > 0) {
+        if (intensity < 0.33) bgColor = 'rgba(34, 197, 94, 0.3)';
+        else if (intensity < 0.66) bgColor = 'rgba(34, 197, 94, 0.6)';
+        else bgColor = 'rgba(34, 197, 94, 0.9)';
+      }
+      const isOutOfRange = dateKey < startDate.toISOString().substring(0, 10) || dateKey > endDate.toISOString().substring(0, 10);
+      const opacity = isOutOfRange ? 'opacity:0.15;' : '';
+      cellsHtml += `<div class="heatmap-cell" style="background:${bgColor};${opacity}" 
+        title="${dateKey}: ${count}次"
+        data-date="${this._escapeHtml(dateKey)}" 
+        data-count="${this._escapeHtml(String(count))}">
+      </div>`;
+    }
+
+    const monthLabels = [];
+    let lastMonth = -1;
+    for (let w = 0; w < weeksCount; w++) {
+      const d = new Date(gridStartDate);
+      d.setDate(d.getDate() + w * 7);
+      const m = d.getMonth();
+      if (m !== lastMonth) {
+        monthLabels.push({ week: w, label: `${d.getMonth() + 1}月` });
+        lastMonth = m;
+      }
+    }
+    let monthHtml = '<div style="display:grid;grid-template-columns:repeat(' + weeksCount + ',11px);gap:2px;margin-bottom:2px;margin-left:20px;font-size:10px;color:var(--text-muted);">';
+    let currentWeek = 0;
+    for (const ml of monthLabels) {
+      if (ml.week > currentWeek) {
+        monthHtml += `<div style="grid-column:${currentWeek + 1}/${ml.week + 1};white-space:nowrap;">${ml.label}</div>`;
+        currentWeek = ml.week + 1;
+      }
+    }
+    monthHtml += '</div>';
+
+    const dayLabels = ['日', '一', '二', '三', '四', '五', '六'];
+    let dayLabelHtml = '<div style="display:grid;grid-template-rows:repeat(7,11px);gap:2px;margin-right:4px;font-size:9px;color:var(--text-muted);align-items:center;">';
+    for (let i = 0; i < 7; i++) {
+      dayLabelHtml += `<div style="text-align:right;line-height:1;">${i % 2 === 1 ? dayLabels[i] : ''}</div>`;
+    }
+    dayLabelHtml += '</div>';
+
+    return `${monthHtml}<div style="display:flex;">${dayLabelHtml}<div style="display:grid;grid-template-columns:repeat(${weeksCount},11px);grid-template-rows:repeat(7,11px);gap:2px;">${cellsHtml}</div></div>`;
+  }
+
+  _buildDurationContent() {
+    const records = this._getHistoryForPrinter(this._selectedPrinter);
+    if (!Array.isArray(records) || records.length === 0) return '';
+
+    const buckets = [
+      { label: '0-30分', min: 0, max: 30 },
+      { label: '30-60分', min: 30, max: 60 },
+      { label: '1-3时', min: 60, max: 180 },
+      { label: '3-6时', min: 180, max: 360 },
+      { label: '6-12时', min: 360, max: 720 },
+      { label: '12时+', min: 720, max: Infinity },
+    ];
+
+    const distribution = {};
+    for (const b of buckets) distribution[b.label] = 0;
+
+    for (const r of records) {
+      if ((r.duration_hours || 0) <= 0) continue;
+      const mins = r.duration_hours * 60;
+      for (const b of buckets) {
+        if (mins >= b.min && mins < b.max) { distribution[b.label]++; break; }
+      }
+    }
+
+    const activeBuckets = buckets.filter(b => distribution[b.label] > 0);
+    if (activeBuckets.length === 0) return '';
+
+    const maxVal = Math.max(...activeBuckets.map(b => distribution[b.label]), 1);
+    const colors = ['#22c55e', '#84cc16', '#eab308', '#f97316', '#ef4444', '#a855f7'];
+
+    let barsHtml = '';
+    for (let i = 0; i < activeBuckets.length; i++) {
+      const bucket = activeBuckets[i];
+      const value = distribution[bucket.label];
+      const heightPct = (value / maxVal) * 100;
+      barsHtml += `<div style="flex:1;display:flex;flex-direction:column;align-items:center;">
+        <div style="font-size:12px;font-weight:600;margin-bottom:4px;">${value}</div>
+        <div style="width:100%;background:rgba(15,23,42,0.4);border-radius:6px;height:70px;padding:3px;position:relative;">
+          <div style="width:100%;height:${Math.max(heightPct, 5)}%;background:linear-gradient(to top,${colors[i % colors.length]},${colors[(i + 1) % colors.length]});border-radius:4px;transition:height 0.5s ease;"></div>
+        </div>
+        <div style="font-size:10px;color:var(--text-secondary);margin-top:4px;text-align:center;">${bucket.label}</div>
+      </div>`;
+    }
+
+    return `<div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">📊 时长分布</div><div style="display:flex;gap:8px;">${barsHtml}</div>`;
+  }
+
   /**
    * 渲染打印时长分布
    */
@@ -2561,7 +2724,7 @@ class PrinterAnalyticsCard extends HTMLElement {
     const labels = Object.keys(distribution);
     const totalFailed = labels.reduce((sum, k) => sum + (distribution[k] || 0), 0);
     if (totalFailed === 0) {
-      return `<div class="section-header"><div class="section-title"><span class="section-icon">📉</span><span>失败阶段分布</span></div></div><div class="chart-container"><div class="empty-state"><div style="font-size:28px;margin-bottom:8px;">🎉</div><div style="color:var(--success);font-weight:600;">暂无失败记录</div></div></div>`;
+      return `<div class="section-header"><div class="section-title"><span class="section-icon">📉</span><span>失败阶段分布</span></div></div><div class="chart-container" style="padding:8px 16px;"><div class="empty-state" style="padding:8px 0;"><span style="font-size:16px;">🎉</span> <span style="color:var(--success);font-weight:600;font-size:13px;">暂无失败记录</span></div></div>`;
     }
 
     const stageColors = { '早期': '#f97316', '中期': '#eab308', '后期': '#ef4444' };
@@ -2577,17 +2740,17 @@ class PrinterAnalyticsCard extends HTMLElement {
       const value = distribution[label] || 0;
       const pct = totalFailed > 0 ? Math.round(value / totalFailed * 100) : 0;
       const color = getStageColor(label);
-      barsHtml += `<div style="flex:1;display:flex;flex-direction:column;align-items:center;min-height:110px;">
-        <div class="table-value" style="font-size:14px;margin-bottom:4px;">${value}</div>
-        <div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;">${pct}%</div>
-        <div style="width:100%;background:rgba(15,23,42,0.4);border-radius:8px;height:80px;padding:4px;position:relative;">
-          <div style="width:100%;height:${Math.max(pct, 8)}%;background:${color};border-radius:6px;opacity:0.85;transition:height 0.5s ease;"></div>
+      barsHtml += `<div style="flex:1;display:flex;flex-direction:column;align-items:center;min-height:60px;">
+        <div class="table-value" style="font-size:13px;margin-bottom:2px;">${value}</div>
+        <div style="font-size:10px;color:var(--text-secondary);margin-bottom:4px;">${pct}%</div>
+        <div style="width:100%;background:rgba(15,23,42,0.4);border-radius:6px;height:40px;padding:3px;position:relative;">
+          <div style="width:100%;height:${Math.max(pct, 8)}%;background:${color};border-radius:4px;opacity:0.85;transition:height 0.5s ease;"></div>
         </div>
-        <div style="font-size:12px;color:${color};margin-top:10px;text-align:center;font-weight:600;">${label}</div>
+        <div style="font-size:11px;color:${color};margin-top:6px;text-align:center;font-weight:600;">${label}</div>
       </div>`;
     }
 
-    return `<div class="section-header"><div class="section-title"><span class="section-icon">📉</span><span>失败阶段分布</span><span style="font-size:12px;color:var(--text-secondary);font-weight:400;margin-left:8px;">共 ${totalFailed} 次失败</span></div></div><div class="chart-container"><div style="display:flex;gap:16px;">${barsHtml}</div></div>`;
+    return `<div class="section-header"><div class="section-title"><span class="section-icon">📉</span><span>失败阶段分布</span><span style="font-size:12px;color:var(--text-secondary);font-weight:400;margin-left:8px;">共 ${totalFailed} 次失败</span></div></div><div class="chart-container" style="padding:8px 16px;"><div style="display:flex;gap:12px;">${barsHtml}</div></div>`;
   }
 
   _renderFilamentSuccessStats() {
@@ -2689,16 +2852,25 @@ class PrinterAnalyticsCard extends HTMLElement {
     }
 
     const maxCount = Math.max(...sortedDates.map(k => heatmap[k]), 1);
-    const recentDates = sortedDates.slice(-35);
-
-    const startDate = recentDates.length > 0 ? new Date(recentDates[0]) : new Date();
-
+    const totalDays = 91;
+    const endDate = new Date();
+    const startDate = new Date(endDate);
+    startDate.setDate(startDate.getDate() - totalDays + 1);
+    const startDayOfWeek = startDate.getDay();
+    const gridStartDate = new Date(startDate);
+    gridStartDate.setDate(gridStartDate.getDate() - startDayOfWeek);
     const allDates = [];
-    for (let i = 0; i < 35; i++) {
-      const d = new Date(startDate);
+    const gridEndDate = new Date(endDate);
+    while (gridEndDate.getDay() !== 6) {
+      gridEndDate.setDate(gridEndDate.getDate() + 1);
+    }
+    const totalGridDays = Math.round((gridEndDate - gridStartDate) / 86400000) + 1;
+    for (let i = 0; i < totalGridDays; i++) {
+      const d = new Date(gridStartDate);
       d.setDate(d.getDate() + i);
       allDates.push(d.toISOString().substring(0, 10));
     }
+    const weeksCount = Math.ceil(totalGridDays / 7);
 
     let cellsHtml = '';
     for (const dateKey of allDates) {
@@ -2710,14 +2882,44 @@ class PrinterAnalyticsCard extends HTMLElement {
         else if (intensity < 0.66) bgColor = 'rgba(34, 197, 94, 0.6)';
         else bgColor = 'rgba(34, 197, 94, 0.9)';
       }
-      cellsHtml += `<div class="heatmap-cell" style="background:${bgColor};" 
+      const isOutOfRange = dateKey < startDate.toISOString().substring(0, 10) || dateKey > endDate.toISOString().substring(0, 10);
+      const opacity = isOutOfRange ? 'opacity:0.15;' : '';
+      cellsHtml += `<div class="heatmap-cell" style="background:${bgColor};${opacity}" 
         title="${dateKey}: ${count}次"
         data-date="${this._escapeHtml(dateKey)}" 
         data-count="${this._escapeHtml(String(count))}">
       </div>`;
     }
 
-    return `<div class="section-header"><div class="section-title"><span class="section-icon">🗓️</span><span>打印活动热力图</span></div></div><div class="chart-container" style="padding:8px 10px;"><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;">${cellsHtml}</div></div>`;
+    const monthLabels = [];
+    let lastMonth = -1;
+    for (let w = 0; w < weeksCount; w++) {
+      const d = new Date(gridStartDate);
+      d.setDate(d.getDate() + w * 7);
+      const m = d.getMonth();
+      if (m !== lastMonth) {
+        monthLabels.push({ week: w, label: `${d.getMonth() + 1}月` });
+        lastMonth = m;
+      }
+    }
+    let monthHtml = '<div style="display:grid;grid-template-columns:repeat(' + weeksCount + ',11px);gap:2px;margin-bottom:2px;margin-left:20px;font-size:10px;color:var(--text-muted);">';
+    let currentWeek = 0;
+    for (const ml of monthLabels) {
+      if (ml.week > currentWeek) {
+        monthHtml += `<div style="grid-column:${currentWeek + 1}/${ml.week + 1};white-space:nowrap;">${ml.label}</div>`;
+        currentWeek = ml.week + 1;
+      }
+    }
+    monthHtml += '</div>';
+
+    const dayLabels = ['日', '一', '二', '三', '四', '五', '六'];
+    let dayLabelHtml = '<div style="display:grid;grid-template-rows:repeat(7,11px);gap:2px;margin-right:4px;font-size:9px;color:var(--text-muted);align-items:center;">';
+    for (let i = 0; i < 7; i++) {
+      dayLabelHtml += `<div style="text-align:right;line-height:1;">${i % 2 === 1 ? dayLabels[i] : ''}</div>`;
+    }
+    dayLabelHtml += '</div>';
+
+    return `<div class="section-header"><div class="section-title"><span class="section-icon">🗓️</span><span>打印活动热力图</span></div></div><div class="chart-container" style="padding:12px 16px;">${monthHtml}<div style="display:flex;">${dayLabelHtml}<div style="display:grid;grid-template-columns:repeat(${weeksCount},11px);grid-template-rows:repeat(7,11px);gap:2px;">${cellsHtml}</div></div></div>`;
   }
 
   /**
@@ -3064,20 +3266,30 @@ class PrinterAnalyticsCard extends HTMLElement {
 
     for (const printer of printers) {
       const e = printer.entities;
-      const currentTask = this._getState(e.current_task) || '未配置';
-      const printProgress = this._getState(e.print_progress) || '0';
-      const currentWeight = this._getState(e.current_weight) || 'N/A';
-      const chamberTemp = this._getState(e.chamber_temperature) || 'N/A';
-      const speedProfile = this._getState(e.speed_profile) || 'N/A';
-      const nozzleSize = this._getState(e.nozzle_size) || 'N/A';
+      const currentTask = this._getState(e.current_task);
+      const printProgress = this._getState(e.print_progress);
+      const currentWeight = this._getState(e.current_weight);
+      const chamberTemp = this._getState(e.chamber_temperature);
+      const speedProfile = this._getState(e.speed_profile);
+      const nozzleSize = this._getState(e.nozzle_size);
       const activeTray = this._getState(e.active_tray);
+
+      // 检测打印机是否在线（通过 print_status 或 online 传感器判断）
+      const printStatus = this._getState(e.print_status);
+      const onlineEntity = e.online ? this._getState(e.online) : null;
+      const isOffline = onlineEntity === null
+        ? currentTask === null && printProgress === null
+        : onlineEntity === 'off';
 
       let statusClass = 'idle';
       let statusText = '空闲';
-      if (printProgress && parseFloat(printProgress) > 0 && parseFloat(printProgress) < 100) {
+      if (isOffline) {
+        statusClass = 'offline';
+        statusText = '离线';
+      } else if (printProgress && parseFloat(printProgress) > 0 && parseFloat(printProgress) < 100) {
         statusClass = 'printing';
         statusText = `打印中 ${printProgress}%`;
-      } else if (currentTask && currentTask !== 'unknown' && currentTask !== 'unavailable' && currentTask !== '未配置') {
+      } else if (currentTask && currentTask !== '未配置') {
         statusClass = 'finish';
         statusText = '已完成';
       }
@@ -3106,7 +3318,14 @@ class PrinterAnalyticsCard extends HTMLElement {
         amsHtml += '</div></div>';
       }
 
-      html += `<div class="realtime-panel" style="margin-bottom:16px;">
+      // 格式化显示值：离线时显示 "-"，无数据时显示默认值
+      const fmtVal = (val, unit, defaultVal) => {
+        if (isOffline) return '-';
+        if (val === null || val === undefined) return defaultVal || '-';
+        return unit ? `${val}<small style="font-size:12px;color:var(--text-muted);font-weight:500;">${unit}</small>` : val;
+      };
+
+      html += `<div class="realtime-panel" style="margin-bottom:16px;${isOffline ? 'opacity:0.6;' : ''}">
         <div class="realtime-header">
           <div class="realtime-title">🖥️ ${this._escapeHtml(printer.printer_name)}</div>
           <div class="status-badge ${statusClass}">${statusText}</div>
@@ -3114,33 +3333,33 @@ class PrinterAnalyticsCard extends HTMLElement {
         <div class="realtime-grid">
           <div class="realtime-item">
             <div class="realtime-label">📋 当前任务</div>
-            <div class="realtime-value">${this._escapeHtml(currentTask || '空闲')}</div>
+            <div class="realtime-value">${isOffline ? '-' : this._escapeHtml(currentTask || '空闲')}</div>
           </div>
           <div class="realtime-item">
             <div class="realtime-label">📊 打印进度</div>
-            <div class="realtime-value">${printProgress}%</div>
+            <div class="realtime-value">${isOffline ? '-' : (printProgress || '0')}%</div>
             <div class="progress-track" style="margin-top:8px;">
-              <div class="progress-fill" style="width:${printProgress}%"></div>
+              <div class="progress-fill" style="width:${isOffline ? 0 : (printProgress || 0)}%"></div>
             </div>
           </div>
-          ${currentWeight && currentWeight !== 'N/A' ? `<div class="realtime-item">
+          ${!isOffline && statusClass !== 'idle' && currentWeight ? `<div class="realtime-item">
             <div class="realtime-label">⚖️ 当前耗材</div>
-            <div class="realtime-value">${currentWeight}<small style="font-size:12px;color:var(--text-muted);font-weight:500;">g</small></div>
+            <div class="realtime-value">${fmtVal(currentWeight, 'g')}</div>
           </div>` : ''}
-          ${chamberTemp && chamberTemp !== 'N/A' ? `<div class="realtime-item">
+          ${!isOffline && chamberTemp ? `<div class="realtime-item">
             <div class="realtime-label">💨 腔体</div>
-            <div class="realtime-value">${chamberTemp}<small style="font-size:12px;color:var(--text-muted);font-weight:500;">°C</small></div>
+            <div class="realtime-value">${fmtVal(chamberTemp, '°C')}</div>
           </div>` : ''}
-          ${speedProfile && speedProfile !== 'N/A' ? `<div class="realtime-item">
+          ${!isOffline && speedProfile ? `<div class="realtime-item">
             <div class="realtime-label">⚡ 速度</div>
             <div class="realtime-value">${this._escapeHtml(speedProfile)}</div>
           </div>` : ''}
-          ${nozzleSize && nozzleSize !== 'N/A' ? `<div class="realtime-item">
+          ${!isOffline && nozzleSize ? `<div class="realtime-item">
             <div class="realtime-label">🔧 喷嘴</div>
             <div class="realtime-value">${nozzleSize}</div>
           </div>` : ''}
         </div>
-        ${amsHtml}
+        ${isOffline ? '' : amsHtml}
       </div>`;
     }
     return html;
@@ -3258,9 +3477,9 @@ class PrinterAnalyticsCard extends HTMLElement {
     const activeTrayName = this._getState(this.config.active_tray);
 
     let weight = 0;
-    if (currentWeight && currentWeight !== 'unavailable' && currentWeight !== 'unknown' && currentWeight !== 'N/A') {
+    if (currentWeight) {
       weight = parseFloat(currentWeight);
-    } else if (totalUsage && totalUsage !== 'unavailable' && totalUsage !== 'unknown' && totalUsage !== 'N/A') {
+    } else if (totalUsage) {
       weight = parseFloat(totalUsage);
     }
 
@@ -3631,7 +3850,7 @@ class PrinterAnalyticsCard extends HTMLElement {
     }
     if (!this.config.chamber_temp || !this._hass) return '-';
     const temp = this._getState(this.config.chamber_temp);
-    return temp && temp !== 'N/A' && temp !== 'unavailable' && temp !== 'unknown' ? `${temp}°C` : '-';
+    return temp ? `${temp}°C` : '-';
   }
 
   _renderDetailModal(record) {

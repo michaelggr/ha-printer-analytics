@@ -87,14 +87,14 @@ class EntityDiscovery:
         name_lower = friendly_name.lower()
         prefix_lower = prefix.lower()
 
-        if not any(p in name_lower for p in ["bambu", "printer", "ams"]):
+        if prefix_lower not in name_lower:
             return None
 
         name_cleaned = name_lower.replace(f"{prefix_lower}_", "").replace(f"{prefix_lower}", "").strip("_ -")
 
         for key in list(BAMBULAB_ENTITY_KEYS) + list(BAMBULAB_IMAGE_KEYS) + list(BAMBULAB_CAMERA_KEYS):
             key_cleaned = key.replace("_", " ")
-            if name_cleaned == key_cleaned or name_cleaned.startswith(key_cleaned + " ") or name_cleaned.endswith(" " + key_cleaned):
+            if key_cleaned in name_cleaned or name_cleaned == key_cleaned or name_cleaned.startswith(key_cleaned + " ") or name_cleaned.endswith(" " + key_cleaned):
                 return key
 
         for key, patterns in self._get_extra_patterns().items():
@@ -107,6 +107,7 @@ class EntityDiscovery:
     def _get_extra_patterns(self) -> dict[str, list[str]]:
         """额外的匹配模式"""
         return {
+            "print_status": [r"print.*status|status.*print|打印.*状态|状态"],
             "print_weight": [r"weight|重量"],
             "print_length": [r"length|长度"],
             "nozzle_temp": [r"nozzle.*temp|temp.*nozzle|喷嘴.*温"],
@@ -116,6 +117,13 @@ class EntityDiscovery:
             "layer": [r"layer|层"],
             "start_time": [r"start.*time|开始.*时间"],
             "end_time": [r"end.*time|结束.*时间"],
+            "task_name": [r"task.*name|subtask|任务.*名称|任务名|taskname"],
+            "gcode_filename": [r"gcode.*file|gcode.*filename|文件名"],
+            "active_tray": [r"active.*tray|ams.*tray|活动.*托盘|当前.*托盘"],
+            "nozzle_type": [r"nozzle.*type|喷嘴.*类型"],
+            "nozzle_size": [r"nozzle.*size|喷嘴.*尺寸"],
+            "print_bed_type": [r"print.*bed|打印.*床|热床.*类型"],
+            "speed_profile": [r"speed.*profile|速度.*配置"],
         }
 
     def get_entity_state(self, entity_id: str, default: Any = None) -> Any:

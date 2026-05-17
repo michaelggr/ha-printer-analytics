@@ -1,4 +1,4 @@
-﻿"""Printer Analytics Coordinator - 主协调器"""
+"""Printer Analytics Coordinator - 主协调器"""
 from __future__ import annotations
 
 import asyncio
@@ -109,13 +109,21 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         await self.entity_discovery.discover()
         await self.hass.async_add_executor_job(self.image_manager.detect_placeholder_images)
 
+        # 如果配置中没有指定打印状态实体，使用自动发现的实体
+        if not self.print_status_entity:
+            self.print_status_entity = self._entity_map.get("print_status", "")
+        
         self._previous_status = self._get_current_print_status()
         if self._previous_status in ACTIVE_PRINT_STATUSES:
             self.print_tracker.recover_active_print()
 
-        self._unsub_listener = async_track_state_change_event(
-            self.hass, [self.print_status_entity], self._handle_state_change
-        )
+        # 订阅状态变化
+        if self.print_status_entity:
+            self._unsub_listener = async_track_state_change_event(
+                self.hass, [self.print_status_entity], self._handle_state_change
+            )
+        else:
+            LOGGER.warning("No print status entity configured for %s, state changes will not be tracked", self.printer_name)
         LOGGER.info("Printer Analytics setup for %s", self.printer_name)
 
     async def async_shutdown(self) -> None:
@@ -169,7 +177,9 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
     async def _load_history(self) -> None:
         """加载历史数据"""
         if self.storage:
-            self.history = await self.storage.load_history()
+            self.history = await self.storage.load_history() or []
+        else:
+            self.history = []
         self._total_records = len(self.history)
         LOGGER.debug("_load_history: 加载了 %d 条历史记录", len(self.history))
         await self._fix_duration_hours()

@@ -35,7 +35,7 @@ class StatisticsCalculator:
 
         # 快速路径：历史未变化且无活跃打印变化
         current_len = len(history)
-        last_id = history[-1].get("id", "") if history else ""
+        last_id = history[-1].get("id", "") if history and len(history) > 0 else ""
         current_print_id = current_print.get("id", "") if current_print else ""
 
         if (self._cache is not None

@@ -1,0 +1,59 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "配置打印机分析",
+        "description": "选择要分析的打印机和关联的传感器",
+        "data": {
+          "printer_name": "打印机名称",
+          "print_status_entity": "打印状态传感器 *",
+          "power_entity": "功率传感器（可选）",
+          "energy_entity": "能耗传感器（可选）",
+          "chamber_temp_entity": "腔体温度传感器（可选）"
+        }
+      }
+    },
+    "error": {
+      "invalid_entity": "无效的实体 ID",
+      "entity_not_found": "找不到该实体",
+      "already_configured": "该打印机已配置"
+    },
+    "abort": {
+      "already_configured": "该打印机已配置，无需重复添加"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "打印机分析选项",
+        "description": "修改打印机分析配置",
+        "data": {
+          "printer_name": "打印机名称",
+          "power_entity": "功率传感器（可选）",
+          "energy_entity": "能耗传感器（可选）",
+          "chamber_temp_entity": "腔体温度传感器（可选）",
+          "reset_history": "重置打印历史"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "print_history": { "name": "打印历史" },
+      "total_prints": { "name": "总打印次数" },
+      "success_rate": { "name": "成功率" },
+      "average_duration": { "name": "平均打印时长" },
+      "total_online_duration": { "name": "总在线时长" },
+      "total_print_duration": { "name": "总打印时长" },
+      "material_stats_lifetime": { "name": "终身耗材统计" },
+      "material_stats_7d": { "name": "7天耗材统计" },
+      "material_stats_30d": { "name": "30天耗材统计" },
+      "total_energy": { "name": "总能耗" },
+      "duration_distribution": { "name": "时长分布" },
+      "activity_heatmap": { "name": "活动热力图" },
+      "failure_stage_distribution": { "name": "失败阶段分布" },
+      "filament_success_stats": { "name": "耗材成功率统计" },
+      "print_status": { "name": "打印状态" }
+    }
+  }
+}
