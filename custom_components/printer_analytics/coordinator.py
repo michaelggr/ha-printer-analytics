@@ -363,6 +363,10 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
             return self.entity_discovery.get_entity_state(entity_id, default)
         return default
 
+    def get_entity_state(self, entity_id: str, default: any = None) -> any:
+        """获取实体状态（公共接口）"""
+        return self._get_entity_state(entity_id, default)
+
     def _get_entity_attr(self, entity_id: str, attr: str, default: any = None) -> any:
         """获取实体属性"""
         if self.entity_discovery:
