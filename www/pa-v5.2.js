@@ -1,6 +1,6 @@
 ﻿﻿﻿﻿/**
- * 打印机分析卡片 - v5.8.3
- * 版本: 5.8.3 (2026-05-14) - 新增颜色/类型使用量对比图，最近打印记录，单色颜色点显示，之最移至最近打印上方
+ * 打印机分析卡片 - v5.9.0
+ * 版本: 5.9.0 (2026-05-18) - 任务名称两行显示，之最卡片显示颜色点
  *
  * 设计特点:
  * - 顶部打印机实时监控（多打印机卡片）
@@ -2728,9 +2728,9 @@ class PrinterAnalyticsCard extends HTMLElement {
     const mostColors = records.filter(r => (r.colors_used || []).length > 1).length > 0
       ? records.filter(r => (r.colors_used || []).length > 1).reduce((a, b) => (a.colors_used || []).length > (b.colors_used || []).length ? a : b) : null;
 
-    const recordCard = (icon, title, record, valueFn) => {
+    const recordCard = (icon, title, record, valueFn, extraFn) => {
       if (!record) return '';
-      const taskName = record.task_name || '未知任务';
+      const taskNameHtml = this._formatTaskName(record);
       const printerTag = this._selectedPrinter === '全部' && record._printer_name
         ? `<span class="printer-tag">${this._escapeHtml(record._printer_name)}</span>` : '';
       const fmtDate = (ts) => {
@@ -2745,22 +2745,33 @@ class PrinterAnalyticsCard extends HTMLElement {
       const dateStr = fmtDate(record.end_time || record.start_time);
       const materialTag = record.filament_type
         ? `<span style="color:var(--primary);font-weight:500;">${this._escapeHtml(record.filament_type)}</span>` : '';
+      const extraContent = extraFn ? extraFn(record) : '';
       return `<div class="stat-card" style="padding:14px;text-align:left;">
         <div style="font-size:13px;color:var(--text-muted);margin-bottom:6px;">${icon} ${title}</div>
-        <div style="font-size:16px;font-weight:700;color:var(--primary-light);margin-bottom:4px;">${valueFn(record)}</div>
-        <div style="font-size:12px;color:var(--text-secondary);">${this._escapeHtml(taskName)} ${printerTag}</div>
+        <div style="font-size:16px;font-weight:700;color:var(--primary-light);margin-bottom:4px;display:flex;align-items:center;gap:6px;">${valueFn(record)} ${extraContent}</div>
+        <div style="font-size:12px;color:var(--text-secondary);">${taskNameHtml} ${printerTag}</div>
         <div style="font-size:11px;color:var(--text-muted);margin-top:3px;display:flex;gap:8px;flex-wrap:wrap;">
           ${dateStr ? `📅 ${dateStr}` : ''}${materialTag ? `<span style="background:rgba(99,102,241,0.12);padding:1px 6px;border-radius:8px;font-size:10px;">🧵 ${materialTag}</span>` : ''}
         </div>
       </div>`;
     };
 
+    const renderColorDots = (r) => {
+      const colorsUsed = r.colors_used || [];
+      if (colorsUsed.length === 0) return '';
+      let colorDots = colorsUsed.slice(0, 6).map(c =>
+        `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${this._sanitizeColor(c)};border:1px solid rgba(255,255,255,0.3);"></span>`
+      ).join('');
+      if (colorsUsed.length > 6) colorDots += `<span style="font-size:10px;color:var(--text-muted);">+${colorsUsed.length - 6}</span>`;
+      return colorDots;
+    };
+
     let html = '<div class="stats-grid" style="gap:10px;">';
-    html += recordCard('⏱️', '最长打印', longest, r => this._formatDurationHours(r.duration_hours));
-    html += recordCard('⚡', '最短打印', shortest, r => this._formatDurationHours(r.duration_hours));
-    html += recordCard('⚖️', '最重打印', heaviest, r => `${(r.total_weight || 0).toFixed(1)}g`);
-    html += recordCard('🪶', '最轻打印', lightest, r => `${(r.total_weight || 0).toFixed(1)}g`);
-    html += recordCard('🎨', '最多颜色', mostColors, r => `${(r.colors_used || []).length} 色`);
+    html += recordCard('⏱️', '最长打印', longest, r => this._formatDurationHours(r.duration_hours), renderColorDots);
+    html += recordCard('⚡', '最短打印', shortest, r => this._formatDurationHours(r.duration_hours), renderColorDots);
+    html += recordCard('⚖️', '最重打印', heaviest, r => `${(r.total_weight || 0).toFixed(1)}g`, renderColorDots);
+    html += recordCard('🪶', '最轻打印', lightest, r => `${(r.total_weight || 0).toFixed(1)}g`, renderColorDots);
+    html += recordCard('🎨', '最多颜色', mostColors, r => `${(r.colors_used || []).length} 色`, renderColorDots);
     html += '</div>';
     return html;
   }
@@ -2829,7 +2840,7 @@ class PrinterAnalyticsCard extends HTMLElement {
         'printing': { icon: '🔵', color: 'var(--primary)' }
       };
       const si = statusMap[status] || { icon: '❓', color: 'var(--text-muted)' };
-      const taskName = this._escapeHtml(item.task_name || '未命名');
+      const taskNameHtml = this._formatTaskName(item);
       const ft = this._escapeHtml(item.filament_type || '');
       const wt = item.total_weight ? `${item.total_weight.toFixed(1)}g` : '';
       let durMin = item.duration_minutes || (item.duration_hours ? item.duration_hours * 60 : null);
@@ -2861,7 +2872,7 @@ class PrinterAnalyticsCard extends HTMLElement {
       }
       html += `<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surface-card);border-radius:8px;border:1px solid var(--border);flex-wrap:wrap;">
         <span style="font-size:14px;flex-shrink:0;">${si.icon}</span>
-        <span style="flex:1;min-width:100px;font-size:13px;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${taskName}</span>
+        <div style="flex:1;min-width:100px;font-size:12px;">${taskNameHtml}</div>
         ${dur ? `<span style="font-size:11px;color:var(--text-secondary);white-space:nowrap;">⏱${dur}</span>` : ''}
         ${endTime ? `<span style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${endTime}</span>` : ''}
         ${ft ? `<span style="font-size:11px;color:var(--text-secondary);white-space:nowrap;">🧵${ft}</span>` : ''}
@@ -3405,8 +3416,54 @@ class PrinterAnalyticsCard extends HTMLElement {
     return mins > 0 ? `${hours}h${mins}m` : `${hours}h`;
   }
 
+  _formatTaskName(item) {
+    // 解析任务名为两行：模型名在上，配置名在下
+    let modelName = '';
+    let configName = '';
+    
+    // 优先使用单独的字段
+    if (item.task_name_model) {
+      modelName = this._escapeHtml(item.task_name_model);
+    }
+    if (item.task_name_config || item.config_name) {
+      configName = this._escapeHtml(item.task_name_config || item.config_name);
+    }
+    
+    // 如果没有单独字段，尝试从 task_name 中解析（格式："模型名 + 配置名"）
+    if (!modelName && !configName && item.task_name) {
+      const fullName = item.task_name;
+      if (fullName.includes(' + ')) {
+        const parts = fullName.split(' + ');
+        modelName = this._escapeHtml(parts[0]);
+        configName = this._escapeHtml(parts.slice(1).join(' + '));
+      } else {
+        modelName = this._escapeHtml(fullName);
+      }
+    }
+    
+    // 如果没有模型名但有配置名，用配置名作为模型名
+    if (!modelName && configName) {
+      modelName = configName;
+      configName = '';
+    }
+    
+    // 如果都没有，显示默认值
+    if (!modelName) {
+      modelName = this._escapeHtml(item.task_name || '未命名任务');
+    }
+    
+    // 生成HTML
+    if (configName) {
+      return `<div style="display:flex;flex-direction:column;line-height:1.3;">
+        <div style="font-weight:600;">${modelName}</div>
+        <div style="font-size:0.85em;color:var(--text-secondary);">${configName}</div>
+      </div>`;
+    }
+    return `<div>${modelName}</div>`;
+  }
+
   _renderHistoryItem(item, index, options = {}) {
-    const taskName = this._escapeHtml(item.task_name || '未命名任务');
+    const taskNameHtml = this._formatTaskName(item);
     const status = (item.status || '').trim().toLowerCase();
     const statusConfig = {
       'finish': { text: '成功', class: 'success', icon: '✅' },
@@ -3467,13 +3524,14 @@ class PrinterAnalyticsCard extends HTMLElement {
          <div class="history-thumbnail" style="display:none;background:linear-gradient(135deg, ${this._sanitizeColor(colorsUsed[0]) || 'rgba(99,102,241,0.2)'}, ${this._sanitizeColor(colorsUsed[1]) || this._sanitizeColor(colorsUsed[0]) || 'rgba(6,182,212,0.1)'});">${statusInfo.icon}${colorBarHtml}</div>`
       : `<div class="history-thumbnail" style="background:linear-gradient(135deg, ${this._sanitizeColor(colorsUsed[0]) || 'rgba(99,102,241,0.2)'}, ${this._sanitizeColor(colorsUsed[1]) || this._sanitizeColor(colorsUsed[0]) || 'rgba(6,182,212,0.1)'});">${statusInfo.icon}${colorBarHtml}</div>`;
 
+    const taskNamePlain = item.task_name || '未命名任务';
     return `
-      <div class="history-item" data-status="${status}" data-name="${taskName.toLowerCase()}" data-type="${filamentType.toLowerCase()}" data-record-id="${recordId}">
+      <div class="history-item" data-status="${status}" data-name="${taskNamePlain.toLowerCase()}" data-type="${filamentType.toLowerCase()}" data-record-id="${recordId}">
         ${showCheckbox ? `<input type="checkbox" class="record-checkbox" data-record-id="${recordId}" ${this._selectedRecords.has(recordId) ? 'checked' : ''}>` : ''}
         <div class="history-status ${statusInfo.class}">${statusInfo.icon} ${statusInfo.text}</div>
         ${coverHtml}
         <div class="history-details">
-          <div class="history-task-name">${taskName} ${showPrinterTag && printerName ? `<span class="printer-tag">${printerName}</span>` : ''}</div>
+          <div class="history-task-name">${taskNameHtml} ${showPrinterTag && printerName ? `<span class="printer-tag">${printerName}</span>` : ''}</div>
           <div class="history-meta">
             <span>⏱️ ${duration}</span>
             <span>🧵 ${filamentType}</span>
@@ -3707,7 +3765,7 @@ class PrinterAnalyticsCard extends HTMLElement {
   }
 
   _renderDetailModal(record) {
-    const taskName = this._escapeHtml(record.task_name || '未命名任务');
+    const taskNameHtml = this._formatTaskName(record);
     const status = record.status || '';
     const normalizedStatus = status.trim().toLowerCase();
     const statusConfig = {
@@ -3745,8 +3803,32 @@ class PrinterAnalyticsCard extends HTMLElement {
         return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
       } catch(e) { return ts; }
     };
+    
+    // 构建任务名称字段
+    let modelName = '';
+    let configName = '';
+    if (record.task_name_model) {
+      modelName = record.task_name_model;
+    }
+    if (record.task_name_config || record.config_name) {
+      configName = record.task_name_config || record.config_name;
+    }
+    if (!modelName && !configName && record.task_name) {
+      if (record.task_name.includes(' + ')) {
+        const parts = record.task_name.split(' + ');
+        modelName = parts[0];
+        configName = parts.slice(1).join(' + ');
+      } else {
+        modelName = record.task_name;
+      }
+    }
+    if (!modelName) {
+      modelName = record.task_name || '-';
+    }
+
     const fields = [
-      { label: '任务名称', value: record.task_name || '-' },
+      { label: '模型名称', value: modelName },
+      configName ? { label: '打印配置', value: configName } : null,
       { label: '打印机', value: record._printer_name || '-' },
       { label: '状态', value: `${statusInfo.icon} ${statusInfo.text}`, color: statusInfo.color },
       { label: '完成进度', value: `${record.progress || 0}%` },
@@ -3764,7 +3846,7 @@ class PrinterAnalyticsCard extends HTMLElement {
       { label: '总层数', value: record.total_layer_count || '-' },
       { label: '能耗', value: record.energy_kwh ? `${record.energy_kwh.toFixed(3)} kWh` : '-' },
       { label: '💨 腔体温度', value: this._getDetailChamberTemp(record), color: 'var(--primary-light)' },
-    ];
+    ].filter(f => f !== null);
 
     let fieldsHtml = fields.map(f => `
       <div class="detail-field">
@@ -3800,8 +3882,8 @@ class PrinterAnalyticsCard extends HTMLElement {
       <div class="modal-overlay">
         <div class="modal-content">
           <button class="modal-close" id="btn-close-modal">✕</button>
-          ${coverImg ? `<img class="detail-cover" src="${this._escapeHtml(coverImg)}" alt="${taskName}" onerror="this.style.display='none';">` : ''}
-          <div class="detail-title">${taskName}</div>
+          ${coverImg ? `<img class="detail-cover" src="${this._escapeHtml(coverImg)}" alt="${this._escapeHtml(record.task_name)}" onerror="this.style.display='none';">` : ''}
+          <div class="detail-title">${taskNameHtml}</div>
           <div class="detail-grid">${fieldsHtml}</div>
           ${colorsHtml}
           ${snapshotHtml}
