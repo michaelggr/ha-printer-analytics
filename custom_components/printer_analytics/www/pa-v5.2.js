@@ -1,4 +1,4 @@
-﻿﻿﻿﻿/**
+﻿/**
  * 打印机分析卡片 - v5.9.0
  * 版本: 5.9.0 (2026-05-18) - 任务名称两行显示，之最卡片显示颜色点
  *
@@ -168,6 +168,28 @@ class PrinterAnalyticsCard extends HTMLElement {
   _getHistory() {
     const historyEntity = this._hass?.states[this.config.print_history];
     return historyEntity?.attributes?.history || [];
+  }
+
+  /**
+   * 获取当前打印信息
+   * @returns {Object} 当前打印对象
+   */
+  _getCurrentPrint() {
+    const historyEntity = this._hass?.states[this.config.print_history];
+    return historyEntity?.attributes?.current_print || null;
+  }
+
+  /**
+   * 获取指定打印机的当前打印信息
+   */
+  _getCurrentPrintForPrinter(printerEntities) {
+    // 尝试从当前打印机的 print_history 获取
+    const historyEntity = this._hass?.states[printerEntities.print_history];
+    if (historyEntity?.attributes?.current_print) {
+      return historyEntity.attributes.current_print;
+    }
+    // 回退：从默认的 print_history 获取
+    return this._getCurrentPrint();
   }
 
   _getPrintersConfig() {
@@ -3118,6 +3140,15 @@ class PrinterAnalyticsCard extends HTMLElement {
       const nozzleSize = this._getState(e.nozzle_size) || 'N/A';
       const activeTray = this._getState(e.active_tray);
 
+      // 获取当前打印信息（模型名和配置名）
+      const currentPrint = this._getCurrentPrintForPrinter(e);
+      let modelName = '';
+      let configName = '';
+      if (currentPrint && currentPrint.status === 'running') {
+        modelName = currentPrint.task_name_model || '';
+        configName = currentPrint.task_name_config || currentPrint.config_name || '';
+      }
+
       let statusClass = 'idle';
       let statusText = '空闲';
       if (printProgress && parseFloat(printProgress) > 0 && parseFloat(printProgress) < 100) {
@@ -3126,6 +3157,17 @@ class PrinterAnalyticsCard extends HTMLElement {
       } else if (currentTask && currentTask !== 'unknown' && currentTask !== 'unavailable' && currentTask !== '未配置') {
         statusClass = 'finish';
         statusText = '已完成';
+      }
+
+      // 构建任务名称显示HTML（模型名 + 配置名）
+      let taskNameHtml = '';
+      if (modelName) {
+        taskNameHtml = `<div style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:2px;">${this._escapeHtml(modelName)}</div>`;
+        if (configName) {
+          taskNameHtml += `<div style="font-size:12px;color:var(--text-secondary);">${this._escapeHtml(configName)}</div>`;
+        }
+      } else {
+        taskNameHtml = `<div style="font-size:14px;color:var(--text-secondary);">${this._escapeHtml(currentTask || '空闲')}</div>`;
       }
 
       // AMS 耗材盘
@@ -3160,7 +3202,7 @@ class PrinterAnalyticsCard extends HTMLElement {
         <div class="realtime-grid">
           <div class="realtime-item">
             <div class="realtime-label">📋 当前任务</div>
-            <div class="realtime-value">${this._escapeHtml(currentTask || '空闲')}</div>
+            <div class="realtime-value">${taskNameHtml}</div>
           </div>
           <div class="realtime-item">
             <div class="realtime-label">📊 打印进度</div>
