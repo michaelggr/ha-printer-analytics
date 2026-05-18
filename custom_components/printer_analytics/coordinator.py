@@ -112,9 +112,17 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         # 如果配置中没有指定打印状态实体，使用自动发现的实体
         if not self.print_status_entity:
             self.print_status_entity = self._entity_map.get("print_status", "")
-        
-        self._previous_status = self._get_current_print_status()
+
+        # 获取当前打印状态（包括 unknown/unavailable 等无效状态）
+        current_state = self.hass.states.get(self.print_status_entity)
+        self._previous_status = current_state.state if current_state else None
+
+        # 保护逻辑：如果当前状态是活跃状态，尝试恢复或开始打印追踪
         if self._previous_status in ACTIVE_PRINT_STATUSES:
+            self.print_tracker.recover_active_print()
+        # 二次保护：如果状态是 running 但 current_print 为空，强制恢复
+        elif self._previous_status == "running" and not self.current_print:
+            LOGGER.warning("检测到 running 状态但 current_print 为空，强制恢复")
             self.print_tracker.recover_active_print()
 
         # 订阅状态变化
