@@ -489,25 +489,32 @@ class PrintTracker:
         return task_name
 
     def _infer_model_name_from_history(self, config_name: str) -> str | None:
+        """从历史记录中查找上一次使用该配置名称的打印，获取模型名"""
         if not config_name:
             return None
         target = config_name.strip()
         if not target:
             return None
 
+        searched = 0
         for record in reversed(self.coordinator.history):
+            searched += 1
             stored_model = (record.get("task_name_model") or "").strip()
             stored_config = (record.get("task_name_config") or "").strip()
             stored_task = (record.get("task_name") or "").strip()
 
             if stored_config == target and stored_model:
+                LOGGER.info("从历史记录找到上一次使用配置 '%s' 的模型名: %s (搜索了 %d 条)", target, stored_model, searched)
                 return stored_model
             if stored_task and " + " in stored_task:
                 model_part, config_part = stored_task.rsplit(" + ", 1)
                 if config_part == target and model_part.strip() and not self._is_param_description(model_part.strip()):
+                    LOGGER.info("从历史记录 task_name 解析出模型名: %s (配置: %s)", model_part.strip(), target)
                     return model_part.strip()
             if stored_task == target and stored_model:
+                LOGGER.info("从历史记录 task_name 匹配到模型名: %s", stored_model)
                 return stored_model
+        LOGGER.debug("历史记录中未找到配置 '%s' 对应的模型名 (共搜索 %d 条)", target, searched)
         return None
 
     async def _infer_model_name_from_entity_history(self, task_entity: str, start_time: str) -> None:
