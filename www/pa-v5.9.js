@@ -1,6 +1,6 @@
-﻿﻿﻿/**
- * 打印机分析卡片 - v5.9.0
- * 版本: 5.9.0 (2026-05-18) - 任务名称两行显示，之最卡片显示颜色点
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿/**
+ * 打印机分析卡片 - v5.10.8
+ * 版本: 5.10.4 (2026-05-19) - 优化筛选器样式、合并热力图和时长分布
  *
  * 设计特点:
  * - 顶部打印机实时监控（多打印机卡片）
@@ -409,8 +409,8 @@ class PrinterAnalyticsCard extends HTMLElement {
         }
 
         .header-icon {
-          width: 48px;
-          height: 48px;
+          width: 36px;
+          height: 36px;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -494,7 +494,7 @@ class PrinterAnalyticsCard extends HTMLElement {
           border: 1px solid var(--border);
           background: var(--surface-card);
           color: var(--text-secondary);
-          font-size: 13px;
+          font-size: 11px;
           font-weight: 500;
           cursor: pointer;
           transition: all 0.2s ease;
@@ -615,8 +615,8 @@ class PrinterAnalyticsCard extends HTMLElement {
 
         .heatmap-cell {
           aspect-ratio: 1;
-          border-radius: 3px;
-          min-height: 8px;
+          border-radius: 2px;
+          min-height: 2px;
           cursor: default;
           border: 1px solid rgba(255,255,255,0.08);
           transition: all 0.15s ease;
@@ -756,7 +756,7 @@ class PrinterAnalyticsCard extends HTMLElement {
 
         /* ==================== 进度条 ==================== */
         .progress-container {
-          margin-top: 16px;
+          margin-top: 10px;
         }
 
         .progress-header {
@@ -764,7 +764,7 @@ class PrinterAnalyticsCard extends HTMLElement {
           justify-content: space-between;
           font-size: 12px;
           color: var(--text-secondary);
-          margin-bottom: 8px;
+          margin-bottom: 6px;
           font-weight: 600;
         }
 
@@ -858,7 +858,7 @@ class PrinterAnalyticsCard extends HTMLElement {
           align-items: center;
           gap: 12px;
           padding: 10px 14px;
-          margin-bottom: 8px;
+          margin-bottom: 6px;
           border-radius: var(--radius);
           cursor: default;
           transition: all 0.2s ease;
@@ -965,11 +965,11 @@ class PrinterAnalyticsCard extends HTMLElement {
         }
 
         .realtime-label {
-          font-size: 11px;
+          font-size: 10px;
           color: var(--text-muted);
           text-transform: uppercase;
           letter-spacing: 0.6px;
-          margin-bottom: 8px;
+          margin-bottom: 6px;
           font-weight: 600;
         }
 
@@ -982,15 +982,15 @@ class PrinterAnalyticsCard extends HTMLElement {
         /* ==================== AMS耗材盘 ==================== */
         .ams-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-          gap: 14px;
-          margin-top: 16px;
+          grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+          gap: 8px;
+          margin-top: 10px;
         }
 
         .ams-tray {
           background: var(--surface-card);
           border-radius: var(--radius);
-          padding: 16px;
+          padding: 10px;
           text-align: center;
           border: 1px solid var(--border);
           transition: all 0.3s ease;
@@ -1012,14 +1012,14 @@ class PrinterAnalyticsCard extends HTMLElement {
           font-size: 11px;
           color: var(--text-muted);
           font-weight: 600;
-          margin-bottom: 8px;
+          margin-bottom: 6px;
         }
 
         .ams-tray-color {
-          width: 48px;
-          height: 48px;
+          width: 36px;
+          height: 36px;
           border-radius: 50%;
-          margin: 0 auto 10px;
+          margin: 0 auto 6px;
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), inset 0 2px 6px rgba(0, 0, 0, 0.3);
           border: 3px solid rgba(255, 255, 255, 0.15);
         }
@@ -1169,24 +1169,29 @@ class PrinterAnalyticsCard extends HTMLElement {
           flex-wrap: nowrap;
           gap: 6px;
           margin-bottom: 12px;
-          padding: 8px 10px;
+          padding: 12px 10px;
           background: var(--surface-card);
           border-radius: var(--radius);
           border: 1px solid var(--border);
           overflow: hidden;
+          min-height: 56px;
         }
 
         .summary-item {
           flex: 1 1 0;
           text-align: center;
           min-width: 0;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          gap: 2px;
         }
 
         .summary-number {
           font-size: 15px;
           font-weight: 700;
           color: var(--primary-light);
-          line-height: 1.1;
+          line-height: 1.2;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
@@ -1212,7 +1217,7 @@ class PrinterAnalyticsCard extends HTMLElement {
         }
 
         .filter-select {
-          padding: 8px 14px;
+          padding: 8px 32px 8px 14px;
           border: 1px solid var(--border);
           border-radius: var(--radius);
           background: var(--surface-card);
@@ -1222,12 +1227,35 @@ class PrinterAnalyticsCard extends HTMLElement {
           cursor: pointer;
           min-width: 120px;
           transition: all 0.2s ease;
+          appearance: none;
+          position: relative;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+          background-repeat: no-repeat;
+          background-position: right 10px center;
+          background-size: 14px;
+        }
+
+        .filter-select:hover {
+          border-color: var(--primary);
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236366f1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
         }
 
         .filter-select:focus {
           outline: none;
           border-color: var(--primary);
           box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236366f1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+        }
+
+        .filter-select option {
+          background: var(--surface);
+          color: var(--text-primary);
+          padding: 8px 12px;
+          font-size: 13px;
+        }
+
+        .filter-select option:hover {
+          background: var(--surface-hover);
         }
 
         .filter-actions {
@@ -1280,7 +1308,7 @@ class PrinterAnalyticsCard extends HTMLElement {
           justify-content: center;
           align-items: center;
           gap: 6px;
-          margin-top: 16px;
+          margin-top: 10px;
           padding: 12px 0;
         }
 
@@ -1437,7 +1465,7 @@ class PrinterAnalyticsCard extends HTMLElement {
           background: linear-gradient(145deg, var(--glass-bg), rgba(15, 23, 42, 0.98));
           border: 1px solid var(--glass-border);
           border-radius: var(--radius-lg);
-          padding: 16px;
+          padding: 10px;
           max-width: 520px;
           width: 94%;
           max-height: 90vh;
@@ -1547,7 +1575,7 @@ class PrinterAnalyticsCard extends HTMLElement {
           font-size: 15px;
           font-weight: 700;
           color: var(--danger);
-          margin-bottom: 8px;
+          margin-bottom: 6px;
         }
 
         .confirm-text {
@@ -1809,7 +1837,7 @@ class PrinterAnalyticsCard extends HTMLElement {
               <div class="header-title">${title}</div>
             </div>
           </div>
-        <div class="header-badge">v5.8.3</div>
+        <div class="header-badge">v5.10.6</div>
         </div>
       `;
 
@@ -1831,7 +1859,6 @@ class PrinterAnalyticsCard extends HTMLElement {
       html += `<div class="tab-content ${this._activeTab === 'stats' ? 'active' : ''}" id="tab-stats">`;
       html += this._renderPrinterSelector();
       try {
-        html += this._renderTimeDimension();
         html += '<div style="height:1px;background:linear-gradient(90deg,transparent,var(--primary),transparent);margin:20px 0;opacity:0.3;"></div>';
         try { html += this._renderExtremeStats(); } catch (e) {}
         try { html += this._renderRecentPrints(); } catch (e) {}
@@ -1842,20 +1869,17 @@ class PrinterAnalyticsCard extends HTMLElement {
       try { html += this._renderFilamentBarCharts(); } catch (e) {
         html += `<div class="error-state">耗材使用量对比图渲染失败: ${this._escapeHtml(e.message)}</div>`;
       }
-      try { html += this._renderDurationDistribution(); } catch (e) {
-        html += `<div class="error-state">分布图渲染失败: ${this._escapeHtml(e.message)}</div>`;
-      }
-      try { html += this._renderFailureStageDistribution(); } catch (e) {
-        html += `<div class="error-state">失败阶段分布渲染失败: ${this._escapeHtml(e.message)}</div>`;
-      }
-      try { html += this._renderActivityHeatmap(); } catch (e) {
-        html += `<div class="error-state">热力图渲染失败: ${this._escapeHtml(e.message)}</div>`;
+      try { html += this._renderHeatmapWithDuration(); } catch (e) {
+        html += `<div class="error-state">热力图/时长分布渲染失败: ${this._escapeHtml(e.message)}</div>`;
       }
       try { html += this._renderFilamentSuccessStats(); } catch (e) {
         html += `<div class="error-state">耗材成功率渲染失败: ${this._escapeHtml(e.message)}</div>`;
       }
       try { html += this._renderRecordsTab(); } catch (e) {
         html += `<div class="error-state">之最渲染失败: ${this._escapeHtml(e.message)}</div>`;
+      }
+      try { html += this._renderFailureStageDistribution(); } catch (e) {
+        html += `<div class="error-state">失败阶段分布渲染失败: ${this._escapeHtml(e.message)}</div>`;
       }
       html += `</div>`;
 
@@ -2426,7 +2450,18 @@ class PrinterAnalyticsCard extends HTMLElement {
     ];
 
     const d = periodData;
-    const cellStyle = 'text-align:right;padding:6px 8px;white-space:nowrap;';
+    const metrics = [
+      { key: 'totalPrints', label: '次数', icon: '🖨️', color: '' },
+      { key: 'successful', label: '成功', icon: '✅', color: 'color:var(--success);' },
+      { key: 'failed', label: '失败', icon: '❌', color: 'color:var(--danger);' },
+      { key: 'successRate', label: '成功率', icon: '📈', color: '', suffix: '%' },
+      { key: 'totalWeight', label: '重量', icon: '⚖️', color: '', suffix: 'g' },
+      { key: 'totalLength', label: '长度', icon: '📏', color: '', suffix: 'm' },
+      { key: 'totalEnergy', label: '能耗', icon: '⚡', color: '', suffix: 'kWh' },
+      { key: 'avgDuration', label: '均时', icon: '⏱️', color: '', suffix: 'h' },
+    ];
+    const cellStyle = 'padding:4px 8px;text-align:center;font-size:12px;';
+    const labelStyle = 'padding:4px 8px;text-align:left;font-size:12px;font-weight:500;white-space:nowrap;';
     return `
       <div class="section-header">
         <div class="section-title">
@@ -2434,31 +2469,22 @@ class PrinterAnalyticsCard extends HTMLElement {
           <span>周期统计</span>
         </div>
       </div>
-      <div class="chart-container">
-        <table class="stats-table" style="width:100%;">
-          <thead><tr>
-            <th style="text-align:left;">周期</th>
-            <th style="${cellStyle}">🖨️ 次数</th>
-            <th style="${cellStyle}">✅ 成功</th>
-            <th style="${cellStyle}">❌ 失败</th>
-            <th style="${cellStyle}">📈 成功率</th>
-            <th style="${cellStyle}">⚖️ 重量</th>
-            <th style="${cellStyle}">📏 长度</th>
-            <th style="${cellStyle}">⚡ 能耗</th>
-            <th style="${cellStyle}">⏱️ 均时</th>
-          </tr></thead>
+      <div class="chart-container" style="overflow-x:auto;">
+        <table class="stats-table" style="min-width:100%;">
+          <thead>
+            <tr>
+              <th style="${labelStyle}"></th>
+              ${d.map(p => `<th style="${cellStyle};font-weight:600;font-size:11px;white-space:nowrap;">${p.label}</th>`).join('')}
+            </tr>
+          </thead>
           <tbody>
-            ${d.map((p, i) => `
-              <tr ${i === d.length - 1 ? 'style="font-weight:700;"' : ''}>
-                <td style="font-weight:${i === d.length - 1 ? '700' : '600'};">${p.label}</td>
-                <td style="${cellStyle}">${p.totalPrints}</td>
-                <td style="${cellStyle}color:var(--success);">${p.successful}</td>
-                <td style="${cellStyle}color:var(--danger);">${p.failed}</td>
-                <td style="${cellStyle}">${p.successRate}%</td>
-                <td style="${cellStyle}">${p.totalWeight}g</td>
-                <td style="${cellStyle}">${p.totalLength}m</td>
-                <td style="${cellStyle}">${p.totalEnergy}kWh</td>
-                <td style="${cellStyle}">${p.avgDuration}h</td>
+            ${metrics.map(m => `
+              <tr>
+                <td style="${labelStyle}">${m.icon} ${m.label}</td>
+                ${d.map(p => {
+                  const val = p[m.key] || 0;
+                  return `<td style="${cellStyle}${m.color}">${val}${m.suffix || ''}</td>`;
+                }).join('')}
               </tr>`).join('')}
           </tbody>
         </table>
@@ -2672,7 +2698,7 @@ class PrinterAnalyticsCard extends HTMLElement {
 
     const sortedDates = Object.keys(heatmap).filter(k => /^\d{4}-\d{2}-\d{2}$/.test(k)).sort();
     if (sortedDates.length === 0) {
-      return `<div class="section-header"><div class="section-title"><span class="section-icon">🗓️</span><span>打印活动热力图</span></div></div><div class="chart-container"><div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">暂无数据</div></div></div>`;
+      return `<div class="chart-container"><div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">暂无数据</div></div></div>`;
     }
 
     const maxCount = Math.max(...sortedDates.map(k => heatmap[k]), 1);
@@ -2704,7 +2730,89 @@ class PrinterAnalyticsCard extends HTMLElement {
       </div>`;
     }
 
-    return `<div class="section-header"><div class="section-title"><span class="section-icon">🗓️</span><span>打印活动热力图</span></div></div><div class="chart-container" style="padding:8px 10px;"><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;">${cellsHtml}</div></div>`;
+    return `<div class="chart-container" style="padding:8px 10px;"><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;">${cellsHtml}</div></div>`;
+  }
+
+  /**
+   * 渲染热力图和时长分布（合在一起显示）
+   */
+  _renderHeatmapWithDuration() {
+    const heatmapHtml = this._renderActivityHeatmap();
+    const durationHtml = this._renderActivityDurationChart();
+    
+    if (!heatmapHtml && !durationHtml) return '';
+    
+    return `
+      <div class="section-header">
+        <div class="section-title">
+          <span class="section-icon">📊</span>
+          <span>打印活动概览（热力图 + 时长分布）</span>
+        </div>
+      </div>
+      <div class="chart-container" style="display:flex;gap:16px;">
+        <div style="flex:1;">${heatmapHtml || '<div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">暂无热力图数据</div></div>'}</div>
+        <div style="flex:1;">${durationHtml || '<div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">暂无时长数据</div></div>'}</div>
+      </div>
+    `;
+  }
+
+  /**
+   * 渲染活动时长图表（热力图旁边的柱状图）
+   */
+  _renderActivityDurationChart() {
+    const entityId = this._getEntityForPrinter(this._selectedPrinter, 'activity_heatmap');
+    if (this._selectedPrinter !== '全部' && !entityId) return '';
+
+    let heatmap = this._getAggregatedAttr('activity_heatmap');
+    const cleaned = {};
+    for (const key in heatmap) {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(key)) {
+        cleaned[key] = heatmap[key];
+      }
+    }
+    heatmap = cleaned;
+
+    if (Object.keys(heatmap).length === 0) {
+      try {
+        const state = this._getState(entityId);
+        const parsed = typeof state === 'string' ? JSON.parse(state) : state || {};
+        for (const key in parsed) {
+          if (/^\d{4}-\d{2}-\d{2}$/.test(key)) {
+            heatmap[key] = parsed[key];
+          }
+        }
+      } catch { heatmap = {}; }
+    }
+
+    const sortedDates = Object.keys(heatmap).filter(k => /^\d{4}-\d{2}-\d{2}$/.test(k)).sort();
+    if (sortedDates.length === 0) {
+      return `<div style="height:100%;display:flex;flex-direction:column;justify-content:center;align-items:center;"><div class="empty-state-icon">📊</div><div class="empty-state-text">按日期统计</div></div>`;
+    }
+
+    const recentDates = sortedDates.slice(-7);
+    const maxCount = Math.max(...recentDates.map(k => heatmap[k]), 1);
+    
+    const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
+    
+    let barsHtml = '';
+    for (const dateKey of recentDates) {
+      const count = heatmap[dateKey] || 0;
+      const heightPct = (count / maxCount) * 100;
+      const date = new Date(dateKey);
+      const dayLabel = weekDays[date.getDay()];
+      
+      barsHtml += `
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;">
+          <div style="height:120px;width:100%;background:rgba(15,23,42,0.4);border-radius:6px;display:flex;align-items:flex-end;padding:4px;">
+            <div style="width:100%;height:${Math.max(heightPct, 5)}%;background:linear-gradient(to top, var(--primary), var(--secondary));border-radius:4px;transition:height 0.5s ease;"></div>
+          </div>
+          <div style="font-size:11px;color:var(--text-secondary);text-align:center;">${dayLabel}</div>
+          <div style="font-size:12px;font-weight:600;color:var(--primary-light);">${count}</div>
+        </div>
+      `;
+    }
+
+    return `<div style="padding:8px;"><div style="display:flex;gap:8px;height:160px;">${barsHtml}</div></div>`;
   }
 
   /**
@@ -2794,24 +2902,7 @@ class PrinterAnalyticsCard extends HTMLElement {
     const medianDuration = allWithDuration.length > 0
       ? [...allWithDuration].sort((a, b) => a.duration_hours - b.duration_hours)[Math.floor(allWithDuration.length / 2)].duration_hours : 0;
 
-    let html = `<div style="margin-top:20px;">
-      <div class="section-header"><div class="section-title"><span class="section-icon">📊</span><span>统计概览</span></div></div>
-      <div class="chart-container">
-        <table class="stats-table">
-          <thead><tr><th>指标</th><th style="text-align:right;">数值</th></tr></thead>
-          <tbody>
-            <tr><td>📋 总记录数</td><td style="text-align:right;" class="table-value">${records.length} 条</td></tr>
-            <tr><td>✅ 成功数</td><td style="text-align:right;" class="table-value">${finished.length} 条</td></tr>
-            <tr><td>❌ 失败数</td><td style="text-align:right;" class="table-value">${failed.length} 条</td></tr>
-            <tr><td>⏱️ 平均时长</td><td style="text-align:right;" class="table-value">${this._formatDurationHours(avgDuration)}</td></tr>
-            <tr><td>📐 中位时长</td><td style="text-align:right;" class="table-value">${this._formatDurationHours(medianDuration)}</td></tr>
-            <tr><td>⚖️ 平均重量</td><td style="text-align:right;" class="table-value">${avgWeight.toFixed(1)}g</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>`;
-
-    return html;
+    return '';
   }
 
   _renderRecentPrints() {
@@ -2870,9 +2961,10 @@ class PrinterAnalyticsCard extends HTMLElement {
         ).join('');
         if (colorsUsed.length > 4) colorDots += `<span style="font-size:10px;color:var(--text-muted);vertical-align:middle;">+${colorsUsed.length - 4}</span>`;
       }
+      const isFailed = ['failed', 'fail', '失败'].includes(status);
+      const taskNameColor = isFailed ? 'color:var(--danger);font-weight:600;' : '';
       html += `<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surface-card);border-radius:8px;border:1px solid var(--border);flex-wrap:wrap;">
-        <span style="font-size:14px;flex-shrink:0;">${si.icon}</span>
-        <div style="flex:1;min-width:100px;font-size:12px;">${taskNameHtml}</div>
+        <div style="flex:1;min-width:100px;font-size:12px;${taskNameColor}">${taskNameHtml}</div>
         ${dur ? `<span style="font-size:11px;color:var(--text-secondary);white-space:nowrap;">⏱${dur}</span>` : ''}
         ${endTime ? `<span style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${endTime}</span>` : ''}
         ${ft ? `<span style="font-size:11px;color:var(--text-secondary);white-space:nowrap;">🧵${ft}</span>` : ''}
@@ -3108,8 +3200,19 @@ class PrinterAnalyticsCard extends HTMLElement {
     const printers = this._getPrintersConfig();
     let html = `<div class="section-header"><div class="section-title"><span class="section-icon">📡</span><span>实时监控面板</span></div></div>`;
 
-    for (const printer of printers) {
-      const e = printer.entities;
+    // 只显示当前选择的打印机
+    const selectedPrinterName = this._selectedPrinter;
+    let printerToDisplay = null;
+    
+    if (selectedPrinterName !== '全部') {
+      printerToDisplay = printers.find(p => p.printer_name === selectedPrinterName);
+    } else if (printers.length > 0) {
+      // 如果选择"全部"，只显示第一台打印机
+      printerToDisplay = printers[0];
+    }
+    
+    if (printerToDisplay) {
+      const e = printerToDisplay.entities;
       const currentTask = this._getState(e.current_task) || '未配置';
       const printProgress = this._getState(e.print_progress) || '0';
       const currentWeight = this._getState(e.current_weight) || 'N/A';
@@ -3117,6 +3220,7 @@ class PrinterAnalyticsCard extends HTMLElement {
       const speedProfile = this._getState(e.speed_profile) || 'N/A';
       const nozzleSize = this._getState(e.nozzle_size) || 'N/A';
       const activeTray = this._getState(e.active_tray);
+      const endTime = this._getState(e.end_time);
 
       let statusClass = 'idle';
       let statusText = '空闲';
@@ -3128,13 +3232,26 @@ class PrinterAnalyticsCard extends HTMLElement {
         statusText = '已完成';
       }
 
+      // 计算预计完成时间
+      let endDisplay = '';
+      if (endTime && endTime !== 'unknown' && endTime !== 'unavailable') {
+        try {
+          const endDate = new Date(endTime);
+          if (!isNaN(endDate.getTime())) {
+            const hours = endDate.getHours();
+            const mins = endDate.getMinutes();
+            endDisplay = `${hours}:${mins.toString().padStart(2, '0')} 完成`;
+          }
+        } catch (e) {}
+      }
+
       // AMS 耗材盘
       let amsHtml = '';
       const trayKeys = ['ams_1_tray_1', 'ams_1_tray_2', 'ams_1_tray_3', 'ams_1_tray_4'];
       const trays = trayKeys.map((k, i) => ({ num: i + 1, entity: e[k] })).filter(t => t.entity);
       if (trays.length > 0) {
-        amsHtml = `<div style="margin-top:16px;">
-          <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:10px;display:flex;align-items:center;gap:6px;">
+        amsHtml = `<div style="margin-top:12px;">
+          <div style="font-size:12px;font-weight:700;color:var(--text-primary);margin-bottom:8px;display:flex;align-items:center;gap:6px;">
             <span>🎨</span> AMS耗材盘
           </div>
           <div class="ams-grid">`;
@@ -3154,18 +3271,20 @@ class PrinterAnalyticsCard extends HTMLElement {
 
       html += `<div class="realtime-panel" style="margin-bottom:16px;">
         <div class="realtime-header">
-          <div class="realtime-title">🖥️ ${this._escapeHtml(printer.printer_name)}</div>
+          <div class="realtime-title">🖥️ ${this._escapeHtml(printerToDisplay.printer_name)}</div>
           <div class="status-badge ${statusClass}">${statusText}</div>
         </div>
         <div class="realtime-grid">
           <div class="realtime-item">
             <div class="realtime-label">📋 当前任务</div>
             <div class="realtime-value">${this._escapeHtml(currentTask || '空闲')}</div>
-          </div>
           <div class="realtime-item">
             <div class="realtime-label">📊 打印进度</div>
-            <div class="realtime-value">${printProgress}%</div>
-            <div class="progress-track" style="margin-top:8px;">
+            <div class="realtime-value" style="display:flex;justify-content:space-between;align-items:center;">
+              <span>${printProgress}%</span>
+              ${endDisplay ? `<span style="font-size:11px;color:var(--primary-light);font-weight:600;">⏰ ${endDisplay}</span>` : ''}
+            </div>
+            <div class="progress-track" style="margin-top:6px;">
               <div class="progress-fill" style="width:${printProgress}%"></div>
             </div>
           </div>
@@ -3463,6 +3582,7 @@ class PrinterAnalyticsCard extends HTMLElement {
   }
 
   _renderHistoryItem(item, index, options = {}) {
+    const taskName = this._escapeHtml(item.task_name || '未命名任务');
     const taskNameHtml = this._formatTaskName(item);
     const status = (item.status || '').trim().toLowerCase();
     const statusConfig = {

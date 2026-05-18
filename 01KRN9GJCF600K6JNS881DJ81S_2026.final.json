@@ -1,0 +1,1680 @@
+{
+  "version": 3,
+  "year": 2026,
+  "history": [
+    {
+      "id": "552f0417-497a-4b0a-b4d1-017645cfab2a",
+      "start_time": "2026-04-23T17:02:45.154474+00:00",
+      "end_time": "2026-04-23T17:16:42.335605+00:00",
+      "status": "finish",
+      "progress": 100,
+      "total_weight": null,
+      "total_length": null,
+      "filament_type": null,
+      "filament_color": null,
+      "energy_kwh": null,
+      "task_name": null,
+      "nozzle_type": null,
+      "nozzle_size": null,
+      "print_bed_type": null,
+      "total_layer_count": null,
+      "cover_image_url": null,
+      "cover_image_local": null,
+      "snapshot_image_local": null,
+      "full_print_info_path": null,
+      "duration_hours": 0.23,
+      "colors_used": [],
+      "types_used": [],
+      "total_colors": 0,
+      "color_changes_count": 0,
+      "color_usage": [],
+      "chamber_temp_final": null,
+      "chamber_temp_last5min": null,
+      "multi_color_summary": null
+    },
+    {
+      "id": "123ffba3-a8de-47f3-9aec-95880fbe5360",
+      "start_time": "2026-04-25T03:03:40.135651+00:00",
+      "end_time": "2026-04-25T03:24:41.245117+00:00",
+      "status": "finish",
+      "progress": 100,
+      "total_weight": null,
+      "total_length": null,
+      "filament_type": null,
+      "filament_color": null,
+      "energy_kwh": 0.2,
+      "task_name": null,
+      "nozzle_type": null,
+      "nozzle_size": null,
+      "print_bed_type": null,
+      "total_layer_count": null,
+      "cover_image_url": null,
+      "cover_image_local": null,
+      "snapshot_image_local": null,
+      "full_print_info_path": null,
+      "duration_hours": 0.35,
+      "colors_used": [],
+      "types_used": [],
+      "total_colors": 0,
+      "color_changes_count": 0,
+      "color_usage": [],
+      "chamber_temp_final": null,
+      "chamber_temp_last5min": null,
+      "multi_color_summary": null
+    },
+    {
+      "id": "384948ce-7eb1-4af6-be2f-7734c322f757",
+      "start_time": "2026-04-26T11:10:50.787356+00:00",
+      "end_time": "2026-04-26T12:10:19.353013+00:00",
+      "status": "finish",
+      "progress": 100,
+      "total_weight": null,
+      "total_length": null,
+      "filament_type": null,
+      "filament_color": null,
+      "energy_kwh": 0.31,
+      "task_name": null,
+      "nozzle_type": null,
+      "nozzle_size": null,
+      "print_bed_type": null,
+      "total_layer_count": null,
+      "cover_image_url": null,
+      "cover_image_local": null,
+      "snapshot_image_local": null,
+      "full_print_info_path": null,
+      "duration_hours": 0.99,
+      "colors_used": [],
+      "types_used": [],
+      "total_colors": 0,
+      "color_changes_count": 0,
+      "color_usage": [],
+      "chamber_temp_final": null,
+      "chamber_temp_last5min": null,
+      "multi_color_summary": null
+    },
+    {
+      "id": "8c06ed78-8bef-41c8-98e7-189acdf599b5",
+      "start_time": "2026-04-26T21:21:56.076787+00:00",
+      "end_time": "2026-04-26T21:28:53.181560+00:00",
+      "status": "finish",
+      "progress": 100,
+      "total_weight": null,
+      "total_length": null,
+      "filament_type": null,
+      "filament_color": null,
+      "energy_kwh": 0.19,
+      "task_name": null,
+      "nozzle_type": null,
+      "nozzle_size": null,
+      "print_bed_type": null,
+      "total_layer_count": null,
+      "cover_image_url": null,
+      "cover_image_local": null,
+      "snapshot_image_local": null,
+      "full_print_info_path": null,
+      "duration_hours": 0.12,
+      "colors_used": [],
+      "types_used": [],
+      "total_colors": 0,
+      "color_changes_count": 0,
+      "color_usage": [],
+      "chamber_temp_final": null,
+      "chamber_temp_last5min": null,
+      "multi_color_summary": null
+    },
+    {
+      "id": "35e01aca-7408-4d5d-8893-30f433774ccc",
+      "start_time": "2026-04-27T08:11:43.288986+00:00",
+      "end_time": "2026-04-27T09:49:14.418252+00:00",
+      "status": "finish",
+      "progress": 100,
+      "total_weight": null,
+      "total_length": null,
+      "filament_type": null,
+      "filament_color": null,
+      "energy_kwh": 0.17,
+      "task_name": null,
+      "nozzle_type": null,
+      "nozzle_size": null,
+      "print_bed_type": null,
+      "total_layer_count": null,
+      "cover_image_url": null,
+      "cover_image_local": null,
+      "snapshot_image_local": null,
+      "full_print_info_path": null,
+      "duration_hours": 1.63,
+      "colors_used": [],
+      "types_used": [],
+      "total_colors": 0,
+      "color_changes_count": 0,
+      "color_usage": [],
+      "chamber_temp_final": null,
+      "chamber_temp_last5min": null,
+      "multi_color_summary": null
+    },
+    {
+      "id": "ec3e5ebd-5a63-42cc-a661-1f32c88b1b46",
+      "start_time": "2026-04-27T14:08:36.110250+00:00",
+      "end_time": "2026-04-27T16:27:15.401952+00:00",
+      "status": "finish",
+      "progress": 100,
+      "total_weight": null,
+      "total_length": null,
+      "filament_type": null,
+      "filament_color": null,
+      "energy_kwh": 0.15,
+      "task_name": null,
+      "nozzle_type": null,
+      "nozzle_size": null,
+      "print_bed_type": null,
+      "total_layer_count": null,
+      "cover_image_url": null,
+      "cover_image_local": null,
+      "snapshot_image_local": null,
+      "full_print_info_path": "/local/printer_analytics/print_info/unknown_2026_04_27T16_27_15.json",
+      "duration_hours": 2.31,
+      "colors_used": [],
+      "types_used": [],
+      "total_colors": 0,
+      "color_changes_count": 0,
+      "color_usage": [],
+      "chamber_temp_final": null,
+      "chamber_temp_last5min": null,
+      "multi_color_summary": null
+    },
+    {
+      "id": "70cc859b-6963-44bf-916e-18084cb03638",
+      "start_time": "2026-04-27T17:30:09.958356+00:00",
+      "end_time": "2026-04-27T18:26:03.104677+00:00",
+      "status": "finish",
+      "progress": 100,
+      "total_weight": null,
+      "total_length": null,
+      "filament_type": null,
+      "filament_color": null,
+      "energy_kwh": 0.15,
+      "task_name": null,
+      "nozzle_type": null,
+      "nozzle_size": null,
+      "print_bed_type": null,
+      "total_layer_count": null,
+      "cover_image_url": null,
+      "cover_image_local": null,
+      "snapshot_image_local": null,
+      "full_print_info_path": "/local/printer_analytics/print_info/unknown_2026_04_27T18_26_03.json",
+      "duration_hours": 0.93,
+      "colors_used": [],
+      "types_used": [],
+      "total_colors": 0,
+      "color_changes_count": 0,
+      "color_usage": [],
+      "chamber_temp_final": null,
+      "chamber_temp_last5min": null,
+      "multi_color_summary": null
+    },
+    {
+      "id": "df43d0de-2b53-49fc-ae98-3214b0dbdf93",
+      "start_time": "2026-04-27T22:10:18.797440+00:00",
+      "end_time": "2026-04-27T23:01:15.881121+00:00",
+      "status": "finish",
+      "progress": 100,
+      "total_weight": null,
+      "total_length": null,
+      "filament_type": null,
+      "filament_color": null,
+      "energy_kwh": 0.18,
+      "task_name": null,
+      "nozzle_type": null,
+      "nozzle_size": null,
+      "print_bed_type": null,
+      "total_layer_count": null,
+      "cover_image_url": null,
+      "cover_image_local": null,
+      "snapshot_image_local": null,
+      "full_print_info_path": "/local/printer_analytics/print_info/unknown_2026_04_27T23_01_15.json",
+      "duration_hours": 0.85,
+      "colors_used": [],
+      "types_used": [],
+      "total_colors": 0,
+      "color_changes_count": 0,
+      "color_usage": [],
+      "chamber_temp_final": null,
+      "chamber_temp_last5min": null,
+      "multi_color_summary": null
+    },
+    {
+      "id": "ebd1f1aa-7994-4131-ba3d-f3bac5eed761",
+      "start_time": "2026-04-28T08:12:07.195503+00:00",
+      "end_time": "2026-04-28T09:05:51.788697+00:00",
+      "status": "finish",
+      "progress": 100,
+      "total_weight": null,
+      "total_length": null,
+      "filament_type": null,
+      "filament_color": null,
+      "energy_kwh": null,
+      "task_name": null,
+      "nozzle_type": null,
+      "nozzle_size": null,
+      "print_bed_type": null,
+      "total_layer_count": null,
+      "cover_image_url": null,
+      "cover_image_local": null,
+      "snapshot_image_local": null,
+      "full_print_info_path": "/local/printer_analytics/print_info/unknown_2026_04_28T09_05_51.json",
+      "duration_hours": 0.9,
+      "colors_used": [],
+      "types_used": [],
+      "total_colors": 0,
+      "color_changes_count": 0,
+      "color_usage": [],
+      "chamber_temp_final": null,
+      "chamber_temp_last5min": null,
+      "multi_color_summary": null
+    },
+    {
+      "id": "ea75d379-09ca-4a28-8ae9-ba2a6e1e3b00",
+      "start_time": "2026-04-28T11:43:39+00:00",
+      "end_time": "2026-04-28T14:00:38.838705+00:00",
+      "status": "finish",
+      "progress": 100,
+      "total_weight": 54.29,
+      "total_length": 17.77,
+      "filament_type": "Generic PETG HF",
+      "filament_color": "#898989FF",
+      "energy_kwh": 0.17,
+      "task_name": null,
+      "nozzle_type": "hardened_steel",
+      "nozzle_size": null,
+      "print_bed_type": "textured_plate",
+      "total_layer_count": null,
+      "cover_image_url": "/api/image_proxy/image.p2s_22e8bj5a2401765_cover_image?token=b443e7f4c3a8f52175c34c0bc16f0825ee4646eb6da90b1dd6e41169c14b4c35",
+      "cover_image_local": null,
+      "snapshot_image_local": null,
+      "full_print_info_path": "/local/printer_analytics/print_info/unknown_2026_04_28T14_00_38.json",
+      "duration_hours": 2.28,
+      "colors_used": [
+        "#898989FF"
+      ],
+      "types_used": [
+        "Generic PETG HF"
+      ],
+      "total_colors": 1,
+      "color_changes_count": 0,
+      "color_usage": [],
+      "chamber_temp_final": null,
+      "chamber_temp_last5min": null,
+      "multi_color_summary": null
+    },
+    {
+      "id": "2882c94a-8d91-486b-83cc-6a1f9b74be6a",
+      "start_time": "2026-04-28T17:55:36+00:00",
+      "end_time": "2026-04-28T19:09:48.419853+00:00",
+      "status": "finish",
+      "progress": 100,
+      "total_weight": 24.6,
+      "total_length": 8.05,
+      "filament_type": "Generic PETG HF",
+      "filament_color": "#898989FF",
+      "energy_kwh": 0.18,
+      "task_name": null,
+      "nozzle_type": "hardened_steel",
+      "nozzle_size": null,
+      "print_bed_type": "textured_plate",
+      "total_layer_count": null,
+      "cover_image_url": "/api/image_proxy/image.p2s_22e8bj5a2401765_cover_image?token=ae004fa91c50c26f7d4d2d9662ed310c8bfa7e48643791d35531faad1f73f763",
+      "cover_image_local": null,
+      "snapshot_image_local": null,
+      "full_print_info_path": "/local/printer_analytics/print_info/unknown_2026_04_28T19_09_48.json",
+      "duration_hours": 1.24,
+      "colors_used": [
+        "#898989FF"
+      ],
+      "types_used": [
+        "Generic PETG HF"
+      ],
+      "total_colors": 1,
+      "color_changes_count": 0,
+      "color_usage": [],
+      "chamber_temp_final": null,
+      "chamber_temp_last5min": null,
+      "multi_color_summary": null
+    },
+    {
+      "id": "38d86896-7587-4d5a-b665-90f84cb1c7fa",
+      "start_time": "2026-04-29T06:04:40+00:00",
+      "end_time": "2026-04-29T07:03:12.418534+00:00",
+      "status": "finish",
+      "progress": 100,
+      "total_weight": 18.77,
+      "total_length": 6.15,
+      "filament_type": "Generic PETG",
+      "filament_color": "#898989FF",
+      "energy_kwh": null,
+      "task_name": null,
+      "nozzle_type": "hardened_steel",
+      "nozzle_size": null,
+      "print_bed_type": "textured_plate",
+      "total_layer_count": null,
+      "cover_image_url": "/api/image_proxy/image.p2s_22e8bj5a2401765_cover_image?token=20664a93592c8fd48ea3985888dec0db7f6e33b5a86150df94d4d2ca2b63a508",
+      "cover_image_local": null,
+      "snapshot_image_local": null,
+      "full_print_info_path": "/local/printer_analytics/print_info/unknown_2026_04_29T07_03_12.json",
+      "duration_hours": 0.98,
+      "colors_used": [
+        "#898989FF"
+      ],
+      "types_used": [
+        "Generic PETG"
+      ],
+      "total_colors": 1,
+      "color_changes_count": 0,
+      "color_usage": [],
+      "chamber_temp_final": null,
+      "chamber_temp_last5min": null,
+      "multi_color_summary": null
+    },
+    {
+      "id": "3b47a959-3ab7-43bc-840a-1c0a5758a51b",
+      "start_time": "2026-04-29T11:19:36+00:00",
+      "end_time": "2026-04-29T12:39:22.337581+00:00",
+      "status": "finish",
+      "progress": 100,
+      "total_weight": 27.89,
+      "total_length": 9.13,
+      "filament_type": "Generic PETG HF",
+      "filament_color": "#898989FF",
+      "energy_kwh": 0.17,
+      "task_name": null,
+      "nozzle_type": "hardened_steel",
+      "nozzle_size": null,
+      "print_bed_type": "textured_plate",
+      "total_layer_count": null,
+      "cover_image_url": "/api/image_proxy/image.p2s_22e8bj5a2401765_cover_image?token=7523cea86ec5158ab3babc3bc70de1df79011bb2568fa30a4d250986c31c0e11",
+      "cover_image_local": null,
+      "snapshot_image_local": null,
+      "full_print_info_path": "/local/printer_analytics/print_info/unknown_2026_04_29T12_39_22.json",
+      "duration_hours": 1.33,
+      "colors_used": [
+        "#898989FF"
+      ],
+      "types_used": [
+        "Generic PETG HF"
+      ],
+      "total_colors": 1,
+      "color_changes_count": 0,
+      "color_usage": [],
+      "chamber_temp_final": null,
+      "chamber_temp_last5min": null,
+      "multi_color_summary": null
+    },
+    {
+      "id": "8569f1ae-511a-4736-8964-25b3e495101e",
+      "start_time": "2026-05-02T07:20:36+00:00",
+      "end_time": "2026-05-02T08:18:40.842894+00:00",
+      "status": "finish",
+      "progress": 100,
+      "total_weight": 19.83,
+      "total_length": 6.49,
+      "filament_type": "Generic PETG HF",
+      "filament_color": "#898989FF",
+      "energy_kwh": 0.13,
+      "task_name": null,
+      "nozzle_type": "hardened_steel",
+      "nozzle_size": null,
+      "print_bed_type": "Textured PEI Plate",
+      "total_layer_count": null,
+      "cover_image_url": "/api/image_proxy/image.p2s_22e8bj5a2401765_cover_image?token=59352baf0229c251840501033ad13eca06f6985372a323d58352faf3e32ca75f",
+      "cover_image_local": null,
+      "snapshot_image_local": null,
+      "full_print_info_path": "/local/printer_analytics/print_info/unknown_2026_05_02T08_18_40.json",
+      "duration_hours": 0.97,
+      "colors_used": [
+        "#898989FF"
+      ],
+      "types_used": [
+        "Generic PETG HF"
+      ],
+      "total_colors": 1,
+      "color_changes_count": 0,
+      "color_usage": [],
+      "chamber_temp_final": null,
+      "chamber_temp_last5min": null,
+      "multi_color_summary": null
+    },
+    {
+      "id": "441c386a-0bc7-4ea4-ba40-f79dda10bea6",
+      "start_time": "2026-05-02T12:02:03+00:00",
+      "end_time": "2026-05-02T13:06:37.959886+00:00",
+      "status": "finish",
+      "progress": 100,
+      "total_weight": 21.3,
+      "total_length": 6.97,
+      "filament_type": "Generic PETG HF",
+      "filament_color": "#898989FF",
+      "energy_kwh": 0.18,
+      "task_name": null,
+      "nozzle_type": "hardened_steel",
+      "nozzle_size": null,
+      "print_bed_type": "textured_plate",
+      "total_layer_count": null,
+      "cover_image_url": "/api/image_proxy/image.p2s_22e8bj5a2401765_cover_image?token=359684bd3098d9dfa8449159b12d898230552ba9dc7b3b1e320fe7f4c6aeab60",
+      "cover_image_local": null,
+      "snapshot_image_local": null,
+      "full_print_info_path": "/local/printer_analytics/print_info/unknown_2026_05_02T13_06_37.json",
+      "duration_hours": 1.08,
+      "colors_used": [
+        "#898989FF"
+      ],
+      "types_used": [
+        "Generic PETG HF"
+      ],
+      "total_colors": 1,
+      "color_changes_count": 0,
+      "color_usage": [],
+      "chamber_temp_final": null,
+      "chamber_temp_last5min": null,
+      "multi_color_summary": null
+    },
+    {
+      "id": "0e11e0f3-747c-4994-9920-ee85f3e56a33",
+      "start_time": "2026-05-02T15:57:07+00:00",
+      "end_time": "2026-05-02T16:35:17.282851+00:00",
+      "status": "finish",
+      "progress": 100,
+      "total_weight": 12.4,
+      "total_length": 4.05,
+      "filament_type": "Generic PETG HF",
+      "filament_color": "#898989FF",
+      "energy_kwh": 0.18,
+      "task_name": null,
+      "nozzle_type": "hardened_steel",
+      "nozzle_size": null,
+      "print_bed_type": "textured_plate",
+      "total_layer_count": null,
+      "cover_image_url": "/api/image_proxy/image.p2s_22e8bj5a2401765_cover_image?token=fbde2571a81c7f96431dae3e58180fb9434e1ed2960be53b25c8f228c8f1be8f",
+      "cover_image_local": null,
+      "snapshot_image_local": null,
+      "full_print_info_path": "/local/printer_analytics/print_info/unknown_2026_05_02T16_35_17.json",
+      "duration_hours": 0.64,
+      "colors_used": [
+        "#898989FF"
+      ],
+      "types_used": [
+        "Generic PETG HF"
+      ],
+      "total_colors": 1,
+      "color_changes_count": 0,
+      "color_usage": [],
+      "chamber_temp_final": null,
+      "chamber_temp_last5min": null,
+      "multi_color_summary": null
+    },
+    {
+      "id": "331b460e-9027-420f-ab49-6432f9002a4e",
+      "start_time": "2026-05-03T03:10:52+00:00",
+      "end_time": "2026-05-03T03:31:49.281306+00:00",
+      "status": "finish",
+      "progress": 100,
+      "total_weight": 6.92,
+      "total_length": 2.27,
+      "filament_type": "Generic PETG HF",
+      "filament_color": "#898989FF",
+      "energy_kwh": 0.2,
+      "task_name": null,
+      "nozzle_type": "hardened_steel",
+      "nozzle_size": null,
+      "print_bed_type": "textured_plate",
+      "total_layer_count": null,
+      "cover_image_url": "/api/image_proxy/image.p2s_22e8bj5a2401765_cover_image?token=96b56eb4f3b2c384031ee20b1eb08a9049ac0f02403164579f14fbd0992d7504",
+      "cover_image_local": null,
+      "snapshot_image_local": null,
+      "full_print_info_path": "/local/printer_analytics/print_info/unknown_2026_05_03T03_31_49.json",
+      "duration_hours": 0.35,
+      "colors_used": [
+        "#898989FF"
+      ],
+      "types_used": [
+        "Generic PETG HF"
+      ],
+      "total_colors": 1,
+      "color_changes_count": 0,
+      "color_usage": [],
+      "chamber_temp_final": null,
+      "chamber_temp_last5min": null,
+      "multi_color_summary": null
+    },
+    {
+      "id": "664893b5-1220-44b7-8379-a7146fdc9867",
+      "start_time": "2026-05-03T06:10:00+00:00",
+      "end_time": "2026-05-03T06:31:50.052232+00:00",
+      "status": "finish",
+      "progress": 100,
+      "total_weight": 4.48,
+      "total_length": 1.47,
+      "filament_type": "Generic PETG HF",
+      "filament_color": "#898989FF",
+      "energy_kwh": 0.16,
+      "task_name": null,
+      "nozzle_type": "hardened_steel",
+      "nozzle_size": null,
+      "print_bed_type": "textured_plate",
+      "total_layer_count": null,
+      "cover_image_url": "/api/image_proxy/image.p2s_22e8bj5a2401765_cover_image?token=81b2056d8211aa4368d905fb324cdd84bf5dfaf7ee65e0d83e7622d4ac2c9158",
+      "cover_image_local": null,
+      "snapshot_image_local": null,
+      "full_print_info_path": "/local/printer_analytics/print_info/unknown_2026_05_03T06_31_50.json",
+      "duration_hours": 0.36,
+      "colors_used": [
+        "#898989FF"
+      ],
+      "types_used": [
+        "Generic PETG HF"
+      ],
+      "total_colors": 1,
+      "color_changes_count": 0,
+      "color_usage": [],
+      "chamber_temp_final": null,
+      "chamber_temp_last5min": null,
+      "multi_color_summary": null
+    },
+    {
+      "id": "f293f5d2-e0f0-4526-8b0c-354a99780dc8",
+      "start_time": "2026-05-03T13:20:00+00:00",
+      "end_time": "2026-05-03T13:51:10.979127+00:00",
+      "status": "finish",
+      "progress": 100,
+      "total_weight": 2.21,
+      "total_length": 0.72,
+      "filament_type": "Generic PETG HF",
+      "filament_color": "#898989FF",
+      "energy_kwh": 0.21,
+      "task_name": null,
+      "nozzle_type": "hardened_steel",
+      "nozzle_size": null,
+      "print_bed_type": "textured_plate",
+      "total_layer_count": null,
+      "cover_image_url": "/api/image_proxy/image.p2s_22e8bj5a2401765_cover_image?token=be3329dfd1c9b15c0477b693afb6148db79acfe1659912fc2ec0b9d377a28564",
+      "cover_image_local": null,
+      "snapshot_image_local": null,
+      "full_print_info_path": "/local/printer_analytics/print_info/unknown_2026_05_03T13_51_10.json",
+      "duration_hours": 0.52,
+      "colors_used": [
+        "#898989FF"
+      ],
+      "types_used": [
+        "Generic PETG HF"
+      ],
+      "total_colors": 1,
+      "color_changes_count": 0,
+      "color_usage": [],
+      "chamber_temp_final": null,
+      "chamber_temp_last5min": null,
+      "multi_color_summary": null
+    },
+    {
+      "id": "fb336872-97af-4fbf-b98b-d3bcda8f0754",
+      "start_time": "2026-05-03T14:25:00+00:00",
+      "end_time": "2026-05-03T14:54:44.540503+00:00",
+      "status": "finish",
+      "progress": 100,
+      "total_weight": 2.02,
+      "total_length": 0.66,
+      "filament_type": "Generic PETG HF",
+      "filament_color": "#898989FF",
+      "energy_kwh": 0.2,
+      "task_name": null,
+      "nozzle_type": "hardened_steel",
+      "nozzle_size": null,
+      "print_bed_type": "textured_plate",
+      "total_layer_count": null,
+      "cover_image_url": "/api/image_proxy/image.p2s_22e8bj5a2401765_cover_image?token=de6edef027e64a5c2184f181ad2534ff16e2a88acd8327a7b6a298428836e78c",
+      "cover_image_local": null,
+      "snapshot_image_local": null,
+      "full_print_info_path": "/local/printer_analytics/print_info/unknown_2026_05_03T14_54_44.json",
+      "duration_hours": 0.5,
+      "colors_used": [
+        "#898989FF"
+      ],
+      "types_used": [
+        "Generic PETG HF"
+      ],
+      "total_colors": 1,
+      "color_changes_count": 0,
+      "color_usage": [],
+      "chamber_temp_final": null,
+      "chamber_temp_last5min": null,
+      "multi_color_summary": null
+    },
+    {
+      "id": "f738bbf3-2c00-4cab-aaa7-ed83eb8e2d47",
+      "start_time": "2026-05-03T17:41:00+00:00",
+      "end_time": "2026-05-03T18:10:21.400874+00:00",
+      "status": "finish",
+      "progress": 100,
+      "total_weight": 2.02,
+      "total_length": 0.66,
+      "filament_type": "Generic PETG HF",
+      "filament_color": "#898989FF",
+      "energy_kwh": 0.19,
+      "task_name": null,
+      "nozzle_type": "hardened_steel",
+      "nozzle_size": null,
+      "print_bed_type": "textured_plate",
+      "total_layer_count": null,
+      "cover_image_url": "/api/image_proxy/image.p2s_22e8bj5a2401765_cover_image?token=dd8ed8077785bc39300e91b5e644bc43b65582dca8090c115184c836e792b84e",
+      "cover_image_local": null,
+      "snapshot_image_local": null,
+      "full_print_info_path": "/local/printer_analytics/print_info/unknown_2026_05_03T18_10_21.json",
+      "duration_hours": 0.49,
+      "colors_used": [
+        "#898989FF"
+      ],
+      "types_used": [
+        "Generic PETG HF"
+      ],
+      "total_colors": 1,
+      "color_changes_count": 0,
+      "color_usage": [],
+      "chamber_temp_final": null,
+      "chamber_temp_last5min": null,
+      "multi_color_summary": null
+    },
+    {
+      "id": "ccc54659-a816-496d-9989-026cefa02982",
+      "start_time": "2026-05-03T19:55:18+00:00",
+      "end_time": "2026-05-03T22:11:54.855558+00:00",
+      "status": "finish",
+      "progress": 100,
+      "total_weight": 37.65,
+      "total_length": 12.32,
+      "filament_type": "Generic PETG HF",
+      "filament_color": "#898989FF",
+      "energy_kwh": 0.16,
+      "task_name": null,
+      "nozzle_type": "hardened_steel",
+      "nozzle_size": null,
+      "print_bed_type": "textured_plate",
+      "total_layer_count": null,
+      "cover_image_url": "/api/image_proxy/image.p2s_22e8bj5a2401765_cover_image?token=e3aeec643e5e93dbd86efc8bd8fa7b69cb1a745e553dad21eb1f6f790badc12f",
+      "cover_image_local": null,
+      "snapshot_image_local": null,
+      "full_print_info_path": "/local/printer_analytics/print_info/unknown_2026_05_03T22_11_54.json",
+      "duration_hours": 2.28,
+      "colors_used": [
+        "#898989FF"
+      ],
+      "types_used": [
+        "Generic PETG HF"
+      ],
+      "total_colors": 1,
+      "color_changes_count": 0,
+      "color_usage": [],
+      "chamber_temp_final": null,
+      "chamber_temp_last5min": null,
+      "multi_color_summary": null
+    },
+    {
+      "id": "06c51200-d764-4403-b00b-81d2f1328d2d",
+      "start_time": "2026-05-04T14:45:11+00:00",
+      "end_time": "2026-05-04T16:33:11.558407+00:00",
+      "status": "finish",
+      "progress": 100,
+      "total_weight": 24.65,
+      "total_length": 8.07,
+      "filament_type": "Generic PETG HF",
+      "filament_color": "#898989FF",
+      "energy_kwh": 0.17,
+      "task_name": null,
+      "nozzle_type": "hardened_steel",
+      "nozzle_size": null,
+      "print_bed_type": "textured_plate",
+      "total_layer_count": null,
+      "cover_image_url": "/api/image_proxy/image.p2s_22e8bj5a2401765_cover_image?token=d0ecfd647baaedf5b49476457b8ec007ef533a17f243b74d50107836ba210813",
+      "cover_image_local": null,
+      "snapshot_image_local": null,
+      "full_print_info_path": "/local/printer_analytics/print_info/unknown_2026_05_04T16_33_11.json",
+      "duration_hours": 1.8,
+      "colors_used": [
+        "#898989FF"
+      ],
+      "types_used": [
+        "Generic PETG HF"
+      ],
+      "total_colors": 1,
+      "color_changes_count": 0,
+      "color_usage": [],
+      "chamber_temp_final": null,
+      "chamber_temp_last5min": null,
+      "multi_color_summary": null
+    },
+    {
+      "id": "71317122-3013-40ef-a493-279575119b48",
+      "start_time": "2026-05-06T21:11:32+00:00",
+      "end_time": "2026-05-07T01:15:14.897039+00:00",
+      "duration_hours": 4.06,
+      "status": "finish",
+      "progress": 100,
+      "total_weight": 77.09,
+      "total_length": 25.24,
+      "filament_type": "Generic PETG",
+      "filament_color": "#FFFFFFFF",
+      "energy_kwh": 0.16,
+      "task_name": null,
+      "nozzle_type": "hardened_steel",
+      "nozzle_size": null,
+      "print_bed_type": "Textured PEI Plate",
+      "total_layer_count": null,
+      "cover_image_url": "/api/image_proxy/image.p2s_22e8bj5a2401765_cover_image?token=f459f1f49403918f3563b52ac5bdb6901a5fa59c9e64a38acb43c5224117bd7a",
+      "cover_image_local": null,
+      "snapshot_image_local": null,
+      "full_print_info_path": "/local/printer_analytics/print_info/unknown_2026_05_07T01_15_14.json",
+      "colors_used": [
+        "#FFFFFFFF"
+      ],
+      "types_used": [
+        "Generic PETG"
+      ],
+      "total_colors": 1,
+      "color_changes_count": 0,
+      "color_usage": [],
+      "chamber_temp_final": null,
+      "chamber_temp_last5min": null,
+      "multi_color_summary": null
+    },
+    {
+      "id": "1d7b06b8-432f-4f01-a70d-6091ecaf02b6",
+      "start_time": "2026-05-07T18:29:59+00:00",
+      "end_time": "2026-05-08T01:48:21.865478+00:00",
+      "duration_hours": 7.31,
+      "status": "finish",
+      "progress": 100,
+      "total_weight": 53.6,
+      "total_length": 17.55,
+      "filament_type": "Generic PETG HF",
+      "filament_color": "#898989FF",
+      "colors_used": [
+        "#898989FF"
+      ],
+      "types_used": [
+        "Generic PETG HF"
+      ],
+      "total_colors": 1,
+      "color_changes_count": 0,
+      "color_usage": [
+        {
+          "color": "#898989FF",
+          "type": "Generic PETG HF",
+          "weight_g": 53.6,
+          "length_m": 17.55,
+          "start_time": "2026-05-08 02:29:59"
+        }
+      ],
+      "energy_kwh": 0.15,
+      "task_name": "玫瑰",
+      "nozzle_type": "hardened_steel",
+      "nozzle_size": null,
+      "print_bed_type": "textured_plate",
+      "total_layer_count": null,
+      "cover_image_url": "/api/image_proxy/image.p2s_22e8bj5a2401765_cover_image?token=80cd541923cd4c0e58e71b70cf68b7a127d770e23a674330b612d936d81b0ce9",
+      "cover_image_local": "/local/printer_analytics/unknown_2026_05_08T01_48_21.jpg",
+      "snapshot_image_local": null,
+      "full_print_info_path": "/local/printer_analytics/print_info/unknown_2026_05_08T01_48_21.json",
+      "color_changes": [],
+      "chamber_temp_final": null,
+      "chamber_temp_last5min": null,
+      "multi_color_summary": null
+    },
+    {
+      "id": "d8f18810-41bb-476b-819b-d1bd71bfe4ef",
+      "start_time": "2026-05-08T09:56:01+00:00",
+      "end_time": "2026-05-08T10:08:04.932351+00:00",
+      "duration_hours": 0.2,
+      "status": "finish",
+      "progress": 100,
+      "total_weight": 0.87,
+      "total_length": 0.28,
+      "filament_type": "Generic PETG HF",
+      "filament_color": "#898989FF",
+      "colors_used": [
+        "#898989FF"
+      ],
+      "types_used": [
+        "Generic PETG HF"
+      ],
+      "total_colors": 1,
+      "color_changes_count": 0,
+      "color_usage": [
+        {
+          "color": "#898989FF",
+          "type": "Generic PETG HF",
+          "weight_g": 0.87,
+          "length_m": 0.28,
+          "start_time": "2026-05-08 17:56:01"
+        }
+      ],
+      "energy_kwh": 0.23,
+      "task_name": "超低成本!一锅出!电动回卷 TOP AMS/DMS 485 挤出机 一体式电动回卷料架",
+      "nozzle_type": "hardened_steel",
+      "nozzle_size": null,
+      "print_bed_type": "Textured PEI Plate",
+      "total_layer_count": null,
+      "cover_image_url": "/api/image_proxy/image.p2s_22e8bj5a2401765_cover_image?token=32e26c74197ffaa61bd17af5d246d51e627bd89f55680e6d28f60c59fce8b62c",
+      "cover_image_local": "/local/printer_analytics/unknown_2026_05_08T10_08_04.jpg",
+      "snapshot_image_local": null,
+      "full_print_info_path": "/local/printer_analytics/print_info/unknown_2026_05_08T10_08_04.json",
+      "color_changes": [],
+      "chamber_temp_final": null,
+      "chamber_temp_last5min": null,
+      "multi_color_summary": null
+    },
+    {
+      "id": "9e8ab5e5-2a19-4a25-9cdd-ac98edcdfee2",
+      "start_time": "2026-05-08T10:11:44+00:00",
+      "end_time": "2026-05-08T10:45:54.115115+00:00",
+      "duration_hours": 0.57,
+      "status": "finish",
+      "progress": 100,
+      "total_weight": 3.79,
+      "total_length": 1.24,
+      "filament_type": "Generic PETG HF",
+      "filament_color": "#898989FF",
+      "colors_used": [
+        "#898989FF"
+      ],
+      "types_used": [
+        "Generic PETG HF"
+      ],
+      "total_colors": 1,
+      "color_changes_count": 0,
+      "color_usage": [
+        {
+          "color": "#898989FF",
+          "type": "Generic PETG HF",
+          "weight_g": 3.79,
+          "length_m": 1.24,
+          "start_time": "2026-05-08 18:11:44"
+        }
+      ],
+      "energy_kwh": null,
+      "task_name": "超低成本!一锅出!电动回卷 TOP AMS/DMS 485 挤出机 一体式电动回卷料架",
+      "nozzle_type": "hardened_steel",
+      "nozzle_size": null,
+      "print_bed_type": "Textured PEI Plate",
+      "total_layer_count": null,
+      "cover_image_url": "/api/image_proxy/image.p2s_22e8bj5a2401765_cover_image?token=d9999b3b94a0170c16980bdf97dfb3dd43838f59c8ba352763cdac8054aa46d4",
+      "cover_image_local": "/local/printer_analytics/unknown_2026_05_08T10_45_54.jpg",
+      "snapshot_image_local": null,
+      "full_print_info_path": "/local/printer_analytics/print_info/unknown_2026_05_08T10_45_54.json",
+      "color_changes": [],
+      "chamber_temp_final": null,
+      "chamber_temp_last5min": null,
+      "multi_color_summary": null
+    },
+    {
+      "id": "57db5d0a-3897-44d5-bae2-3e8698db2532",
+      "start_time": "2026-05-08T10:11:44+00:00",
+      "end_time": "2026-05-08T12:02:48.753164+00:00",
+      "duration_hours": 1.85,
+      "status": "finish",
+      "progress": 100,
+      "total_weight": 1.97,
+      "total_length": 0.65,
+      "filament_type": "Generic PETG HF",
+      "filament_color": "#898989FF",
+      "colors_used": [
+        "#898989FF"
+      ],
+      "types_used": [
+        "Generic PETG HF"
+      ],
+      "total_colors": 1,
+      "color_changes_count": 0,
+      "color_usage": [
+        {
+          "color": "#898989FF",
+          "type": "Generic PETG HF",
+          "weight_g": 1.97,
+          "length_m": 0.65,
+          "start_time": "2026-05-08 18:11:44"
+        }
+      ],
+      "energy_kwh": 0.14,
+      "task_name": "超低成本!一锅出!电动回卷 TOP AMS/DMS 485 挤出机 一体式电动回卷料架",
+      "nozzle_type": "hardened_steel",
+      "nozzle_size": null,
+      "print_bed_type": "Textured PEI Plate",
+      "total_layer_count": null,
+      "cover_image_url": "/api/image_proxy/image.p2s_22e8bj5a2401765_cover_image?token=17f17bd16b55e0f211b8dcadf7a9a48b89e7281a5dabf3a4159fb243abad6e70",
+      "cover_image_local": "/local/printer_analytics/unknown_2026_05_08T12_02_48.jpg",
+      "snapshot_image_local": null,
+      "full_print_info_path": "/local/printer_analytics/print_info/unknown_2026_05_08T12_02_48.json",
+      "color_changes": [],
+      "chamber_temp_final": null,
+      "chamber_temp_last5min": null,
+      "multi_color_summary": null
+    },
+    {
+      "id": "2234488e-0510-4ec0-928f-d0df0e591a22",
+      "start_time": "2026-05-09T07:35:01+00:00",
+      "end_time": "2026-05-09T07:53:52.177102+00:00",
+      "duration_hours": 0.31,
+      "status": "finish",
+      "progress": 100,
+      "total_weight": 0.83,
+      "total_length": 0.27,
+      "filament_type": "Generic PETG",
+      "filament_color": "#FFFFFFFF",
+      "colors_used": [
+        "#FFFFFFFF"
+      ],
+      "types_used": [
+        "Generic PETG"
+      ],
+      "total_colors": 1,
+      "color_changes_count": 0,
+      "color_usage": [
+        {
+          "color": "#FFFFFFFF",
+          "type": "Generic PETG",
+          "weight_g": 0.83,
+          "length_m": 0.27,
+          "start_time": "2026-05-09 15:35:01"
+        }
+      ],
+      "energy_kwh": 0.17,
+      "task_name": "超低成本!一锅出!电动回卷 TOP AMS/DMS 485 挤出机 一体式电动回卷料架",
+      "nozzle_type": "hardened_steel",
+      "nozzle_size": null,
+      "print_bed_type": "Textured PEI Plate",
+      "total_layer_count": null,
+      "cover_image_url": "/api/image_proxy/image.p2s_22e8bj5a2401765_cover_image?token=efddb4b013e466415b4af977632650e0c17e525a78c8a5f6aa120e4a4f67609c",
+      "cover_image_local": "/local/printer_analytics/unknown_2026_05_09T07_53_52.jpg",
+      "snapshot_image_local": null,
+      "full_print_info_path": "/local/printer_analytics/print_info/unknown_2026_05_09T07_53_52.json",
+      "color_changes": [],
+      "chamber_temp_final": null,
+      "chamber_temp_last5min": null,
+      "multi_color_summary": null
+    },
+    {
+      "id": "40fe7809-6ca9-47ad-863a-94c029391013",
+      "start_time": "2026-05-09T11:25:52+00:00",
+      "end_time": "2026-05-09T14:01:49.676686+00:00",
+      "duration_hours": 2.6,
+      "status": "finish",
+      "progress": 100,
+      "total_weight": 55.72,
+      "total_length": 18.23,
+      "filament_type": "Generic PETG",
+      "filament_color": "#FFFFFFFF",
+      "colors_used": [
+        "#FFFFFFFF"
+      ],
+      "types_used": [
+        "Generic PETG"
+      ],
+      "total_colors": 1,
+      "color_changes_count": 0,
+      "color_usage": [
+        {
+          "color": "#FFFFFFFF",
+          "type": "Generic PETG",
+          "weight_g": 55.72,
+          "length_m": 18.23,
+          "start_time": "2026-05-09 19:25:52"
+        }
+      ],
+      "energy_kwh": 0.15,
+      "task_name": "桌边洞洞板",
+      "nozzle_type": "hardened_steel",
+      "nozzle_size": null,
+      "print_bed_type": "Textured PEI Plate",
+      "total_layer_count": null,
+      "cover_image_url": "/api/image_proxy/image.p2s_22e8bj5a2401765_cover_image?token=cccefdc95167a1a330af5824c7ef6ee92f27f757fa27041b6d8ba3c21e7fe650",
+      "cover_image_local": "/local/printer_analytics/unknown_2026_05_09T14_01_49.jpg",
+      "snapshot_image_local": null,
+      "full_print_info_path": "/local/printer_analytics/print_info/unknown_2026_05_09T14_01_49.json",
+      "color_changes": [],
+      "chamber_temp_final": null,
+      "chamber_temp_last5min": null,
+      "multi_color_summary": null
+    },
+    {
+      "id": "4abd8992-b1a6-46c5-82da-8ac454689c02",
+      "start_time": "2026-05-09T19:23:54+00:00",
+      "end_time": "2026-05-10T01:35:06.592700+00:00",
+      "duration_hours": 6.19,
+      "status": "finish",
+      "progress": 100,
+      "total_weight": 73.9,
+      "total_length": 24.19,
+      "filament_type": "Generic PETG",
+      "filament_color": "#FFFFFFFF",
+      "colors_used": [
+        "#FFFFFFFF"
+      ],
+      "types_used": [
+        "Generic PETG"
+      ],
+      "total_colors": 1,
+      "color_changes_count": 0,
+      "color_usage": [
+        {
+          "color": "#FFFFFFFF",
+          "type": "Generic PETG",
+          "weight_g": 0.0,
+          "length_m": 0.0,
+          "start_time": "2026-05-10 03:23:54"
+        }
+      ],
+      "energy_kwh": 0.11,
+      "task_name": "A1mini 大容量 竹屎桶 便便桶 废料 垃圾桶 收集盒  省料 镂空 蜂窝 ",
+      "nozzle_type": "hardened_steel",
+      "nozzle_size": "0.4",
+      "print_bed_type": "Textured PEI Plate",
+      "total_layer_count": 744,
+      "cover_image_url": "/api/image_proxy/image.p2s_22e8bj5a2401765_cover_image?token=73f7afaf7814eab7ac61f98fa6078d2d58f2b58875d6351beed3d259b1657aed",
+      "cover_image_local": "/local/printer_analytics/0.24mm_层高_2_层墙_15_填充_2026_05_10T01_35_06.jpg",
+      "snapshot_image_local": null,
+      "full_print_info_path": "/local/printer_analytics/print_info/0.24mm 层高, 2 层墙, 15% 填充_2026_05_10T01_35_06.json",
+      "color_changes": [],
+      "chamber_temp_final": null,
+      "chamber_temp_last5min": null,
+      "multi_color_summary": null
+    },
+    {
+      "id": "b987a827-6f98-4c6c-a5c1-cd1e170fff6f",
+      "start_time": "2026-05-10T09:25:19+00:00",
+      "end_time": "2026-05-10T10:41:07.913694+00:00",
+      "duration_hours": 1.26,
+      "status": "finish",
+      "progress": 100,
+      "total_weight": 22.84,
+      "total_length": 7.6,
+      "filament_type": "Generic PETG",
+      "filament_color": "#FFFFFFFF",
+      "colors_used": [
+        "#FFFFFFFF"
+      ],
+      "types_used": [
+        "Generic PETG"
+      ],
+      "total_colors": 1,
+      "color_changes_count": 0,
+      "color_usage": [
+        {
+          "color": "#FFFFFFFF",
+          "type": "Generic PETG",
+          "weight_g": 22.84,
+          "length_m": 7.6,
+          "tray": "AMS 1 Tray 1"
+        }
+      ],
+      "energy_kwh": null,
+      "task_name": "V2",
+      "nozzle_type": "hardened_steel",
+      "nozzle_size": "0.4",
+      "print_bed_type": "Textured PEI Plate",
+      "total_layer_count": 100,
+      "cover_image_url": "/api/image_proxy/image.p2s_22e8bj5a2401765_cover_image?token=c8c3eb59ba6802b1433878a38350880e16c05cfe412f8ddc9defc7811de3706e",
+      "chamber_temp_final": 46.0,
+      "chamber_temp_last5min": {
+        "entries": [
+          {
+            "time": "2026-05-10T10:36:36.932549+00:00",
+            "temp": 47.0
+          },
+          {
+            "time": "2026-05-10T10:37:36.933421+00:00",
+            "temp": 47.0
+          },
+          {
+            "time": "2026-05-10T10:38:36.935360+00:00",
+            "temp": 47.0
+          },
+          {
+            "time": "2026-05-10T10:39:36.935645+00:00",
+            "temp": 46.0
+          },
+          {
+            "time": "2026-05-10T10:40:36.936356+00:00",
+            "temp": 46.0
+          }
+        ],
+        "avg": 46.6,
+        "max": 47.0,
+        "min": 46.0
+      },
+      "cover_image_local": "/local/printer_analytics/V2_2026_05_10T10_41_07.jpg",
+      "snapshot_image_local": null,
+      "full_print_info_path": "/local/printer_analytics/print_info/V2_2026_05_10T10_41_07.json",
+      "color_changes": [],
+      "multi_color_summary": null
+    },
+    {
+      "id": "d4231956-e221-4a21-89da-8f04025017f1",
+      "start_time": "2026-05-10T12:14:00+00:00",
+      "end_time": "2026-05-10T14:05:30.571256+00:00",
+      "duration_hours": 1.86,
+      "status": "finish",
+      "progress": 100,
+      "total_weight": 50.51,
+      "total_length": 16.53,
+      "filament_type": "Generic PETG HF",
+      "filament_color": "#898989FF",
+      "colors_used": [
+        "#898989FF"
+      ],
+      "types_used": [
+        "Generic PETG HF"
+      ],
+      "total_colors": 1,
+      "color_changes_count": 0,
+      "color_usage": [
+        {
+          "color": "#898989FF",
+          "type": "Generic PETG HF",
+          "weight_g": 50.51,
+          "length_m": 16.53,
+          "tray": "AMS 1 Tray 1"
+        }
+      ],
+      "energy_kwh": 0.12,
+      "task_name": "洞洞板拓展（兼容宜家IKEA Skadis）",
+      "nozzle_type": "hardened_steel",
+      "nozzle_size": "0.4",
+      "print_bed_type": "Textured PEI Plate",
+      "total_layer_count": 300,
+      "cover_image_url": "/api/image_proxy/image.p2s_22e8bj5a2401765_cover_image?token=9e13c878ce17363615ec4dd81e0a3b6338fc7a899e09baf7946aec0839bdb3fa",
+      "chamber_temp_final": 47.0,
+      "chamber_temp_last5min": {
+        "entries": [
+          {
+            "time": "2026-05-10T14:00:55.360259+00:00",
+            "temp": 48.0
+          },
+          {
+            "time": "2026-05-10T14:01:55.361132+00:00",
+            "temp": 48.0
+          },
+          {
+            "time": "2026-05-10T14:02:55.361595+00:00",
+            "temp": 48.0
+          },
+          {
+            "time": "2026-05-10T14:03:55.362559+00:00",
+            "temp": 47.0
+          },
+          {
+            "time": "2026-05-10T14:04:55.363359+00:00",
+            "temp": 47.0
+          }
+        ],
+        "avg": 47.6,
+        "max": 48.0,
+        "min": 47.0
+      },
+      "cover_image_local": "/local/printer_analytics/0.2mm_层高_2_层墙_15_填充_2026_05_10T14_05_30.jpg",
+      "snapshot_image_local": null,
+      "full_print_info_path": "/local/printer_analytics/print_info/0.2mm 层高, 2 层墙, 15% 填充_2026_05_10T14_05_30.json",
+      "color_changes": [],
+      "multi_color_summary": null
+    },
+    {
+      "id": "cec94bf5-5f1c-467a-99c1-dbad3bd85f52",
+      "start_time": "2026-05-10T17:35:23+00:00",
+      "end_time": "2026-05-11T00:43:23.901509+00:00",
+      "duration_hours": 7.13,
+      "status": "finish",
+      "progress": 100,
+      "total_weight": 157.18,
+      "total_length": 51.46,
+      "filament_type": "Generic PETG",
+      "filament_color": "#FFFFFFFF",
+      "colors_used": [
+        "#FFFFFFFF"
+      ],
+      "types_used": [
+        "Generic PETG",
+        "Generic PETG HF"
+      ],
+      "total_colors": 1,
+      "color_changes_count": 0,
+      "multi_color_summary": null,
+      "color_usage": [
+        {
+          "color": "#FFFFFFFF",
+          "type": "Generic PETG",
+          "weight_g": 157.18,
+          "length_m": 51.46,
+          "tray": "AMS 1 Tray 1"
+        }
+      ],
+      "energy_kwh": 0.01,
+      "task_name": "1盘两个夹具，2盘拓展洞洞板",
+      "nozzle_type": "hardened_steel",
+      "nozzle_size": "0.4",
+      "print_bed_type": "Textured PEI Plate",
+      "total_layer_count": 635,
+      "cover_image_url": "/api/image_proxy/image.p2s_22e8bj5a2401765_cover_image?token=5f064f6e32909423d358dc8dc3183df0fb56670cacabb162c9a154cd6aa56ab2",
+      "chamber_temp_final": 44.0,
+      "chamber_temp_last5min": {
+        "entries": [
+          {
+            "time": "2026-05-11T00:39:05.561956+00:00",
+            "temp": 45.0
+          },
+          {
+            "time": "2026-05-11T00:40:05.563535+00:00",
+            "temp": 45.0
+          },
+          {
+            "time": "2026-05-11T00:41:05.565275+00:00",
+            "temp": 45.0
+          },
+          {
+            "time": "2026-05-11T00:42:05.565892+00:00",
+            "temp": 44.0
+          },
+          {
+            "time": "2026-05-11T00:43:05.566849+00:00",
+            "temp": 44.0
+          }
+        ],
+        "avg": 44.6,
+        "max": 45.0,
+        "min": 44.0
+      },
+      "cover_image_local": "/local/printer_analytics/1盘两个夹具，2盘拓展洞洞板_2026_05_11T00_43_23.jpg",
+      "snapshot_image_local": null,
+      "full_print_info_path": "/local/printer_analytics/print_info/1盘两个夹具，2盘拓展洞洞板_2026_05_11T00_43_23.json"
+    },
+    {
+      "id": "56906a8a-3a97-4981-81c7-3ef3736dea12",
+      "start_time": "2026-05-11T07:00:13+00:00",
+      "end_time": "2026-05-11T07:42:23.632355+00:00",
+      "duration_hours": 0.7,
+      "status": "finish",
+      "progress": 100,
+      "total_weight": 3.54,
+      "total_length": 1.15,
+      "filament_type": "Generic PETG HF",
+      "filament_color": "#898989FF",
+      "colors_used": [
+        "#898989FF"
+      ],
+      "types_used": [
+        "Generic PETG HF",
+        "Generic PETG"
+      ],
+      "total_colors": 1,
+      "color_changes_count": 0,
+      "multi_color_summary": null,
+      "color_usage": [
+        {
+          "color": "#898989FF",
+          "type": "Generic PETG",
+          "weight_g": 3.54,
+          "length_m": 1.15,
+          "tray": "AMS 1 Tray 1"
+        }
+      ],
+      "energy_kwh": 0.16,
+      "task_name": "超低成本!一锅出!电动回卷 TOP AMS/DMS 485 挤出机 一体式电动回卷料架",
+      "nozzle_type": "hardened_steel",
+      "nozzle_size": "0.4",
+      "print_bed_type": "textured_plate",
+      "total_layer_count": 396,
+      "cover_image_url": "/api/image_proxy/image.p2s_22e8bj5a2401765_cover_image?token=e85725b734599a74de0484cb309a3ae0811782320715c10388b14146b8f7ce83",
+      "chamber_temp_final": 44.0,
+      "chamber_temp_last5min": {
+        "entries": [
+          {
+            "time": "2026-05-11T07:38:13.607437+00:00",
+            "temp": 45.0
+          },
+          {
+            "time": "2026-05-11T07:39:13.608112+00:00",
+            "temp": 45.0
+          },
+          {
+            "time": "2026-05-11T07:40:13.608656+00:00",
+            "temp": 45.0
+          },
+          {
+            "time": "2026-05-11T07:41:13.609459+00:00",
+            "temp": 45.0
+          },
+          {
+            "time": "2026-05-11T07:42:13.610429+00:00",
+            "temp": 44.0
+          }
+        ],
+        "avg": 44.8,
+        "max": 45.0,
+        "min": 44.0
+      },
+      "cover_image_local": "/local/printer_analytics/添加进料微动安装孔位_0.28mm_层高_2_层墙_15_填充_2026_05_11T07_42_23.jpg",
+      "snapshot_image_local": null,
+      "full_print_info_path": "/local/printer_analytics/print_info/添加进料微动安装孔位_0.28mm_层高_2_层墙_15_填充_2026_05_11T07_42_23.json"
+    },
+    {
+      "id": "83f41031-9e76-4dce-96ac-66d8d69fd47a",
+      "start_time": "2026-05-12T12:22:44+00:00",
+      "end_time": "2026-05-12T14:40:24.615732+00:00",
+      "duration_hours": 2.29,
+      "status": "finish",
+      "progress": 100,
+      "total_weight": 39.25,
+      "total_length": 12.85,
+      "filament_type": "Generic PETG HF",
+      "filament_color": "#ffffffff",
+      "colors_used": [
+        "#ffffffff"
+      ],
+      "types_used": [
+        "Generic PETG HF",
+        "Generic PETG"
+      ],
+      "total_colors": 1,
+      "color_changes_count": 0,
+      "multi_color_summary": null,
+      "color_usage": [
+        {
+          "color": "#FFFFFFFF",
+          "type": "Generic PETG",
+          "weight_g": 39.25,
+          "length_m": 12.85,
+          "tray": "AMS 1 Tray 1"
+        }
+      ],
+      "energy_kwh": 0.16,
+      "task_name": "SKÅDIS 麻叶托盘_120x80",
+      "nozzle_type": "hardened_steel",
+      "nozzle_size": "0.4",
+      "print_bed_type": "Textured PEI Plate",
+      "total_layer_count": 150,
+      "cover_image_url": "/api/image_proxy/image.p2s_22e8bj5a2401765_cover_image?token=6c3335093b4b72b83089becba6e35f0939138308c3ee19507d677fdff272243f",
+      "chamber_temp_final": 48.0,
+      "chamber_temp_last5min": {
+        "entries": [
+          {
+            "time": "2026-05-12T14:35:48.696938+00:00",
+            "temp": 50.0
+          },
+          {
+            "time": "2026-05-12T14:36:48.698063+00:00",
+            "temp": 50.0
+          },
+          {
+            "time": "2026-05-12T14:37:48.698971+00:00",
+            "temp": 49.0
+          },
+          {
+            "time": "2026-05-12T14:38:48.699546+00:00",
+            "temp": 48.0
+          },
+          {
+            "time": "2026-05-12T14:39:48.700491+00:00",
+            "temp": 48.0
+          }
+        ],
+        "avg": 49.0,
+        "max": 50.0,
+        "min": 48.0
+      },
+      "cover_image_local": "/local/printer_analytics/SKÅDIS_麻叶托盘_120x80_2026_05_12T14_40_24.jpg",
+      "snapshot_image_local": null,
+      "full_print_info_path": "/local/printer_analytics/print_info/SKÅDIS_麻叶托盘_120x80_2026_05_12T14_40_24.json",
+      "color_changes": []
+    },
+    {
+      "id": "6c041794-f31b-4bc3-96e8-7a4983cffe7c",
+      "start_time": "2026-05-12T19:44:34+00:00",
+      "end_time": "2026-05-12T20:48:17.027417+00:00",
+      "duration_hours": 1.06,
+      "status": "finish",
+      "progress": 100,
+      "total_weight": 33.19,
+      "total_length": 10.87,
+      "filament_type": "Generic PETG",
+      "filament_color": "#ffffffff",
+      "colors_used": [
+        "#ffffffff"
+      ],
+      "types_used": [
+        "Generic PETG",
+        "Generic PETG HF"
+      ],
+      "total_colors": 1,
+      "color_changes_count": 1,
+      "multi_color_summary": null,
+      "color_usage": [
+        {
+          "color": "#FFFFFFFF",
+          "type": "Generic PETG",
+          "weight_g": 33.19,
+          "length_m": 10.87,
+          "tray": "AMS 1 Tray 1"
+        }
+      ],
+      "energy_kwh": null,
+      "task_name": "plate_1.gcode",
+      "nozzle_type": "hardened_steel",
+      "nozzle_size": "0.4",
+      "print_bed_type": "Textured PEI Plate",
+      "total_layer_count": 50,
+      "cover_image_url": "/api/image_proxy/image.p2s_22e8bj5a2401765_cover_image?token=ef5051e508c6072cf3ad5f10bc09267a332e8c288eb52090762252dcb045f6c7",
+      "chamber_temp_final": 45.0,
+      "chamber_temp_last5min": {
+        "entries": [
+          {
+            "time": "2026-05-12T20:43:31.047870+00:00",
+            "temp": 46.0
+          },
+          {
+            "time": "2026-05-12T20:44:31.049115+00:00",
+            "temp": 46.0
+          },
+          {
+            "time": "2026-05-12T20:45:31.050505+00:00",
+            "temp": 46.0
+          },
+          {
+            "time": "2026-05-12T20:46:31.050836+00:00",
+            "temp": 46.0
+          },
+          {
+            "time": "2026-05-12T20:47:31.051213+00:00",
+            "temp": 45.0
+          }
+        ],
+        "avg": 45.8,
+        "max": 46.0,
+        "min": 45.0
+      },
+      "cover_image_local": "/local/printer_analytics/plate_1.gcode_2026_05_12T20_48_17.jpg",
+      "snapshot_image_local": null,
+      "full_print_info_path": "/local/printer_analytics/print_info/plate_1.gcode_2026_05_12T20_48_17.json"
+    },
+    {
+      "id": "f9a04301-363b-4771-9c86-aa883aedc743",
+      "start_time": "2026-05-13T12:33:25+00:00",
+      "end_time": "2026-05-13T13:18:06.889595+00:00",
+      "duration_hours": 0.74,
+      "status": "finish",
+      "progress": 100,
+      "total_weight": 14.52,
+      "total_length": 4.57,
+      "filament_type": "Generic PETG HF",
+      "filament_color": "#fff144ff",
+      "colors_used": [
+        "#fff144ff"
+      ],
+      "types_used": [
+        "Generic PETG HF",
+        "Bambu PLA Silk"
+      ],
+      "total_colors": 1,
+      "color_changes_count": 1,
+      "multi_color_summary": null,
+      "color_usage": [
+        {
+          "color": "#FFF144FF",
+          "type": "Bambu PLA Silk",
+          "weight_g": 14.52,
+          "length_m": 4.57,
+          "tray": "AMS 1 Tray 4"
+        }
+      ],
+      "energy_kwh": 0.14,
+      "task_name": "小号 身长5.5cm 弹簧加粗版本",
+      "nozzle_type": "hardened_steel",
+      "nozzle_size": "0.4",
+      "print_bed_type": "Textured PEI Plate",
+      "total_layer_count": 142,
+      "cover_image_url": "/api/image_proxy/image.p2s_22e8bj5a2401765_cover_image?token=ee2c80776971e7fe35228aac31650ecb90831f6dfe3d234b7b027eab5b30e9f6",
+      "chamber_temp_final": 36.0,
+      "chamber_temp_last5min": {
+        "entries": [
+          {
+            "time": "2026-05-13T13:13:29.651326+00:00",
+            "temp": 36.0
+          },
+          {
+            "time": "2026-05-13T13:14:29.652523+00:00",
+            "temp": 36.0
+          },
+          {
+            "time": "2026-05-13T13:15:29.653829+00:00",
+            "temp": 36.0
+          },
+          {
+            "time": "2026-05-13T13:16:29.654125+00:00",
+            "temp": 36.0
+          },
+          {
+            "time": "2026-05-13T13:17:29.654935+00:00",
+            "temp": 36.0
+          }
+        ],
+        "avg": 36.0,
+        "max": 36.0,
+        "min": 36.0
+      },
+      "cover_image_local": "/local/printer_analytics/小号_身长5.5cm_弹簧加粗版本_2026_05_13T13_18_06.jpg",
+      "snapshot_image_local": null,
+      "full_print_info_path": "/local/printer_analytics/print_info/小号_身长5.5cm_弹簧加粗版本_2026_05_13T13_18_06.json"
+    },
+    {
+      "id": "128ebd1f-40b5-4118-a07b-369c6e8b58a0",
+      "start_time": "2026-05-13T13:29:46+00:00",
+      "end_time": "2026-05-13T16:13:24.183764+00:00",
+      "duration_hours": 2.73,
+      "status": "finish",
+      "progress": 100,
+      "total_weight": 39.8,
+      "total_length": 12.84,
+      "filament_type": "Generic PETG HF",
+      "filament_color": "#f72323ff",
+      "colors_used": [
+        "#f72323ff",
+        "#fff144ff"
+      ],
+      "types_used": [
+        "Generic PETG HF",
+        "Bambu PLA Basic",
+        "Bambu PLA Silk"
+      ],
+      "total_colors": 2,
+      "color_changes_count": 2,
+      "multi_color_summary": {
+        "total_colors": 2,
+        "primary_color": "#f72323ff",
+        "all_colors": [
+          "#f72323ff",
+          "#fff144ff"
+        ],
+        "all_types": [
+          "Generic PETG HF",
+          "Bambu PLA Basic",
+          "Bambu PLA Silk"
+        ],
+        "change_count": 2,
+        "print_status": "finish",
+        "completion_progress": 100,
+        "is_partial": false,
+        "status_label": "完成",
+        "color_details": [
+          {
+            "color": "#F72323FF",
+            "type": "Bambu PLA Basic",
+            "weight_g": 20.62,
+            "length_m": 6.65
+          },
+          {
+            "color": "#FFF144FF",
+            "type": "Bambu PLA Silk",
+            "weight_g": 19.18,
+            "length_m": 6.19
+          }
+        ]
+      },
+      "color_usage": [
+        {
+          "color": "#F72323FF",
+          "type": "Bambu PLA Basic",
+          "weight_g": 20.62,
+          "length_m": 6.65,
+          "tray": "AMS 1 Tray 3"
+        },
+        {
+          "color": "#FFF144FF",
+          "type": "Bambu PLA Silk",
+          "weight_g": 19.18,
+          "length_m": 6.19,
+          "tray": "AMS 1 Tray 4"
+        }
+      ],
+      "energy_kwh": 0.14,
+      "task_name": "plate_1.gcode",
+      "nozzle_type": "hardened_steel",
+      "nozzle_size": "0.4",
+      "print_bed_type": "textured_plate",
+      "total_layer_count": 64,
+      "cover_image_url": "/api/image_proxy/image.p2s_22e8bj5a2401765_cover_image?token=390188347be990fdf7c34a2c8a1edc1283f5240d0efe14731847c6faaf032403",
+      "chamber_temp_final": 37.0,
+      "chamber_temp_last5min": {
+        "entries": [
+          {
+            "time": "2026-05-13T16:08:47.503460+00:00",
+            "temp": 37.0
+          },
+          {
+            "time": "2026-05-13T16:09:47.504446+00:00",
+            "temp": 37.0
+          },
+          {
+            "time": "2026-05-13T16:10:47.505082+00:00",
+            "temp": 38.0
+          },
+          {
+            "time": "2026-05-13T16:11:47.505771+00:00",
+            "temp": 38.0
+          },
+          {
+            "time": "2026-05-13T16:12:47.506504+00:00",
+            "temp": 37.0
+          }
+        ],
+        "avg": 37.4,
+        "max": 38.0,
+        "min": 37.0
+      },
+      "cover_image_local": null,
+      "snapshot_image_local": null,
+      "full_print_info_path": "/local/printer_analytics/print_info/plate_1.gcode_2026_05_13T16_13_24.json"
+    }
+  ]
+}

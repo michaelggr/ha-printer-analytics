@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 import logging
@@ -249,43 +249,54 @@ async def _ensure_dashboard_registered(hass: HomeAssistant) -> None:
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    coordinator = PrinterAnalyticsCoordinator(hass, entry)
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
-    await coordinator.async_setup()
-    await coordinator.async_config_entry_first_refresh()
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    entry.async_on_unload(entry.add_update_listener(_async_update_listener))
-    _register_services(hass)
-
-    await _ensure_card_resource(hass)
-
-    # 生成仪表板配置
-    await _generate_dashboard_yaml(hass)
-    await _ensure_dashboard_registered(hass)
-
-    # 设置集成页面图标（Config Entry Icon）
     try:
-        hass.config_entries.async_update_entry(entry, icon="mdi:chart-timeline-variant")
-        LOGGER.debug("集成页面图标已设置为 chart-timeline-variant")
-    except Exception as err:
-        LOGGER.debug("设置集成图标跳过: %s", err)
+        coordinator = PrinterAnalyticsCoordinator(hass, entry)
+        hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
+        await coordinator.async_setup()
+        await coordinator.async_config_entry_first_refresh()
+        await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+        entry.async_on_unload(entry.add_update_listener(_async_update_listener))
+        _register_services(hass)
 
-    # 设置设备图标（设备页面显示的图标）
-    try:
-        dr = async_get_device_registry(hass)
-        device = dr.async_get_device(identifiers={(DOMAIN, entry.entry_id)})
-        if device:
-            supported_kwargs = {}
-            if "icon" in dr.async_update_device.__code__.co_varnames:
-                supported_kwargs["icon"] = "mdi:chart-timeline-variant"
-            if supported_kwargs:
-                dr.async_update_device(device.id, **supported_kwargs)
-                LOGGER.debug("设备图标已设置")
-    except Exception as err:
-        LOGGER.debug("设置设备图标跳过: %s", err)
+        await _ensure_card_resource(hass)
 
-    LOGGER.info("Printer Analytics setup for %s", entry.data.get(CONF_PRINTER_NAME))
-    return True
+        # 生成仪表板配置
+        try:
+            await _generate_dashboard_yaml(hass)
+            await _ensure_dashboard_registered(hass)
+        except Exception as err:
+            LOGGER.warning("Dashboard generation skipped: %s", err)
+
+        # 设置集成页面图标（Config Entry Icon）
+        try:
+            hass.config_entries.async_update_entry(entry, icon="mdi:chart-timeline-variant")
+            LOGGER.debug("集成页面图标已设置为 chart-timeline-variant")
+        except Exception as err:
+            LOGGER.debug("设置集成图标跳过: %s", err)
+
+        # 设置设备图标（设备页面显示的图标）
+        try:
+            dr = async_get_device_registry(hass)
+            device = dr.async_get_device(identifiers={(DOMAIN, entry.entry_id)})
+            if device:
+                supported_kwargs = {}
+                if "icon" in dr.async_update_device.__code__.co_varnames:
+                    supported_kwargs["icon"] = "mdi:chart-timeline-variant"
+                if supported_kwargs:
+                    dr.async_update_device(device.id, **supported_kwargs)
+                    LOGGER.debug("设备图标已设置")
+        except Exception as err:
+            LOGGER.debug("设置设备图标跳过: %s", err)
+
+        LOGGER.info("Printer Analytics setup for %s", entry.data.get(CONF_PRINTER_NAME))
+        return True
+    except Exception as err:
+        LOGGER.error("Printer Analytics setup failed for %s: %s",
+                     entry.data.get(CONF_PRINTER_NAME), err, exc_info=True)
+        # 清理可能已经注册的数据
+        if DOMAIN in hass.data and entry.entry_id in hass.data[DOMAIN]:
+            hass.data[DOMAIN].pop(entry.entry_id)
+        return False
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

@@ -282,6 +282,8 @@ class PrinterAnalyticsSensor(CoordinatorEntity[PrinterAnalyticsCoordinator], Sen
         self._attr_has_entity_name = True
         if sensor_key == "print_history":
             self._attr_entity_id = f"sensor.{coordinator.printer_name}_print_history"
+        elif sensor_key == "print_status":
+            self._attr_entity_id = f"sensor.{coordinator.printer_name}_print_status"
 
     @property
     def device_info(self) -> dict:

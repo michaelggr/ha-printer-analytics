@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import voluptuous as vol
@@ -16,6 +17,8 @@ from .const import (
     CONF_PRINT_STATUS_ENTITY,
     DOMAIN,
 )
+
+LOGGER = logging.getLogger(__name__)
 
 
 class PrinterAnalyticsConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -79,60 +82,68 @@ class PrinterAnalyticsOptionsFlow(config_entries.OptionsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        if user_input is not None:
-            options = {
-                CONF_PRINTER_NAME: user_input.get(
-                    CONF_PRINTER_NAME,
-                    self.config_entry.data.get(CONF_PRINTER_NAME, ""),
-                ),
-                CONF_POWER_ENTITY: user_input.get(CONF_POWER_ENTITY, ""),
-                CONF_ENERGY_ENTITY: user_input.get(CONF_ENERGY_ENTITY, ""),
-                CONF_CHAMBER_TEMP_ENTITY: user_input.get(CONF_CHAMBER_TEMP_ENTITY, ""),
-            }
-            self.hass.config_entries.async_update_entry(
-                self.config_entry,
-                title=options[CONF_PRINTER_NAME],
-                data={
-                    **self.config_entry.data,
-                    CONF_PRINTER_NAME: options[CONF_PRINTER_NAME],
-                    CONF_POWER_ENTITY: options[CONF_POWER_ENTITY],
-                    CONF_ENERGY_ENTITY: options[CONF_ENERGY_ENTITY],
-                    CONF_CHAMBER_TEMP_ENTITY: options[CONF_CHAMBER_TEMP_ENTITY],
-                },
-                options=options,
-            )
-            if user_input.get("reset_history"):
-                coordinator = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
-                if coordinator:
-                    await coordinator.async_reset_history()
-            return self.async_create_entry(title="", data=options)
-
-        _entity_defaults = {
-            CONF_POWER_ENTITY: self.config_entry.data.get(CONF_POWER_ENTITY),
-            CONF_ENERGY_ENTITY: self.config_entry.data.get(CONF_ENERGY_ENTITY),
-            CONF_CHAMBER_TEMP_ENTITY: self.config_entry.data.get(CONF_CHAMBER_TEMP_ENTITY),
-        }
-        _entity_schema = {}
-        for key, default_val in _entity_defaults.items():
-            if default_val:
-                _entity_schema[vol.Optional(key, default=default_val)] = selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="sensor")
-                )
-            else:
-                _entity_schema[vol.Optional(key)] = selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="sensor")
-                )
-
-        return self.async_show_form(
-            step_id="init",
-            data_schema=vol.Schema(
-                {
-                    vol.Optional(
+        try:
+            if user_input is not None:
+                options = {
+                    CONF_PRINTER_NAME: user_input.get(
                         CONF_PRINTER_NAME,
-                        default=self.config_entry.data.get(CONF_PRINTER_NAME, ""),
-                    ): selector.TextSelector(),
-                    **_entity_schema,
-                    vol.Optional("reset_history", default=False): selector.BooleanSelector(),
+                        self.config_entry.data.get(CONF_PRINTER_NAME, ""),
+                    ),
+                    CONF_POWER_ENTITY: user_input.get(CONF_POWER_ENTITY, ""),
+                    CONF_ENERGY_ENTITY: user_input.get(CONF_ENERGY_ENTITY, ""),
+                    CONF_CHAMBER_TEMP_ENTITY: user_input.get(CONF_CHAMBER_TEMP_ENTITY, ""),
                 }
-            ),
-        )
+                self.hass.config_entries.async_update_entry(
+                    self.config_entry,
+                    title=options[CONF_PRINTER_NAME],
+                    data={
+                        **self.config_entry.data,
+                        CONF_PRINTER_NAME: options[CONF_PRINTER_NAME],
+                        CONF_POWER_ENTITY: options[CONF_POWER_ENTITY],
+                        CONF_ENERGY_ENTITY: options[CONF_ENERGY_ENTITY],
+                        CONF_CHAMBER_TEMP_ENTITY: options[CONF_CHAMBER_TEMP_ENTITY],
+                    },
+                    options=options,
+                )
+                if user_input.get("reset_history"):
+                    coordinator = self.hass.data[DOMAIN].get(self.config_entry.entry_id)
+                    if coordinator:
+                        await coordinator.async_reset_history()
+                return self.async_create_entry(title="", data=options)
+
+            _entity_defaults = {
+                CONF_POWER_ENTITY: self.config_entry.data.get(CONF_POWER_ENTITY),
+                CONF_ENERGY_ENTITY: self.config_entry.data.get(CONF_ENERGY_ENTITY),
+                CONF_CHAMBER_TEMP_ENTITY: self.config_entry.data.get(CONF_CHAMBER_TEMP_ENTITY),
+            }
+            _entity_schema = {}
+            for key, default_val in _entity_defaults.items():
+                if default_val:
+                    _entity_schema[vol.Optional(key, default=default_val)] = selector.EntitySelector(
+                        selector.EntitySelectorConfig(domain="sensor")
+                    )
+                else:
+                    _entity_schema[vol.Optional(key)] = selector.EntitySelector(
+                        selector.EntitySelectorConfig(domain="sensor")
+                    )
+
+            return self.async_show_form(
+                step_id="init",
+                data_schema=vol.Schema(
+                    {
+                        vol.Optional(
+                            CONF_PRINTER_NAME,
+                            default=self.config_entry.data.get(CONF_PRINTER_NAME, ""),
+                        ): selector.TextSelector(),
+                        **_entity_schema,
+                        vol.Optional("reset_history", default=False): selector.BooleanSelector(),
+                    }
+                ),
+            )
+        except Exception as err:
+            LOGGER.error("Options flow error: %s", err, exc_info=True)
+            return self.async_show_form(
+                step_id="init",
+                data_schema=vol.Schema({}),
+                errors={"base": "unknown_error"},
+            )

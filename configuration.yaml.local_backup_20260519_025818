@@ -1,0 +1,107 @@
+﻿﻿# Home Assistant 配置
+# Home Assistant Configuration
+
+homeassistant:
+  name: Home Assistant
+  latitude: 30.64922247
+  longitude: 114.5766169
+  elevation: 0
+  unit_system: metric
+  time_zone: Asia/Shanghai
+  currency: CNY
+  country: CN
+  language: zh-Hans
+  internal_url: http://192.168.0.130:8123
+  customize: !include customize.yaml
+
+# ==================== Lovelace 配置 ====================
+lovelace:
+  resource_mode: yaml
+  resources:
+    # expander-card 未安装，已注释以消除404错误
+    # - url: /hacsfiles/expander-card/expander-card.js
+    #   type: module
+    # 以下插件未安装，已注释以消除404错误。如需使用请先通过HACS安装
+    # - url: /hacsfiles/flex-table-card/flex-table-card.js
+    #   type: module
+    # - url: /hacsfiles/bar-card/bar-card.js
+    #   type: module
+    # - url: /hacsfiles/apexcharts-card/apexcharts-card.js
+    #   type: module
+    - url: /local/pa-v5.9.js?v=5.10.8
+      type: module
+    # - url: /hacsfiles/lovelace-multiple-entity-row/multiple-entity-row.js
+    #   type: module
+    # - url: /hacsfiles/mini-graph-card/mini-graph-card-bundle.js
+    #   type: module
+  dashboards:
+    lovelace:
+      mode: yaml
+      filename: ui-lovelace.yaml
+      title: 我的智能家居
+      icon: mdi:home
+      show_in_sidebar: true
+    all-printers:
+      mode: yaml
+      filename: ui-all-printers.yaml
+      title: ALL打印机
+      icon: mdi:printer-3d
+      show_in_sidebar: true
+    printer-analytics:
+      mode: yaml
+      filename: ui-printer-analytics.yaml
+      title: 打印机分析
+      icon: mdi:chart-line
+      show_in_sidebar: true
+    old-lights:
+      mode: yaml
+      filename: ui-old-lights.yaml
+      title: 老灯
+      icon: mdi:lightbulb-multiple
+      show_in_sidebar: true
+
+# ==================== 模板传感器配置（新版语法）====================
+template: !include templates.yaml
+counter: !include counter.yaml
+input_number: !include input_number.yaml
+input_datetime: !include input_datetime.yaml
+input_select: !include input_select.yaml
+group: !include groups.yaml
+
+# ==================== 自定义组件配置 ====================
+tuya_smart_ir_ac:
+  access_id: "w7x9v5gsde3xjdkv34ym"
+  access_secret: "d6a9d75db80a44d58585395a6eb46681"
+  country: "CN"
+
+# ==================== Integration 传感器 ====================
+sensor: !include sensor.yaml
+
+# ==================== Utility Meter 配置 ====================
+utility_meter: !include utility_meter.yaml
+
+# ==================== 自动化配置 ====================
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml
+mqtt: !include mqtt.yaml
+command_line: !include command_line.yaml
+
+default_config:
+
+# ==================== 系统配置 ====================
+recorder:
+  purge_keep_days: 3650
+  auto_purge: true
+
+# ==================== 日志配置 ====================
+logger:
+  default: info
+  logs:
+    homeassistant.components.recorder: warning
+    homeassistant.components.automation: warning
+    homeassistant.components.script: warning
+
+# ==================== 壳牌命令配置 ====================
+shell_command:
+  !include shell_command.yaml

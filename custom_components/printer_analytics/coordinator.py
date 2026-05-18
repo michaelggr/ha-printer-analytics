@@ -105,9 +105,21 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         self.image_manager = ImageManager(self)
         self.statistics = StatisticsCalculator(self)
 
-        await self._load_history()
-        await self.entity_discovery.discover()
-        await self.hass.async_add_executor_job(self.image_manager.detect_placeholder_images)
+        try:
+            await self._load_history()
+        except Exception as err:
+            LOGGER.warning("Failed to load history (will start fresh): %s", err)
+            self.history = []
+
+        try:
+            await self.entity_discovery.discover()
+        except Exception as err:
+            LOGGER.warning("Entity discovery failed: %s", err)
+
+        try:
+            await self.hass.async_add_executor_job(self.image_manager.detect_placeholder_images)
+        except Exception as err:
+            LOGGER.warning("Placeholder image detection failed: %s", err)
 
         # 如果配置中没有指定打印状态实体，使用自动发现的实体
         if not self.print_status_entity:
@@ -381,11 +393,19 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
             return self.entity_discovery.get_entity_attr(entity_id, attr, default)
         return default
 
+    def get_entity_attr(self, entity_id: str, attr: str, default: any = None) -> any:
+        """获取实体属性（公共接口）"""
+        return self._get_entity_attr(entity_id, attr, default)
+
     def _get_float_state(self, entity_id: str, default: float = 0.0) -> float:
         """获取浮点状态"""
         if self.entity_discovery:
             return self.entity_discovery.get_float_state(entity_id, default)
         return default
+
+    def get_float_state(self, entity_id: str, default: float = 0.0) -> float:
+        """获取浮点状态（公共接口）"""
+        return self._get_float_state(entity_id, default)
 
     def _get_best_task_name(self) -> str:
         """获取最佳任务名"""
@@ -749,7 +769,11 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
 
     async def _async_update_data(self) -> PrinterStats:
         """异步更新数据"""
-        return self._calculate_statistics()
+        try:
+            return self._calculate_statistics()
+        except Exception as err:
+            LOGGER.error("Statistics calculation failed: %s", err, exc_info=True)
+            return PrinterStats()
 
     async def async_reset_history(self) -> None:
         """重置历史"""
