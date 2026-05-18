@@ -21,12 +21,15 @@ from .const import (
     FAILURE_STAGE_BUCKETS,
     INVALID_ENTITY_STATES,
     MATERIAL_CACHE_INTERVAL_SECONDS,
+    OFFLINE_STATUS,
     PRINT_STATUS_CANCELLED,
     PRINT_STATUS_FAIL,
+    PRINT_STATUS_FAILED,
     PRINT_STATUS_FINISH,
     PRINT_STATUS_IDLE,
     PRINT_STATUS_RUNNING,
     TASK_NAME_CAPTURE_WINDOW_SECS,
+    TRANSITIONAL_STATUSES,
 )
 from .utils import is_param_description
 
@@ -162,12 +165,32 @@ class PrintTracker:
             return
 
         old_status = self.coordinator._previous_status
+
+        # 离线状态不更新 previous_status，保持之前的活跃状态
+        if new_status == OFFLINE_STATUS:
+            LOGGER.debug("打印机离线，保持之前状态: %s", old_status)
+            return
+
+        # 中间过渡状态只更新 previous_status，不触发任何操作
+        if new_status in TRANSITIONAL_STATUSES:
+            self.coordinator._previous_status = new_status
+            LOGGER.debug("中间过渡状态: %s", new_status)
+            return
+
         self.coordinator._previous_status = new_status
 
+        # 开始打印
         if new_status in ACTIVE_PRINT_STATUSES and old_status not in ACTIVE_PRINT_STATUSES:
             self.on_print_start()
-        elif new_status in END_PRINT_STATUSES and old_status in ACTIVE_PRINT_STATUSES:
-            self.hass.add_job(self._on_print_end(new_status))
+        # 结束打印
+        elif new_status in END_PRINT_STATUSES:
+            # 正常情况：从活跃状态变为结束
+            if old_status in ACTIVE_PRINT_STATUSES:
+                self.hass.add_job(self._on_print_end(new_status))
+            # 离线期间完成：current_print 存在但 old_status 不是活跃状态
+            elif self.coordinator.current_print:
+                LOGGER.info("检测到离线期间完成打印，保存记录: %s", new_status)
+                self.hass.add_job(self._on_print_end(new_status))
 
     def start_material_cache(self) -> None:
         """启动耗材缓存"""
