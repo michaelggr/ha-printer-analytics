@@ -1,4 +1,4 @@
-"""图片下载管理模块"""
+﻿"""图片下载管理模块"""
 import asyncio
 import hashlib
 import logging
@@ -349,7 +349,38 @@ class ImageManager:
             return None
 
     async def _download_print_snapshot(self, end_time: str, task_name: str) -> str | None:
-        """下载打印快照"""
+        """下载打印快照
+
+        抓取前自动打开舱内灯（如果关闭），抓取后恢复原状态
+        """
+        # 记录舱内灯原始状态，抓取前打开
+        light_entity = self._entity_map.get("chamber_light")
+        light_was_on = True  # 默认认为灯是开着的，不需要恢复
+        if light_entity:
+            light_state = self.hass.states.get(light_entity)
+            light_was_on = light_state is not None and light_state.state == "on"
+            if not light_was_on:
+                await self.hass.services.async_call(
+                    "light", "turn_on",
+                    {"entity_id": light_entity},
+                    blocking=True,
+                )
+                # 等待灯亮起后再抓取，给摄像头适应时间
+                await asyncio.sleep(2)
+
+        try:
+            return await self._do_download_snapshot(end_time, task_name)
+        finally:
+            # 恢复舱内灯原始状态
+            if light_entity and not light_was_on:
+                await self.hass.services.async_call(
+                    "light", "turn_off",
+                    {"entity_id": light_entity},
+                    blocking=False,
+                )
+
+    async def _do_download_snapshot(self, end_time: str, task_name: str) -> str | None:
+        """实际下载快照逻辑"""
         try:
             camera_entity = self._entity_map.get("camera")
             if not camera_entity:

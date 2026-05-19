@@ -1,4 +1,4 @@
-"""打印跟踪模块"""
+﻿"""打印跟踪模块"""
 import asyncio
 import logging
 import os
@@ -84,13 +84,22 @@ class PrintTracker:
 
         model_name = ""
         config_name = ""
+
+        # 优先使用预缓存的模型名
+        pre_cached_model = self.coordinator._pre_print_model_name
+        if pre_cached_model:
+            model_name = pre_cached_model
+            self.coordinator._pre_print_model_name = ""
+
         if immediate_name and immediate_name not in INVALID_ENTITY_STATES:
             self._task_name_variants = [immediate_name]
             if self._is_param_description(immediate_name):
                 config_name = immediate_name
-                model_name = self._infer_model_name_from_history(immediate_name) or ""
+                if not model_name:
+                    model_name = self._infer_model_name_from_history(immediate_name) or ""
             else:
-                model_name = immediate_name
+                if not model_name:
+                    model_name = immediate_name
 
         task_name = model_name or config_name or ""
         self.coordinator._lock_task_name(task_name)
@@ -154,7 +163,11 @@ class PrintTracker:
         self.hass.add_job(self.coordinator._delayed_cover_download(task_name or "unknown", start_time))
         self.hass.add_job(self.coordinator._delayed_snapshot_download(task_name or "unknown", start_time))
 
-        self.coordinator.async_set_updated_data(self.coordinator._calculate_statistics())
+        # 通过事件循环安全地通知数据更新，避免线程安全违规
+        self.hass.loop.call_soon_threadsafe(
+            self.coordinator.async_set_updated_data,
+            self.coordinator._calculate_statistics()
+        )
 
     def handle_state_change(self, event: Any) -> None:
         """处理状态变化"""
@@ -216,8 +229,11 @@ class PrintTracker:
             self._cache_delayed_fields()
             self._try_capture_task_name()
             self._cache_chamber_temperature(now)
-            # 通知 coordinator 数据已更新，触发 sensor 属性重新计算
-            self.coordinator.async_set_updated_data(self.coordinator._calculate_statistics())
+            # 通过事件循环安全地通知数据更新，避免线程安全违规
+            self.hass.loop.call_soon_threadsafe(
+                self.coordinator.async_set_updated_data,
+                self.coordinator._calculate_statistics()
+            )
 
     def _cache_print_material_data(self) -> None:
         """缓存耗材数据（支持多色追踪）"""
@@ -541,6 +557,15 @@ class PrintTracker:
         return None
 
     async def _infer_model_name_from_entity_history(self, task_entity: str, start_time: str) -> None:
+        """从 task_name 实体的 HA 历史记录中反查模型名
+
+        BambuLab 的 task_name 实际行为（通过历史数据验证）：
+        - 打印空闲/完成后：显示模型名（如 "抽屉收纳盒60×60×60 - 宜家洞洞板"）
+        - 新打印即将开始时（prepare 前1秒）：变为参数配置名（如 "小号 身长5.5cm , 层高 0.2mm"）
+
+        因此在 start_time 之前最近出现的非参数描述值就是当前打印的模型名。
+        取最后一个（最接近打印开始的）非参数描述值，避免取到更早的上一次打印的模型名。
+        """
         if not self.coordinator.current_print or not task_entity or not start_time:
             return
         if self.coordinator.current_print.get("task_name_model"):
@@ -550,7 +575,8 @@ class PrintTracker:
         if not start_dt:
             return
 
-        query_start = start_dt - timedelta(minutes=2)
+        # 向前查询5分钟，覆盖 task_name 从模型名变为参数描述的时间窗口
+        query_start = start_dt - timedelta(minutes=5)
         query_end = start_dt + timedelta(minutes=2)
 
         try:
@@ -571,6 +597,9 @@ class PrintTracker:
         states = history_by_entity.get(task_entity, [])
         model_name = ""
         config_name = self.coordinator.current_print.get("task_name_config") or ""
+
+        # 按时间顺序遍历，取最后一个（最接近打印开始的）非参数描述值
+        # 因为最接近打印开始的模型名才是当前打印的，更早的可能是上一次打印的
         for state in states:
             value = (state.state or "").strip()
             if not value or value in INVALID_ENTITY_STATES:
@@ -578,6 +607,7 @@ class PrintTracker:
             if self._is_param_description(value):
                 config_name = config_name or value
                 continue
+            # 不断更新为最新的非参数描述值
             model_name = value
 
         if not self.coordinator.current_print:
@@ -612,13 +642,24 @@ class PrintTracker:
         model_name = ""
         config_name = ""
 
+        # 优先使用打印开始前预缓存的模型名（来自 task_name 实体变化监听）
+        pre_cached_model = self.coordinator._pre_print_model_name
+        if pre_cached_model:
+            LOGGER.info("使用预缓存的模型名: %s", pre_cached_model)
+            model_name = pre_cached_model
+            self.coordinator._pre_print_model_name = ""  # 使用后清空
+
         if immediate_name and immediate_name not in INVALID_ENTITY_STATES:
             self._task_name_variants.append(immediate_name)
             if self._is_param_description(immediate_name):
                 config_name = immediate_name
-                model_name = self._infer_model_name_from_history(immediate_name) or ""
+                # 如果没有预缓存模型名，尝试从历史推断
+                if not model_name:
+                    model_name = self._infer_model_name_from_history(immediate_name) or ""
             else:
-                model_name = immediate_name
+                # 当前 task_name 是模型名（非参数描述），直接使用
+                if not model_name:
+                    model_name = immediate_name
 
         async def _delayed_task_name_capture() -> None:
             await asyncio.sleep(8)
@@ -713,7 +754,11 @@ class PrintTracker:
         self.hass.add_job(self.coordinator._delayed_cover_download(task_name or "unknown", start_time))
         self.hass.add_job(self.coordinator._delayed_snapshot_download(task_name or "unknown", start_time))
 
-        self.coordinator.async_set_updated_data(self.coordinator._calculate_statistics())
+        # 通过事件循环安全地通知数据更新，避免线程安全违规
+        self.hass.loop.call_soon_threadsafe(
+            self.coordinator.async_set_updated_data,
+            self.coordinator._calculate_statistics()
+        )
 
     async def _on_print_end(self, end_status: str) -> None:
         """打印结束"""
@@ -747,7 +792,7 @@ class PrintTracker:
             delta = end_energy - start_energy
             if 0 < delta < ENERGY_MAX_DELTA_KWH:
                 energy_kwh = round(delta, 4)
-            else:
+            elif delta < 0 or delta >= ENERGY_MAX_DELTA_KWH:
                 LOGGER.warning("Abnormal energy delta %.2f kWh, skipped", delta)
 
         task_name = self.coordinator.current_print.get("task_name") or ""

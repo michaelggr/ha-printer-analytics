@@ -59,6 +59,12 @@ class EntityDiscovery:
                 self._entity_map.setdefault("camera", cam_eid)
                 break
 
+        # 发现舱内灯实体（快照抓取时自动开关）
+        for light_eid in self.hass.states.async_entity_ids("light"):
+            if light_eid.startswith(f"light.{prefix}_") and "chamber_light" in light_eid:
+                self._entity_map.setdefault("chamber_light", light_eid)
+                break
+
         for img_eid in self.hass.states.async_entity_ids("image"):
             if img_eid.startswith(f"image.{prefix}_") and img_eid.endswith("_cover_image"):
                 self._entity_map.setdefault("cover_image", img_eid)

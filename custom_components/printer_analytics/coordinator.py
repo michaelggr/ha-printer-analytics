@@ -1,4 +1,4 @@
-"""Printer Analytics Coordinator - 主协调器"""
+﻿"""Printer Analytics Coordinator - 主协调器"""
 from __future__ import annotations
 
 import asyncio
@@ -34,6 +34,7 @@ from .const import (
     MATERIAL_CACHE_INTERVAL_SECONDS,
     PRINT_STATUS_CANCELLED,
     PRINT_STATUS_FAIL,
+    PRINT_STATUS_FAILED,
     PRINT_STATUS_FINISH,
     PRINT_STATUS_IDLE,
     PRINT_STATUS_RUNNING,
@@ -73,6 +74,8 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         self._entity_map: dict[str, str] = {}
         self._locked_task_name: str = ""
         self._unsub_listener = None
+        self._unsub_task_name_listener = None
+        self._pre_print_model_name: str = ""  # 打印开始前缓存的模型名
         self._material_cache_interval = None
         self._http_session: aiohttp.ClientSession | None = None
         self._time_cache: dict[str, datetime] = {}
@@ -144,6 +147,15 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
             )
         else:
             LOGGER.warning("No print status entity configured for %s, state changes will not be tracked", self.printer_name)
+
+        # 订阅 task_name 实体变化，在打印开始前提前缓存模型名
+        task_name_entity = self._entity_map.get("task_name", "")
+        if task_name_entity:
+            self._unsub_task_name_listener = async_track_state_change_event(
+                self.hass, [task_name_entity], self._handle_task_name_change
+            )
+            LOGGER.info("已订阅 task_name 实体变化: %s", task_name_entity)
+
         LOGGER.info("Printer Analytics setup for %s", self.printer_name)
 
     async def async_shutdown(self) -> None:
@@ -153,6 +165,9 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         if self._unsub_listener:
             self._unsub_listener()
             self._unsub_listener = None
+        if self._unsub_task_name_listener:
+            self._unsub_task_name_listener()
+            self._unsub_task_name_listener = None
         await self._close_http_session()
         await self._save_history()
 
@@ -278,7 +293,8 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
                 record["status"] = self._STATUS_MAP[old_status]
                 changed = True
             elif old_status not in (PRINT_STATUS_FINISH, PRINT_STATUS_FAIL,
-                                     PRINT_STATUS_CANCELLED, PRINT_STATUS_IDLE, PRINT_STATUS_RUNNING):
+                                     PRINT_STATUS_FAILED, PRINT_STATUS_CANCELLED,
+                                     PRINT_STATUS_IDLE, PRINT_STATUS_RUNNING):
                 if old_status:
                     LOGGER.warning("未知 status '%s'，保留原值", old_status)
 
@@ -455,6 +471,56 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         if self.print_tracker:
             self.print_tracker.handle_state_change(event)
 
+    def _handle_task_name_change(self, event: Event) -> None:
+        """处理 task_name 实体变化
+
+        BambuLab 的 task_name 实际行为（通过历史数据验证）：
+        - 打印空闲/完成后：显示模型名（如 "抽屉收纳盒60×60×60 - 宜家洞洞板"）
+        - 新打印即将开始时（prepare 前1秒）：变为参数配置名（如 "小号 身长5.5cm , 层高 0.2mm"）
+        - task_name 变化时 _previous_status 可能还是 finish（因为变化比 prepare 早1秒）
+
+        策略：
+        1. 非打印状态下，缓存非参数描述的值作为模型名
+        2. 当 task_name 从模型名变为参数描述时，说明新打印即将开始，
+           锁定之前的模型名，不被参数描述覆盖
+        3. 打印中收到参数描述，更新 config_name
+        """
+        new_state = event.data.get("new_state")
+        old_state = event.data.get("old_state")
+        if not new_state:
+            return
+        new_value = (new_state.state or "").strip()
+        if not new_value or new_value in INVALID_ENTITY_STATES:
+            return
+
+        old_value = ""
+        if old_state:
+            old_value = (old_state.state or "").strip()
+
+        current_status = self._previous_status
+
+        # 如果当前正在打印中，task_name 变化只更新 config_name
+        if current_status in ACTIVE_PRINT_STATUSES and self.current_print:
+            if is_param_description(new_value):
+                if not self.current_print.get("task_name_config"):
+                    self.current_print["task_name_config"] = new_value
+                    self.current_print["config_name"] = new_value
+                    LOGGER.info("打印中捕获到配置名: %s", new_value)
+            return
+
+        # 关键场景：task_name 从模型名变为参数描述
+        # 这说明新打印即将开始（prepare 会在1秒后到来）
+        # 此时必须锁定 old_value（模型名），不被参数描述覆盖
+        if is_param_description(new_value) and old_value and not is_param_description(old_value) and len(old_value) >= 3:
+            self._pre_print_model_name = old_value
+            LOGGER.info("检测到新打印即将开始，锁定模型名: %s (参数描述: %s)", old_value, new_value)
+            return
+
+        # 非打印状态下，缓存非参数描述的值作为模型名
+        if not is_param_description(new_value) and len(new_value) >= 3:
+            self._pre_print_model_name = new_value
+            LOGGER.debug("预缓存模型名: %s (当前状态: %s)", new_value, current_status)
+
     def _build_tray_color_map(self) -> dict[str, dict]:
         """构建AMS tray颜色映射（使用缓存的实体列表）"""
         result = {}
@@ -525,9 +591,11 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
                 self.current_print["cover_image_local"] = local_path
 
     async def _delayed_snapshot_download(self, task_name: str, start_time: str) -> None:
-        """延迟下载快照 - 每30秒获取最新快照，新快照替换旧快照，只保留最新一张"""
+        """延迟下载快照 - 每30秒获取最新快照，连续失败3次后停止重试"""
         interval = 30
         max_iterations = 2880  # 最多运行24小时（30s * 2880 = 86400s）
+        consecutive_failures = 0  # 连续失败计数
+        max_consecutive_failures = 3  # 连续失败3次后停止
         iteration = 0
 
         while iteration < max_iterations:
@@ -544,9 +612,15 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
             if self.image_manager:
                 local_path = await self.image_manager._download_print_snapshot(start_time, task_name)
                 if local_path and self.current_print:
+                    consecutive_failures = 0  # 成功则重置计数
                     self.current_print["snapshot_image_local"] = local_path
                     if old_path:
                         self.hass.async_create_task(self.image_manager._delete_image_file(old_path))
+                else:
+                    consecutive_failures += 1
+                    if consecutive_failures >= max_consecutive_failures:
+                        LOGGER.warning("快照下载连续失败 %d 次，停止重试", consecutive_failures)
+                        return
 
         LOGGER.warning("Snapshot download reached max iterations (24h), stopping")
 

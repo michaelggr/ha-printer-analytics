@@ -9,6 +9,7 @@ from .const import (
     PRINT_STATUS_CANCELLED,
     PRINT_STATUS_FINISH,
     PRINT_STATUS_FAIL,
+    PRINT_STATUS_FAILED,
 )
 from .data_models import PrinterStats
 
@@ -104,7 +105,7 @@ class StatisticsCalculator:
                 successful_count += 1
                 total_weight += weight
                 total_length += length
-            elif status == PRINT_STATUS_FAIL:
+            elif status in (PRINT_STATUS_FAIL, PRINT_STATUS_FAILED):
                 failed_count += 1
                 failed_weight += weight
                 failed_length += length
@@ -137,7 +138,7 @@ class StatisticsCalculator:
                 if bucket_label:
                     duration_dist[bucket_label] += 1
 
-            if status in (PRINT_STATUS_FAIL, PRINT_STATUS_CANCELLED):
+            if status in (PRINT_STATUS_FAIL, PRINT_STATUS_FAILED, PRINT_STATUS_CANCELLED):
                 bucket_label = self._get_failure_stage_bucket(progress)
                 if bucket_label:
                     failure_stages[bucket_label] += 1
@@ -151,7 +152,7 @@ class StatisticsCalculator:
                 fs["weight"] += weight
                 if status == PRINT_STATUS_FINISH:
                     fs["success"] += 1
-                elif status == PRINT_STATUS_FAIL:
+                elif status in (PRINT_STATUS_FAIL, PRINT_STATUS_FAILED):
                     fs["failed"] += 1
                 elif status == PRINT_STATUS_CANCELLED:
                     fs[PRINT_STATUS_CANCELLED] += 1
@@ -198,7 +199,7 @@ class StatisticsCalculator:
             period_data['success'] += 1
             period_data['weight'] += weight
             period_data['length'] += length
-        elif status == PRINT_STATUS_FAIL:
+        elif status in (PRINT_STATUS_FAIL, PRINT_STATUS_FAILED):
             period_data['failed'] += 1
             period_data['weight'] += weight
             period_data['length'] += length
