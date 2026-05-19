@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 import logging
@@ -69,7 +69,6 @@ async def _ensure_card_resource(hass: HomeAssistant) -> None:
                     await resources.async_create({"url": CARD_URL, "type": "module"})
                     LOGGER.info("Registered %s as Lovelace resource", CARD_FILENAME)
                 elif old_item.get("url") != CARD_URL:
-                    # 版本号变化，删除旧资源并注册新的
                     old_id = old_item.get("id")
                     if old_id and hasattr(resources, "async_delete"):
                         await resources.async_delete(old_id)
@@ -89,7 +88,6 @@ async def _generate_dashboard_yaml(hass: HomeAssistant) -> None:
     entity_reg = async_get_entity_registry(hass)
     printers = []
 
-    # 每台打印机需要查找的传感器实体
     _SENSOR_KEYS = [
         "print_history", "total_prints", "success_rate", "average_duration",
         "total_print_duration", "total_energy", "material_stats_7d",
@@ -97,7 +95,6 @@ async def _generate_dashboard_yaml(hass: HomeAssistant) -> None:
         "activity_heatmap", "failure_stage_distribution", "filament_success_stats",
         "print_status",
     ]
-    # 每台打印机需要查找的 BambuLab 实时实体
     _REALTIME_KEYS = [
         "current_task", "print_progress", "current_weight", "current_length",
         "total_usage", "nozzle_temperature", "bed_temperature",
@@ -106,7 +103,6 @@ async def _generate_dashboard_yaml(hass: HomeAssistant) -> None:
         "nozzle_size",
     ]
 
-    # BambuLab 实时实体 key 到 HA 实体 ID 后缀的映射
     _REALTIME_KEY_MAP = {
         "current_task": "task_name",
         "print_progress": "print_progress",
@@ -139,7 +135,6 @@ async def _generate_dashboard_yaml(hass: HomeAssistant) -> None:
             return ""
 
         def _find_bambu_entity(entity_suffix: str, _pname=printer_name) -> str:
-            # 按 entity_id 模式匹配: sensor.{prefix}_{serial}_{suffix}
             prefix = _pname.lower()
             for entity in entity_reg.entities.values():
                 eid = entity.entity_id
@@ -154,7 +149,6 @@ async def _generate_dashboard_yaml(hass: HomeAssistant) -> None:
             if eid:
                 realtime_entities[k] = eid
 
-        # 集成配置中的腔体温度传感器优先于自动发现的 Bambu Lab 实体
         if hasattr(coordinator, "chamber_temp_entity") and coordinator.chamber_temp_entity:
             realtime_entities["chamber_temperature"] = coordinator.chamber_temp_entity
 
@@ -179,16 +173,13 @@ async def _generate_dashboard_yaml(hass: HomeAssistant) -> None:
         '        title: "🖨️ 打印机分析"',
     ]
     
-    # 生成 printers 列表（每台打印机的传感器实体 + 实时实体）
     lines.append('        printers:')
     for p in printers:
         lines.append(f'          - printer_name: "{p["printer_name"]}"')
-        # 传感器实体
         for k in _SENSOR_KEYS:
             v = p["sensor_entities"].get(k, "")
             if v:
                 lines.append(f'            {k}: {v}')
-        # 实时实体
         for k in _REALTIME_KEYS:
             v = p["realtime_entities"].get(k, "")
             if v:
@@ -249,43 +240,50 @@ async def _ensure_dashboard_registered(hass: HomeAssistant) -> None:
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    coordinator = PrinterAnalyticsCoordinator(hass, entry)
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
-    await coordinator.async_setup()
-    await coordinator.async_config_entry_first_refresh()
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    entry.async_on_unload(entry.add_update_listener(_async_update_listener))
-    _register_services(hass)
-
-    await _ensure_card_resource(hass)
-
-    # 生成仪表板配置
-    await _generate_dashboard_yaml(hass)
-    await _ensure_dashboard_registered(hass)
-
-    # 设置集成页面图标（Config Entry Icon）
     try:
-        hass.config_entries.async_update_entry(entry, icon="mdi:chart-timeline-variant")
-        LOGGER.debug("集成页面图标已设置为 chart-timeline-variant")
-    except Exception as err:
-        LOGGER.debug("设置集成图标跳过: %s", err)
+        coordinator = PrinterAnalyticsCoordinator(hass, entry)
+        hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
+        await coordinator.async_setup()
+        await coordinator.async_config_entry_first_refresh()
+        await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+        entry.async_on_unload(entry.add_update_listener(_async_update_listener))
+        _register_services(hass)
 
-    # 设置设备图标（设备页面显示的图标）
-    try:
-        dr = async_get_device_registry(hass)
-        device = dr.async_get_device(identifiers={(DOMAIN, entry.entry_id)})
-        if device:
-            supported_kwargs = {}
-            if "icon" in dr.async_update_device.__code__.co_varnames:
-                supported_kwargs["icon"] = "mdi:chart-timeline-variant"
-            if supported_kwargs:
-                dr.async_update_device(device.id, **supported_kwargs)
-                LOGGER.debug("设备图标已设置")
-    except Exception as err:
-        LOGGER.debug("设置设备图标跳过: %s", err)
+        await _ensure_card_resource(hass)
 
-    LOGGER.info("Printer Analytics setup for %s", entry.data.get(CONF_PRINTER_NAME))
-    return True
+        try:
+            await _generate_dashboard_yaml(hass)
+            await _ensure_dashboard_registered(hass)
+        except Exception as err:
+            LOGGER.warning("Dashboard generation skipped: %s", err)
+
+        try:
+            hass.config_entries.async_update_entry(entry, icon="mdi:chart-timeline-variant")
+            LOGGER.debug("集成页面图标已设置为 chart-timeline-variant")
+        except Exception as err:
+            LOGGER.debug("设置集成图标跳过: %s", err)
+
+        try:
+            dr = async_get_device_registry(hass)
+            device = dr.async_get_device(identifiers={(DOMAIN, entry.entry_id)})
+            if device:
+                supported_kwargs = {}
+                if "icon" in dr.async_update_device.__code__.co_varnames:
+                    supported_kwargs["icon"] = "mdi:chart-timeline-variant"
+                if supported_kwargs:
+                    dr.async_update_device(device.id, **supported_kwargs)
+                    LOGGER.debug("设备图标已设置")
+        except Exception as err:
+            LOGGER.debug("设置设备图标跳过: %s", err)
+
+        LOGGER.info("Printer Analytics setup for %s", entry.data.get(CONF_PRINTER_NAME))
+        return True
+    except Exception as err:
+        LOGGER.error("Printer Analytics setup failed for %s: %s",
+                     entry.data.get(CONF_PRINTER_NAME), err, exc_info=True)
+        if DOMAIN in hass.data and entry.entry_id in hass.data[DOMAIN]:
+            hass.data[DOMAIN].pop(entry.entry_id)
+        return False
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -308,7 +306,6 @@ def _register_services(hass: HomeAssistant) -> None:
     if hass.services.has_service(DOMAIN, SERVICE_REFRESH_STATS):
         return
 
-    # 服务参数 Schema 定义
     ENTITY_ID_SCHEMA = vol.Schema({
         vol.Required(ATTR_ENTITY_ID): vol.Any(str, [str]),
     })
