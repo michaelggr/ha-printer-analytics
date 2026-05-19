@@ -1,7 +1,5 @@
-"""Printer Analytics Coordinator - 主协调器"""
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import os
@@ -77,7 +75,6 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         self._http_session: aiohttp.ClientSession | None = None
         self._time_cache: dict[str, datetime] = {}
 
-        # 存储路径
         self._history_base_dir = hass.config.path(".printer_analytics")
         self._history_dir = os.path.join(self._history_base_dir, "history_by_year")
         self._archive_dir = os.path.join(self._history_base_dir, "archives")
@@ -86,11 +83,9 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         self._legacy_history_file = os.path.join(self._history_base_dir, f"{entry.entry_id}.json")
         self._images_dir = hass.config.path("www", "printer_analytics")
 
-        # 数据统计
         self._total_records = 0
         self._yearly_stats: dict[str, int] = {}
 
-        # 子模块
         self.storage: StorageManager | None = None
         self.entity_discovery: EntityDiscovery | None = None
         self.print_tracker: PrintTracker | None = None
@@ -105,27 +100,34 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         self.image_manager = ImageManager(self)
         self.statistics = StatisticsCalculator(self)
 
-        await self._load_history()
-        await self.entity_discovery.discover()
-        await self.hass.async_add_executor_job(self.image_manager.detect_placeholder_images)
+        try:
+            await self._load_history()
+        except Exception as err:
+            LOGGER.warning("Failed to load history (will start fresh): %s", err)
+            self.history = []
 
-        # 如果配置中没有指定打印状态实体，使用自动发现的实体
+        try:
+            await self.entity_discovery.discover()
+        except Exception as err:
+            LOGGER.warning("Entity discovery failed: %s", err)
+
+        try:
+            await self.hass.async_add_executor_job(self.image_manager.detect_placeholder_images)
+        except Exception as err:
+            LOGGER.warning("Placeholder image detection failed: %s", err)
+
         if not self.print_status_entity:
             self.print_status_entity = self._entity_map.get("print_status", "")
 
-        # 获取当前打印状态（包括 unknown/unavailable 等无效状态）
         current_state = self.hass.states.get(self.print_status_entity)
         self._previous_status = current_state.state if current_state else None
 
-        # 保护逻辑：如果当前状态是活跃状态，尝试恢复或开始打印追踪
         if self._previous_status in ACTIVE_PRINT_STATUSES:
             self.print_tracker.recover_active_print()
-        # 二次保护：如果状态是 running 但 current_print 为空，强制恢复
         elif self._previous_status == "running" and not self.current_print:
             LOGGER.warning("检测到 running 状态但 current_print 为空，强制恢复")
             self.print_tracker.recover_active_print()
 
-        # 订阅状态变化
         if self.print_status_entity:
             self._unsub_listener = async_track_state_change_event(
                 self.hass, [self.print_status_entity], self._handle_state_change
@@ -245,7 +247,6 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
                 record["multi_color_summary"]["total_colors"] = 1
                 record["multi_color_summary"]["all_colors"] = colors
 
-    # 老格式 status 中文到英文的映射
     _STATUS_MAP = {
         "完成": PRINT_STATUS_FINISH,
         "失败": PRINT_STATUS_FAIL,
@@ -260,7 +261,6 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         for record in self.history:
             changed = False
 
-            # 转换老格式 status（中文→英文）
             old_status = record.get("status", "")
             if old_status in self._STATUS_MAP:
                 record["status"] = self._STATUS_MAP[old_status]
@@ -270,7 +270,6 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
                 if old_status:
                     LOGGER.warning("未知 status '%s'，保留原值", old_status)
 
-            # 转换 duration_minutes → duration_hours
             if "duration_minutes" in record and "duration_hours" not in record:
                 dm = record.pop("duration_minutes", 0) or 0
                 record["duration_hours"] = round(dm / 60, 2) if dm else 0
@@ -279,7 +278,6 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
                 record.pop("duration_minutes", None)
                 changed = True
 
-            # 转换 timestamp → end_time
             if "timestamp" in record and "end_time" not in record:
                 record["end_time"] = record.pop("timestamp")
                 changed = True
@@ -287,7 +285,6 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
                 record.pop("timestamp", None)
                 changed = True
 
-            # 转换 energy_wh → energy_kwh
             if "energy_wh" in record and "energy_kwh" not in record:
                 wh = record.pop("energy_wh", 0) or 0
                 record["energy_kwh"] = round(wh / 1000, 4) if wh else None
@@ -296,24 +293,20 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
                 record.pop("energy_wh", None)
                 changed = True
 
-            # 移除老格式独有字段
             for old_key in ("printer", "file_name"):
                 if old_key in record:
                     record.pop(old_key, None)
                     changed = True
 
-            # 确保 id 存在
             if "id" not in record:
                 record["id"] = str(uuid.uuid4())
                 changed = True
 
-            # 确保 progress 存在
             if "progress" not in record:
                 status = record.get("status", "")
                 record["progress"] = 100 if status == PRINT_STATUS_FINISH else 0
                 changed = True
 
-            # 确保颜色相关字段存在
             if "colors_used" not in record:
                 color = record.get("filament_color")
                 record["colors_used"] = [color] if color else []
@@ -336,7 +329,6 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
                 record["color_usage"] = []
                 changed = True
 
-            # 确保其他新版本字段存在
             new_fields = {
                 "nozzle_type": None,
                 "nozzle_size": None,
@@ -381,11 +373,19 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
             return self.entity_discovery.get_entity_attr(entity_id, attr, default)
         return default
 
+    def get_entity_attr(self, entity_id: str, attr: str, default: any = None) -> any:
+        """获取实体属性（公共接口）"""
+        return self._get_entity_attr(entity_id, attr, default)
+
     def _get_float_state(self, entity_id: str, default: float = 0.0) -> float:
         """获取浮点状态"""
         if self.entity_discovery:
             return self.entity_discovery.get_float_state(entity_id, default)
         return default
+
+    def get_float_state(self, entity_id: str, default: float = 0.0) -> float:
+        """获取浮点状态（公共接口）"""
+        return self._get_float_state(entity_id, default)
 
     def _get_best_task_name(self) -> str:
         """获取最佳任务名"""
@@ -442,7 +442,6 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         if not active_entity:
             return result
 
-        # 复用 print_tracker 的 AMS 实体缓存
         ams_entities = []
         if self.print_tracker:
             ams_entities = self.print_tracker._get_ams_tray_entities()
@@ -507,7 +506,7 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
     async def _delayed_snapshot_download(self, task_name: str, start_time: str) -> None:
         """延迟下载快照 - 每30秒获取最新快照，新快照替换旧快照，只保留最新一张"""
         interval = 30
-        max_iterations = 2880  # 最多运行24小时（30s * 2880 = 86400s）
+        max_iterations = 2880
         iteration = 0
 
         while iteration < max_iterations:
@@ -534,7 +533,7 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         """保存完整打印信息"""
         try:
             safe_task_name = SecureFileHandler.sanitize_filename(record.get("task_name", "unknown"))
-            safe_time = re.sub(r'[^\dT]', '_', (end_time or '')[:19])
+            safe_time = re.sub(r'[^\\dT]', '_', (end_time or '')[:19])
             filename = f"{safe_task_name}_{safe_time}.json"
 
             def _ensure_dir():
@@ -749,7 +748,11 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
 
     async def _async_update_data(self) -> PrinterStats:
         """异步更新数据"""
-        return self._calculate_statistics()
+        try:
+            return self._calculate_statistics()
+        except Exception as err:
+            LOGGER.error("Statistics calculation failed: %s", err, exc_info=True)
+            return PrinterStats()
 
     async def async_reset_history(self) -> None:
         """重置历史"""
