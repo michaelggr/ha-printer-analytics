@@ -209,7 +209,6 @@ def _truncate_history_attrs(data: PrinterStats) -> dict:
         if full_size <= MAX_ATTR_BYTES:
             return full_result
 
-        # 尝试压缩 current_print
         if current_print and isinstance(current_print, dict):
             compact_print = {
                 k: current_print[k] for k in ('status', 'task_name', 'start_time', 'end_time',
@@ -222,7 +221,6 @@ def _truncate_history_attrs(data: PrinterStats) -> dict:
             if full_size <= MAX_ATTR_BYTES:
                 return full_result
 
-        # 计算可用空间并截断 history
         overhead_result = {"history": [], "current_print": current_print, "total_count": total_count}
         overhead_size = len(json.dumps(overhead_result, ensure_ascii=False).encode('utf-8'))
         available = MAX_ATTR_BYTES - overhead_size
@@ -282,6 +280,8 @@ class PrinterAnalyticsSensor(CoordinatorEntity[PrinterAnalyticsCoordinator], Sen
         self._attr_has_entity_name = True
         if sensor_key == "print_history":
             self._attr_entity_id = f"sensor.{coordinator.printer_name}_print_history"
+        elif sensor_key == "print_status":
+            self._attr_entity_id = f"sensor.{coordinator.printer_name}_print_status"
 
     @property
     def device_info(self) -> dict:
