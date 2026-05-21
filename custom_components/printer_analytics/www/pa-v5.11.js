@@ -1,5 +1,5 @@
-/**
- * 打印机分析卡片 - v5.11.20
+﻿/**
+ * 打印机分析卡片 - v5.11.21
  * 版本: 5.11.8 (2026-05-22) - 修复任务名称显示配置参数、完成时间显示00、耗材类型颜色未显示、BOM乱码
  *
  * 设计特点:
@@ -1158,53 +1158,48 @@ class PrinterAnalyticsCard extends HTMLElement {
         /* ==================== AMS耗材盘 ==================== */
         .ams-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
-          gap: 8px;
-          margin-top: 10px;
+          grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+          gap: 4px;
+          margin-top: 6px;
         }
 
         .ams-tray {
           background: var(--surface-card);
-          border-radius: var(--radius);
-          padding: 10px;
+          border-radius: 6px;
+          padding: 6px 4px;
           text-align: center;
           border: 1px solid var(--border);
-          transition: all 0.3s ease;
           position: relative;
-        }
-
-        .ams-tray:hover {
-          transform: translateY(-3px);
-          box-shadow: var(--shadow);
         }
 
         .ams-tray.active {
           border-color: var(--primary);
-          box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
-          background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), var(--surface-card));
+          box-shadow: 0 0 8px rgba(99, 102, 241, 0.25);
         }
 
         .ams-tray-number {
-          font-size: 11px;
+          font-size: 10px;
           color: var(--text-muted);
           font-weight: 600;
-          margin-bottom: 6px;
+          margin-bottom: 3px;
         }
 
         .ams-tray-color {
-          width: 36px;
-          height: 36px;
+          width: 20px;
+          height: 20px;
           border-radius: 50%;
-          margin: 0 auto 6px;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), inset 0 2px 6px rgba(0, 0, 0, 0.3);
-          border: 3px solid rgba(255, 255, 255, 0.15);
+          margin: 0 auto 3px;
+          border: 2px solid rgba(255, 255, 255, 0.15);
         }
 
         .ams-tray-name {
-          font-size: 13px;
-          font-weight: 700;
+          font-size: 10px;
+          font-weight: 600;
           color: var(--text-primary);
-          line-height: 1.3;
+          line-height: 1.2;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
 
         /* ==================== 历史记录列表 ==================== */
@@ -2112,7 +2107,7 @@ class PrinterAnalyticsCard extends HTMLElement {
               <div class="header-title">${title}</div>
             </div>
           </div>
-        <div class="header-badge">v5.11.20</div>
+        <div class="header-badge">v5.11.21</div>
         </div>
       `;
 
@@ -3778,9 +3773,9 @@ class PrinterAnalyticsCard extends HTMLElement {
       if (!displayTaskName) {
         displayTaskName = this._getState(e.current_task) || '未配置';
         // 如果显示的是参数描述，尝试从 task_name 实体获取（可能是模型名）
-        if (this._isParamDescription(displayTaskName)) {
+        if (this._isParamDescription(displayTaskName) && e.task_name) {
           const rawTaskName = this._getState(e.task_name);
-          if (rawTaskName && rawTaskName !== 'unknown' && rawTaskName !== displayTaskName && !this._isParamDescription(rawTaskName)) {
+          if (rawTaskName && rawTaskName !== 'unknown' && rawTaskName !== 'unavailable' && rawTaskName !== displayTaskName && !this._isParamDescription(rawTaskName)) {
             displayTaskName = rawTaskName;
           }
         }
