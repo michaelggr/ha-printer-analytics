@@ -1,5 +1,5 @@
 ﻿/**
- * 打印机分析卡片 - v5.11.21
+ * 打印机分析卡片 - v5.11.22
  * 版本: 5.11.8 (2026-05-22) - 修复任务名称显示配置参数、完成时间显示00、耗材类型颜色未显示、BOM乱码
  *
  * 设计特点:
@@ -2107,7 +2107,7 @@ class PrinterAnalyticsCard extends HTMLElement {
               <div class="header-title">${title}</div>
             </div>
           </div>
-        <div class="header-badge">v5.11.21</div>
+        <div class="header-badge">v5.11.22</div>
         </div>
       `;
 
@@ -3970,7 +3970,7 @@ class PrinterAnalyticsCard extends HTMLElement {
           </div>
           ${currentWeight && currentWeight !== 'N/A' ? `<div class="realtime-item">
             <div class="realtime-label">⚖️ 当前耗材</div>
-            <div class="realtime-value" style="display:flex;align-items:center;gap:6px;">${currentWeight}<small style="font-size:11px;color:var(--text-muted);">g</small>${filamentType ? `<small style="font-size:11px;color:var(--primary-light);">${this._escapeHtml(filamentType)}</small>` : ''}${filamentColor ? `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${filamentColor};border:1px solid rgba(255,255,255,0.3);"></span>` : ''}</div>
+            <div class="realtime-value">${currentWeight}<small style="font-size:11px;color:var(--text-muted);">g</small>${filamentType ? `<div style="font-size:11px;font-weight:600;color:${filamentColor || 'var(--primary-light)'};">${this._escapeHtml(filamentType)}</div>` : ''}</div>
           </div>` : ''}
           ${chamberTemp && chamberTemp !== 'N/A' ? `<div class="realtime-item">
             <div class="realtime-label">💨 腔体</div>
@@ -4385,7 +4385,11 @@ class PrinterAnalyticsCard extends HTMLElement {
       if (this._filterPrinter && (r._printer_name || '') !== this._filterPrinter) return false;
       if (this._filterColor) {
         const colors = r.colors_used || [];
-        if (!colors.includes(this._filterColor) && r.filament_color !== this._filterColor) return false;
+        let matchColor = colors.includes(this._filterColor) || r.filament_color === this._filterColor;
+        if (!matchColor && r.color_usage && Array.isArray(r.color_usage)) {
+          matchColor = r.color_usage.some(cu => cu && cu.color === this._filterColor);
+        }
+        if (!matchColor) return false;
       }
       if (this._searchQuery) {
         const q = this._searchQuery.toLowerCase();
@@ -4530,14 +4534,27 @@ class PrinterAnalyticsCard extends HTMLElement {
     const allRecords = this._getAllMergedRecords();
     const filtered = this._filterRecordsByDate(allRecords);
 
-    // 提取所有用过的颜色
+    // 提取所有用过的颜色（从 colors_used、filament_color、color_usage 三个来源汇总）
     const colorSet = new Set();
     for (const r of allRecords) {
       const colors = r.colors_used || [];
       for (const c of colors) {
         if (c) colorSet.add(c);
       }
-      if (r.filament_color && !colors.length) colorSet.add(r.filament_color);
+      if (r.filament_color && !colors.length) {
+        const fc = String(r.filament_color).trim();
+        if (fc.includes(',') || fc.includes(';') || fc.includes(' ')) {
+          fc.split(/[,;\s]+/).filter(c => c && c.startsWith('#')).forEach(c => colorSet.add(c));
+        } else if (fc.startsWith('#')) {
+          colorSet.add(fc);
+        }
+      }
+      // 补充：color_usage 中有实际消耗的颜色（可能 colors_used 为空但这里有数据）
+      if (r.color_usage && Array.isArray(r.color_usage)) {
+        for (const cu of r.color_usage) {
+          if (cu && cu.color && cu.weight_g > 0) colorSet.add(cu.color);
+        }
+      }
     }
     const colorOptions = [...colorSet].map(c =>
       `<option value="${this._escapeHtml(c)}" ${this._filterColor === c ? 'selected' : ''}>${this._formatColorName(c)}</option>`
