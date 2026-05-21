@@ -1,5 +1,5 @@
 ﻿/**
- * 打印机分析卡片 - v5.11.18
+ * 打印机分析卡片 - v5.11.19
  * 版本: 5.11.8 (2026-05-22) - 修复任务名称显示配置参数、完成时间显示00、耗材类型颜色未显示、BOM乱码
  *
  * 设计特点:
@@ -183,7 +183,13 @@ class PrinterAnalyticsCard extends HTMLElement {
         return eid;
       }
     }
-    // 其次匹配 image. 类型（静态图片自动刷新模拟实时）
+    // 其次匹配 image. 类型中包含 camera 关键词的（摄像头实体，非封面图）
+    for (const eid of allEntityIds) {
+      if (eid.startsWith('image.') && eid.includes(devicePrefix) && eid.includes('camera')) {
+        return eid;
+      }
+    }
+    // 最后匹配其他 image. 类型（兜底）
     for (const eid of allEntityIds) {
       if (eid.startsWith('image.') && eid.includes(devicePrefix)) {
         return eid;
@@ -227,7 +233,7 @@ class PrinterAnalyticsCard extends HTMLElement {
       if (newSrc) {
         liveImg.src = newSrc + (newSrc.includes('?') ? '&' : '?') + '_t=' + Date.now();
       }
-    }, 5000);
+    }, 2000);
   }
 
   _formatWeight(grams) {
@@ -1439,6 +1445,33 @@ class PrinterAnalyticsCard extends HTMLElement {
           display: none;
         }
 
+        /* 筛选/导出加载遮罩 */
+        .history-loading-overlay {
+          position: absolute;
+          inset: 0;
+          background: rgba(255,255,255,0.7);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 100;
+          font-size: 16px;
+          color: var(--primary);
+          font-weight: 500;
+        }
+        .history-loading-overlay::before {
+          content: '';
+          width: 24px;
+          height: 24px;
+          border: 3px solid var(--border);
+          border-top-color: var(--primary);
+          border-radius: 50%;
+          animation: spin 0.8s linear infinite;
+          margin-right: 8px;
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+
         .color-dot {
           display: inline-block;
           width: 14px;
@@ -1692,6 +1725,61 @@ class PrinterAnalyticsCard extends HTMLElement {
           font-size: 13px;
           font-weight: 700;
           color: var(--text-primary);
+        }
+
+        /* 编辑字段样式 */
+        .detail-field-edit {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .detail-field-edit .edit-value {
+          flex: 1;
+        }
+        .btn-edit-field, .btn-backfill-field {
+          background: var(--surface-card);
+          border: 1px solid var(--border);
+          border-radius: 4px;
+          padding: 2px 6px;
+          cursor: pointer;
+          font-size: 12px;
+          opacity: 0.7;
+          transition: opacity 0.2s;
+        }
+        .btn-edit-field:hover, .btn-backfill-field:hover {
+          opacity: 1;
+          background: var(--surface-hover);
+        }
+        .detail-field-edit input.edit-input {
+          flex: 1;
+          padding: 4px 8px;
+          border: 1px solid var(--primary);
+          border-radius: 4px;
+          font-size: 13px;
+          font-weight: 700;
+          background: var(--surface-card);
+          color: var(--text-primary);
+        }
+        .detail-field-edit .edit-actions {
+          display: flex;
+          gap: 4px;
+        }
+        .detail-field-edit .btn-save-edit {
+          background: var(--primary);
+          color: white;
+          border: none;
+          border-radius: 4px;
+          padding: 2px 8px;
+          cursor: pointer;
+          font-size: 12px;
+        }
+        .detail-field-edit .btn-cancel-edit {
+          background: var(--surface-card);
+          border: 1px solid var(--border);
+          border-radius: 4px;
+          padding: 2px 8px;
+          cursor: pointer;
+          font-size: 12px;
         }
 
         /* ==================== 删除确认框 ==================== */
@@ -1983,7 +2071,7 @@ class PrinterAnalyticsCard extends HTMLElement {
               <div class="header-title">${title}</div>
             </div>
           </div>
-        <div class="header-badge">v5.11.18</div>
+        <div class="header-badge">v5.11.19</div>
         </div>
       `;
 
@@ -2375,6 +2463,176 @@ class PrinterAnalyticsCard extends HTMLElement {
         if (e.target === modalOverlay) this._closeDetailModal();
       });
     }
+
+    // 编辑字段按钮事件绑定
+    this._bindDetailEditEvents();
+  }
+
+  /** 绑定详情modal中编辑字段的事件 */
+  _bindDetailEditEvents() {
+    const root = this.shadowRoot;
+
+    // 修改按钮点击
+    root.querySelectorAll('.btn-edit-field').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const field = btn.dataset.field;
+        const recordId = btn.dataset.recordId;
+        this._showEditFieldInput(field, recordId);
+      });
+    });
+
+    // 反查按钮点击
+    root.querySelectorAll('.btn-backfill-field').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const field = btn.dataset.field;
+        const recordId = btn.dataset.recordId;
+        this._backfillFieldFromAPI(field, recordId);
+      });
+    });
+  }
+
+  /** 显示编辑字段的输入框 */
+  _showEditFieldInput(field, recordId) {
+    const root = this.shadowRoot;
+    const editContainer = root.querySelector(`.detail-field-edit[data-field="${field}"][data-record-id="${recordId}"]`);
+    if (!editContainer) return;
+
+    const currentValue = editContainer.querySelector('.edit-value').textContent;
+
+    // 替换为输入框
+    editContainer.innerHTML = `
+      <input type="text" class="edit-input" value="${this._escapeHtml(currentValue)}" data-field="${field}" data-record-id="${recordId}">
+      <div class="edit-actions">
+        <button class="btn-save-edit" data-field="${field}" data-record-id="${recordId}">保存</button>
+        <button class="btn-cancel-edit" data-field="${field}" data-record-id="${recordId}">取消</button>
+      </div>
+    `;
+
+    // 绑定保存和取消事件
+    editContainer.querySelector('.btn-save-edit').addEventListener('click', () => {
+      const input = editContainer.querySelector('.edit-input');
+      const newValue = input.value.trim();
+      this._saveFieldValue(field, recordId, newValue);
+    });
+
+    editContainer.querySelector('.btn-cancel-edit').addEventListener('click', () => {
+      // 刷新modal以恢复原状
+      if (this._detailRecord) {
+        this._showDetailModal(this._detailRecord);
+      }
+    });
+
+    // 回车保存
+    editContainer.querySelector('.edit-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const newValue = e.target.value.trim();
+        this._saveFieldValue(field, recordId, newValue);
+      } else if (e.key === 'Escape') {
+        if (this._detailRecord) {
+          this._showDetailModal(this._detailRecord);
+        }
+      }
+    });
+
+    // 自动聚焦
+    editContainer.querySelector('.edit-input').focus();
+  }
+
+  /** 保存字段值到后端 */
+  async _saveFieldValue(field, recordId, newValue) {
+    if (!newValue) {
+      alert('值不能为空');
+      return;
+    }
+
+    try {
+      // 获取所有记录，找到对应的记录
+      const allRecords = this._getAllMergedRecords();
+      const record = allRecords.find(r => r.id === recordId);
+      if (!record) {
+        alert('找不到记录');
+        return;
+      }
+
+      // 更新记录
+      if (field === 'model') {
+        record.task_name_model = newValue;
+      } else if (field === 'config') {
+        record.task_name_config = newValue;
+      }
+
+      // 调用HA服务保存
+      const entryIds = this._getAllEntryIds();
+      if (entryIds.length > 0) {
+        const { entryId } = entryIds[0];
+        // 调用保存服务
+        await this._hass.callService('printer_analytics', 'update_record_field', {
+          entity_id: entryId,
+          record_id: recordId,
+          field: field,
+          value: newValue
+        });
+      }
+
+      // 刷新显示
+      if (this._detailRecord) {
+        this._detailRecord = record;
+        this._showDetailModal(record);
+      }
+
+      // 刷新历史数据
+      this._loadHistoryViaWS();
+
+    } catch (e) {
+      console.error('保存字段失败:', e);
+      alert('保存失败: ' + (e.message || e));
+    }
+  }
+
+  /** 从Bambu API反查字段值 */
+  async _backfillFieldFromAPI(field, recordId) {
+    if (!confirm(`确定要从Bambu API反查${field === 'model' ? '模型名称' : '打印配置'}吗？`)) {
+      return;
+    }
+
+    this._showHistoryLoading('反查中...');
+
+    try {
+      const entryIds = this._getAllEntryIds();
+      if (entryIds.length === 0) {
+        this._hideHistoryLoading();
+        alert('没有可用的打印机配置');
+        return;
+      }
+
+      const { entryId } = entryIds[0];
+
+      // 调用反查服务
+      await this._hass.callService('printer_analytics', 'backfill_task_names', {
+        entity_id: entryId
+      });
+
+      this._hideHistoryLoading();
+      alert('反查完成！请刷新页面查看最新数据。');
+
+      // 刷新历史数据
+      this._loadHistoryViaWS();
+
+      // 刷新modal
+      const allRecords = this._getAllMergedRecords();
+      const record = allRecords.find(r => r.id === recordId);
+      if (record) {
+        this._detailRecord = record;
+        this._showDetailModal(record);
+      }
+
+    } catch (e) {
+      this._hideHistoryLoading();
+      console.error('反查失败:', e);
+      alert('反查失败: ' + (e.message || e));
+    }
   }
 
   _refreshContent() {
@@ -2529,6 +2787,30 @@ class PrinterAnalyticsCard extends HTMLElement {
     }
 
     return true;
+  }
+
+  /**
+   * 显示历史页面的加载遮罩
+   * @param {string} text 加载提示文字
+   */
+  _showHistoryLoading(text = '加载中...') {
+    const tabMerged = this.shadowRoot.getElementById('tab-merged');
+    if (!tabMerged) return;
+    // 确保父容器有 position: relative
+    tabMerged.style.position = 'relative';
+    // 移除已有的遮罩
+    this._hideHistoryLoading();
+    const overlay = document.createElement('div');
+    overlay.className = 'history-loading-overlay';
+    overlay.id = 'history-loading-overlay';
+    overlay.textContent = text;
+    tabMerged.appendChild(overlay);
+  }
+
+  /** 隐藏历史页面的加载遮罩 */
+  _hideHistoryLoading() {
+    const existing = this.shadowRoot.getElementById('history-loading-overlay');
+    if (existing) existing.remove();
   }
 
   /**
@@ -4063,9 +4345,13 @@ class PrinterAnalyticsCard extends HTMLElement {
     }
 
     const statusMap = { 'finish': '成功', '完成': '成功', '成功': '成功', 'failed': '失败', 'fail': '失败', '失败': '失败', 'cancelled': '已取消', '已取消': '已取消' };
-    const headers = ['序号', '任务名称', '打印机', '状态', '开始时间', '结束时间', '时长(分钟)', '耗材类型', '耗材颜色', '耗材重量(g)', '耗材长度(m)', '能耗(kWh)', '喷嘴温度(°C)', '热床温度(°C)', '腔温(°C)', '速度配置', '喷嘴尺寸'];
+    // 添加封面图URL和快照图URL列
+    const headers = ['序号', '任务名称', '打印机', '状态', '开始时间', '结束时间', '时长(分钟)', '耗材类型', '耗材颜色', '耗材重量(g)', '耗材长度(m)', '能耗(kWh)', '喷嘴温度(°C)', '热床温度(°C)', '腔温(°C)', '速度配置', '喷嘴尺寸', '封面图URL', '快照图URL'];
     const rows = filtered.map((r, i) => {
       const chamberTemp = r.chamber_temp_last5min?.avg ?? r.chamber_temp_final ?? '';
+      // 获取封面图和快照图URL
+      const coverUrl = r.cover_image_url || r.cover_image_local || '';
+      const snapshotUrl = r.snapshot_image_local || r.snapshot_image_url || '';
       return [
         i + 1,
         r.task_name || '',
@@ -4083,7 +4369,9 @@ class PrinterAnalyticsCard extends HTMLElement {
         r.bed_temp || '',
         chamberTemp,
         r.speed_profile || '',
-        r.nozzle_size || ''
+        r.nozzle_size || '',
+        coverUrl,
+        snapshotUrl
       ];
     });
 
@@ -4355,9 +4643,12 @@ class PrinterAnalyticsCard extends HTMLElement {
       modelName = record.task_name || '-';
     }
 
+    // 记录ID用于后续修改
+    const recordId = record.id;
+
     const fields = [
-      { label: '模型名称', value: modelName },
-      configName ? { label: '打印配置', value: configName } : null,
+      { label: '模型名称', value: modelName, recordId: recordId, field: 'model' },
+      configName ? { label: '打印配置', value: configName, recordId: recordId, field: 'config' } : null,
       { label: '打印机', value: record._printer_name || '-' },
       { label: '状态', value: `${statusInfo.icon} ${statusInfo.text}`, color: statusInfo.color },
       { label: '完成进度', value: `${record.progress || 0}%` },
@@ -4377,12 +4668,25 @@ class PrinterAnalyticsCard extends HTMLElement {
       { label: '💨 腔体温度', value: this._getDetailChamberTemp(record), color: 'var(--primary-light)' },
     ].filter(f => f !== null);
 
-    let fieldsHtml = fields.map(f => `
-      <div class="detail-field">
-        <div class="detail-field-label">${f.label}</div>
-        <div class="detail-field-value" ${f.color ? `style="color:${this._sanitizeColor(f.color)}"` : ''}>${this._escapeHtml(String(f.value))}</div>
-      </div>
-    `).join('');
+    let fieldsHtml = fields.map(f => {
+      // 模型名称和打印配置字段添加修改按钮
+      if (f.field === 'model' || f.field === 'config') {
+        return `
+          <div class="detail-field">
+            <div class="detail-field-label">${f.label}</div>
+            <div class="detail-field-value detail-field-edit" data-field="${f.field}" data-record-id="${f.recordId}">
+              <span class="edit-value">${this._escapeHtml(String(f.value))}</span>
+              <button class="btn-edit-field" data-field="${f.field}" data-record-id="${f.recordId}" title="修改">✏️</button>
+              <button class="btn-backfill-field" data-field="${f.field}" data-record-id="${f.recordId}" title="从Bambu API反查">🔄</button>
+            </div>
+          </div>`;
+      }
+      return `
+        <div class="detail-field">
+          <div class="detail-field-label">${f.label}</div>
+          <div class="detail-field-value" ${f.color ? `style="color:${this._sanitizeColor(f.color)}"` : ''}>${this._escapeHtml(String(f.value))}</div>
+        </div>`;
+    }).join('');
 
     let colorsHtml = '';
     if (record.color_usage && record.color_usage.length > 0) {
