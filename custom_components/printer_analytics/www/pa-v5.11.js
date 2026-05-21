@@ -1,5 +1,5 @@
 ﻿/**
- * 打印机分析卡片 - v5.11.8
+ * 打印机分析卡片 - v5.11.18
  * 版本: 5.11.8 (2026-05-22) - 修复任务名称显示配置参数、完成时间显示00、耗材类型颜色未显示、BOM乱码
  *
  * 设计特点:
@@ -44,6 +44,8 @@ class PrinterAnalyticsCard extends HTMLElement {
     this._pendingDateFrom = '';
     this._pendingDateTo = '';
     this._pendingSearchQuery = '';
+    this._cameraViewPrinter = null;     // 当前显示摄像头视图的打印机名（null=监控视图）
+    this._imageRefreshTimer = null;     // image类型摄像头自动刷新定时器
   }
 
   setConfig(config) {
@@ -70,6 +72,7 @@ class PrinterAnalyticsCard extends HTMLElement {
       clearTimeout(this._renderDebounce);
       this._renderDebounce = null;
     }
+    this._stopImageRefresh();
     this._selectedRecords.clear();
     this._detailRecord = null;
   }
@@ -143,6 +146,88 @@ class PrinterAnalyticsCard extends HTMLElement {
     if (!name || typeof name !== 'string') return false;
     // 匹配参数描述的典型模式：层高+墙层数+填充率
     return /\d+(\.\d+)?mm.*\d+层.*\d+%/.test(name) || /\d+%.*填充/.test(name);
+  }
+
+  /**
+   * 自动发现摄像头实体：从传感器实体ID提取设备前缀，匹配 camera/image 实体
+   * @param {object} entities - 打印机实体配置对象
+   * @returns {string|null} 匹配到的摄像头实体ID，未找到返回 null
+   */
+  _discoverCameraEntity(entities) {
+    const hass = this._hass || this.hass;
+    if (!hass || !entities) return null;
+
+    // 从传感器实体ID中提取设备前缀（如 p2s_22e8bj5a2401765、a1mini_0300aa5a1600497）
+    let devicePrefix = '';
+    const sensorKeys = ['print_status', 'print_progress', 'current_task', 'nozzle_temperature'];
+    for (const key of sensorKeys) {
+      const eid = entities[key];
+      if (eid && eid.startsWith('sensor.')) {
+        // 提取 sensor. 之后、下一个 _ 之前的部分不够，需要匹配完整前缀
+        const match = eid.match(/^sensor\.([a-z0-9]+_[a-z0-9]{8,})_/i);
+        if (match) {
+          // 取最长的前缀（包含序列号的更精确）
+          if (match[1].length > devicePrefix.length) {
+            devicePrefix = match[1];
+          }
+        }
+      }
+    }
+    if (!devicePrefix) return null;
+
+    // 在 hass.states 中搜索匹配的 camera 或 image 实体
+    const allEntityIds = Object.keys(hass.states);
+    // 优先匹配 camera. 类型（支持实时视频流）
+    for (const eid of allEntityIds) {
+      if (eid.startsWith('camera.') && eid.includes(devicePrefix)) {
+        return eid;
+      }
+    }
+    // 其次匹配 image. 类型（静态图片自动刷新模拟实时）
+    for (const eid of allEntityIds) {
+      if (eid.startsWith('image.') && eid.includes(devicePrefix)) {
+        return eid;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * 停止 image 类型摄像头的自动刷新
+   */
+  _stopImageRefresh() {
+    if (this._imageRefreshTimer) {
+      clearInterval(this._imageRefreshTimer);
+      this._imageRefreshTimer = null;
+    }
+  }
+
+  /**
+   * 启动 image 类型摄像头的自动刷新（每5秒更新一次图片URL）
+   */
+  _startImageRefresh() {
+    this._stopImageRefresh();
+    const liveImg = this.shadowRoot.querySelector('.camera-live-img');
+    if (!liveImg) return;
+    const hass = this._hass || this.hass;
+    if (!hass) return;
+
+    // 找到当前摄像头实体
+    const printers = this._getPrintersConfig();
+    const currentPrinter = printers.find(p => p.printer_name === this._cameraViewPrinter);
+    if (!currentPrinter) return;
+    const cameraEntity = this._discoverCameraEntity(currentPrinter.entities);
+    if (!cameraEntity || !cameraEntity.startsWith('image.')) return;
+
+    this._imageRefreshTimer = setInterval(() => {
+      const state = hass.states[cameraEntity];
+      if (!state) return;
+      // 用 entity_picture 属性 + 时间戳防止缓存
+      const newSrc = state.attributes?.entity_picture || '';
+      if (newSrc) {
+        liveImg.src = newSrc + (newSrc.includes('?') ? '&' : '?') + '_t=' + Date.now();
+      }
+    }, 5000);
   }
 
   _formatWeight(grams) {
@@ -1337,6 +1422,23 @@ class PrinterAnalyticsCard extends HTMLElement {
         }
         .btn-filter-export:hover { background: #15803d; }
 
+        .btn-filter-import {
+          background: #0ea5e9;
+          color: white;
+        }
+        .btn-filter-import:hover { background: #0284c7; }
+
+        .btn-filter-backup {
+          background: #8b5cf6;
+          color: white;
+        }
+        .btn-filter-backup:hover { background: #7c3aed; }
+
+        /* 隐藏的文件输入 */
+        .hidden-file-input {
+          display: none;
+        }
+
         .color-dot {
           display: inline-block;
           width: 14px;
@@ -1881,7 +1983,7 @@ class PrinterAnalyticsCard extends HTMLElement {
               <div class="header-title">${title}</div>
             </div>
           </div>
-        <div class="header-badge">v5.11.8</div>
+        <div class="header-badge">v5.11.18</div>
         </div>
       `;
 
@@ -1991,9 +2093,54 @@ class PrinterAnalyticsCard extends HTMLElement {
         const target = e.target.closest('.monitor-switch-btn');
         if (!target) return;
         this._selectedPrinter = target.dataset.printer;
+        this._cameraViewPrinter = null;  // 切换打印机时关闭摄像头视图
         this.updateData();
       });
     });
+
+    // 摄像头按钮事件：打开摄像头视图
+    const cameraBtns = this.shadowRoot.querySelectorAll('.camera-btn');
+    cameraBtns.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const target = e.target.closest('.camera-btn');
+        if (!target) return;
+        const printerName = target.dataset.printer;
+        this._cameraViewPrinter = printerName;
+        this._stopImageRefresh();
+        this.updateData();
+      });
+    });
+
+    // 摄像头关闭按钮事件
+    const cameraCloseBtns = this.shadowRoot.querySelectorAll('.camera-close-btn');
+    cameraCloseBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        this._cameraViewPrinter = null;
+        this._stopImageRefresh();
+        this.updateData();
+      });
+    });
+
+    // 摄像头视图渲染后：初始化 ha-camera-stream 组件和 image 自动刷新
+    if (this._cameraViewPrinter) {
+      const cameraStreamEl = this.shadowRoot.querySelector('ha-camera-stream');
+      if (cameraStreamEl) {
+        // 动态设置 ha-camera-stream 的必要属性
+        const hass = this._hass || this.hass;
+        const printers = this._getPrintersConfig();
+        const currentPrinter = printers.find(p => p.printer_name === this._cameraViewPrinter);
+        if (currentPrinter && hass) {
+          const cameraEntity = this._discoverCameraEntity(currentPrinter.entities);
+          if (cameraEntity) {
+            cameraStreamEl.hass = hass;
+            cameraStreamEl.stateObj = hass.states[cameraEntity];
+            cameraStreamEl.entityId = cameraEntity;
+          }
+        }
+      }
+      // image 类型：启动自动刷新
+      this._startImageRefresh();
+    }
 
     this._bindHistoryEvents();
     this._restoreFilterValues();
@@ -2111,6 +2258,36 @@ class PrinterAnalyticsCard extends HTMLElement {
     if (exportBtn) {
       exportBtn.addEventListener('click', () => {
         this._exportHistoryToCSV();
+      });
+    }
+
+    // 导入JSON按钮
+    const importBtn = root.getElementById('btn-import-json');
+    if (importBtn) {
+      importBtn.addEventListener('click', () => {
+        const fileInput = root.getElementById('file-import');
+        if (fileInput) fileInput.click();
+      });
+    }
+
+    // 文件输入 change 事件
+    const fileInput = root.getElementById('file-import');
+    if (fileInput) {
+      fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          this._importHistoryFromFile(file);
+          // 清空input以便重复选择同一文件
+          fileInput.value = '';
+        }
+      });
+    }
+
+    // 备份按钮
+    const backupBtn = root.getElementById('btn-backup');
+    if (backupBtn) {
+      backupBtn.addEventListener('click', () => {
+        this._backupHistory();
       });
     }
 
@@ -2320,6 +2497,7 @@ class PrinterAnalyticsCard extends HTMLElement {
       return {
         _selectedPrinter: this._selectedPrinter,
         _activeTab: this._activeTab,
+        _cameraViewPrinter: this._cameraViewPrinter,
         totalPrints: this._getState(e.total_prints || this.config.total_prints),
         successRate: this._getState(e.success_rate || this.config.success_rate),
         avgDuration: this._getState(e.average_duration || this.config.average_duration),
@@ -2343,7 +2521,7 @@ class PrinterAnalyticsCard extends HTMLElement {
   _isDataEqual(data1, data2) {
     if (!data1 || !data2) return false;
 
-    const keys = ['_selectedPrinter', '_activeTab', 'totalPrints', 'successRate', 'avgDuration', 'totalDuration', 'totalEnergy',
+    const keys = ['_selectedPrinter', '_activeTab', '_cameraViewPrinter', 'totalPrints', 'successRate', 'avgDuration', 'totalDuration', 'totalEnergy',
                   'printStatus', 'currentTask', 'printProgress', 'currentWeight', 'historyLength'];
 
     for (const key of keys) {
@@ -3342,21 +3520,44 @@ class PrinterAnalyticsCard extends HTMLElement {
         } catch (e) {}
       }
 
-      // AMS 耗材盘
+      // AMS 耗材盘 - 增强匹配：支持按索引和名称匹配，兜底显示当前耗材信息
       let amsHtml = '';
+      let activeTrayName = '';
+      let activeTrayColor = '';
       const trayKeys = ['ams_1_tray_1', 'ams_1_tray_2', 'ams_1_tray_3', 'ams_1_tray_4'];
       const trays = trayKeys.map((k, i) => ({ num: i + 1, entity: e[k] })).filter(t => t.entity);
       if (trays.length > 0) {
+        if (activeTray) {
+          for (const tray of trays) {
+            const trayData = this._getAttr(tray.entity);
+            const trayName = trayData.name || '';
+            const matchByIndex = activeTray.includes(`tray_${tray.num}`);
+            const matchByName = trayName && (activeTray === trayName || activeTray.includes(trayName));
+            if (matchByIndex || matchByName) {
+              activeTrayName = trayName || activeTray;
+              activeTrayColor = trayData.color || '';
+              break;
+            }
+          }
+          if (!activeTrayName && activeTray !== 'unknown' && activeTray !== 'unavailable') {
+            activeTrayName = activeTray;
+          }
+        } else if (activeTray && activeTray !== 'unknown' && activeTray !== 'unavailable') {
+          activeTrayName = activeTray;
+        }
+        if (!activeTrayColor && cp) {
+          activeTrayColor = cp.filament_color || '';
+        }
         amsHtml = `<div style="margin-top:12px;">
           <div style="font-size:12px;font-weight:700;color:var(--text-primary);margin-bottom:8px;display:flex;align-items:center;gap:6px;">
-            <span>🎨</span> AMS耗材盘
+            <span>🎨</span> AMS耗材盘${activeTrayName ? `<span style="font-size:11px;color:var(--primary-light);margin-left:8px;">→ ${this._escapeHtml(activeTrayName)}</span>` : ''}${activeTrayColor ? `<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${activeTrayColor};border:1px solid rgba(255,255,255,0.3);vertical-align:middle;margin-left:4px;"></span>` : ''}
           </div>
           <div class="ams-grid">`;
         trays.forEach(tray => {
           const trayData = this._getAttr(tray.entity);
           const trayName = trayData.name || `托盘${tray.num}`;
           const trayColor = trayData.color || '#cccccc';
-          const isActive = activeTray && activeTray.includes(`tray_${tray.num}`);
+          const isActive = activeTray && (activeTray.includes(`tray_${tray.num}`) || (trayName && (activeTray === trayName || activeTray.includes(trayName))));
           amsHtml += `<div class="ams-tray ${isActive ? 'active' : ''}">
             <div class="ams-tray-number">托盘 ${tray.num}</div>
             <div class="ams-tray-color" style="background:${trayColor}"></div>
@@ -3364,6 +3565,25 @@ class PrinterAnalyticsCard extends HTMLElement {
           </div>`;
         });
         amsHtml += '</div></div>';
+      }
+
+      // 摄像头自动发现
+      const cameraEntity = this._discoverCameraEntity(e);
+      const isCameraView = this._cameraViewPrinter === printerToDisplay.printer_name;
+
+      // 构建摄像头图片URL（区分 camera 和 image 类型）
+      let cameraImgSrc = '';
+      if (cameraEntity && isCameraView) {
+        const hass = this._hass || this.hass;
+        const entityState = hass?.states[cameraEntity];
+        if (cameraEntity.startsWith('camera.')) {
+          // camera 类型：使用 camera_proxy 获取快照
+          const token = entityState?.attributes?.access_token || entityState?.attributes?.entity_picture?.split('token=')[1]?.split('&')[0] || '';
+          cameraImgSrc = `/api/camera_proxy/camera.${cameraEntity.replace('camera.', '')}?token=${token}`;
+        } else if (cameraEntity.startsWith('image.')) {
+          // image 类型：使用 entity_picture 属性
+          cameraImgSrc = entityState?.attributes?.entity_picture || '';
+        }
       }
 
       html += `<div class="realtime-panel" style="margin-bottom:16px;">
@@ -3379,13 +3599,18 @@ class PrinterAnalyticsCard extends HTMLElement {
                 ${this._escapeHtml(p.printer_name)}
               </button>`;
             }).join('') : ''}
+            ${cameraEntity ? `<button class="camera-btn" data-action="toggle-camera" data-printer="${this._escapeHtml(printerToDisplay.printer_name)}" title="摄像头" style="background:var(--card-bg);border:1px solid var(--border-color);color:var(--text-primary);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:13px;">📷</button>` : ''}
             <div class="status-badge ${statusClass}">${statusText}</div>
           </div>
         </div>
-        <div class="realtime-grid">
+        ${isCameraView ? `<div class="camera-view" style="border-radius:8px;overflow:hidden;position:relative;background:#000;">
+          ${cameraEntity.startsWith('camera.') ? `<ha-camera-stream data-camera-entity="${cameraEntity}" style="width:100%;display:block;"></ha-camera-stream>` : `<img class="camera-live-img" src="${cameraImgSrc}" style="width:100%;display:block;object-fit:contain;" alt="实时画面" /><div style="position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,0.6);color:#fff;font-size:11px;padding:2px 8px;border-radius:4px;">🔄 自动刷新</div>`}
+          <button class="camera-close-btn" data-action="close-camera" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:14px;z-index:10;">✕</button>
+        </div>` : `<div class="realtime-grid">
           <div class="realtime-item">
             <div class="realtime-label">📋 当前任务</div>
             <div class="realtime-value">${this._escapeHtml(displayTaskName || '空闲')}</div>
+          </div>
           <div class="realtime-item">
             <div class="realtime-label">📊 打印进度</div>
             <div class="realtime-value" style="display:flex;justify-content:space-between;align-items:center;">
@@ -3413,7 +3638,7 @@ class PrinterAnalyticsCard extends HTMLElement {
             <div class="realtime-value">${nozzleSize}</div>
           </div>` : ''}
         </div>
-        ${amsHtml}
+        ${amsHtml}`}
       </div>`;
     }
     return html;
@@ -3880,6 +4105,78 @@ class PrinterAnalyticsCard extends HTMLElement {
     URL.revokeObjectURL(url);
   }
 
+  // 从文件导入历史记录
+  async _importHistoryFromFile(file) {
+    this._showHistoryLoading('导入中...');
+
+    try {
+      const text = await file.text();
+      // 验证基本的JSON格式
+      JSON.parse(text);
+
+      // 获取所有打印机实体ID，选择第一个
+      const entryIds = this._getAllEntryIds();
+      if (entryIds.length === 0) {
+        this._hideHistoryLoading();
+        alert('没有可用的打印机配置');
+        return;
+      }
+
+      const { entryId } = entryIds[0];
+
+      // 调用HA服务导入数据
+      await this._hass.callService('printer_analytics', 'import_history', {
+        entity_id: entryId,
+        json_data: text
+      });
+
+      alert('导入成功！即将刷新数据...');
+
+      // 刷新数据
+      this._loadHistoryViaWS();
+
+    } catch (e) {
+      console.warn('[导入] 导入失败:', e);
+      alert('导入失败: ' + (e.message || e));
+    } finally {
+      this._hideHistoryLoading();
+    }
+  }
+
+  // 备份历史记录
+  async _backupHistory() {
+    if (!confirm('确定要立即备份所有数据吗？')) {
+      return;
+    }
+
+    this._showHistoryLoading('备份中...');
+
+    try {
+      // 获取所有打印机实体ID，选择第一个
+      const entryIds = this._getAllEntryIds();
+      if (entryIds.length === 0) {
+        this._hideHistoryLoading();
+        alert('没有可用的打印机配置');
+        return;
+      }
+
+      const { entryId } = entryIds[0];
+
+      // 调用HA服务备份数据
+      const result = await this._hass.callService('printer_analytics', 'backup_history', {
+        entity_id: entryId
+      });
+
+      alert('备份成功！数据已保存。');
+
+    } catch (e) {
+      console.warn('[备份] 备份失败:', e);
+      alert('备份失败: ' + (e.message || e));
+    } finally {
+      this._hideHistoryLoading();
+    }
+  }
+
   _renderMergedHistoryPage() {
     const allRecords = this._getAllMergedRecords();
     const filtered = this._filterRecordsByDate(allRecords);
@@ -3957,7 +4254,11 @@ class PrinterAnalyticsCard extends HTMLElement {
           <button class="btn-filter btn-filter-apply" id="btn-apply-filter">确定</button>
           <button class="btn-filter btn-filter-reset" id="btn-reset-filter">重置</button>
           <button class="btn-filter btn-filter-export" id="btn-export-csv" title="导出为CSV表格">📥 导出</button>
+          <button class="btn-filter btn-filter-import" id="btn-import-json" title="从JSON文件导入">📤 导入</button>
+          <button class="btn-filter btn-filter-backup" id="btn-backup" title="立即备份所有数据">💾 备份</button>
         </div>
+        <!-- 隐藏的文件输入用于导入 -->
+        <input type="file" class="hidden-file-input" id="file-import" accept=".json">
       </div>
       <div class="summary-bar">
         ${this._renderHistoryStats(filtered)}
