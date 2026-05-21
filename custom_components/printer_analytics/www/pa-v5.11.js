@@ -1,6 +1,6 @@
-﻿﻿﻿﻿﻿﻿/**
- * 打印机分析卡片 - v5.11.0
- * 版本: 5.10.9 (2026-05-19) - 修复打印开始时缺失 get_float_state/get_entity_attr 公共接口，统一发布版本号
+﻿/**
+ * 打印机分析卡片 - v5.11.8
+ * 版本: 5.11.8 (2026-05-22) - 修复任务名称显示配置参数、完成时间显示00、耗材类型颜色未显示、BOM乱码
  *
  * 设计特点:
  * - 顶部打印机实时监控（多打印机卡片）
@@ -133,6 +133,16 @@ class PrinterAnalyticsCard extends HTMLElement {
   _getAttr(entityId) {
     const entity = this._hass?.states[entityId];
     return entity?.attributes || {};
+  }
+
+  /**
+   * 判断任务名是否是参数描述（如 "0.2mm 2层墙 15%填充"）而非模型名
+   * 参数描述特征：包含层高mm、填充%、墙层数等工艺参数关键词
+   */
+  _isParamDescription(name) {
+    if (!name || typeof name !== 'string') return false;
+    // 匹配参数描述的典型模式：层高+墙层数+填充率
+    return /\d+(\.\d+)?mm.*\d+层.*\d+%/.test(name) || /\d+%.*填充/.test(name);
   }
 
   _formatWeight(grams) {
@@ -280,10 +290,11 @@ class PrinterAnalyticsCard extends HTMLElement {
 
   _sanitizeColor(color) {
     if (!color || typeof color !== 'string') return 'transparent';
-    const hex = color.trim();
-    if (/^#[0-9a-fA-F]{3,8}$/.test(hex)) return hex;
-    const rgba = hex.match(/^rgba?\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+\s*(?:,\s*[\d.]+\s*)?\)$/);
-    if (rgba) return hex;
+    const c = color.trim();
+    if (/^#[0-9a-fA-F]{3,8}$/.test(c)) return c;
+    if (/^var\(--[\w-]+\)$/.test(c)) return c;
+    if (/^rgba?\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+\s*(?:,\s*[\d.]+\s*)?\)$/.test(c)) return c;
+    if (/^hsla?\(\s*[\d.]+\s*,\s*[\d.]+%\s*,\s*[\d.]+%(?:,\s*[\d.]+\s*)?\)$/.test(c)) return c;
     return 'transparent';
   }
 
@@ -1870,7 +1881,7 @@ class PrinterAnalyticsCard extends HTMLElement {
               <div class="header-title">${title}</div>
             </div>
           </div>
-        <div class="header-badge">v5.11.0</div>
+        <div class="header-badge">v5.11.8</div>
         </div>
       `;
 
@@ -3257,34 +3268,76 @@ class PrinterAnalyticsCard extends HTMLElement {
     
     if (printerToDisplay) {
       const e = printerToDisplay.entities;
-      const currentTask = this._getState(e.current_task) || '未配置';
+      // 优先从 current_print 获取真实任务名（模型名），否则回退到 current_task 实体
+      const cp = this._getAttr(e.current_print) || {};
+      const modelNameFromCP = cp.task_name_model || '';
+      const configNameFromCP = cp.task_name_config || cp.config_name || '';
+      let displayTaskName = modelNameFromCP || cp.task_name || '';
+      if (!displayTaskName) {
+        displayTaskName = this._getState(e.current_task) || '未配置';
+        // 如果显示的是参数描述，尝试从 task_name 实体获取（可能是模型名）
+        if (this._isParamDescription(displayTaskName)) {
+          const rawTaskName = this._getState(e.task_name);
+          if (rawTaskName && rawTaskName !== 'unknown' && rawTaskName !== displayTaskName && !this._isParamDescription(rawTaskName)) {
+            displayTaskName = rawTaskName;
+          }
+        }
+      }
       const printProgress = this._getState(e.print_progress) || '0';
       const currentWeight = this._getState(e.current_weight) || 'N/A';
       const chamberTemp = this._getState(e.chamber_temperature) || 'N/A';
       const speedProfile = this._getState(e.speed_profile) || 'N/A';
       const nozzleSize = this._getState(e.nozzle_size) || 'N/A';
       const activeTray = this._getState(e.active_tray);
-      const endTime = this._getState(e.end_time);
 
       let statusClass = 'idle';
       let statusText = '空闲';
       if (printProgress && parseFloat(printProgress) > 0 && parseFloat(printProgress) < 100) {
         statusClass = 'printing';
         statusText = `打印中 ${printProgress}%`;
-      } else if (currentTask && currentTask !== 'unknown' && currentTask !== 'unavailable' && currentTask !== '未配置') {
+      } else if (displayTaskName && displayTaskName !== 'unknown' && displayTaskName !== 'unavailable' && displayTaskName !== '未配置') {
         statusClass = 'finish';
         statusText = '已完成';
       }
 
-      // 计算预计完成时间
+      // 计算预计完成时间 - 多源回退
+      const remainingTime = this._getState(e.remaining_time);
       let endDisplay = '';
-      if (endTime && endTime !== 'unknown' && endTime !== 'unavailable') {
+      // 方法1: end_time 实体
+      const endTimeVal = this._getState(e.end_time);
+      if (endTimeVal && endTimeVal !== 'unknown' && endTimeVal !== 'unavailable' && endTimeVal !== '') {
         try {
-          const endDate = new Date(endTime);
+          const endDate = new Date(endTimeVal.includes('T') ? endTimeVal : endTimeVal.replace(' ', 'T'));
           if (!isNaN(endDate.getTime())) {
-            const hours = endDate.getHours();
-            const mins = endDate.getMinutes();
-            endDisplay = `${hours}:${mins.toString().padStart(2, '0')} 完成`;
+            endDisplay = `${endDate.getHours()}:${endDate.getMinutes().toString().padStart(2,'0')} 完成`;
+          }
+        } catch (e) {}
+      }
+      // 方法2: remaining_time 计算
+      if (!endDisplay && remainingTime && remainingTime !== 'unknown' && remainingTime !== 'unavailable') {
+        try {
+          const mins = parseInt(remainingTime);
+          if (!isNaN(mins) && mins > 0) {
+            const ed = new Date(Date.now() + mins * 60000);
+            endDisplay = `${ed.getHours()}:${ed.getMinutes().toString().padStart(2,'0')} 预计`;
+          }
+        } catch (e) {}
+      }
+      // 方法3: 用进度估算剩余时间
+      if (!endDisplay && cp) {
+        try {
+          const prog = parseFloat(printProgress) || 0;
+          const stStr = cp.start_time || '';
+          if (prog > 5 && prog < 99 && stStr) {
+            const st = new Date(stStr.includes('T') ? stStr : stStr.replace(' ', 'T'));
+            if (!isNaN(st.getTime())) {
+              const elapsed = Date.now() - st.getTime();
+              const remainMs = elapsed / prog * (100 - prog);
+              if (remainMs > 0 && remainMs < 86400000 * 7) {
+                const estEnd = new Date(Date.now() + remainMs);
+                endDisplay = `${estEnd.getHours()}:${estEnd.getMinutes().toString().padStart(2,'0')} 估算`;
+              }
+            }
           }
         } catch (e) {}
       }
@@ -3332,7 +3385,7 @@ class PrinterAnalyticsCard extends HTMLElement {
         <div class="realtime-grid">
           <div class="realtime-item">
             <div class="realtime-label">📋 当前任务</div>
-            <div class="realtime-value">${this._escapeHtml(currentTask || '空闲')}</div>
+            <div class="realtime-value">${this._escapeHtml(displayTaskName || '空闲')}</div>
           <div class="realtime-item">
             <div class="realtime-label">📊 打印进度</div>
             <div class="realtime-value" style="display:flex;justify-content:space-between;align-items:center;">
