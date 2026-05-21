@@ -1,5 +1,5 @@
-﻿/**
- * 打印机分析卡片 - v5.11.19
+/**
+ * 打印机分析卡片 - v5.11.20
  * 版本: 5.11.8 (2026-05-22) - 修复任务名称显示配置参数、完成时间显示00、耗材类型颜色未显示、BOM乱码
  *
  * 设计特点:
@@ -196,6 +196,47 @@ class PrinterAnalyticsCard extends HTMLElement {
       }
     }
     return null;
+  }
+
+  /**
+   * 自动发现未配置的打印机实体（从传感器前缀推导）
+   * 如 end_time、remaining_time、start_time、active_tray、ams_1_tray_* 等
+   */
+  _discoverPrinterEntities(entities, hass) {
+    if (!hass || !entities) return {};
+
+    // 提取设备前缀
+    let devicePrefix = '';
+    const sensorKeys = ['print_status', 'print_progress', 'current_task', 'nozzle_temperature'];
+    for (const key of sensorKeys) {
+      const eid = entities[key];
+      if (eid && eid.startsWith('sensor.')) {
+        const match = eid.match(/^sensor\.([a-z0-9]+_[a-z0-9]{8,})_/i);
+        if (match && match[1].length > devicePrefix.length) {
+          devicePrefix = match[1];
+        }
+      }
+    }
+    if (!devicePrefix) return {};
+
+    // 搜索匹配的实体
+    const discovered = {};
+    const targetSuffixes = ['end_time', 'remaining_time', 'start_time', 'active_tray', 'current_print',
+      'ams_1_tray_1', 'ams_1_tray_2', 'ams_1_tray_3', 'ams_1_tray_4'];
+    const allEntityIds = Object.keys(hass.states);
+
+    for (const suffix of targetSuffixes) {
+      // 如果已配置则跳过
+      if (entities[suffix]) continue;
+      // 搜索匹配的实体
+      for (const eid of allEntityIds) {
+        if (eid === `sensor.${devicePrefix}_${suffix}`) {
+          discovered[suffix] = eid;
+          break;
+        }
+      }
+    }
+    return discovered;
   }
 
   /**
@@ -1082,13 +1123,13 @@ class PrinterAnalyticsCard extends HTMLElement {
         .realtime-grid {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-          gap: 16px;
+          gap: 8px;
         }
 
         .realtime-item {
           background: linear-gradient(135deg, rgba(51, 65, 85, 0.6), rgba(30, 41, 59, 0.8));
           border-radius: var(--radius);
-          padding: 18px;
+          padding: 14px;
           border: 1px solid var(--border);
           transition: all 0.3s ease;
         }
@@ -1109,7 +1150,7 @@ class PrinterAnalyticsCard extends HTMLElement {
         }
 
         .realtime-value {
-          font-size: 20px;
+          font-size: 16px;
           font-weight: 800;
           color: var(--text-primary);
         }
@@ -2071,7 +2112,7 @@ class PrinterAnalyticsCard extends HTMLElement {
               <div class="header-title">${title}</div>
             </div>
           </div>
-        <div class="header-badge">v5.11.19</div>
+        <div class="header-badge">v5.11.20</div>
         </div>
       `;
 
@@ -3728,10 +3769,11 @@ class PrinterAnalyticsCard extends HTMLElement {
     
     if (printerToDisplay) {
       const e = printerToDisplay.entities;
+      const hass = this._hass || this.hass;
+      const discoveredEntities = this._discoverPrinterEntities(e, hass);
       // 优先从 current_print 获取真实任务名（模型名），否则回退到 current_task 实体
-      const cp = this._getAttr(e.current_print) || {};
+      const cp = this._getAttr(e.current_print || discoveredEntities.current_print) || {};
       const modelNameFromCP = cp.task_name_model || '';
-      const configNameFromCP = cp.task_name_config || cp.config_name || '';
       let displayTaskName = modelNameFromCP || cp.task_name || '';
       if (!displayTaskName) {
         displayTaskName = this._getState(e.current_task) || '未配置';
@@ -3747,8 +3789,7 @@ class PrinterAnalyticsCard extends HTMLElement {
       const currentWeight = this._getState(e.current_weight) || 'N/A';
       const chamberTemp = this._getState(e.chamber_temperature) || 'N/A';
       const speedProfile = this._getState(e.speed_profile) || 'N/A';
-      const nozzleSize = this._getState(e.nozzle_size) || 'N/A';
-      const activeTray = this._getState(e.active_tray);
+      const activeTray = this._getState(e.active_tray || discoveredEntities.active_tray);
 
       let statusClass = 'idle';
       let statusText = '空闲';
@@ -3761,25 +3802,40 @@ class PrinterAnalyticsCard extends HTMLElement {
       }
 
       // 计算预计完成时间 - 多源回退
-      const remainingTime = this._getState(e.remaining_time);
+      const remainingTime = this._getState(e.remaining_time || discoveredEntities.remaining_time);
       let endDisplay = '';
-      // 方法1: end_time 实体
-      const endTimeVal = this._getState(e.end_time);
+      // 方法1: end_time 实体（显示相对时间）
+      const endTimeVal = this._getState(e.end_time || discoveredEntities.end_time);
       if (endTimeVal && endTimeVal !== 'unknown' && endTimeVal !== 'unavailable' && endTimeVal !== '') {
         try {
           const endDate = new Date(endTimeVal.includes('T') ? endTimeVal : endTimeVal.replace(' ', 'T'));
           if (!isNaN(endDate.getTime())) {
-            endDisplay = `${endDate.getHours()}:${endDate.getMinutes().toString().padStart(2,'0')} 完成`;
+            // 只显示未来时间
+            const diffMs = endDate.getTime() - Date.now();
+            if (diffMs > 0) {
+              const diffMins = Math.round(diffMs / 60000);
+              const h = Math.floor(diffMins / 60);
+              const m = diffMins % 60;
+              endDisplay = h > 0 ? `${h}h${m > 0 ? m + 'm' : ''} 后完成` : `${m}m 后完成`;
+            }
           }
         } catch (e) {}
       }
-      // 方法2: remaining_time 计算
+      // 方法2: remaining_time 计算（检查单位，'h' 则乘以60转为分钟）
       if (!endDisplay && remainingTime && remainingTime !== 'unknown' && remainingTime !== 'unavailable') {
         try {
-          const mins = parseInt(remainingTime);
+          let mins = parseFloat(remainingTime);
+          // 检查 unit_of_measurement，如果是 'h' 则转为分钟
+          const remEntity = e.remaining_time || discoveredEntities.remaining_time;
+          const remAttr = this._getAttr(remEntity);
+          if (remAttr && remAttr.unit_of_measurement === 'h') {
+            mins = mins * 60;
+          }
+          mins = Math.round(mins);
           if (!isNaN(mins) && mins > 0) {
-            const ed = new Date(Date.now() + mins * 60000);
-            endDisplay = `${ed.getHours()}:${ed.getMinutes().toString().padStart(2,'0')} 预计`;
+            const h = Math.floor(mins / 60);
+            const m = mins % 60;
+            endDisplay = h > 0 ? `${h}h${m > 0 ? m + 'm' : ''} 预计` : `${m}m 预计`;
           }
         } catch (e) {}
       }
@@ -3794,12 +3850,27 @@ class PrinterAnalyticsCard extends HTMLElement {
               const elapsed = Date.now() - st.getTime();
               const remainMs = elapsed / prog * (100 - prog);
               if (remainMs > 0 && remainMs < 86400000 * 7) {
-                const estEnd = new Date(Date.now() + remainMs);
-                endDisplay = `${estEnd.getHours()}:${estEnd.getMinutes().toString().padStart(2,'0')} 估算`;
+                const remainMins = Math.round(remainMs / 60000);
+                const rh = Math.floor(remainMins / 60);
+                const rm = remainMins % 60;
+                endDisplay = rh > 0 ? `${rh}h${rm > 0 ? rm + 'm' : ''} 估算` : `${rm}m 估算`;
               }
             }
           }
         } catch (e) {}
+      }
+
+      // 获取当前耗材类型和颜色
+      let filamentType = '';
+      let filamentColor = '';
+      const activeTrayAttr = this._getAttr(e.active_tray || discoveredEntities.active_tray);
+      if (activeTrayAttr) {
+        filamentType = activeTrayAttr.type || '';
+        filamentColor = activeTrayAttr.color || '';
+      }
+      if (!filamentType && cp) {
+        filamentType = cp.filament_type || '';
+        filamentColor = cp.filament_color || '';
       }
 
       // AMS 耗材盘 - 增强匹配：支持按索引和名称匹配，兜底显示当前耗材信息
@@ -3807,7 +3878,7 @@ class PrinterAnalyticsCard extends HTMLElement {
       let activeTrayName = '';
       let activeTrayColor = '';
       const trayKeys = ['ams_1_tray_1', 'ams_1_tray_2', 'ams_1_tray_3', 'ams_1_tray_4'];
-      const trays = trayKeys.map((k, i) => ({ num: i + 1, entity: e[k] })).filter(t => t.entity);
+      const trays = trayKeys.map((k, i) => ({ num: i + 1, entity: e[k] || discoveredEntities[k] })).filter(t => t.entity);
       if (trays.length > 0) {
         if (activeTray) {
           for (const tray of trays) {
@@ -3830,9 +3901,9 @@ class PrinterAnalyticsCard extends HTMLElement {
         if (!activeTrayColor && cp) {
           activeTrayColor = cp.filament_color || '';
         }
-        amsHtml = `<div style="margin-top:12px;">
-          <div style="font-size:12px;font-weight:700;color:var(--text-primary);margin-bottom:8px;display:flex;align-items:center;gap:6px;">
-            <span>🎨</span> AMS耗材盘${activeTrayName ? `<span style="font-size:11px;color:var(--primary-light);margin-left:8px;">→ ${this._escapeHtml(activeTrayName)}</span>` : ''}${activeTrayColor ? `<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${activeTrayColor};border:1px solid rgba(255,255,255,0.3);vertical-align:middle;margin-left:4px;"></span>` : ''}
+        amsHtml = `<div style="margin-top:8px;">
+          <div style="font-size:11px;font-weight:700;color:var(--text-primary);margin-bottom:6px;display:flex;align-items:center;gap:5px;">
+            <span>🎨</span> AMS耗材盘${activeTrayName ? `<span style="font-size:10px;color:var(--primary-light);margin-left:6px;">→ ${this._escapeHtml(activeTrayName)}</span>` : ''}${activeTrayColor ? `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${activeTrayColor};border:1px solid rgba(255,255,255,0.3);vertical-align:middle;margin-left:3px;"></span>` : ''}
           </div>
           <div class="ams-grid">`;
         trays.forEach(tray => {
@@ -3856,7 +3927,6 @@ class PrinterAnalyticsCard extends HTMLElement {
       // 构建摄像头图片URL（区分 camera 和 image 类型）
       let cameraImgSrc = '';
       if (cameraEntity && isCameraView) {
-        const hass = this._hass || this.hass;
         const entityState = hass?.states[cameraEntity];
         if (cameraEntity.startsWith('camera.')) {
           // camera 类型：使用 camera_proxy 获取快照
@@ -3868,10 +3938,10 @@ class PrinterAnalyticsCard extends HTMLElement {
         }
       }
 
-      html += `<div class="realtime-panel" style="margin-bottom:16px;">
+      html += `<div class="realtime-panel" style="margin-bottom:12px;">
         <div class="realtime-header">
           <div class="realtime-title">🖥️ ${this._escapeHtml(printerToDisplay.printer_name)}</div>
-          <div style="display:flex;align-items:center;gap:8px;">
+          <div style="display:flex;align-items:center;gap:6px;">
             ${printers.length > 1 ? printers.map(p => {
               const isActive = p.printer_name === printerToDisplay.printer_name;
               const pProgress = this._getState(p.entities.print_progress) || '0';
@@ -3899,25 +3969,21 @@ class PrinterAnalyticsCard extends HTMLElement {
               <span>${printProgress}%</span>
               ${endDisplay ? `<span style="font-size:11px;color:var(--primary-light);font-weight:600;">⏰ ${endDisplay}</span>` : ''}
             </div>
-            <div class="progress-track" style="margin-top:6px;">
+            <div class="progress-track" style="margin-top:4px;">
               <div class="progress-fill" style="width:${printProgress}%"></div>
             </div>
           </div>
           ${currentWeight && currentWeight !== 'N/A' ? `<div class="realtime-item">
             <div class="realtime-label">⚖️ 当前耗材</div>
-            <div class="realtime-value">${currentWeight}<small style="font-size:12px;color:var(--text-muted);font-weight:500;">g</small></div>
+            <div class="realtime-value" style="display:flex;align-items:center;gap:6px;">${currentWeight}<small style="font-size:11px;color:var(--text-muted);">g</small>${filamentType ? `<small style="font-size:11px;color:var(--primary-light);">${this._escapeHtml(filamentType)}</small>` : ''}${filamentColor ? `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${filamentColor};border:1px solid rgba(255,255,255,0.3);"></span>` : ''}</div>
           </div>` : ''}
           ${chamberTemp && chamberTemp !== 'N/A' ? `<div class="realtime-item">
             <div class="realtime-label">💨 腔体</div>
-            <div class="realtime-value">${chamberTemp}<small style="font-size:12px;color:var(--text-muted);font-weight:500;">°C</small></div>
+            <div class="realtime-value">${chamberTemp}<small style="font-size:11px;color:var(--text-muted);font-weight:500;">°C</small></div>
           </div>` : ''}
           ${speedProfile && speedProfile !== 'N/A' ? `<div class="realtime-item">
             <div class="realtime-label">⚡ 速度</div>
             <div class="realtime-value">${this._escapeHtml(speedProfile)}</div>
-          </div>` : ''}
-          ${nozzleSize && nozzleSize !== 'N/A' ? `<div class="realtime-item">
-            <div class="realtime-label">🔧 喷嘴</div>
-            <div class="realtime-value">${nozzleSize}</div>
           </div>` : ''}
         </div>
         ${amsHtml}`}
