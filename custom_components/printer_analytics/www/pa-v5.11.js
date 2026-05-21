@@ -1,5 +1,5 @@
 ﻿/**
- * 打印机分析卡片 - v5.11.22
+ * 打印机分析卡片 - v5.11.23
  * 版本: 5.11.8 (2026-05-22) - 修复任务名称显示配置参数、完成时间显示00、耗材类型颜色未显示、BOM乱码
  *
  * 设计特点:
@@ -237,6 +237,32 @@ class PrinterAnalyticsCard extends HTMLElement {
       }
     }
     return discovered;
+  }
+
+  /**
+   * 从配置或自动发现结果中查找实体，兜底从 hass.states 按后缀模糊匹配
+   */
+  _findEntityBySuffix(entities, discovered, suffix, hass) {
+    if (entities[suffix]) return entities[suffix];
+    if (discovered && discovered[suffix]) return discovered[suffix];
+    if (!hass) return null;
+    let devicePrefix = '';
+    const sensorKeys = ['print_status', 'print_progress', 'current_task', 'nozzle_temperature'];
+    for (const key of sensorKeys) {
+      const eid = entities[key];
+      if (eid && eid.startsWith('sensor.')) {
+        const match = eid.match(/^sensor\.([a-z0-9]+_[a-z0-9]{8,})_/i);
+        if (match && match[1].length > devicePrefix.length) {
+          devicePrefix = match[1];
+        }
+      }
+    }
+    if (!devicePrefix) return null;
+    for (const prefix of ['binary_sensor.', 'sensor.']) {
+      const candidate = `${prefix}${devicePrefix}_${suffix}`;
+      if (hass.states[candidate]) return candidate;
+    }
+    return null;
   }
 
   /**
@@ -2107,7 +2133,7 @@ class PrinterAnalyticsCard extends HTMLElement {
               <div class="header-title">${title}</div>
             </div>
           </div>
-        <div class="header-badge">v5.11.22</div>
+        <div class="header-badge">v5.11.23</div>
         </div>
       `;
 
@@ -3855,64 +3881,97 @@ class PrinterAnalyticsCard extends HTMLElement {
         } catch (e) {}
       }
 
-      // 获取当前耗材类型和颜色
+      // 获取当前耗材类型和颜色（优先外挂耗材，其次 AMS active_tray）
       let filamentType = '';
       let filamentColor = '';
-      const activeTrayAttr = this._getAttr(e.active_tray || discoveredEntities.active_tray);
-      if (activeTrayAttr) {
-        filamentType = activeTrayAttr.type || '';
-        filamentColor = activeTrayAttr.color || '';
+      let isExternalSpool = false;
+
+      // 检测外挂耗材是否活跃
+      const externalSpoolActiveEntity = this._findEntityBySuffix(e, discoveredEntities, 'externalspool_active', hass);
+      const externalSpoolActive = this._getState(externalSpoolActiveEntity);
+      if (externalSpoolActive === 'on') {
+        isExternalSpool = true;
+        const extSpoolEntity = this._findEntityBySuffix(e, discoveredEntities, 'externalspool_external_spool', hass);
+        const extSpoolAttr = this._getAttr(extSpoolEntity);
+        if (extSpoolAttr) {
+          filamentType = extSpoolAttr.type || '';
+          filamentColor = extSpoolAttr.color || '';
+        }
+      }
+
+      // 非 外挂耗材时，从 active_tray 获取
+      if (!isExternalSpool) {
+        const activeTrayAttr = this._getAttr(e.active_tray || discoveredEntities.active_tray);
+        if (activeTrayAttr) {
+          filamentType = activeTrayAttr.type || '';
+          filamentColor = activeTrayAttr.color || '';
+        }
       }
       if (!filamentType && cp) {
         filamentType = cp.filament_type || '';
         filamentColor = cp.filament_color || '';
       }
 
-      // AMS 耗材盘 - 增强匹配：支持按索引和名称匹配，兜底显示当前耗材信息
+      // AMS/外挂耗材 区域
       let amsHtml = '';
       let activeTrayName = '';
       let activeTrayColor = '';
-      const trayKeys = ['ams_1_tray_1', 'ams_1_tray_2', 'ams_1_tray_3', 'ams_1_tray_4'];
-      const trays = trayKeys.map((k, i) => ({ num: i + 1, entity: e[k] || discoveredEntities[k] })).filter(t => t.entity);
-      if (trays.length > 0) {
-        if (activeTray) {
-          for (const tray of trays) {
-            const trayData = this._getAttr(tray.entity);
-            const trayName = trayData.name || '';
-            const matchByIndex = activeTray.includes(`tray_${tray.num}`);
-            const matchByName = trayName && (activeTray === trayName || activeTray.includes(trayName));
-            if (matchByIndex || matchByName) {
-              activeTrayName = trayName || activeTray;
-              activeTrayColor = trayData.color || '';
-              break;
-            }
-          }
-          if (!activeTrayName && activeTray !== 'unknown' && activeTray !== 'unavailable') {
-            activeTrayName = activeTray;
-          }
-        } else if (activeTray && activeTray !== 'unknown' && activeTray !== 'unavailable') {
-          activeTrayName = activeTray;
-        }
-        if (!activeTrayColor && cp) {
-          activeTrayColor = cp.filament_color || '';
-        }
+
+      if (isExternalSpool) {
+        // 外挂耗材模式：显示外挂耗材信息
+        const extSpoolEntity = this._findEntityBySuffix(e, discoveredEntities, 'externalspool_external_spool', hass);
+        const extSpoolName = this._getState(extSpoolEntity) || '外挂耗材';
+        const extSpoolAttr = this._getAttr(extSpoolEntity);
+        const extSpoolColor = extSpoolAttr?.color || '';
+        activeTrayName = extSpoolName;
+        activeTrayColor = extSpoolColor;
         amsHtml = `<div style="margin-top:8px;">
           <div style="font-size:11px;font-weight:700;color:var(--text-primary);margin-bottom:6px;display:flex;align-items:center;gap:5px;">
-            <span>🎨</span> AMS耗材盘${activeTrayName ? `<span style="font-size:10px;color:var(--primary-light);margin-left:6px;">→ ${this._escapeHtml(activeTrayName)}</span>` : ''}${activeTrayColor ? `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${activeTrayColor};border:1px solid rgba(255,255,255,0.3);vertical-align:middle;margin-left:3px;"></span>` : ''}
+            <span>🧵</span> 外挂耗材<span style="font-size:10px;color:${extSpoolColor || 'var(--primary-light)'};margin-left:6px;font-weight:600;">→ ${this._escapeHtml(extSpoolName)}</span>
           </div>
-          <div class="ams-grid">`;
-        trays.forEach(tray => {
-          const trayData = this._getAttr(tray.entity);
-          const trayName = trayData.name || `托盘${tray.num}`;
-          const trayColor = trayData.color || '#cccccc';
-          const isActive = activeTray && (activeTray.includes(`tray_${tray.num}`) || (trayName && (activeTray === trayName || activeTray.includes(trayName))));
-          amsHtml += `<div class="ams-tray ${isActive ? 'active' : ''}">
-            <div class="ams-tray-number">托盘 ${tray.num}</div>
-            <div class="ams-tray-color" style="background:${trayColor}"></div>
-            <div class="ams-tray-name">${this._escapeHtml(trayName)}</div>
-          </div>`;
-        });
-        amsHtml += '</div></div>';
+        </div>`;
+      } else {
+        // AMS 模式
+        const trayKeys = ['ams_1_tray_1', 'ams_1_tray_2', 'ams_1_tray_3', 'ams_1_tray_4'];
+        const trays = trayKeys.map((k, i) => ({ num: i + 1, entity: e[k] || discoveredEntities[k] })).filter(t => t.entity);
+        if (trays.length > 0) {
+          if (activeTray) {
+            for (const tray of trays) {
+              const trayData = this._getAttr(tray.entity);
+              const trayName = trayData.name || '';
+              const matchByIndex = activeTray.includes(`tray_${tray.num}`);
+              const matchByName = trayName && (activeTray === trayName || activeTray.includes(trayName));
+              if (matchByIndex || matchByName) {
+                activeTrayName = trayName || activeTray;
+                activeTrayColor = trayData.color || '';
+                break;
+              }
+            }
+            if (!activeTrayName && activeTray !== 'unknown' && activeTray !== 'unavailable') {
+              activeTrayName = activeTray;
+            }
+          }
+          if (!activeTrayColor && filamentColor) {
+            activeTrayColor = filamentColor;
+          }
+          amsHtml = `<div style="margin-top:8px;">
+            <div style="font-size:11px;font-weight:700;color:var(--text-primary);margin-bottom:6px;display:flex;align-items:center;gap:5px;">
+              <span>🎨</span> AMS${activeTrayName ? `<span style="font-size:10px;color:var(--primary-light);margin-left:6px;">→ ${this._escapeHtml(activeTrayName)}</span>` : ''}${activeTrayColor ? `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${activeTrayColor};border:1px solid rgba(255,255,255,0.3);vertical-align:middle;margin-left:3px;"></span>` : ''}
+            </div>
+            <div class="ams-grid">`;
+          trays.forEach(tray => {
+            const trayData = this._getAttr(tray.entity);
+            const trayName = trayData.name || `托盘${tray.num}`;
+            const trayColor = trayData.color || '#cccccc';
+            const isActive = activeTray && (activeTray.includes(`tray_${tray.num}`) || (trayName && (activeTray === trayName || activeTray.includes(trayName))));
+            amsHtml += `<div class="ams-tray ${isActive ? 'active' : ''}">
+              <div class="ams-tray-number">托盘 ${tray.num}</div>
+              <div class="ams-tray-color" style="background:${trayColor}"></div>
+              <div class="ams-tray-name">${this._escapeHtml(trayName)}</div>
+            </div>`;
+          });
+          amsHtml += '</div></div>';
+        }
       }
 
       // 摄像头自动发现
