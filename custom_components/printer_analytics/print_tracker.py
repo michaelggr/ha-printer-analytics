@@ -1002,6 +1002,7 @@ class PrintTracker:
             "cover_image_local": None,
             "snapshot_image_local": None,
             "color_usage": [],
+            "printer_serial": self.coordinator.printer_serial or None,
         }
 
         self.start_material_cache()

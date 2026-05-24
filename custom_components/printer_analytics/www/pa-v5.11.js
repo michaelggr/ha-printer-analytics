@@ -1,6 +1,6 @@
-﻿/**
- * 打印机分析卡片 - v5.11.23
- * 版本: 5.11.8 (2026-05-22) - 修复任务名称显示配置参数、完成时间显示00、耗材类型颜色未显示、BOM乱码
+/**
+ * 打印机分析卡片 - v5.11.26
+ * 版本: 5.11.26 (2026-05-23) - 颜色筛选改下拉、记录顶部颜色条、下拉背景加深
  *
  * 设计特点:
  * - 顶部打印机实时监控（多打印机卡片）
@@ -46,6 +46,8 @@ class PrinterAnalyticsCard extends HTMLElement {
     this._pendingSearchQuery = '';
     this._cameraViewPrinter = null;     // 当前显示摄像头视图的打印机名（null=监控视图）
     this._imageRefreshTimer = null;     // image类型摄像头自动刷新定时器
+    this._wsHistoryData = null;         // WebSocket 返回的筛选+分页数据
+    this._wsLoading = false;            // WS 请求中标记
   }
 
   setConfig(config) {
@@ -374,11 +376,23 @@ class PrinterAnalyticsCard extends HTMLElement {
     if (printerName === '全部') {
       return this._getAllMergedRecords();
     }
-    const p = printers.find(x => x.printer_name === printerName);
+    // 支持序列号(名称)格式或纯名称格式
+    const p = printers.find(x => {
+      if (x.printer_name === printerName) return true;
+      // 检查是否是 "序列号(名称)" 格式
+      const match = printerName.match(/^(.+)\((.+)\)$/);
+      if (match && x.printer_name === match[2]) return true;
+      return false;
+    });
     if (!p || !p.entities.print_history) return [];
     const entity = this._hass?.states[p.entities.print_history];
     const records = entity?.attributes?.history || [];
-    records.forEach(r => { r._printer_name = printerName; });
+    // 标记打印机名和序列号
+    const serial = entity?.attributes?.printer_serial || '';
+    records.forEach(r => {
+      r._printer_name = p.printer_name;
+      r._printer_serial = serial || r.printer_serial || '';
+    });
     return records;
   }
 
@@ -416,7 +430,13 @@ class PrinterAnalyticsCard extends HTMLElement {
    */
   _getEntityForPrinter(printerName, entityKey) {
     const printers = this._getPrintersConfig();
-    const p = printers.find(x => x.printer_name === printerName);
+    // 支持序列号(名称)格式或纯名称格式
+    const p = printers.find(x => {
+      if (x.printer_name === printerName) return true;
+      const match = printerName.match(/^(.+)\((.+)\)$/);
+      if (match && x.printer_name === match[2]) return true;
+      return false;
+    });
     return p?.entities?.[entityKey] || '';
   }
 
@@ -426,7 +446,17 @@ class PrinterAnalyticsCard extends HTMLElement {
   _renderPrinterSelector() {
     const printers = this._getPrintersConfig();
     if (printers.length <= 1) return '';
-    const options = ['全部', ...printers.map(p => p.printer_name)];
+    // 使用序列号作为唯一标识，显示格式：序列号(名称)
+    const entryIds = this._getAllEntryIds();
+    const options = ['全部'];
+    const serialMap = {};  // serial → 显示名
+    for (const p of printers) {
+      const info = entryIds.find(e => e.printerName === p.printer_name);
+      const serial = info?.printerSerial || '';
+      const label = serial ? `${serial}(${p.printer_name})` : p.printer_name;
+      serialMap[label] = serial || p.printer_name;
+      options.push(label);
+    }
     const buttons = options.map(name => {
       const active = this._selectedPrinter === name ? 'active' : '';
       return `<button class="printer-selector-btn ${active}" data-printer="${this._escapeHtml(name)}">${this._escapeHtml(name)}</button>`;
@@ -1264,6 +1294,24 @@ class PrinterAnalyticsCard extends HTMLElement {
           cursor: default;
           position: relative;
           transition: all 0.3s ease;
+          overflow: hidden;
+        }
+
+        /* 记录顶部颜色条 */
+        .record-color-bar {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 5px;
+          display: flex;
+          border-radius: var(--radius-md) var(--radius-md) 0 0;
+          overflow: hidden;
+        }
+
+        .record-color-bar-segment {
+          flex: 1;
+          min-width: 2px;
         }
 
         .history-item:hover {
@@ -1453,6 +1501,95 @@ class PrinterAnalyticsCard extends HTMLElement {
 
         .filter-select option:hover {
           background: var(--surface-hover);
+        }
+
+        .color-dropdown {
+          position: relative;
+          display: inline-block;
+          min-width: 120px;
+        }
+
+        .color-dropdown-toggle {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 6px 12px;
+          border: 1px solid var(--border);
+          border-radius: var(--radius);
+          font-size: 13px;
+          color: var(--text-secondary);
+          cursor: pointer;
+          background: rgba(99, 102, 241, 0.08);
+          transition: all 0.15s ease;
+          user-select: none;
+        }
+
+        .color-dropdown-toggle:hover {
+          border-color: var(--primary);
+          color: var(--text-primary);
+          background: rgba(99, 102, 241, 0.15);
+        }
+
+        .color-dropdown-arrow {
+          margin-left: auto;
+          font-size: 11px;
+          transition: transform 0.2s ease;
+        }
+
+        .color-dropdown.open .color-dropdown-arrow {
+          transform: rotate(180deg);
+        }
+
+        .color-dropdown-menu {
+          display: none;
+          position: absolute;
+          top: calc(100% + 4px);
+          left: 0;
+          min-width: 100%;
+          max-height: 240px;
+          overflow-y: auto;
+          background: var(--surface-card);
+          border: 1px solid var(--border);
+          border-radius: var(--radius);
+          box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+          z-index: 100;
+          padding: 4px 0;
+        }
+
+        .color-dropdown.open .color-dropdown-menu {
+          display: block;
+        }
+
+        .color-dropdown-item {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 7px 12px;
+          font-size: 13px;
+          color: var(--text-secondary);
+          cursor: pointer;
+          transition: background 0.1s ease;
+          white-space: nowrap;
+        }
+
+        .color-dropdown-item:hover {
+          background: var(--surface-hover);
+          color: var(--text-primary);
+        }
+
+        .color-dropdown-item.selected {
+          color: var(--primary-light);
+          font-weight: 600;
+          background: rgba(99, 102, 241, 0.08);
+        }
+
+        .color-dropdown-item .color-dot {
+          display: inline-block;
+          width: 12px;
+          height: 12px;
+          border-radius: 50%;
+          border: 1px solid rgba(255,255,255,0.3);
+          flex-shrink: 0;
         }
 
         .filter-actions {
@@ -1887,6 +2024,106 @@ class PrinterAnalyticsCard extends HTMLElement {
           justify-content: flex-end;
         }
 
+        /* 导入面板 */
+        .import-panel {
+          background: linear-gradient(145deg, var(--glass-bg), rgba(15, 23, 42, 0.98));
+          border: 1px solid rgba(99, 102, 241, 0.3);
+          border-radius: var(--radius-lg);
+          padding: 24px;
+          max-width: 440px;
+          width: 90%;
+          box-shadow: var(--shadow-lg);
+        }
+
+        .import-panel-title {
+          font-size: 16px;
+          font-weight: 700;
+          color: var(--primary-light);
+          margin-bottom: 16px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .import-panel-section {
+          margin-bottom: 16px;
+        }
+
+        .import-panel-section-title {
+          font-size: 13px;
+          font-weight: 600;
+          color: var(--text-primary);
+          margin-bottom: 8px;
+        }
+
+        .import-panel-desc {
+          font-size: 12px;
+          color: var(--text-secondary);
+          line-height: 1.6;
+          margin-bottom: 10px;
+        }
+
+        .import-panel-actions {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+
+        .btn-import-action {
+          padding: 8px 16px;
+          border-radius: var(--radius);
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          border: 1px solid var(--border);
+          transition: all 0.2s ease;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .btn-import-template {
+          background: rgba(99, 102, 241, 0.12);
+          color: var(--primary-light);
+          border-color: rgba(99, 102, 241, 0.3);
+        }
+
+        .btn-import-template:hover {
+          background: rgba(99, 102, 241, 0.25);
+        }
+
+        .btn-import-file {
+          background: rgba(34, 197, 94, 0.12);
+          color: #4ade80;
+          border-color: rgba(34, 197, 94, 0.3);
+        }
+
+        .btn-import-file:hover {
+          background: rgba(34, 197, 94, 0.25);
+        }
+
+        .btn-import-close {
+          background: var(--surface-card);
+          color: var(--text-secondary);
+        }
+
+        .btn-import-close:hover {
+          background: rgba(100, 116, 139, 0.3);
+        }
+
+        .import-format-hint {
+          font-size: 11px;
+          color: var(--text-muted);
+          background: rgba(99, 102, 241, 0.06);
+          border: 1px solid rgba(99, 102, 241, 0.1);
+          border-radius: var(--radius);
+          padding: 8px 10px;
+          line-height: 1.5;
+          font-family: monospace;
+          white-space: pre-wrap;
+          word-break: break-all;
+        }
+
         .btn {
           padding: 10px 20px;
           border-radius: var(--radius);
@@ -2133,7 +2370,7 @@ class PrinterAnalyticsCard extends HTMLElement {
               <div class="header-title">${title}</div>
             </div>
           </div>
-        <div class="header-badge">v5.11.23</div>
+        <div class="header-badge">v5.11.26</div>
         </div>
       `;
 
@@ -2223,6 +2460,11 @@ class PrinterAnalyticsCard extends HTMLElement {
 
         tabs.forEach(t => t.classList.remove('active'));
         e.target.classList.add('active');
+
+        // 切换到历史页时触发 WS 加载
+        if (tabName === 'merged' && !this._wsHistoryData) {
+          this._loadHistoryViaWS();
+        }
       });
     });
 
@@ -2300,13 +2542,11 @@ class PrinterAnalyticsCard extends HTMLElement {
   _restoreFilterValues() {
     const root = this.shadowRoot;
     const statusSel = root.getElementById('filter-status');
-    const colorSel = root.getElementById('filter-color');
     const dateFrom = root.getElementById('date-from');
     const dateTo = root.getElementById('date-to');
     const searchInput = root.getElementById('search-input');
 
     if (statusSel) statusSel.value = this._pendingFilterStatus || this._filterStatus || '';
-    if (colorSel) colorSel.value = this._pendingFilterColor || this._filterColor || '';
     const printerSel = root.getElementById('filter-printer');
     if (printerSel) printerSel.value = this._pendingFilterPrinter || this._filterPrinter || '';
     if (dateFrom) dateFrom.value = this._pendingDateFrom || this._dateFrom || '';
@@ -2316,6 +2556,34 @@ class PrinterAnalyticsCard extends HTMLElement {
 
   _bindHistoryEvents() {
     const root = this.shadowRoot;
+
+    // 统计分析卡片点击弹出详情
+    root.querySelectorAll('.stat-card-clickable').forEach(card => {
+      card.addEventListener('click', (e) => {
+        const recordId = card.dataset.recordId;
+        if (!recordId) return;
+        const allRecords = this._getAllMergedRecords();
+        const record = allRecords.find(r => r.id === recordId);
+        if (record) {
+          this._detailRecord = record;
+          this._showDetailModal(record);
+        }
+      });
+    });
+
+    // 最近打印记录点击弹出详情
+    root.querySelectorAll('.recent-print-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        const recordId = item.dataset.recordId;
+        if (!recordId) return;
+        const allRecords = this._getAllMergedRecords();
+        const record = allRecords.find(r => r.id === recordId);
+        if (record) {
+          this._detailRecord = record;
+          this._showDetailModal(record);
+        }
+      });
+    });
 
     root.querySelectorAll('.history-item').forEach(item => {
       item.addEventListener('click', (e) => {
@@ -2354,10 +2622,51 @@ class PrinterAnalyticsCard extends HTMLElement {
     root.querySelectorAll('.filter-select').forEach(sel => {
       sel.addEventListener('change', (e) => {
         if (e.target.id === 'filter-status') this._pendingFilterStatus = e.target.value;
-        if (e.target.id === 'filter-color') this._pendingFilterColor = e.target.value;
         if (e.target.id === 'filter-printer') this._pendingFilterPrinter = e.target.value;
       });
     });
+
+    // 颜色下拉组件事件
+    const colorDropdown = root.getElementById('color-dropdown');
+    const colorToggle = root.getElementById('color-dropdown-toggle');
+    const colorMenu = root.getElementById('color-dropdown-menu');
+
+    if (colorToggle && colorMenu) {
+      // 点击切换下拉菜单
+      colorToggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        colorDropdown.classList.toggle('open');
+      });
+
+      // 点击选项
+      colorMenu.querySelectorAll('.color-dropdown-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const color = item.dataset.color;
+          this._pendingFilterColor = color || '';
+          // 更新选中状态
+          colorMenu.querySelectorAll('.color-dropdown-item').forEach(i => i.classList.remove('selected'));
+          item.classList.add('selected');
+          // 更新 toggle 显示
+          const dot = root.getElementById('color-dropdown-dot');
+          const label = root.getElementById('color-dropdown-label');
+          if (dot) dot.style.background = color ? this._sanitizeColor(color) : 'transparent';
+          if (label) label.textContent = color ? this._formatColorName(color) : '全部颜色';
+          // 关闭下拉
+          colorDropdown.classList.remove('open');
+        });
+      });
+
+      // 点击外部关闭下拉
+      const closeDropdown = (e) => {
+        if (colorDropdown && !colorDropdown.contains(e.target)) {
+          colorDropdown.classList.remove('open');
+        }
+      };
+      document.addEventListener('click', closeDropdown);
+      // 组件销毁时移除监听
+      this._colorDropdownCloseHandler = closeDropdown;
+    }
 
     root.querySelectorAll('.search-input').forEach(input => {
       input.addEventListener('input', (e) => {
@@ -2377,7 +2686,8 @@ class PrinterAnalyticsCard extends HTMLElement {
         this._searchQuery = this._pendingSearchQuery;
         this._currentPage = 1;
         this._lastRenderedData = null;
-        this._refreshContent();
+        // 通过 WS 重新请求筛选数据
+        this._loadHistoryViaWS();
       });
     }
 
@@ -2399,7 +2709,8 @@ class PrinterAnalyticsCard extends HTMLElement {
         this._pendingSearchQuery = '';
         this._currentPage = 1;
         this._lastRenderedData = null;
-        this._refreshContent();
+        // 通过 WS 重新请求无筛选数据
+        this._loadHistoryViaWS();
       });
     }
 
@@ -2411,12 +2722,11 @@ class PrinterAnalyticsCard extends HTMLElement {
       });
     }
 
-    // 导入JSON按钮
+    // 导入JSON按钮 - 弹出导入面板
     const importBtn = root.getElementById('btn-import-json');
     if (importBtn) {
       importBtn.addEventListener('click', () => {
-        const fileInput = root.getElementById('file-import');
-        if (fileInput) fileInput.click();
+        this._showImportPanel();
       });
     }
 
@@ -2448,8 +2758,8 @@ class PrinterAnalyticsCard extends HTMLElement {
         if (page && page !== this._currentPage) {
           this._currentPage = page;
           this._lastRenderedData = null;
-          this._refreshContent();
-          // 滚动到历史记录顶部
+          // 翻页时通过 WS 请求新页数据
+          this._loadHistoryViaWS();
           const wrapper = root.querySelector('.history-wrapper');
           if (wrapper) wrapper.scrollTop = 0;
         }
@@ -2636,6 +2946,21 @@ class PrinterAnalyticsCard extends HTMLElement {
           field: field,
           value: newValue
         });
+      } else {
+        // entry_id 不可用时，尝试通过实体 ID 调用服务
+        const printers = this._getPrintersConfig();
+        const firstPrinter = printers.find(p => p.entities.print_history);
+        if (firstPrinter) {
+          await this._hass.callService('printer_analytics', 'update_record_field', {
+            entity_id: firstPrinter.entities.print_history,
+            record_id: recordId,
+            field: field,
+            value: newValue
+          });
+        } else {
+          alert('保存失败：找不到打印机配置，请刷新页面后重试');
+          return;
+        }
       }
 
       // 刷新显示
@@ -2662,18 +2987,27 @@ class PrinterAnalyticsCard extends HTMLElement {
     this._showHistoryLoading('反查中...');
 
     try {
+      let entityId = '';
       const entryIds = this._getAllEntryIds();
-      if (entryIds.length === 0) {
+      if (entryIds.length > 0) {
+        entityId = entryIds[0].entryId;
+      } else {
+        const printers = this._getPrintersConfig();
+        const firstPrinter = printers.find(p => p.entities.print_history);
+        if (firstPrinter) {
+          entityId = firstPrinter.entities.print_history;
+        }
+      }
+
+      if (!entityId) {
         this._hideHistoryLoading();
         alert('没有可用的打印机配置');
         return;
       }
 
-      const { entryId } = entryIds[0];
-
       // 调用反查服务
       await this._hass.callService('printer_analytics', 'backfill_task_names', {
-        entity_id: entryId
+        entity_id: entityId
       });
 
       this._hideHistoryLoading();
@@ -3410,8 +3744,18 @@ class PrinterAnalyticsCard extends HTMLElement {
       ? allWithWeight.reduce((a, b) => (a.total_weight || 0) > (b.total_weight || 0) ? a : b) : null;
     const lightest = allWithWeight.filter(r => (r.total_weight || 0) > 0).length > 0
       ? allWithWeight.filter(r => (r.total_weight || 0) > 0).reduce((a, b) => (a.total_weight || 0) < (b.total_weight || 0) ? a : b) : null;
-    const mostColors = records.filter(r => (r.colors_used || []).length > 1).length > 0
-      ? records.filter(r => (r.colors_used || []).length > 1).reduce((a, b) => (a.colors_used || []).length > (b.colors_used || []).length ? a : b) : null;
+    // 获取记录的有效颜色数：当 color_usage 没有可靠消耗数据时，回退到 1 种颜色
+    const getEffectiveColorCount = (r) => {
+      const colorsUsed = r.colors_used || [];
+      if (colorsUsed.length <= 1) return colorsUsed.length;
+      // 多色时检查是否有可靠的消耗数据
+      const hasReliableWeight = r.color_usage && Array.isArray(r.color_usage) &&
+        r.color_usage.some(cu => cu && cu.weight_g > 0);
+      if (!hasReliableWeight) return 1;
+      return colorsUsed.length;
+    };
+    const mostColors = records.filter(r => getEffectiveColorCount(r) > 1).length > 0
+      ? records.filter(r => getEffectiveColorCount(r) > 1).reduce((a, b) => getEffectiveColorCount(a) > getEffectiveColorCount(b) ? a : b) : null;
 
     const recordCard = (icon, title, record, valueFn, extraFn) => {
       if (!record) return '';
@@ -3431,7 +3775,11 @@ class PrinterAnalyticsCard extends HTMLElement {
       const materialTag = record.filament_type
         ? `<span style="color:var(--primary);font-weight:500;">${this._escapeHtml(record.filament_type)}</span>` : '';
       const extraContent = extraFn ? extraFn(record) : '';
-      return `<div class="stat-card" style="padding:14px;text-align:left;">
+      const recordId = record.id || '';
+      const colorsUsed = record.colors_used || [];
+      const topColorBar = colorsUsed.length > 0 ? `<div class="record-color-bar">${colorsUsed.map(color => `<div class="record-color-bar-segment" style="background:${this._sanitizeColor(color)}"></div>`).join('')}</div>` : '';
+      return `<div class="stat-card stat-card-clickable" data-record-id="${this._escapeHtml(recordId)}" style="padding:14px;text-align:left;cursor:pointer;position:relative;overflow:hidden;">
+        ${topColorBar}
         <div style="font-size:13px;color:var(--text-muted);margin-bottom:6px;">${icon} ${title}</div>
         <div style="font-size:16px;font-weight:700;color:var(--primary-light);margin-bottom:4px;display:flex;align-items:center;gap:6px;">${valueFn(record)} ${extraContent}</div>
         <div style="font-size:12px;color:var(--text-secondary);">${taskNameHtml} ${printerTag}</div>
@@ -3456,7 +3804,7 @@ class PrinterAnalyticsCard extends HTMLElement {
     html += recordCard('⚡', '最短打印', shortest, r => this._formatDurationHours(r.duration_hours), renderColorDots);
     html += recordCard('⚖️', '最重打印', heaviest, r => `${(r.total_weight || 0).toFixed(1)}g`, renderColorDots);
     html += recordCard('🪶', '最轻打印', lightest, r => `${(r.total_weight || 0).toFixed(1)}g`, renderColorDots);
-    html += recordCard('🎨', '最多颜色', mostColors, r => `${(r.colors_used || []).length} 色`, renderColorDots);
+    html += recordCard('🎨', '最多颜色', mostColors, r => `${getEffectiveColorCount(r)} 色`, renderColorDots);
     html += '</div>';
     return html;
   }
@@ -3540,7 +3888,10 @@ class PrinterAnalyticsCard extends HTMLElement {
       }
       const isFailed = ['failed', 'fail', '失败'].includes(status);
       const taskNameColor = isFailed ? 'color:var(--danger);font-weight:600;' : '';
-      html += `<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surface-card);border-radius:8px;border:1px solid var(--border);flex-wrap:wrap;">
+      // 顶部颜色条
+      const recentColorBar = colorsUsed.length > 0 ? `<div class="record-color-bar">${colorsUsed.map(color => `<div class="record-color-bar-segment" style="background:${this._sanitizeColor(color)}"></div>`).join('')}</div>` : '';
+      html += `<div class="recent-print-item" data-record-id="${this._escapeHtml(item.id || '')}" style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surface-card);border-radius:8px;border:1px solid var(--border);flex-wrap:wrap;cursor:pointer;transition:background 0.15s;position:relative;overflow:hidden;">
+        ${recentColorBar}
         <div style="flex:1;min-width:100px;font-size:12px;${taskNameColor}">${taskNameHtml}</div>
         ${dur ? `<span style="font-size:11px;color:var(--text-secondary);white-space:nowrap;">⏱${dur}</span>` : ''}
         ${endTime ? `<span style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${endTime}</span>` : ''}
@@ -3792,10 +4143,14 @@ class PrinterAnalyticsCard extends HTMLElement {
       const e = printerToDisplay.entities;
       const hass = this._hass || this.hass;
       const discoveredEntities = this._discoverPrinterEntities(e, hass);
-      // 优先从 current_print 获取真实任务名（模型名），否则回退到 current_task 实体
-      const cp = this._getAttr(e.current_print || discoveredEntities.current_print) || {};
+      // 优先从 print_history 实体的 current_print 属性获取真实任务名（模型名）
+      const historyEntityId = e.print_history;
+      const historyAttrs = historyEntityId ? this._getAttr(historyEntityId) : {};
+      const cp = historyAttrs.current_print || {};
       const modelNameFromCP = cp.task_name_model || '';
+      const configNameFromCP = cp.task_name_config || cp.config_name || '';
       let displayTaskName = modelNameFromCP || cp.task_name || '';
+      let displayConfigName = configNameFromCP;
       if (!displayTaskName) {
         displayTaskName = this._getState(e.current_task) || '未配置';
         // 如果显示的是参数描述，尝试从 task_name 实体获取（可能是模型名）
@@ -3805,6 +4160,16 @@ class PrinterAnalyticsCard extends HTMLElement {
             displayTaskName = rawTaskName;
           }
         }
+      }
+      // 构建标题HTML：模型名+项目名
+      let taskNameHtml = '';
+      if (displayTaskName && displayTaskName !== '未配置') {
+        taskNameHtml = `<div style="font-weight:600;">${this._escapeHtml(displayTaskName)}</div>`;
+        if (displayConfigName && displayConfigName !== displayTaskName) {
+          taskNameHtml += `<div style="font-size:0.85em;color:var(--text-secondary);">${this._escapeHtml(displayConfigName)}</div>`;
+        }
+      } else {
+        taskNameHtml = this._escapeHtml(displayTaskName || '空闲');
       }
       const printProgress = this._getState(e.print_progress) || '0';
       const currentWeight = this._getState(e.current_weight) || 'N/A';
@@ -4015,7 +4380,7 @@ class PrinterAnalyticsCard extends HTMLElement {
         </div>` : `<div class="realtime-grid">
           <div class="realtime-item">
             <div class="realtime-label">📋 当前任务</div>
-            <div class="realtime-value">${this._escapeHtml(displayTaskName || '空闲')}</div>
+            <div class="realtime-value">${taskNameHtml}</div>
           </div>
           <div class="realtime-item">
             <div class="realtime-label">📊 打印进度</div>
@@ -4084,12 +4449,25 @@ class PrinterAnalyticsCard extends HTMLElement {
       let colorsUsed = item.colors_used || [];
       let totalColors = item.total_colors || 0;
 
+      // 检查 color_usage 是否有可靠的消耗数据（weight_g > 0）
+      const hasReliableWeight = item.color_usage && Array.isArray(item.color_usage) &&
+        item.color_usage.some(cu => cu && cu.weight_g > 0);
+
       if (colorsUsed.length === 0 && item.filament_color) {
         const fc = String(item.filament_color).trim();
         if (fc.includes(',') || fc.includes(';') || fc.includes(' ')) {
           colorsUsed = fc.split(/[,;\s]+/).filter(c => c && c.startsWith('#'));
           if (colorsUsed.length > 0) totalColors = colorsUsed.length;
         } else if (fc.startsWith('#')) {
+          colorsUsed = [fc];
+          totalColors = 1;
+        }
+      }
+
+      // 当 color_usage 存在但没有可靠消耗数据时，回退到 filament_color 作为唯一颜色
+      if (colorsUsed.length > 1 && !hasReliableWeight && item.filament_color) {
+        const fc = String(item.filament_color).trim();
+        if (fc.startsWith('#')) {
           colorsUsed = [fc];
           totalColors = 1;
         }
@@ -4102,6 +4480,10 @@ class PrinterAnalyticsCard extends HTMLElement {
       }
 
       let typesUsed = item.types_used || [];
+      // 当 color_usage 没有可靠消耗数据时，回退 types_used 到 filament_type
+      if (typesUsed.length > 1 && !hasReliableWeight && item.filament_type) {
+        typesUsed = [item.filament_type];
+      }
       if (typesUsed.length === 0 && item.filament_type) {
         const ft = String(item.filament_type).trim();
         if (ft.includes(',') || ft.includes(';') || ft.includes('+') || ft.includes('/')) {
@@ -4306,6 +4688,11 @@ class PrinterAnalyticsCard extends HTMLElement {
       modelName = this._escapeHtml(item.task_name || '未命名任务');
     }
     
+    // 如果模型名和配置名相同，不重复显示
+    if (configName && configName === modelName) {
+      configName = '';
+    }
+    
     // 生成HTML
     if (configName) {
       return `<div style="display:flex;flex-direction:column;line-height:1.3;">
@@ -4380,8 +4767,11 @@ class PrinterAnalyticsCard extends HTMLElement {
       : `<div class="history-thumbnail" style="background:linear-gradient(135deg, ${this._sanitizeColor(colorsUsed[0]) || 'rgba(99,102,241,0.2)'}, ${this._sanitizeColor(colorsUsed[1]) || this._sanitizeColor(colorsUsed[0]) || 'rgba(6,182,212,0.1)'});">${statusInfo.icon}${colorBarHtml}</div>`;
 
     const taskNamePlain = item.task_name || '未命名任务';
+    // 顶部颜色条
+    const topColorBarHtml = colorsUsed.length > 0 ? `<div class="record-color-bar">${colorsUsed.map(color => `<div class="record-color-bar-segment" style="background:${this._sanitizeColor(color)}"></div>`).join('')}</div>` : '';
     return `
       <div class="history-item" data-status="${status}" data-name="${taskNamePlain.toLowerCase()}" data-type="${filamentType.toLowerCase()}" data-record-id="${recordId}">
+        ${topColorBarHtml}
         ${showCheckbox ? `<input type="checkbox" class="record-checkbox" data-record-id="${recordId}" ${this._selectedRecords.has(recordId) ? 'checked' : ''}>` : ''}
         <div class="history-status ${statusInfo.class}">${statusInfo.icon} ${statusInfo.text}</div>
         ${coverHtml}
@@ -4417,9 +4807,11 @@ class PrinterAnalyticsCard extends HTMLElement {
       const entity = this._hass.states[p.entities.print_history];
       if (!entity?.attributes?.history) continue;
       const records = entity.attributes.history;
+      const serial = entity.attributes?.printer_serial || '';
       records.forEach(r => {
         r._printer_name = p.printer_name;
         r._printer_entity = p.entities.print_history;
+        r._printer_serial = serial || r.printer_serial || '';
       });
       allRecords.push(...records);
     }
@@ -4441,7 +4833,14 @@ class PrinterAnalyticsCard extends HTMLElement {
         if (this._dateTo && date > this._dateTo) return false;
       }
       if (this._filterStatus && !this._isStatusMatch(r.status, this._filterStatus)) return false;
-      if (this._filterPrinter && (r._printer_name || '') !== this._filterPrinter) return false;
+      if (this._filterPrinter) {
+        // 使用序列号或名称匹配
+        const rSerial = (r._printer_serial || r.printer_serial || '').toUpperCase();
+        const rName = (r._printer_name || '').toLowerCase();
+        const filterUpper = this._filterPrinter.toUpperCase();
+        const filterLower = this._filterPrinter.toLowerCase();
+        if (rSerial !== filterUpper && rName !== filterLower) return false;
+      }
       if (this._filterColor) {
         const colors = r.colors_used || [];
         let matchColor = colors.includes(this._filterColor) || r.filament_color === this._filterColor;
@@ -4460,6 +4859,94 @@ class PrinterAnalyticsCard extends HTMLElement {
     });
   }
 
+  /** 获取所有打印机的 entry_id 列表 */
+  _getAllEntryIds() {
+    const printers = this._getPrintersConfig();
+    const result = [];
+    for (const p of printers) {
+      if (!p.entities.print_history || !this._hass) continue;
+      const entity = this._hass.states[p.entities.print_history];
+      if (!entity) continue;
+      // 从实体属性中获取 entry_id 和 printer_serial
+      const entryId = entity.attributes?.entry_id || '';
+      const printerSerial = entity.attributes?.printer_serial || '';
+      if (entryId) {
+        result.push({ entryId, printerName: p.printer_name, printerSerial, entityId: p.entities.print_history });
+      }
+    }
+    return result;
+  }
+
+  /** 通过 WebSocket 请求服务端筛选+分页数据 */
+  async _loadHistoryViaWS() {
+    if (!this._hass || this._wsLoading) return;
+    const entryIds = this._getAllEntryIds();
+    if (entryIds.length === 0) return;
+
+    this._wsLoading = true;
+
+    try {
+      // 合并所有打印机的筛选结果
+      let allRecords = [];
+      let allColors = new Set();
+      let totalRecords = 0;
+
+      for (const { entryId, printerName, printerSerial } of entryIds) {
+        const msg = {
+          type: 'printer_analytics/query_history',
+          entry_id: entryId,
+          filters: {
+            status: this._filterStatus || '',
+            color: this._filterColor || '',
+            printer: this._filterPrinter || '',
+            date_from: this._dateFrom || '',
+            date_to: this._dateTo || '',
+            search: this._searchQuery || '',
+          },
+          page: this._currentPage || 1,
+          page_size: this._pageSize || 20,
+        };
+
+        const result = await this._hass.callWS(msg);
+
+        if (result && result.records) {
+          // 标记打印机名和序列号
+          result.records.forEach(r => {
+            r._printer_name = printerName;
+            r._printer_serial = printerSerial || r.printer_serial || '';
+          });
+          allRecords = allRecords.concat(result.records);
+          totalRecords += result.pagination?.total || 0;
+
+          // 合并颜色选项
+          if (result.filter_options?.colors) {
+            result.filter_options.colors.forEach(c => allColors.add(c));
+          }
+        }
+      }
+
+      // 按时间排序
+      allRecords.sort((a, b) => {
+        const timeA = a.end_time || a.start_time || '';
+        const timeB = b.end_time || b.start_time || '';
+        return new Date(timeB) - new Date(timeA);
+      });
+
+      this._wsHistoryData = {
+        records: allRecords,
+        totalRecords: totalRecords,
+        colors: [...allColors].sort(),
+      };
+
+    } catch (e) {
+      console.warn('[WS] 加载历史失败，回退到实体属性:', e);
+      this._wsHistoryData = null;
+    } finally {
+      this._wsLoading = false;
+      this._refreshContent();
+    }
+  }
+
   _exportHistoryToCSV() {
     const allRecords = this._getAllMergedRecords();
     const filtered = this._filterRecordsByDate(allRecords);
@@ -4469,30 +4956,49 @@ class PrinterAnalyticsCard extends HTMLElement {
     }
 
     const statusMap = { 'finish': '成功', '完成': '成功', '成功': '成功', 'failed': '失败', 'fail': '失败', '失败': '失败', 'cancelled': '已取消', '已取消': '已取消' };
-    // 添加封面图URL和快照图URL列
-    const headers = ['序号', '任务名称', '打印机', '状态', '开始时间', '结束时间', '时长(分钟)', '耗材类型', '耗材颜色', '耗材重量(g)', '耗材长度(m)', '能耗(kWh)', '喷嘴温度(°C)', '热床温度(°C)', '腔温(°C)', '速度配置', '喷嘴尺寸', '封面图URL', '快照图URL'];
+    // 导出字段：模型名和项目名分开显示，序列号列
+    const headers = ['序号', '序列号', '模型名称', '项目名称', '打印机', '状态', '开始时间', '结束时间', '时长(分钟)', '耗材类型', '耗材颜色', '耗材重量(g)', '耗材长度(m)', '能耗(kWh)', '腔温(°C)', '喷嘴尺寸', '封面图URL', '快照图URL'];
     const rows = filtered.map((r, i) => {
       const chamberTemp = r.chamber_temp_last5min?.avg ?? r.chamber_temp_final ?? '';
       // 获取封面图和快照图URL
       const coverUrl = r.cover_image_url || r.cover_image_local || '';
       const snapshotUrl = r.snapshot_image_local || r.snapshot_image_url || '';
+      // 时长：优先 duration_minutes，否则从 duration_hours 换算
+      const durMin = r.duration_minutes || (r.duration_hours ? Math.round(r.duration_hours * 60) : '');
+      // 能耗：用 != null 判断，避免 energy_kwh=0 时被 || 误判为空
+      const energyVal = r.energy_kwh != null ? r.energy_kwh : '';
+      // 模型名和项目名：优先用单独字段，否则从 task_name 解析
+      let exportModel = r.task_name_model || '';
+      let exportConfig = r.task_name_config || r.config_name || '';
+      if (!exportModel && !exportConfig && r.task_name) {
+        if (r.task_name.includes(' + ')) {
+          const parts = r.task_name.split(' + ');
+          exportModel = parts[0];
+          exportConfig = parts.slice(1).join(' + ');
+        } else {
+          exportModel = r.task_name;
+        }
+      }
+      // 如果模型名和项目名相同，不重复导出
+      if (exportConfig && exportConfig === exportModel) {
+        exportConfig = '';
+      }
       return [
         i + 1,
-        r.task_name || '',
+        r._printer_serial || r.printer_serial || '',
+        exportModel,
+        exportConfig,
         r._printer_name || '',
         statusMap[r.status] || r.status || '',
         r.start_time || '',
         r.end_time || '',
-        r.duration_minutes || r.print_duration || '',
+        durMin,
         r.filament_type || '',
         r.filament_color || '',
         r.total_weight || r.weight || '',
         r.total_length || r.length || '',
-        r.total_energy || '',
-        r.nozzle_temp || '',
-        r.bed_temp || '',
+        energyVal,
         chamberTemp,
-        r.speed_profile || '',
         r.nozzle_size || '',
         coverUrl,
         snapshotUrl
@@ -4518,38 +5024,274 @@ class PrinterAnalyticsCard extends HTMLElement {
   }
 
   // 从文件导入历史记录
+  // 显示导入面板
+  _showImportPanel() {
+    const root = this.shadowRoot;
+    const cardContent = root.querySelector('.card-content');
+    if (!cardContent) return;
+
+    // 移除已有面板
+    const existing = root.querySelector('.import-overlay');
+    if (existing) existing.remove();
+
+    const panelHtml = `
+      <div class="confirm-overlay import-overlay">
+        <div class="import-panel">
+          <div class="import-panel-title">📤 导入打印历史</div>
+
+          <div class="import-panel-section">
+            <div class="import-panel-section-title">1. 下载模板文件</div>
+            <div class="import-panel-desc">下载 JSON 模板，按格式填写后导入。模板包含示例数据和字段说明。</div>
+            <div class="import-panel-actions">
+              <button class="btn-import-action btn-import-template" id="btn-download-template">📥 下载模板</button>
+            </div>
+          </div>
+
+          <div class="import-panel-section">
+            <div class="import-panel-section-title">2. 选择文件导入</div>
+            <div class="import-panel-desc">支持导入 JSON 格式文件（.json），单次最多 5000 条记录。</div>
+            <div class="import-format-hint">{"history": [{"task_name":"示例任务","status":"finish","start_time":"2026-01-01 10:00","end_time":"2026-01-01 12:00","duration_minutes":120,"filament_type":"PLA","total_weight":25.5,...}]}</div>
+            <div class="import-panel-actions" style="margin-top:10px;">
+              <button class="btn-import-action btn-import-file" id="btn-choose-import-file">📂 选择文件</button>
+              <button class="btn-import-action btn-import-close" id="btn-close-import-panel">取消</button>
+            </div>
+          </div>
+        </div>
+      </div>`;
+
+    cardContent.insertAdjacentHTML('beforeend', panelHtml);
+
+    // 绑定事件
+    const downloadBtn = root.getElementById('btn-download-template');
+    if (downloadBtn) {
+      downloadBtn.addEventListener('click', () => this._downloadImportTemplate());
+    }
+
+    const chooseFileBtn = root.getElementById('btn-choose-import-file');
+    if (chooseFileBtn) {
+      chooseFileBtn.addEventListener('click', () => {
+        const fileInput = root.getElementById('file-import');
+        if (fileInput) fileInput.click();
+        // 关闭面板
+        this._closeImportPanel();
+      });
+    }
+
+    const closeBtn = root.getElementById('btn-close-import-panel');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => this._closeImportPanel());
+    }
+  }
+
+  _closeImportPanel() {
+    const panel = this.shadowRoot.querySelector('.import-overlay');
+    if (panel) panel.remove();
+  }
+
+  // 下载导入模板文件
+  _downloadImportTemplate() {
+    // 生成包含示例记录和字段说明的模板
+    const template = {
+      "_说明": "这是打印历史导入模板，请按示例格式填写后删除 _说明 和 _字段说明 字段",
+      "_字段说明": {
+        "task_name": "任务名称（必填）",
+        "status": "状态：finish=成功, failed=失败, cancelled=已取消",
+        "start_time": "开始时间，格式：YYYY-MM-DD HH:mm",
+        "end_time": "结束时间，格式：YYYY-MM-DD HH:mm",
+        "duration_minutes": "时长（分钟）",
+        "filament_type": "耗材类型，如 PLA、PETG、ABS",
+        "filament_color": "耗材颜色，如 #FF0000",
+        "total_weight": "耗材重量（克）",
+        "total_length": "耗材长度（米）",
+        "energy_kwh": "能耗（千瓦时）",
+        "nozzle_size": "喷嘴尺寸，如 0.4",
+        "colors_used": "使用的颜色列表，如 [\"#FF0000\", \"#0000FF\"]",
+        "cover_image_url": "封面图URL（可选）"
+      },
+      "history": [
+        {
+          "task_name": "示例打印任务",
+          "status": "finish",
+          "start_time": "2026-01-15 10:00",
+          "end_time": "2026-01-15 12:30",
+          "duration_minutes": 150,
+          "filament_type": "PLA",
+          "filament_color": "#2898F7",
+          "total_weight": 25.5,
+          "total_length": 8.3,
+          "energy_kwh": 0.12,
+          "nozzle_size": "0.4",
+          "colors_used": ["#2898F7"],
+          "cover_image_url": ""
+        },
+        {
+          "task_name": "另一个打印任务",
+          "status": "failed",
+          "start_time": "2026-01-16 14:00",
+          "end_time": "2026-01-16 14:45",
+          "duration_minutes": 45,
+          "filament_type": "PETG",
+          "filament_color": "#FF6600",
+          "total_weight": 10.2,
+          "total_length": 3.5,
+          "energy_kwh": 0.05,
+          "nozzle_size": "0.4",
+          "colors_used": ["#FF6600"]
+        }
+      ]
+    };
+
+    const jsonStr = JSON.stringify(template, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '打印历史导入模板.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   async _importHistoryFromFile(file) {
+    // 文件类型检查
+    if (!file.name.endsWith('.json')) {
+      alert('❌ 文件格式错误\n\n请选择 .json 格式的文件。\n当前文件：' + file.name);
+      return;
+    }
+
+    // 文件大小检查（10MB 上限）
+    if (file.size > 10 * 1024 * 1024) {
+      alert('❌ 文件过大\n\n文件大小超过 10MB 限制。\n当前大小：' + (file.size / 1024 / 1024).toFixed(1) + 'MB');
+      return;
+    }
+
     this._showHistoryLoading('导入中...');
 
     try {
       const text = await file.text();
-      // 验证基本的JSON格式
-      JSON.parse(text);
 
-      // 获取所有打印机实体ID，选择第一个
-      const entryIds = this._getAllEntryIds();
-      if (entryIds.length === 0) {
-        this._hideHistoryLoading();
-        alert('没有可用的打印机配置');
+      // ---- 第1步：JSON 语法校验 ----
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        // 提取错误位置，给出友好提示
+        const pos = e.message.match(/position\s+(\d+)/i);
+        let hint = '请检查文件内容是否为合法的 JSON 格式。';
+        if (pos) {
+          const idx = parseInt(pos[1]);
+          const lines = text.substring(0, idx).split('\n');
+          hint = `错误出现在第 ${lines.length} 行，第 ${lines[lines.length - 1].length + 1} 列附近。\n\n常见原因：\n• 多了或少了逗号、引号、大括号\n• 最后一个元素后多了逗号\n• 包含注释（JSON 不支持注释）`;
+        }
+        alert('❌ JSON 语法错误\n\n' + hint + '\n\n原始错误：' + e.message);
         return;
       }
 
-      const { entryId } = entryIds[0];
+      // ---- 第2步：数据结构校验 ----
+      let records = [];
+      if (Array.isArray(data)) {
+        // 纯数组格式：[{...}, {...}]
+        records = data;
+      } else if (typeof data === 'object' && data !== null) {
+        if (Array.isArray(data.history)) {
+          // 标准格式：{"history": [...]}
+          records = data.history;
+        } else {
+          // 尝试多打印机格式：{"entry_id": {"history": [...]}}
+          let found = false;
+          for (const key of Object.keys(data)) {
+            if (data[key] && typeof data[key] === 'object' && Array.isArray(data[key].history)) {
+              records = records.concat(data[key].history);
+              found = true;
+            }
+          }
+          if (!found) {
+            alert('❌ 数据格式错误\n\n未找到 "history" 字段。\n\n正确格式：\n{"history": [{"task_name": "...", "status": "finish", ...}]}\n\n请下载模板文件查看示例。');
+            return;
+          }
+        }
+      } else {
+        alert('❌ 数据格式错误\n\n文件内容不是 JSON 对象或数组。\n\n请下载模板文件查看正确格式。');
+        return;
+      }
 
-      // 调用HA服务导入数据
+      // ---- 第3步：记录内容校验 ----
+      if (records.length === 0) {
+        alert('❌ 导入数据为空\n\n"history" 数组中没有记录。\n请至少添加一条打印记录后再导入。');
+        return;
+      }
+
+      // 检查记录数上限
+      if (records.length > 5000) {
+        alert('❌ 记录数超限\n\n单次最多导入 5000 条记录。\n当前：' + records.length + ' 条');
+        return;
+      }
+
+      // 检查必填字段
+      const requiredFields = ['task_name', 'status'];
+      const missingRecords = [];
+      for (let i = 0; i < records.length && i < 5; i++) {
+        const missing = requiredFields.filter(f => !records[i][f]);
+        if (missing.length > 0) {
+          missingRecords.push(`第 ${i + 1} 条记录缺少：${missing.join('、')}`);
+        }
+      }
+      if (missingRecords.length > 0) {
+        alert('❌ 记录缺少必填字段\n\n' + missingRecords.join('\n') + '\n\n必填字段：task_name（任务名称）、status（状态）\n\n请下载模板文件查看字段说明。');
+        return;
+      }
+
+      // 检查 status 值是否合法
+      const validStatuses = ['finish', 'failed', 'cancelled'];
+      const invalidStatusRecords = [];
+      for (let i = 0; i < records.length && i < 5; i++) {
+        const s = records[i].status;
+        if (s && !validStatuses.includes(s)) {
+          invalidStatusRecords.push(`第 ${i + 1} 条记录 status="${s}"，应为 finish/failed/cancelled`);
+        }
+      }
+      if (invalidStatusRecords.length > 0) {
+        alert('❌ 状态值不合法\n\n' + invalidStatusRecords.join('\n') + '\n\nstatus 只接受：finish（成功）、failed（失败）、cancelled（已取消）');
+        return;
+      }
+
+      // ---- 第4步：调用后端导入 ----
+      // 获取打印机实体ID
+      let entityId = '';
+      const entryIds = this._getAllEntryIds();
+      if (entryIds.length > 0) {
+        entityId = entryIds[0].entryId;
+      } else {
+        const printers = this._getPrintersConfig();
+        const firstPrinter = printers.find(p => p.entities.print_history);
+        if (firstPrinter) {
+          entityId = firstPrinter.entities.print_history;
+        }
+      }
+
+      if (!entityId) {
+        this._hideHistoryLoading();
+        alert('❌ 没有可用的打印机配置');
+        return;
+      }
+
       await this._hass.callService('printer_analytics', 'import_history', {
-        entity_id: entryId,
+        entity_id: entityId,
         json_data: text
       });
 
-      alert('导入成功！即将刷新数据...');
+      alert('✅ 导入成功！\n\n已导入 ' + records.length + ' 条记录，即将刷新数据...');
 
       // 刷新数据
       this._loadHistoryViaWS();
 
     } catch (e) {
       console.warn('[导入] 导入失败:', e);
-      alert('导入失败: ' + (e.message || e));
+      // 解析后端返回的错误信息，已经是中文友好提示
+      let msg = e.message || String(e);
+      if (msg.includes('not_found') || msg.includes('Coordinator not found')) {
+        msg = '打印机配置未找到，请刷新页面后重试。';
+      }
+      alert('❌ 导入失败\n\n' + msg);
     } finally {
       this._hideHistoryLoading();
     }
@@ -4565,18 +5307,28 @@ class PrinterAnalyticsCard extends HTMLElement {
 
     try {
       // 获取所有打印机实体ID，选择第一个
+      let entityId = '';
       const entryIds = this._getAllEntryIds();
-      if (entryIds.length === 0) {
+      if (entryIds.length > 0) {
+        entityId = entryIds[0].entryId;
+      } else {
+        // entry_id 不可用时，回退到传感器实体 ID
+        const printers = this._getPrintersConfig();
+        const firstPrinter = printers.find(p => p.entities.print_history);
+        if (firstPrinter) {
+          entityId = firstPrinter.entities.print_history;
+        }
+      }
+
+      if (!entityId) {
         this._hideHistoryLoading();
         alert('没有可用的打印机配置');
         return;
       }
 
-      const { entryId } = entryIds[0];
-
       // 调用HA服务备份数据
-      const result = await this._hass.callService('printer_analytics', 'backup_history', {
-        entity_id: entryId
+      await this._hass.callService('printer_analytics', 'backup_history', {
+        entity_id: entityId
       });
 
       alert('备份成功！数据已保存。');
@@ -4590,46 +5342,73 @@ class PrinterAnalyticsCard extends HTMLElement {
   }
 
   _renderMergedHistoryPage() {
-    const allRecords = this._getAllMergedRecords();
-    const filtered = this._filterRecordsByDate(allRecords);
+    // 优先使用 WebSocket 数据（服务端筛选+分页），回退到实体属性
+    let pageItems = [];
+    let total = 0;
+    let colorOptions = '';
+    let allRecords = [];
+    let filtered = [];
+    let startIdx = 0;
 
-    // 提取所有用过的颜色（从 colors_used、filament_color、color_usage 三个来源汇总）
-    const colorSet = new Set();
-    for (const r of allRecords) {
-      const colors = r.colors_used || [];
-      for (const c of colors) {
-        if (c) colorSet.add(c);
-      }
-      if (r.filament_color && !colors.length) {
-        const fc = String(r.filament_color).trim();
-        if (fc.includes(',') || fc.includes(';') || fc.includes(' ')) {
-          fc.split(/[,;\s]+/).filter(c => c && c.startsWith('#')).forEach(c => colorSet.add(c));
-        } else if (fc.startsWith('#')) {
-          colorSet.add(fc);
+    if (this._wsHistoryData && this._wsHistoryData.records) {
+      // WS 模式：服务端已筛选+分页
+      pageItems = this._wsHistoryData.records;
+      filtered = pageItems;
+      total = this._wsHistoryData.totalRecords || pageItems.length;
+      colorOptions = (this._wsHistoryData.colors || []).map(c =>
+        `<div class="color-dropdown-item ${this._filterColor === c ? 'selected' : ''}" data-color="${this._escapeHtml(c)}" title="${this._formatColorName(c)}"><span class="color-dot" style="background:${this._sanitizeColor(c)};"></span>${this._formatColorName(c)}</div>`
+      ).join('');
+    } else {
+      // 回退模式：从实体属性读取并客户端筛选
+      allRecords = this._getAllMergedRecords();
+      filtered = this._filterRecordsByDate(allRecords);
+
+      // 提取所有用过的颜色（从 colors_used、filament_color、color_usage 三个来源汇总）
+      const colorSet = new Set();
+      for (const r of allRecords) {
+        const colors = r.colors_used || [];
+        for (const c of colors) {
+          if (c) colorSet.add(c);
+        }
+        if (r.filament_color && !colors.length) {
+          const fc = String(r.filament_color).trim();
+          if (fc.includes(',') || fc.includes(';') || fc.includes(' ')) {
+            fc.split(/[,;\s]+/).filter(c => c && c.startsWith('#')).forEach(c => colorSet.add(c));
+          } else if (fc.startsWith('#')) {
+            colorSet.add(fc);
+          }
+        }
+        if (r.color_usage && Array.isArray(r.color_usage)) {
+          for (const cu of r.color_usage) {
+            if (cu && cu.color && cu.weight_g > 0) colorSet.add(cu.color);
+          }
         }
       }
-      // 补充：color_usage 中有实际消耗的颜色（可能 colors_used 为空但这里有数据）
-      if (r.color_usage && Array.isArray(r.color_usage)) {
-        for (const cu of r.color_usage) {
-          if (cu && cu.color && cu.weight_g > 0) colorSet.add(cu.color);
-        }
-      }
+      colorOptions = [...colorSet].map(c =>
+        `<div class="color-dropdown-item ${this._filterColor === c ? 'selected' : ''}" data-color="${this._escapeHtml(c)}" title="${this._formatColorName(c)}"><span class="color-dot" style="background:${this._sanitizeColor(c)};"></span>${this._formatColorName(c)}</div>`
+      ).join('');
+
+      // 客户端分页
+      total = filtered.length;
+      const totalPages = Math.max(1, Math.ceil(total / this._pageSize));
+      if (this._currentPage > totalPages) this._currentPage = totalPages;
+      startIdx = (this._currentPage - 1) * this._pageSize;
+      pageItems = filtered.slice(startIdx, startIdx + this._pageSize);
     }
-    const colorOptions = [...colorSet].map(c =>
-      `<option value="${this._escapeHtml(c)}" ${this._filterColor === c ? 'selected' : ''}>${this._formatColorName(c)}</option>`
-    ).join('');
 
     const printers = this._getPrintersConfig();
-    const printerOptions = printers.length > 1 ? printers.map(p =>
-      `<option value="${this._escapeHtml(p.printer_name)}" ${this._filterPrinter === p.printer_name ? 'selected' : ''}>${this._escapeHtml(p.printer_name)}</option>`
-    ).join('') : '';
+    const entryIds = this._getAllEntryIds();
+    const printerOptions = printers.length > 1 ? printers.map(p => {
+      const info = entryIds.find(e => e.printerName === p.printer_name);
+      const serial = info?.printerSerial || '';
+      const value = serial || p.printer_name;
+      const label = serial ? `${serial}(${p.printer_name})` : p.printer_name;
+      return `<option value="${this._escapeHtml(value)}" ${this._filterPrinter === value ? 'selected' : ''}>${this._escapeHtml(label)}</option>`;
+    }).join('') : '';
 
     // 分页
-    const total = filtered.length;
     const totalPages = Math.max(1, Math.ceil(total / this._pageSize));
     if (this._currentPage > totalPages) this._currentPage = totalPages;
-    const startIdx = (this._currentPage - 1) * this._pageSize;
-    const pageItems = filtered.slice(startIdx, startIdx + this._pageSize);
 
     let paginationHtml = '';
     if (totalPages > 1) {
@@ -4662,10 +5441,20 @@ class PrinterAnalyticsCard extends HTMLElement {
           <option value="failed" ${this._filterStatus === 'failed' ? 'selected' : ''}>❌ 失败</option>
           <option value="cancelled" ${this._filterStatus === 'cancelled' ? 'selected' : ''}>⚠️ 已取消</option>
         </select>
-        <select class="filter-select" id="filter-color">
-          <option value="" ${!this._filterColor ? 'selected' : ''}>全部颜色</option>
-          ${colorOptions}
-        </select>
+        <div class="color-dropdown" id="color-dropdown">
+          <div class="color-dropdown-toggle" id="color-dropdown-toggle">
+            <span class="color-dot" id="color-dropdown-dot" style="background:${this._filterColor ? this._sanitizeColor(this._filterColor) : 'transparent'};"></span>
+            <span id="color-dropdown-label">${this._filterColor ? this._formatColorName(this._filterColor) : '全部颜色'}</span>
+            <span class="color-dropdown-arrow">▾</span>
+          </div>
+          <div class="color-dropdown-menu" id="color-dropdown-menu">
+            <div class="color-dropdown-item ${!this._filterColor ? 'selected' : ''}" data-color="">
+              <span class="color-dot" style="background:linear-gradient(135deg,#f00,#ff0,#0f0,#0ff,#00f,#f0f);"></span>
+              全部颜色
+            </div>
+            ${colorOptions}
+          </div>
+        </div>
         <div class="date-filter">
           <input type="date" class="date-input" id="date-from" value="${this._dateFrom}">
           <span class="date-separator">至</span>
@@ -4682,7 +5471,6 @@ class PrinterAnalyticsCard extends HTMLElement {
           <button class="btn-filter btn-filter-import" id="btn-import-json" title="从JSON文件导入">📤 导入</button>
           <button class="btn-filter btn-filter-backup" id="btn-backup" title="立即备份所有数据">💾 备份</button>
         </div>
-        <!-- 隐藏的文件输入用于导入 -->
         <input type="file" class="hidden-file-input" id="file-import" accept=".json">
       </div>
       <div class="summary-bar">
@@ -4778,6 +5566,10 @@ class PrinterAnalyticsCard extends HTMLElement {
     }
     if (!modelName) {
       modelName = record.task_name || '-';
+    }
+    // 如果模型名和项目名相同，不重复显示
+    if (configName && configName === modelName) {
+      configName = '';
     }
 
     // 记录ID用于后续修改

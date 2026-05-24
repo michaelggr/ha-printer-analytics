@@ -111,8 +111,9 @@ class EntityDiscovery:
         return None
 
     def _get_extra_patterns(self) -> dict[str, list[str]]:
-        """额外的匹配模式"""
+        """额外的匹配模式（顺序重要：更具体的 pattern 放前面）"""
         return {
+            "serial_number": [r"serial.*number|serial|序列号"],
             "print_status": [r"print.*status|status.*print|打印.*状态|状态"],
             "print_weight": [r"weight|重量"],
             "print_length": [r"length|长度"],
@@ -120,15 +121,19 @@ class EntityDiscovery:
             "bed_temp": [r"bed.*temp|temp.*bed|热床.*温"],
             "chamber_temp": [r"chamber|腔体| enclosure"],
             "progress": [r"progress|进度"],
+            "total_layer_count": [r"total.*layer|总.*层|总层数|layer.*count"],
             "layer": [r"layer|层"],
             "start_time": [r"start.*time|开始.*时间"],
             "end_time": [r"end.*time|结束.*时间"],
             "task_name": [r"task.*name|subtask|任务.*名称|任务名|taskname"],
             "gcode_filename": [r"gcode.*file|gcode.*filename|文件名"],
-            "active_tray": [r"active.*tray|ams.*tray|活动.*托盘|当前.*托盘"],
+            "active_tray": [r"active.*tray|ams.*tray|活动.*托盘|当前.*托盘|激活.*料盘"],
+            "externalspool_active": [r"externalspool.*active|外挂.*激活|外挂.*料盘.*激活"],
+            "ams_active": [r"ams_\d+_active|ams.*active"],
+            "externalspool_name": [r"externalspool.*external.*spool|外挂.*料盘"],
             "nozzle_type": [r"nozzle.*type|喷嘴.*类型"],
-            "nozzle_size": [r"nozzle.*size|喷嘴.*尺寸"],
-            "print_bed_type": [r"print.*bed|打印.*床|热床.*类型"],
+            "nozzle_size": [r"nozzle.*size|喷嘴.*尺寸|喷嘴.*直径|喷嘴直径"],
+            "print_bed_type": [r"print.*bed|打印.*床|热床.*类型|打印.*板.*类型|打印板类型"],
             "speed_profile": [r"speed.*profile|速度.*配置"],
         }
 

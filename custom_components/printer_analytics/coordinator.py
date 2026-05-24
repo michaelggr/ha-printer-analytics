@@ -63,6 +63,7 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         )
         self.entry = entry
         self.printer_name: str = entry.data.get(CONF_PRINTER_NAME, "Printer")
+        self.printer_serial: str = ""  # 打印机序列号，在实体发现后填充
         self.print_status_entity: str = entry.data.get(CONF_PRINT_STATUS_ENTITY, "")
         self.power_entity: str = entry.data.get(CONF_POWER_ENTITY, "")
         self.energy_entity: str = entry.data.get(CONF_ENERGY_ENTITY, "")
@@ -118,6 +119,9 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
             await self.entity_discovery.discover()
         except Exception as err:
             LOGGER.warning("Entity discovery failed: %s", err)
+
+        # 实体发现后，填充打印机序列号
+        self._update_printer_serial()
 
         try:
             await self.hass.async_add_executor_job(self.image_manager.detect_placeholder_images)
@@ -375,6 +379,7 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
                 "cover_image_local": None,
                 "snapshot_image_local": None,
                 "multi_color_summary": None,
+                "printer_serial": self.printer_serial or None,
             }
             for key, default in new_fields.items():
                 if key not in record:
@@ -392,6 +397,32 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         """发现实体"""
         if self.entity_discovery:
             await self.entity_discovery.discover()
+            self._update_printer_serial()
+
+    def _update_printer_serial(self) -> None:
+        """从实体映射中更新打印机序列号"""
+        # 优先从 serial_number 实体获取
+        serial_entity = self._entity_map.get("serial_number", "")
+        if serial_entity:
+            state = self.hass.states.get(serial_entity)
+            if state and state.state not in INVALID_ENTITY_STATES:
+                self.printer_serial = state.state
+                return
+        # 回退：从 cover_image 实体 ID 正则提取
+        import re
+        cover_entity = self._entity_map.get("cover_image", "")
+        if cover_entity:
+            match = re.search(r'image\.\w+_(\w+)_cover_image', cover_entity)
+            if match:
+                self.printer_serial = match.group(1).upper()
+                return
+        # 回退：从 print_status 实体 ID 提取（sensor.xxx_SERIAL_print_status）
+        status_entity = self._entity_map.get("print_status", "") or self.print_status_entity
+        if status_entity:
+            match = re.search(r'sensor\.\w+_(\w+)_print_status', status_entity)
+            if match:
+                self.printer_serial = match.group(1).upper()
+                return
 
     def _get_entity_state(self, entity_id: str, default: any = None) -> any:
         """获取实体状态"""

@@ -1,4 +1,4 @@
-"""历史数据存储管理"""
+"""历史数据存储管理 - 支持按需读取和增量统计"""
 import gzip
 import json
 import logging
@@ -19,9 +19,12 @@ if TYPE_CHECKING:
 
 LOGGER = logging.getLogger(__name__)
 
+# 内部字段集合，查询时自动清理
+_INTERNAL_KEYS = frozenset({"_pending_color", "_pending_color_count", "_color_change_cooldown"})
+
 
 class StorageManager:
-    """历史数据存储管理器 - 支持脏标记只写变化年份"""
+    """历史数据存储管理器 - 支持按需读取、增量统计、脏标记只写变化年份"""
 
     def __init__(self, coordinator: "PrinterAnalyticsCoordinator") -> None:
         self.coordinator = coordinator
@@ -36,6 +39,13 @@ class StorageManager:
         self._dirty_years: set[int] = set()
         self._save_debounce = None
 
+        # 统计缓存文件路径
+        self._stats_file = os.path.join(self._history_dir, f"{self.entry.entry_id}_stats.json")
+
+    # ================================================================
+    # 脏标记
+    # ================================================================
+
     def mark_dirty(self, year: int | None = None) -> None:
         """标记需要保存的年份"""
         if year is not None:
@@ -44,6 +54,10 @@ class StorageManager:
             last = self.coordinator.history[-1]
             y = self._extract_year_from_end_time(last.get("end_time", ""))
             self._dirty_years.add(y)
+
+    # ================================================================
+    # 旧版数据迁移
+    # ================================================================
 
     def migrate_legacy_data(self) -> None:
         """迁移旧版数据到分片存储"""
@@ -77,6 +91,10 @@ class StorageManager:
         except Exception as err:
             LOGGER.error("迁移旧版数据失败: %s", err)
 
+    # ================================================================
+    # 工具方法
+    # ================================================================
+
     @staticmethod
     def _extract_year_from_end_time(end_time: str) -> int:
         """从结束时间提取年份（直接切片，避免正则开销）"""
@@ -87,6 +105,272 @@ class StorageManager:
         except ValueError:
             return 2020
 
+    def _get_year_files(self) -> list[str]:
+        """获取当前 entry 的所有年份文件名（已排序）"""
+        if not os.path.isdir(self._history_dir):
+            return []
+        return sorted(
+            f for f in os.listdir(self._history_dir)
+            if f.startswith(f"{self.entry.entry_id}_") and f.endswith(".json")
+        )
+
+    def _year_file_path(self, year: int) -> str:
+        """获取年份文件路径"""
+        return os.path.join(self._history_dir, f"{self.entry.entry_id}_{year}.json")
+
+    # ================================================================
+    # 按需查询（核心新增 - 不加载全量到内存）
+    # ================================================================
+
+    def query_records(self, filters: dict | None = None,
+                      page: int = 1, page_size: int = 20) -> dict:
+        """从文件逐条筛选+分页，只把匹配的分页结果加载到内存
+
+        筛选逻辑与原 coordinator.query_history 一致，
+        但不需要 self.history 全量在内存中。
+        """
+        from .utils import is_param_description as _is_param
+
+        filters = filters or {}
+        status_filter = filters.get("status", "")
+        color_filter = filters.get("color", "")
+        printer_filter = filters.get("printer", "")
+        date_from = filters.get("date_from", "")
+        date_to = filters.get("date_to", "")
+        search = filters.get("search", "").lower()
+
+        # 收集所有颜色（筛选项，不受筛选影响）
+        all_colors: set[str] = set()
+        total_records = 0
+        # 筛选后的记录（只保留排序键，最后再加载分页内容）
+        filtered_keys: list[tuple[str, str]] = []  # [(sort_key, year, index_in_year)]
+
+        # 按年份文件倒序扫描（最新年份优先）
+        year_files = list(reversed(self._get_year_files()))
+
+        for year_file in year_files:
+            file_path = os.path.join(self._history_dir, year_file)
+            try:
+                with open(file_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                records = data.get("history", []) if isinstance(data, dict) else data
+            except Exception as err:
+                LOGGER.warning("读取年份文件失败 %s: %s", year_file, err)
+                continue
+
+            total_records += len(records)
+
+            for r in records:
+                # 收集颜色选项（始终执行，不受筛选影响）
+                self._collect_colors(r, all_colors)
+
+                # 以下为筛选逻辑
+                if not self._match_filter(r, status_filter, color_filter,
+                                          printer_filter, date_from, date_to, search):
+                    continue
+
+                sort_key = r.get("end_time") or r.get("start_time") or ""
+                filtered_keys.append((sort_key, r))
+
+        # 排序（按时间降序）
+        filtered_keys.sort(key=lambda x: x[0], reverse=True)
+
+        # 分页
+        total = len(filtered_keys)
+        total_pages = max(1, (total + page_size - 1) // page_size)
+        page = max(1, min(page, total_pages))
+        start = (page - 1) * page_size
+        page_items = filtered_keys[start:start + page_size]
+
+        # 清理内部字段
+        clean_records = []
+        for _, r in page_items:
+            clean_records.append({k: v for k, v in r.items() if k not in _INTERNAL_KEYS})
+
+        return {
+            "records": clean_records,
+            "pagination": {
+                "page": page,
+                "page_size": page_size,
+                "total": total,
+                "total_pages": total_pages,
+            },
+            "filter_options": {
+                "colors": sorted(all_colors),
+                "printer_name": self.coordinator.printer_name,
+                "printer_serial": self.coordinator.printer_serial,
+                "total_records": total_records,
+            },
+        }
+
+    @staticmethod
+    def _match_filter(r: dict, status_filter: str, color_filter: str,
+                      printer_filter: str, date_from: str, date_to: str,
+                      search: str) -> bool:
+        """判断单条记录是否匹配筛选条件"""
+        # 状态筛选
+        if status_filter:
+            r_status = (r.get("status") or "").lower()
+            if status_filter == "finish" and r_status not in ("finish", "completed", "success"):
+                return False
+            elif status_filter == "failed" and r_status not in ("fail", "failed"):
+                return False
+            elif status_filter == "cancelled" and r_status not in ("cancel", "cancelled"):
+                return False
+            elif status_filter not in ("finish", "failed", "cancelled") and r_status != status_filter:
+                return False
+
+        # 颜色筛选
+        if color_filter:
+            colors = r.get("colors_used") or []
+            match = color_filter in colors or r.get("filament_color") == color_filter
+            if not match and r.get("color_usage"):
+                match = any(cu.get("color") == color_filter for cu in r["color_usage"] if cu)
+            if not match:
+                return False
+
+        # 打印机筛选（使用序列号匹配）
+        if printer_filter:
+            r_serial = (r.get("printer_serial") or "").upper()
+            r_name = (r.get("_printer_name") or "").lower()
+            filter_upper = printer_filter.upper()
+            filter_lower = printer_filter.lower()
+            if r_serial != filter_upper and r_name != filter_lower:
+                return False
+
+        # 日期筛选
+        if date_from or date_to:
+            time_str = r.get("end_time") or r.get("start_time") or ""
+            if not time_str:
+                return False
+            date_str = time_str[:10]
+            if date_from and date_str < date_from:
+                return False
+            if date_to and date_str > date_to:
+                return False
+
+        # 搜索筛选
+        if search:
+            name = (r.get("task_name") or "").lower()
+            ftype = (r.get("filament_type") or "").lower()
+            if search not in name and search not in ftype:
+                return False
+
+        return True
+
+    @staticmethod
+    def _collect_colors(r: dict, colors: set[str]) -> None:
+        """从单条记录中收集颜色"""
+        for c in (r.get("colors_used") or []):
+            if c:
+                colors.add(c)
+        fc = r.get("filament_color")
+        if fc and not (r.get("colors_used") or []):
+            if isinstance(fc, str) and fc.startswith("#"):
+                colors.add(fc)
+        for cu in (r.get("color_usage") or []):
+            if cu and cu.get("color") and cu.get("weight_g", 0) > 0:
+                colors.add(cu["color"])
+
+    # ================================================================
+    # 加载历史（启动时只加载最近缓存 + 统计数据）
+    # ================================================================
+
+    async def load_history(self) -> list[dict]:
+        """加载历史记录（只加载最近N条到内存缓存，其余按需读取）"""
+        try:
+            def _load():
+                os.makedirs(self._history_dir, exist_ok=True)
+                os.makedirs(self._archive_dir, exist_ok=True)
+                os.makedirs(self._exports_dir, exist_ok=True)
+
+                # 迁移旧版数据
+                if os.path.exists(self._legacy_history_file):
+                    LOGGER.info("检测到旧版数据文件，开始迁移到分片存储...")
+                    self.migrate_legacy_data()
+
+                year_files = self._get_year_files()
+
+                if not year_files:
+                    self._restore_from_backup_dir()
+                    year_files = self._get_year_files()
+
+                # 统计各年份记录数（不加载内容）
+                total_count = 0
+                for year_file in year_files:
+                    file_path = os.path.join(self._history_dir, year_file)
+                    try:
+                        with open(file_path, "r", encoding="utf-8") as f:
+                            data = json.load(f)
+                        records = data.get("history", []) if isinstance(data, dict) else data
+                        count = len(records)
+                        total_count += count
+                        year = year_file.replace(f"{self.entry.entry_id}_", "").replace(".json", "")
+                        self.coordinator._yearly_stats[year] = count
+                    except Exception as err:
+                        LOGGER.warning("加载年份文件失败 %s: %s", year_file, err)
+                        from .utils import BackupManager
+                        BackupManager.restore_from_backup(file_path)
+
+                # 只加载最近年份的记录到内存缓存
+                recent_records = []
+                cache_limit = 50  # 内存中只保留最近50条
+
+                for year_file in reversed(year_files):
+                    if len(recent_records) >= cache_limit:
+                        break
+                    file_path = os.path.join(self._history_dir, year_file)
+                    try:
+                        with open(file_path, "r", encoding="utf-8") as f:
+                            data = json.load(f)
+                        records = data.get("history", []) if isinstance(data, dict) else data
+                        # 取最新的记录
+                        remaining = cache_limit - len(recent_records)
+                        recent_records = records[-remaining:] + recent_records
+                    except Exception as err:
+                        LOGGER.warning("加载最近记录失败 %s: %s", year_file, err)
+
+                recent_records.sort(key=lambda x: x.get("end_time", ""))
+                LOGGER.info("加载 %d 条最近记录到缓存（总记录数: %d）", len(recent_records), total_count)
+                # 在 executor 内部设置 _total_records
+                self.coordinator._total_records = total_count
+                return recent_records
+
+            history = await self.hass.async_add_executor_job(_load)
+            return history
+
+        except Exception as err:
+            LOGGER.error("加载历史数据失败: %s", err)
+            return []
+
+    # ================================================================
+    # 增量统计持久化
+    # ================================================================
+
+    def load_stats(self) -> dict | None:
+        """从文件加载持久化的统计数据"""
+        if not os.path.exists(self._stats_file):
+            return None
+        try:
+            with open(self._stats_file, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as err:
+            LOGGER.warning("加载统计数据失败: %s", err)
+            return None
+
+    def save_stats(self, stats_data: dict) -> None:
+        """持久化统计数据到文件"""
+        try:
+            os.makedirs(self._history_dir, exist_ok=True)
+            with open(self._stats_file, "w", encoding="utf-8") as f:
+                json.dump(stats_data, f, ensure_ascii=False, indent=2)
+        except Exception as err:
+            LOGGER.warning("保存统计数据失败: %s", err)
+
+    # ================================================================
+    # 保存历史（增量写入）
+    # ================================================================
+
     def _save_year_data(self, year: int, records: list[dict]) -> None:
         """保存单年份数据（直接写入，由外层 executor 调度）"""
         os.makedirs(self._history_dir, exist_ok=True)
@@ -95,70 +379,6 @@ class StorageManager:
         with open(year_file, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
         LOGGER.debug("已保存 %d 年数据: %d 条记录", year, len(records))
-
-    async def load_history(self) -> list[dict]:
-        """加载历史记录（支持100年数据存储）"""
-        try:
-
-            def _load():
-                os.makedirs(self._history_dir, exist_ok=True)
-                os.makedirs(self._archive_dir, exist_ok=True)
-                os.makedirs(self._exports_dir, exist_ok=True)
-
-                all_records = []
-
-                if os.path.exists(self._legacy_history_file):
-                    LOGGER.info("检测到旧版数据文件，开始迁移到分片存储...")
-                    self.migrate_legacy_data()
-
-                year_files = [
-                    f
-                    for f in os.listdir(self._history_dir)
-                    if f.startswith(f"{self.entry.entry_id}_") and f.endswith(".json")
-                ]
-
-                if not year_files:
-                    self._restore_from_backup_dir()
-                    year_files = [
-                        f
-                        for f in os.listdir(self._history_dir)
-                        if f.startswith(f"{self.entry.entry_id}_") and f.endswith(".json")
-                    ]
-
-                for year_file in sorted(year_files):
-                    file_path = os.path.join(self._history_dir, year_file)
-                    try:
-                        with open(file_path, "r", encoding="utf-8") as f:
-                            data = json.load(f)
-                            if isinstance(data, dict) and "history" in data:
-                                records = data["history"]
-                                all_records.extend(records)
-                                year = (
-                                    year_file.replace(f"{self.entry.entry_id}_", "")
-                                    .replace(".json", "")
-                                )
-                                self.coordinator._yearly_stats[year] = len(records)
-                                LOGGER.debug("加载 %s 年数据: %d 条记录", year, len(records))
-                    except Exception as err:
-                        LOGGER.warning("加载年份文件失败 %s: %s", year_file, err)
-                        from .utils import BackupManager
-
-                        BackupManager.restore_from_backup(file_path)
-
-                all_records.sort(key=lambda x: x.get("end_time", ""))
-                return all_records
-
-            history = await self.hass.async_add_executor_job(_load)
-            LOGGER.info(
-                "成功加载 %d 条历史记录（%d 个年份）",
-                len(history),
-                len(self.coordinator._yearly_stats),
-            )
-            return history
-
-        except Exception as err:
-            LOGGER.error("加载历史数据失败: %s", err)
-            return []
 
     async def save_history(self) -> None:
         """保存历史记录到分片存储（只写脏年份，减少 I/O）"""
@@ -184,8 +404,10 @@ class StorageManager:
                     self._save_year_file(year, records)
                     self.coordinator._yearly_stats[str(year)] = len(records)
 
-                self._cleanup_old_backups()
-                self._create_full_backup()
+                # 增量保存时只备份变化的年份
+                if save_all:
+                    self._cleanup_old_backups()
+                    self._create_full_backup()
 
             await self.hass.async_add_executor_job(_write)
             LOGGER.debug("历史数据已保存（%s）", "全量" if save_all else f"增量: {dirty}")
@@ -206,6 +428,10 @@ class StorageManager:
         except Exception as err:
             LOGGER.error("保存年份文件失败 %d: %s", year, err)
 
+    # ================================================================
+    # 备份相关
+    # ================================================================
+
     def _create_compressed_backup(self, year_file: str, year: int) -> None:
         """创建压缩备份"""
         year_path = os.path.join(self._history_dir, year_file)
@@ -214,7 +440,7 @@ class StorageManager:
 
         os.makedirs(self._archive_dir, exist_ok=True)
         archive_file = os.path.join(
-            self._archive_dir, f"{self.entry.entry_id}_{year}_archive_{len(self.coordinator.history)}.json.gz"
+            self._archive_dir, f"{self.entry.entry_id}_{year}_archive_{self.coordinator._total_records}.json.gz"
         )
 
         try:
@@ -226,16 +452,32 @@ class StorageManager:
             LOGGER.warning("创建压缩备份失败: %s", err)
 
     def _create_full_backup(self) -> None:
-        """创建完整备份"""
+        """创建完整备份（从文件读取，不依赖内存全量数据）"""
         os.makedirs(self._archive_dir, exist_ok=True)
-        timestamp = len(self.coordinator.history)
+        timestamp = self.coordinator._total_records
         backup_file = os.path.join(
             self._archive_dir, f"{self.entry.entry_id}_full_backup_{timestamp}.json.gz"
         )
 
         try:
+            # 从年份文件流式读取并写入备份
             with gzip.open(backup_file, "wt", encoding="utf-8") as gz:
-                json.dump({"history": self.coordinator.history}, gz, ensure_ascii=False)
+                gz.write('{"history": [')
+                first = True
+                for year_file in self._get_year_files():
+                    file_path = os.path.join(self._history_dir, year_file)
+                    try:
+                        with open(file_path, "r", encoding="utf-8") as f:
+                            data = json.load(f)
+                        records = data.get("history", []) if isinstance(data, dict) else data
+                        for record in records:
+                            if not first:
+                                gz.write(", ")
+                            first = False
+                            gz.write(json.dumps(record, ensure_ascii=False))
+                    except Exception:
+                        continue
+                gz.write(']}')
             LOGGER.info("已创建完整备份: %s", os.path.basename(backup_file))
         except Exception as err:
             LOGGER.warning("创建完整备份失败: %s", err)
@@ -353,20 +595,36 @@ class StorageManager:
         except Exception as err:
             LOGGER.debug("同步到HA备份目录失败: %s", err)
 
+    # ================================================================
+    # 导出
+    # ================================================================
+
     async def export_history_json(self, filepath: str | None = None) -> str:
-        """导出历史数据为JSON文件"""
+        """导出历史数据为JSON文件（从文件流式读取，不依赖内存全量）"""
 
         def _write():
             if not filepath:
                 os.makedirs(self._exports_dir, exist_ok=True)
                 filepath = os.path.join(
                     self._exports_dir,
-                    f"{self.coordinator.printer_name}_history_{len(self.coordinator.history)}.json",
+                    f"{self.coordinator.printer_name}_history_{self.coordinator._total_records}.json",
                 )
+
+            # 从年份文件流式读取
+            all_records = []
+            for year_file in self._get_year_files():
+                file_path = os.path.join(self._history_dir, year_file)
+                try:
+                    with open(file_path, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                    records = data.get("history", []) if isinstance(data, dict) else data
+                    all_records.extend(records)
+                except Exception:
+                    continue
 
             with open(filepath, "w", encoding="utf-8") as f:
                 json.dump(
-                    {"version": HISTORY_VERSION, "history": self.coordinator.history},
+                    {"version": HISTORY_VERSION, "history": all_records},
                     f,
                     ensure_ascii=False,
                     indent=2,
@@ -380,7 +638,7 @@ class StorageManager:
 
         def _calc():
             stats = {
-                "total_records": len(self.coordinator.history),
+                "total_records": self.coordinator._total_records,
                 "yearly_stats": dict(self.coordinator._yearly_stats),
                 "storage_dirs": {
                     "history": self._history_dir,

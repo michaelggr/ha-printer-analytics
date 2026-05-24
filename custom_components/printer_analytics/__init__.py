@@ -30,10 +30,171 @@ from .const import (
     SERVICE_BACKFILL_COVER_IMAGES,
     SERVICE_BACKFILL_SNAPSHOTS,
     SERVICE_BACKFILL_TASK_NAMES,
+    SERVICE_BACKFILL_TASK_NAMES_FROM_HISTORY,
+    SERVICE_BACKFILL_RECORD_FIELDS,
+    SERVICE_IMPORT_HISTORY,
+    SERVICE_BACKUP_HISTORY,
+    SERVICE_UPDATE_RECORD_FIELD,
 )
 from .coordinator import PrinterAnalyticsCoordinator
 
 LOGGER = logging.getLogger(__name__)
+
+
+def _sanitize_record(record: dict) -> dict:
+    if not isinstance(record, dict):
+        return {}
+    return {k: v for k, v in record.items() if isinstance(k, str) and not k.startswith("_")}
+
+
+def _match_status(status: str, status_filter: str) -> bool:
+    status_value = (status or "").lower()
+    filter_value = (status_filter or "").lower()
+    if not filter_value:
+        return True
+    if filter_value == "finish":
+        return status_value in ("finish", "completed", "success", "完成", "成功")
+    if filter_value == "failed":
+        return status_value in ("fail", "failed", "失败")
+    if filter_value == "cancelled":
+        return status_value in ("cancel", "cancelled", "已取消")
+    return status_value == filter_value
+
+
+def _calculate_history_stats(history: list[dict]) -> dict:
+    from datetime import datetime
+
+    records = history or []
+    total = len(records)
+    success = sum(1 for record in records if _match_status(record.get("status"), "finish"))
+    total_weight = 0.0
+    total_duration_hours = 0.0
+
+    for record in records:
+        total_weight += float(record.get("total_weight") or 0)
+        duration = record.get("duration_hours")
+        if duration is not None and duration != "":
+            try:
+                total_duration_hours += float(duration)
+                continue
+            except (TypeError, ValueError):
+                pass
+        start_time = record.get("start_time")
+        end_time = record.get("end_time")
+        if start_time and end_time:
+            try:
+                start_dt = datetime.fromisoformat(str(start_time).replace("Z", "+00:00"))
+                end_dt = datetime.fromisoformat(str(end_time).replace("Z", "+00:00"))
+                delta = (end_dt - start_dt).total_seconds() / 3600
+                if delta > 0:
+                    total_duration_hours += delta
+            except ValueError:
+                continue
+
+    return {
+        "total": total,
+        "success_rate": round((success / total) * 100, 1) if total else 0,
+        "total_weight": round(total_weight, 1),
+        "total_duration_hours": round(total_duration_hours, 2),
+    }
+
+
+def _extract_available_colors(history: list[dict]) -> list[str]:
+    colors: set[str] = set()
+    for record in history or []:
+        used_colors = record.get("colors_used") or []
+        if used_colors:
+            for color in used_colors:
+                if color:
+                    colors.add(color)
+            continue
+        filament_color = record.get("filament_color")
+        if filament_color:
+            colors.add(filament_color)
+            continue
+        for usage in record.get("color_usage") or []:
+            if usage and usage.get("color") and usage.get("weight_g", 0) > 0:
+                colors.add(usage["color"])
+    return sorted(colors)
+
+
+def _apply_filters(history: list[dict], status_filter: str, color_filter: str, printer_filter: str, date_from: str, date_to: str, search: str) -> list[dict]:
+    records = history or []
+    has_printer_tags = any(record.get("_printer_name") for record in records)
+    search_value = (search or "").lower()
+    result = []
+
+    for record in records:
+        if not _match_status(record.get("status"), status_filter):
+            continue
+
+        if color_filter:
+            used_colors = record.get("colors_used") or []
+            color_match = color_filter in used_colors or record.get("filament_color") == color_filter
+            if not color_match:
+                color_match = any(
+                    usage and usage.get("color") == color_filter
+                    for usage in record.get("color_usage") or []
+                )
+            if not color_match:
+                continue
+
+        if printer_filter and has_printer_tags and record.get("_printer_name") != printer_filter:
+            continue
+
+        if date_from or date_to:
+            time_value = record.get("end_time") or record.get("start_time") or ""
+            if not time_value:
+                continue
+            date_value = str(time_value)[:10]
+            if date_from and date_value < date_from:
+                continue
+            if date_to and date_value > date_to:
+                continue
+
+        if search_value:
+            task_name = (record.get("task_name") or "").lower()
+            filament_type = (record.get("filament_type") or "").lower()
+            if search_value not in task_name and search_value not in filament_type:
+                continue
+
+        result.append(record)
+
+    return result
+
+
+def _process_history_request(coordinator, sort: str, page: int, page_size: int, status_filter: str, color_filter: str, printer_filter: str, date_from: str, date_to: str, search: str) -> dict:
+    history = coordinator.get_sorted_history(desc=(sort or "desc") != "asc") or []
+    total_raw = len(history)
+    available_colors = _extract_available_colors(history)
+    filtered = _apply_filters(history, status_filter, color_filter, printer_filter, date_from, date_to, search)
+    total = len(filtered)
+    stats = _calculate_history_stats(filtered)
+    page_size = max(1, int(page_size or 20))
+    total_pages = max(1, (total + page_size - 1) // page_size)
+    page = max(1, min(int(page or 1), total_pages))
+    start = (page - 1) * page_size
+    end = start + page_size
+
+    return {
+        "records": [_sanitize_record(record) for record in filtered[start:end]],
+        "total": total,
+        "total_raw": total_raw,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": total_pages,
+        "stats": stats,
+        "available_colors": available_colors,
+    }
+
+
+try:
+    HomeAssistant
+except NameError:
+    HomeAssistant = object
+    ConfigEntry = object
+    ServiceCall = object
+    PrinterAnalyticsCoordinator = object
 
 
 async def _ensure_card_resource(hass: HomeAssistant) -> None:
@@ -160,6 +321,7 @@ async def _generate_dashboard_yaml(hass: HomeAssistant) -> None:
 
         printers.append({
             "printer_name": printer_name,
+            "printer_serial": getattr(coordinator, "printer_serial", ""),
             "sensor_entities": sensor_entities,
             "realtime_entities": realtime_entities,
         })
@@ -254,9 +416,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
         await coordinator.async_setup()
         await coordinator.async_config_entry_first_refresh()
+
+        # 尽早注册服务，避免后续步骤异常导致服务未注册
+        _register_services(hass)
+
         await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
         entry.async_on_unload(entry.add_update_listener(_async_update_listener))
-        _register_services(hass)
 
         await _ensure_card_resource(hass)
 
@@ -373,12 +538,83 @@ def _register_services(hass: HomeAssistant) -> None:
             count = await coordinator.backfill_task_names()
             LOGGER.info("Backfilled %d task names for %s", count, coordinator.printer_name)
 
+    async def _handle_backfill_task_names_from_history(call: ServiceCall) -> None:
+        coordinator = _get_coordinator_from_call(hass, call)
+        if coordinator:
+            count = await coordinator.backfill_task_names_from_history()
+            LOGGER.info("从HA历史反查补全了 %d 条任务名 for %s", count, coordinator.printer_name)
+
+    async def _handle_backfill_record_fields(call: ServiceCall) -> None:
+        coordinator = _get_coordinator_from_call(hass, call)
+        if coordinator:
+            count = await coordinator.backfill_record_fields()
+            LOGGER.info("Backfilled %d record fields for %s", count, coordinator.printer_name)
+
+    async def _handle_import_history(call: ServiceCall) -> None:
+        """导入历史记录服务"""
+        coordinator = _get_coordinator_from_call(hass, call)
+        if coordinator:
+            json_data = call.data.get("json_data", "")
+            if json_data:
+                try:
+                    count = await coordinator.async_import_history(json_data)
+                    LOGGER.info("Imported %d history records for %s", count, coordinator.printer_name)
+                except Exception as e:
+                    LOGGER.error("Failed to import history: %s", e)
+                    raise
+            else:
+                LOGGER.warning("No json_data provided for import")
+
+    async def _handle_backup_history(call: ServiceCall) -> None:
+        """备份历史记录服务"""
+        coordinator = _get_coordinator_from_call(hass, call)
+        if coordinator:
+            backup_path = await coordinator.async_backup_history()
+            LOGGER.info("Backed up history to %s for %s", backup_path, coordinator.printer_name)
+
+    async def _handle_update_record_field(call: ServiceCall) -> None:
+        """更新记录字段服务"""
+        coordinator = _get_coordinator_from_call(hass, call)
+        if coordinator:
+            record_id = call.data.get("record_id", "")
+            field = call.data.get("field", "")
+            value = call.data.get("value", "")
+            if record_id and field:
+                count = await coordinator.async_update_record_field(record_id, field, value)
+                LOGGER.info("Updated %s field for record %s: %s", field, record_id, value)
+
     hass.services.async_register(DOMAIN, SERVICE_REFRESH_STATS, _handle_refresh_stats, schema=ENTITY_ID_SCHEMA)
     hass.services.async_register(DOMAIN, SERVICE_RESET_HISTORY, _handle_reset_history, schema=ENTITY_ID_SCHEMA)
     hass.services.async_register(DOMAIN, SERVICE_DELETE_HISTORY_RECORDS, _handle_delete_history_records, schema=DELETE_RECORDS_SCHEMA)
     hass.services.async_register(DOMAIN, SERVICE_BACKFILL_COVER_IMAGES, _handle_backfill_cover_images, schema=ENTITY_ID_SCHEMA)
     hass.services.async_register(DOMAIN, SERVICE_BACKFILL_SNAPSHOTS, _handle_backfill_snapshots, schema=ENTITY_ID_SCHEMA)
     hass.services.async_register(DOMAIN, SERVICE_BACKFILL_TASK_NAMES, _handle_backfill_task_names, schema=ENTITY_ID_SCHEMA)
+    hass.services.async_register(DOMAIN, SERVICE_BACKFILL_TASK_NAMES_FROM_HISTORY, _handle_backfill_task_names_from_history, schema=ENTITY_ID_SCHEMA)
+    hass.services.async_register(DOMAIN, SERVICE_BACKFILL_RECORD_FIELDS, _handle_backfill_record_fields, schema=ENTITY_ID_SCHEMA)
+
+    # 导入导出服务 Schema
+    IMPORT_SCHEMA = vol.Schema({
+        vol.Required(ATTR_ENTITY_ID): vol.Any(str, [str]),
+        vol.Required("json_data"): str,
+    })
+
+    hass.services.async_register(DOMAIN, SERVICE_IMPORT_HISTORY, _handle_import_history, schema=IMPORT_SCHEMA)
+    hass.services.async_register(DOMAIN, SERVICE_BACKUP_HISTORY, _handle_backup_history, schema=ENTITY_ID_SCHEMA)
+
+    # 更新记录字段 Schema
+    UPDATE_FIELD_SCHEMA = vol.Schema({
+        vol.Required(ATTR_ENTITY_ID): vol.Any(str, [str]),
+        vol.Required("record_id"): str,
+        vol.Required("field"): str,
+        vol.Required("value"): str,
+    })
+    hass.services.async_register(DOMAIN, SERVICE_UPDATE_RECORD_FIELD, _handle_update_record_field, schema=UPDATE_FIELD_SCHEMA)
+
+    # 注册 WebSocket 命令（服务端筛选+分页）
+    try:
+        _register_websocket_commands(hass)
+    except Exception as err:
+        LOGGER.warning("WebSocket command registration skipped: %s", err)
 
 
 def _get_coordinator_from_call(
@@ -389,11 +625,62 @@ def _get_coordinator_from_call(
         return None
     if isinstance(entity_id, list):
         entity_id = entity_id[0]
+
+    # 方法1：通过 entity_registry 查找
+    entity_reg = async_get_entity_registry(hass)
     for entry_id, coordinator in hass.data.get(DOMAIN, {}).items():
         if not isinstance(coordinator, PrinterAnalyticsCoordinator):
             continue
-        entity_reg = async_get_entity_registry(hass)
         for entity in entity_reg.entities.values():
             if entity.entity_id == entity_id and entity.config_entry_id == entry_id:
                 return coordinator
+
+    # 方法2：回退 - 直接匹配 coordinator 的实体列表
+    for entry_id, coordinator in hass.data.get(DOMAIN, {}).items():
+        if not isinstance(coordinator, PrinterAnalyticsCoordinator):
+            continue
+        if hasattr(coordinator, 'entity_id') and coordinator.entity_id == entity_id:
+            return coordinator
+        # 检查 coordinator 管理的传感器实体
+        if hasattr(coordinator, 'sensor_entity_ids') and entity_id in coordinator.sensor_entity_ids:
+            return coordinator
+
+    # 方法3：最后回退 - 如果只有一个 coordinator，直接返回
+    coordinators = [c for c in hass.data.get(DOMAIN, {}).values()
+                    if isinstance(c, PrinterAnalyticsCoordinator)]
+    if len(coordinators) == 1:
+        LOGGER.warning("Fallback to single coordinator for entity_id=%s", entity_id)
+        return coordinators[0]
+
+    LOGGER.warning("No coordinator found for entity_id=%s", entity_id)
     return None
+
+
+def _register_websocket_commands(hass: HomeAssistant) -> None:
+    """注册 WebSocket 命令，支持服务端筛选+分页查询"""
+    from homeassistant.components import websocket_api
+
+    @websocket_api.websocket_command({
+        vol.Required("type"): "printer_analytics/query_history",
+        vol.Required("entry_id"): str,
+        vol.Optional("filters", default={}): dict,
+        vol.Optional("page", default=1): int,
+        vol.Optional("page_size", default=20): int,
+    })
+    @websocket_api.async_response
+    async def ws_query_history(hass: HomeAssistant, connection, msg):
+        """服务端筛选+分页查询历史记录"""
+        entry_id = msg["entry_id"]
+        coordinator = hass.data.get(DOMAIN, {}).get(entry_id)
+        if not coordinator or not isinstance(coordinator, PrinterAnalyticsCoordinator):
+            connection.send_error(msg["id"], "not_found", f"Coordinator not found for {entry_id}")
+            return
+
+        result = coordinator.query_history(
+            filters=msg.get("filters", {}),
+            page=msg.get("page", 1),
+            page_size=msg.get("page_size", 20),
+        )
+        connection.send_result(msg["id"], result)
+
+    websocket_api.async_register_command(hass, ws_query_history)
