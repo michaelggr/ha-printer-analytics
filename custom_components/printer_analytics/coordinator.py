@@ -964,8 +964,7 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
             return self.storage.query_records(filters=filters, page=page, page_size=page_size)
         return {"records": [], "pagination": {"page": 1, "page_size": page_size, "total": 0, "total_pages": 1}, "filter_options": {}}
 
-    # 默认值集合：这些值不算"已有有效数据"，导入合并时可覆盖
-    _DEFAULT_VALUES = frozenset({None, "", 0, 0.0, False, [], {}})
+    # 判断空/默认值的逻辑在 _is_empty_value 方法中实现
 
     def _is_empty_value(self, val: any) -> bool:
         """判断值是否为空/默认值（导入合并时判断是否可填充）"""
