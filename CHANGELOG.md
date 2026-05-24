@@ -1,4 +1,4 @@
-# 打印分析卡片 - 修改记录
+﻿# 打印分析卡片 - 修改记录
 
 ## v5.12.1 (2026-05-25)
 
@@ -11,6 +11,7 @@
 | 功能 | CSV导出新增模型ID列 | pa-v5.11.js#L5306,5355 |
 | 功能 | 导入模板更新所有新字段（design_id、printer_serial、ams_used、slice_mode等） | pa-v5.11.js#L5447-5525 |
 | 功能 | 导入页面添加合并规则说明文字 | pa-v5.11.js#L5407-5409 |
+| 修复 | 移除不可哈希的 _DEFAULT_VALUES frozenset（[]和{}不可放入frozenset，导致集成加载失败） | coordinator.py#L968 |
 
 ---
 
