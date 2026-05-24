@@ -1,6 +1,6 @@
 /**
- * 打印机分析卡片 - v5.11.26
- * 版本: 5.11.26 (2026-05-23) - 颜色筛选改下拉、记录顶部颜色条、下拉背景加深
+ * 打印机分析卡片 - v5.12.0
+ * 版本: 5.12.0 (2026-05-24) - 序列号唯一标识、打印记录新字段、6个统计分析图表
  *
  * 设计特点:
  * - 顶部打印机实时监控（多打印机卡片）
@@ -2376,7 +2376,7 @@ class PrinterAnalyticsCard extends HTMLElement {
               <div class="header-title">${title}</div>
             </div>
           </div>
-        <div class="header-badge">v5.11.26</div>
+        <div class="header-badge">v5.12.0</div>
         </div>
       `;
 
