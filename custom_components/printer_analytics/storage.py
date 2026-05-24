@@ -355,13 +355,14 @@ class StorageManager:
             if not match:
                 return False
 
-        # 打印机筛选（使用序列号匹配）
+        # 打印机筛选（使用序列号匹配，含 _source_serial 回退）
         if printer_filter:
             r_serial = (r.get("printer_serial") or "").upper()
             r_name = (r.get("_printer_name") or "").lower()
+            r_source_serial = (r.get("_source_serial") or "").upper()
             filter_upper = printer_filter.upper()
             filter_lower = printer_filter.lower()
-            if r_serial != filter_upper and r_name != filter_lower:
+            if r_serial != filter_upper and r_name != filter_lower and r_source_serial != filter_upper:
                 return False
 
         # 日期筛选
@@ -382,10 +383,13 @@ class StorageManager:
             if search not in name and search not in ftype:
                 return False
 
-        # 切片模式筛选
+        # 切片模式筛选（兼容旧值 cloud→cloud_slice, local→lan_file）
         if slice_mode_filter:
             r_mode = (r.get("slice_mode") or "").lower()
-            if r_mode != slice_mode_filter.lower():
+            f_mode = slice_mode_filter.lower()
+            mode_map = {"cloud": "cloud_slice", "local": "lan_file"}
+            r_mapped = mode_map.get(r_mode, r_mode)
+            if r_mapped != f_mode:
                 return False
 
         # 超500g筛选

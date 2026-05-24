@@ -91,7 +91,7 @@ FAILURE_STAGE_BUCKETS = [
 ]
 
 CARD_FILENAME = "pa-v5.11.js"
-CARD_VERSION = "5.12.0"
+CARD_VERSION = "5.13.0"
 CARD_URL = f"/local/{CARD_FILENAME}?v={CARD_VERSION}"
 DASHBOARD_FILE = "ui-printer-analytics.yaml"
 PLATFORMS = ["sensor"]

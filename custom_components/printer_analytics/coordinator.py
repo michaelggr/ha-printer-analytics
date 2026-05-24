@@ -1,4 +1,4 @@
-"""Printer Analytics Coordinator - 主协调器"""
+﻿"""Printer Analytics Coordinator - 主协调器"""
 from __future__ import annotations
 
 import asyncio
@@ -920,6 +920,52 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
             LOGGER.error("Statistics calculation failed: %s", err, exc_info=True)
             return PrinterStats()
 
+    async def _delete_from_files(self, ids_set: set[str]) -> int:
+        """从年份文件中删除指定ID的记录（处理不在内存缓存中的记录）"""
+        if not self.storage or not ids_set:
+            return 0
+
+        def _do_delete():
+            import os, json
+            history_dir = self.storage._history_dir
+            if not os.path.isdir(history_dir):
+                return 0
+
+            total_deleted = 0
+            # 遍历所有年份文件
+            for f in sorted(os.listdir(history_dir)):
+                if not f.endswith(".json") or f.endswith("_stats.json"):
+                    continue
+                file_path = os.path.join(history_dir, f)
+                try:
+                    with open(file_path, "r", encoding="utf-8") as fh:
+                        data = json.load(fh)
+                    records = data.get("history", []) if isinstance(data, dict) else data
+                    original = len(records)
+                    # 过滤掉要删除的记录
+                    filtered = [r for r in records if r.get("id") not in ids_set]
+                    deleted = original - len(filtered)
+                    if deleted > 0:
+                        # 写回文件
+                        if isinstance(data, dict):
+                            data["history"] = filtered
+                        else:
+                            data = filtered
+                        with open(file_path, "w", encoding="utf-8") as fh:
+                            json.dump(data, fh, ensure_ascii=False, indent=2)
+                        total_deleted += deleted
+                        LOGGER.info("从文件 %s 删除了 %d 条记录", f, deleted)
+                except Exception as err:
+                    LOGGER.warning("处理文件 %s 失败: %s", f, err)
+
+            # 更新 _total_records
+            if total_deleted > 0:
+                self._total_records = max(0, self._total_records - total_deleted)
+
+            return total_deleted
+
+        return await self.hass.async_add_executor_job(_do_delete)
+
     async def async_reset_history(self) -> None:
         """重置历史"""
         self.history = []
@@ -931,19 +977,26 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         LOGGER.info("History reset for %s", self.printer_name)
 
     async def async_delete_history_records(self, record_ids: list[str]) -> int:
-        """删除历史记录"""
+        """删除历史记录（从内存缓存和文件中同时删除）"""
         if not record_ids:
             return 0
         ids_set = set(record_ids)
+
+        # 从内存缓存中删除
         original_count = len(self.history)
         self.history = [r for r in self.history if r.get("id") not in ids_set]
         deleted_count = original_count - len(self.history)
+
+        # 从文件中删除（处理不在内存缓存中的记录）
+        file_deleted = await self._delete_from_files(ids_set)
+        deleted_count += file_deleted
+
         if deleted_count > 0:
             if self.statistics:
                 self.statistics.invalidate_cache()
             await self._save_history()
             self.async_set_updated_data(self._calculate_statistics())
-            LOGGER.info("Deleted %d records", deleted_count)
+            LOGGER.info("Deleted %d records (cache=%d, file=%d)", deleted_count, original_count - len(self.history), file_deleted)
         return deleted_count
 
     def update_options(self, options: dict) -> None:

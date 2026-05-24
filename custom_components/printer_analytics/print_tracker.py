@@ -1,4 +1,4 @@
-"""打印跟踪模块"""
+﻿﻿"""打印跟踪模块"""
 import asyncio
 import json
 import logging
@@ -141,21 +141,23 @@ class PrintTracker:
         model_name = ""
         config_name = ""
 
-        # 优先使用预缓存的模型名
+        # 预缓存的模型名作为候选（来自 task_name 实体变化监听）
+        # 但如果 immediate_name 是有效的非参数描述模型名，优先使用它
         pre_cached_model = self.coordinator._pre_print_model_name
         if pre_cached_model:
-            model_name = pre_cached_model
             self.coordinator._pre_print_model_name = ""
 
         if immediate_name and immediate_name not in INVALID_ENTITY_STATES:
             self._task_name_variants = [immediate_name]
             if self._is_param_description(immediate_name):
                 config_name = immediate_name
-                if not model_name:
-                    model_name = self._infer_model_name_from_history(immediate_name) or ""
+                # immediate_name 是参数描述，使用预缓存或从历史推断
+                model_name = pre_cached_model or self._infer_model_name_from_history(immediate_name) or ""
             else:
-                if not model_name:
-                    model_name = immediate_name
+                # immediate_name 是模型名，优先使用（比预缓存更准确）
+                model_name = immediate_name
+        elif pre_cached_model:
+            model_name = pre_cached_model
 
         task_name = model_name or config_name or ""
         self.coordinator._lock_task_name(task_name)
@@ -904,24 +906,23 @@ class PrintTracker:
         model_name = ""
         config_name = ""
 
-        # 优先使用打印开始前预缓存的模型名（来自 task_name 实体变化监听）
+        # 预缓存的模型名作为候选（来自 task_name 实体变化监听）
+        # 但如果 immediate_name 是有效的非参数描述模型名，优先使用它
         pre_cached_model = self.coordinator._pre_print_model_name
         if pre_cached_model:
-            LOGGER.info("使用预缓存的模型名: %s", pre_cached_model)
-            model_name = pre_cached_model
-            self.coordinator._pre_print_model_name = ""  # 使用后清空
+            self.coordinator._pre_print_model_name = ""
 
         if immediate_name and immediate_name not in INVALID_ENTITY_STATES:
             self._task_name_variants.append(immediate_name)
             if self._is_param_description(immediate_name):
                 config_name = immediate_name
-                # 如果没有预缓存模型名，尝试从历史推断
-                if not model_name:
-                    model_name = self._infer_model_name_from_history(immediate_name) or ""
+                # immediate_name 是参数描述，使用预缓存或从历史推断
+                model_name = pre_cached_model or self._infer_model_name_from_history(immediate_name) or ""
             else:
-                # 当前 task_name 是模型名（非参数描述），直接使用
-                if not model_name:
-                    model_name = immediate_name
+                # immediate_name 是模型名，优先使用（比预缓存更准确）
+                model_name = immediate_name
+        elif pre_cached_model:
+            model_name = pre_cached_model
 
         async def _delayed_task_name_capture() -> None:
             await asyncio.sleep(8)
@@ -1001,13 +1002,23 @@ class PrintTracker:
                     except (ValueError, TypeError):
                         pass
 
-        # 判断切片模式：云端切片的gcode路径通常包含 /data/ 前缀
+        # 判断切片模式：使用 print_type 实体区分云切片/云文件/局域网文件
         slice_mode = None
-        if gcode_filename:
-            if gcode_filename.startswith("/data/"):
-                slice_mode = "cloud"
+        print_type = self.coordinator.get_entity_state(self._entity_map.get("print_type", ""), "").lower()
+        if print_type == "cloud":
+            # 云端发送的打印任务，gcode路径含 /data/ 为云切片，否则为云文件
+            if gcode_filename and gcode_filename.startswith("/data/"):
+                slice_mode = "cloud_slice"
             else:
-                slice_mode = "local"
+                slice_mode = "cloud_file"
+        elif print_type == "local" or print_type == "lan":
+            slice_mode = "lan_file"
+        elif gcode_filename:
+            # 回退：无 print_type 时根据 gcode 路径推断
+            if gcode_filename.startswith("/data/"):
+                slice_mode = "cloud_slice"
+            else:
+                slice_mode = "lan_file"
 
         self.coordinator.current_print = {
             "id": str(uuid.uuid4()),

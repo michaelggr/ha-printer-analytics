@@ -1,5 +1,20 @@
 ﻿# 打印分析卡片 - 修改记录
 
+## v5.13.0 (2026-05-25)
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 功能 | 切片模式新增 auto_repeat（自动重复），统计图表和导入模板同步更新 | pa-v5.11.js, storage.py |
+| 功能 | 新增全局删除 WS 命令，支持删除已删除打印机的记录 | __init__.py#L825-897 |
+| 功能 | 删除后即时更新 UI，无需手动刷新 | pa-v5.11.js#L3154-3168 |
+| 修复 | 打印机筛选不生效（_source_serial 未参与匹配） | __init__.py#L142-151, storage.py#L358-366, pa-v5.11.js#L5178 |
+| 修复 | 删除记录不生效（_get_coordinator_from_call 无法匹配 print_status_entity） | __init__.py#L675-680 |
+| 修复 | 删除记录不生效（内存缓存仅50条，旧记录无法删除） | coordinator.py#L923-967 |
+| 修复 | query_all_history 中 _printer_name 使用错误的 printer_serial 查找 | __init__.py#L784-801 |
+| 修复 | BOM 字符导致集成加载失败（print_tracker.py 双重 BOM） | 服务器文件 |
+
+---
+
 ## v5.12.1 (2026-05-25)
 
 | 类型 | 内容 | 涉及文件 |

@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 import logging
@@ -118,7 +118,7 @@ def _extract_available_colors(history: list[dict]) -> list[str]:
     return sorted(colors)
 
 
-def _apply_filters(history: list[dict], status_filter: str, color_filter: str, printer_filter: str, date_from: str, date_to: str, search: str) -> list[dict]:
+def _apply_filters(history: list[dict], status_filter: str, color_filter: str, printer_filter: str, date_from: str, date_to: str, search: str, slice_mode_filter: str = "", over_500g_filter: str = "") -> list[dict]:
     records = history or []
     has_printer_tags = any(record.get("_printer_name") for record in records)
     search_value = (search or "").lower()
@@ -139,8 +139,16 @@ def _apply_filters(history: list[dict], status_filter: str, color_filter: str, p
             if not color_match:
                 continue
 
-        if printer_filter and has_printer_tags and record.get("_printer_name") != printer_filter:
-            continue
+        # 打印机筛选：同时匹配序列号、打印机名、_printer_name、_source_serial
+        if printer_filter:
+            p_upper = printer_filter.upper()
+            p_lower = printer_filter.lower()
+            r_serial = (record.get("printer_serial") or "").upper()
+            r_name = (record.get("_printer_name") or "").lower()
+            r_device_name = (record.get("device_name") or "").lower()
+            r_source_serial = (record.get("_source_serial") or "").upper()
+            if r_serial != p_upper and r_name != p_lower and r_device_name != p_lower and r_source_serial != p_upper:
+                continue
 
         if date_from or date_to:
             time_value = record.get("end_time") or record.get("start_time") or ""
@@ -156,6 +164,24 @@ def _apply_filters(history: list[dict], status_filter: str, color_filter: str, p
             task_name = (record.get("task_name") or "").lower()
             filament_type = (record.get("filament_type") or "").lower()
             if search_value not in task_name and search_value not in filament_type:
+                continue
+
+        # 切片模式筛选（兼容旧值 cloud→cloud_slice, local→lan_file）
+        if slice_mode_filter:
+            r_mode = (record.get("slice_mode") or "").lower()
+            f_mode = slice_mode_filter.lower()
+            # 旧值映射
+            mode_map = {"cloud": "cloud_slice", "local": "lan_file"}
+            r_mapped = mode_map.get(r_mode, r_mode)
+            if r_mapped != f_mode:
+                continue
+
+        # 超500g筛选
+        if over_500g_filter:
+            is_over = record.get("over_500g", False)
+            if over_500g_filter == "yes" and not is_over:
+                continue
+            elif over_500g_filter == "no" and is_over:
                 continue
 
         result.append(record)
@@ -637,7 +663,7 @@ def _get_coordinator_from_call(
             if entity.entity_id == entity_id and entity.config_entry_id == entry_id:
                 return coordinator
 
-    # 方法2：回退 - 直接匹配 coordinator 的实体列表
+    # 方法2：回退 - 直接匹配 coordinator 的实体列表和属性
     for entry_id, coordinator in hass.data.get(DOMAIN, {}).items():
         if not isinstance(coordinator, PrinterAnalyticsCoordinator):
             continue
@@ -645,6 +671,12 @@ def _get_coordinator_from_call(
             return coordinator
         # 检查 coordinator 管理的传感器实体
         if hasattr(coordinator, 'sensor_entity_ids') and entity_id in coordinator.sensor_entity_ids:
+            return coordinator
+        # 匹配 print_status_entity（前端删除操作传入的 entity_id）
+        if hasattr(coordinator, 'print_status_entity') and coordinator.print_status_entity == entity_id:
+            return coordinator
+        # 匹配 printer_serial（entity_id 可能包含序列号）
+        if hasattr(coordinator, 'printer_serial') and coordinator.printer_serial and coordinator.printer_serial.upper() in entity_id.upper():
             return coordinator
 
     # 方法3：最后回退 - 如果只有一个 coordinator，直接返回
@@ -656,91 +688,6 @@ def _get_coordinator_from_call(
 
     LOGGER.warning("No coordinator found for entity_id=%s", entity_id)
     return None
-
-
-async def _ws_query_all_history(hass: HomeAssistant, connection, msg):
-    """全局查询所有历史记录（包括已删除打印机的记录）"""
-    from .storage import StorageManager
-
-    # 获取历史目录路径
-    history_dir = hass.config.path(".printer_analytics", "history_by_year")
-
-    # 在 executor 中扫描所有文件
-    all_records = await hass.async_add_executor_job(
-        StorageManager.scan_all_history_files, history_dir
-    )
-
-    # 应用筛选
-    filters = msg.get("filters", {})
-    filtered = _apply_filters(
-        all_records,
-        status_filter=filters.get("status", ""),
-        color_filter=filters.get("color", ""),
-        printer_filter=filters.get("printer", ""),
-        date_from=filters.get("date_from", ""),
-        date_to=filters.get("date_to", ""),
-        search=filters.get("search", "").lower(),
-        slice_mode_filter=filters.get("slice_mode", ""),
-        over_500g_filter=filters.get("over_500g", ""),
-    )
-
-    # 收集所有颜色选项（从全量数据）
-    all_colors = _extract_available_colors(all_records)
-
-    # 统计
-    stats = _calculate_history_stats(filtered)
-
-    # 分页
-    page_size = max(1, int(msg.get("page_size", 20)))
-    total = len(filtered)
-    total_pages = max(1, (total + page_size - 1) // page_size)
-    page = max(1, min(int(msg.get("page", 1)), total_pages))
-    start = (page - 1) * page_size
-    end = start + page_size
-
-    # 清理内部字段
-    page_records = [_sanitize_record(r) for r in filtered[start:end]]
-
-    # 获取所有已知序列号
-    all_serials = await hass.async_add_executor_job(
-        StorageManager.get_all_serials, history_dir
-    )
-
-    # 构建序列号到打印机名的映射
-    serial_name_map = {}
-    for coordinator in hass.data.get(DOMAIN, {}).values():
-        if isinstance(coordinator, PrinterAnalyticsCoordinator) and coordinator.printer_serial:
-            serial_name_map[coordinator.printer_serial.upper()] = coordinator.printer_name
-
-    # 为记录添加打印机名
-    for r in page_records:
-        serial = (r.get("printer_serial") or "").upper()
-        if serial and serial in serial_name_map:
-            r["_printer_name"] = serial_name_map[serial]
-        # 标记来源实体（用于删除操作）
-        for coordinator in hass.data.get(DOMAIN, {}).values():
-            if isinstance(coordinator, PrinterAnalyticsCoordinator):
-                if coordinator.printer_serial and coordinator.printer_serial.upper() == serial:
-                    # 找到对应的 coordinator，设置实体ID
-                    r["_printer_entity"] = coordinator.print_status_entity or ""
-                    break
-
-    connection.send_result(msg["id"], {
-        "records": page_records,
-        "pagination": {
-            "page": page,
-            "page_size": page_size,
-            "total": total,
-            "total_pages": total_pages,
-        },
-        "stats": stats,
-        "filter_options": {
-            "colors": sorted(all_colors),
-            "all_serials": all_serials,
-            "serial_name_map": serial_name_map,
-            "total_records": len(all_records),
-        },
-    })
 
 
 def _register_websocket_commands(hass: HomeAssistant) -> None:
@@ -773,14 +720,178 @@ def _register_websocket_commands(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_query_history)
 
     # 全局查询：扫描所有历史文件（包括已删除打印机的记录）
-    hass.components.websocket_api.async_register_command(
-        hass,
-        "printer_analytics/query_all_history",
-        _ws_query_all_history,
-        websocket_api.BASE_COMMAND_MESSAGE_SCHEMA.extend({
-            vol.Required("type"): "printer_analytics/query_all_history",
-            vol.Optional("filters", default={}): dict,
-            vol.Optional("page", default=1): int,
-            vol.Optional("page_size", default=20): int,
-        }),
-    )
+    @websocket_api.websocket_command({
+        vol.Required("type"): "printer_analytics/query_all_history",
+        vol.Optional("filters", default={}): dict,
+        vol.Optional("page", default=1): int,
+        vol.Optional("page_size", default=20): int,
+    })
+    @websocket_api.async_response
+    async def ws_query_all_history(hass: HomeAssistant, connection, msg):
+        """全局查询所有历史记录（包括已删除打印机的记录）"""
+        try:
+            from .storage import StorageManager
+
+            # 获取历史目录路径
+            history_dir = hass.config.path(".printer_analytics", "history_by_year")
+
+            # 在 executor 中扫描所有文件
+            all_records = await hass.async_add_executor_job(
+                StorageManager.scan_all_history_files, history_dir
+            )
+
+            # 应用筛选
+            filters = msg.get("filters", {})
+            filtered = _apply_filters(
+                all_records,
+                status_filter=filters.get("status", ""),
+                color_filter=filters.get("color", ""),
+                printer_filter=filters.get("printer", ""),
+                date_from=filters.get("date_from", ""),
+                date_to=filters.get("date_to", ""),
+                search=filters.get("search", "").lower(),
+                slice_mode_filter=filters.get("slice_mode", ""),
+                over_500g_filter=filters.get("over_500g", ""),
+            )
+
+            # 收集所有颜色选项（从全量数据）
+            all_colors = _extract_available_colors(all_records)
+
+            # 统计
+            stats = _calculate_history_stats(filtered)
+
+            # 分页
+            page_size = max(1, int(msg.get("page_size", 20)))
+            total = len(filtered)
+            total_pages = max(1, (total + page_size - 1) // page_size)
+            page = max(1, min(int(msg.get("page", 1)), total_pages))
+            start = (page - 1) * page_size
+            end = start + page_size
+
+            # 清理内部字段，但先保存 _source_serial（从文件名提取的正确序列号）
+            page_data = []
+            for r in filtered[start:end]:
+                source_serial = (r.get("_source_serial") or "").upper()
+                clean = _sanitize_record(r)
+                clean["_source_serial"] = source_serial  # 保留来源序列号
+                page_data.append(clean)
+
+            # 获取所有已知序列号
+            all_serials = await hass.async_add_executor_job(
+                StorageManager.get_all_serials, history_dir
+            )
+
+            # 构建序列号到打印机名的映射
+            serial_name_map = {}
+            for coordinator in hass.data.get(DOMAIN, {}).values():
+                if isinstance(coordinator, PrinterAnalyticsCoordinator) and coordinator.printer_serial:
+                    serial_name_map[coordinator.printer_serial.upper()] = coordinator.printer_name
+
+            # 为记录添加打印机名和实体ID（优先使用 _source_serial）
+            for r in page_data:
+                # 优先用 _source_serial（文件名提取），回退到 printer_serial（记录字段）
+                serial = r.get("_source_serial") or (r.get("printer_serial") or "").upper()
+                if serial and serial in serial_name_map:
+                    r["_printer_name"] = serial_name_map[serial]
+                # 标记来源实体（用于删除操作）
+                for coordinator in hass.data.get(DOMAIN, {}).values():
+                    if isinstance(coordinator, PrinterAnalyticsCoordinator):
+                        if coordinator.printer_serial and coordinator.printer_serial.upper() == serial:
+                            r["_printer_entity"] = coordinator.print_status_entity or ""
+                            break
+
+            connection.send_result(msg["id"], {
+                "records": page_data,
+                "pagination": {
+                    "page": page,
+                    "page_size": page_size,
+                    "total": total,
+                    "total_pages": total_pages,
+                },
+                "stats": stats,
+                "filter_options": {
+                    "colors": sorted(all_colors),
+                    "all_serials": all_serials,
+                    "serial_name_map": serial_name_map,
+                    "total_records": len(all_records),
+                },
+            })
+        except Exception as err:
+            LOGGER.error("query_all_history 执行失败: %s", err, exc_info=True)
+            connection.send_error(msg["id"], "unknown_error", str(err))
+
+    websocket_api.async_register_command(hass, ws_query_all_history)
+
+    # 全局删除：直接从文件中删除记录（不依赖 coordinator，支持已删除打印机）
+    @websocket_api.websocket_command({
+        vol.Required("type"): "printer_analytics/delete_global_records",
+        vol.Required("record_ids"): str,
+    })
+    @websocket_api.async_response
+    async def ws_delete_global_records(hass: HomeAssistant, connection, msg):
+        """全局删除记录（直接操作文件，支持已删除打印机）"""
+        try:
+            from .storage import StorageManager
+
+            record_ids_raw = msg.get("record_ids", "")
+            if isinstance(record_ids_raw, str):
+                ids_set = set(rid.strip() for rid in record_ids_raw.split(",") if rid.strip())
+            elif isinstance(record_ids_raw, list):
+                ids_set = set(record_ids_raw)
+            else:
+                ids_set = set()
+
+            if not ids_set:
+                connection.send_result(msg["id"], {"deleted": 0})
+                return
+
+            history_dir = hass.config.path(".printer_analytics", "history_by_year")
+
+            def _delete_from_files():
+                import os, json
+                if not os.path.isdir(history_dir):
+                    return 0
+                total_deleted = 0
+                for f in sorted(os.listdir(history_dir)):
+                    if not f.endswith(".json") or f.endswith("_stats.json"):
+                        continue
+                    file_path = os.path.join(history_dir, f)
+                    try:
+                        with open(file_path, "r", encoding="utf-8") as fh:
+                            data = json.load(fh)
+                        records = data.get("history", []) if isinstance(data, dict) else data
+                        original = len(records)
+                        filtered = [r for r in records if r.get("id") not in ids_set]
+                        deleted = original - len(filtered)
+                        if deleted > 0:
+                            if isinstance(data, dict):
+                                data["history"] = filtered
+                            else:
+                                data = filtered
+                            with open(file_path, "w", encoding="utf-8") as fh:
+                                json.dump(data, fh, ensure_ascii=False, indent=2)
+                            total_deleted += deleted
+                            LOGGER.info("全局删除：从文件 %s 删除了 %d 条记录", f, deleted)
+                    except Exception as err:
+                        LOGGER.warning("全局删除处理文件 %s 失败: %s", f, err)
+                return total_deleted
+
+            deleted = await hass.async_add_executor_job(_delete_from_files)
+
+            # 同时从在线 coordinator 的内存缓存中删除
+            for coordinator in hass.data.get(DOMAIN, {}).values():
+                if isinstance(coordinator, PrinterAnalyticsCoordinator):
+                    original = len(coordinator.history)
+                    coordinator.history = [r for r in coordinator.history if r.get("id") not in ids_set]
+                    if len(coordinator.history) < original:
+                        if coordinator.statistics:
+                            coordinator.statistics.invalidate_cache()
+                        await coordinator._save_history()
+                        coordinator.async_set_updated_data(coordinator._calculate_statistics())
+
+            connection.send_result(msg["id"], {"deleted": deleted})
+        except Exception as err:
+            LOGGER.error("全局删除执行失败: %s", err, exc_info=True)
+            connection.send_error(msg["id"], "delete_failed", str(err))
+
+    websocket_api.async_register_command(hass, ws_delete_global_records)

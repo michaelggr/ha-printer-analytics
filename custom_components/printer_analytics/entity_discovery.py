@@ -135,6 +135,7 @@ class EntityDiscovery:
             "nozzle_size": [r"nozzle.*size|喷嘴.*尺寸|喷嘴.*直径|喷嘴直径"],
             "print_bed_type": [r"print.*bed|打印.*床|热床.*类型|打印.*板.*类型|打印板类型"],
             "speed_profile": [r"speed.*profile|速度.*配置"],
+            "print_type": [r"print.*type|打印.*类型|打印类型"],
         }
 
     def get_entity_state(self, entity_id: str, default: Any = None) -> Any:

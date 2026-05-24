@@ -1,6 +1,6 @@
-/**
- * 打印机分析卡片 - v5.12.0
- * 版本: 5.12.0 (2026-05-24) - 序列号唯一标识、打印记录新字段、6个统计分析图表
+﻿﻿/**
+ * 打印机分析卡片 - v5.13.0
+ * 版本: 5.13.0 (2026-05-25) - 打印机筛选修复、删除功能修复、全局删除、auto_repeat支持
  *
  * 设计特点:
  * - 顶部打印机实时监控（多打印机卡片）
@@ -2376,7 +2376,7 @@ class PrinterAnalyticsCard extends HTMLElement {
               <div class="header-title">${title}</div>
             </div>
           </div>
-        <div class="header-badge">v5.12.0</div>
+        <div class="header-badge">v5.13.0</div>
         </div>
       `;
 
@@ -3140,10 +3140,19 @@ class PrinterAnalyticsCard extends HTMLElement {
     const printerGroups = this._groupRecordsByPrinter(recordIds);
     for (const [printerEntity, ids] of printerGroups) {
       try {
-        await this._hass.callService('printer_analytics', 'delete_history_records', {
-          entity_id: printerEntity,
-          record_ids: ids.join(',')
-        });
+        if (printerEntity === '__no_entity__') {
+          // 已删除打印机的记录，使用全局删除 WS 命令
+          await this._hass.callWebSocket({
+            type: 'printer_analytics/delete_global_records',
+            record_ids: ids.join(',')
+          });
+        } else {
+          // 在线打印机，使用服务调用
+          await this._hass.callService('printer_analytics', 'delete_history_records', {
+            entity_id: printerEntity,
+            record_ids: ids.join(',')
+          });
+        }
       } catch (e) {
         console.error('删除历史记录失败:', e);
       }
@@ -3151,20 +3160,48 @@ class PrinterAnalyticsCard extends HTMLElement {
 
     this._selectedRecords.clear();
     this._deleteConfirmVisible = false;
-    setTimeout(() => this._refreshContent(), 500);
+    // 从本地缓存中移除已删除的记录，实现即时 UI 更新
+    if (this._wsHistoryData?.records) {
+      const idsSet = new Set(recordIds);
+      this._wsHistoryData.records = this._wsHistoryData.records.filter(r => !idsSet.has(r.id));
+      this._wsHistoryData.totalRecords = Math.max(0, (this._wsHistoryData.totalRecords || 0) - recordIds.length);
+    }
+    this._lastRenderedData = null;
+    this._isRendering = false;
+    // 即时刷新 UI
+    this._refreshContent();
+    // 异步重新加载完整数据（确保与服务器一致）
+    setTimeout(() => {
+      this._wsHistoryData = null;
+      this._loadHistoryViaWS();
+    }, 1000);
   }
 
   _groupRecordsByPrinter(recordIds) {
     const groups = new Map();
-    const allRecords = this._getAllMergedRecords();
+    const noEntityIds = []; // 无 _printer_entity 的记录（已删除打印机）
+    // 优先从 WS 数据查找（全局查询模式），回退到实体属性
+    const wsRecords = this._wsHistoryData?.records || [];
+    const entityRecords = this._getAllMergedRecords();
     for (const id of recordIds) {
-      const record = allRecords.find(r => r.id === id);
-      if (record && record._printer_entity) {
-        if (!groups.has(record._printer_entity)) {
-          groups.set(record._printer_entity, []);
+      // 先在 WS 数据中查找
+      let record = wsRecords.find(r => r.id === id);
+      // 找不到再从实体属性查找
+      if (!record) record = entityRecords.find(r => r.id === id);
+      if (record) {
+        if (record._printer_entity) {
+          if (!groups.has(record._printer_entity)) {
+            groups.set(record._printer_entity, []);
+          }
+          groups.get(record._printer_entity).push(id);
+        } else {
+          noEntityIds.push(id);
         }
-        groups.get(record._printer_entity).push(id);
       }
+    }
+    // 用特殊 key 标记无实体的记录
+    if (noEntityIds.length > 0) {
+      groups.set('__no_entity__', noEntityIds);
     }
     return groups;
   }
@@ -3735,8 +3772,8 @@ class PrinterAnalyticsCard extends HTMLElement {
     }
 
     // 标签映射
-    const labelMap = { 'cloud': '云端切片', 'local': '本地切片', 'unknown': '未知' };
-    const colorMap = { 'cloud': '#3b82f6', 'local': '#22c55e', 'unknown': '#94a3b8' };
+    const labelMap = { 'cloud_slice': '云切片', 'cloud_file': '云文件', 'lan_file': '局域网文件', 'auto_repeat': '自动重复', 'cloud': '云切片', 'local': '局域网文件', 'unknown': '未知' };
+    const colorMap = { 'cloud_slice': '#3b82f6', 'cloud_file': '#8b5cf6', 'lan_file': '#22c55e', 'auto_repeat': '#f59e0b', 'cloud': '#3b82f6', 'local': '#22c55e', 'unknown': '#94a3b8' };
 
     // 计算各段百分比
     const segments = Object.keys(data).map(key => {
@@ -5169,8 +5206,8 @@ class PrinterAnalyticsCard extends HTMLElement {
       }
       if (this._filterStatus && !this._isStatusMatch(r.status, this._filterStatus)) return false;
       if (this._filterPrinter) {
-        // 使用序列号或名称匹配
-        const rSerial = (r._printer_serial || r.printer_serial || '').toUpperCase();
+        // 使用序列号或名称匹配（含 _source_serial 回退）
+        const rSerial = (r._printer_serial || r.printer_serial || r._source_serial || '').toUpperCase();
         const rName = (r._printer_name || '').toLowerCase();
         const filterUpper = this._filterPrinter.toUpperCase();
         const filterLower = this._filterPrinter.toLowerCase();
@@ -5504,7 +5541,7 @@ class PrinterAnalyticsCard extends HTMLElement {
         "multi_color": "是否多色打印：true/false",
         "speed_profile": "速度模式",
         "prepare_time_minutes": "打印准备时间（分钟）",
-        "slice_mode": "切片模式：cloud=云切片, local=本地切片",
+        "slice_mode": "切片模式：cloud_slice=云切片, cloud_file=云文件, lan_file=局域网文件, auto_repeat=自动重复",
         "over_500g": "是否超500g：true/false",
         "design_id": "模型ID（MakerWorld模型ID，可跳转查看模型）",
         "color_usage": "耗材颜色详情，如 [{\"color\":\"#FF0000\",\"type\":\"PLA\",\"weight_g\":25.5,\"length_m\":8.3}]"
@@ -5532,7 +5569,7 @@ class PrinterAnalyticsCard extends HTMLElement {
           "multi_color": false,
           "speed_profile": "",
           "prepare_time_minutes": 5,
-          "slice_mode": "cloud",
+          "slice_mode": "cloud_slice",
           "over_500g": false,
           "design_id": "123456",
           "color_usage": [{"color": "#2898F7", "type": "PLA", "weight_g": 25.5, "length_m": 8.3}]
@@ -5553,7 +5590,7 @@ class PrinterAnalyticsCard extends HTMLElement {
           "printer_serial": "01S00C000000001",
           "ams_used": false,
           "multi_color": false,
-          "slice_mode": "local",
+          "slice_mode": "lan_file",
           "over_500g": false,
           "design_id": ""
         }
@@ -5815,15 +5852,36 @@ class PrinterAnalyticsCard extends HTMLElement {
       pageItems = filtered.slice(startIdx, startIdx + this._pageSize);
     }
 
+    // 打印机筛选下拉框：合并在线打印机和全局查询中的已删除打印机
     const printers = this._getPrintersConfig();
     const entryIds = this._getAllEntryIds();
-    const printerOptions = printers.length > 1 ? printers.map(p => {
+    const wsSerials = this._wsHistoryData?.allSerials || [];
+    const wsNameMap = this._wsHistoryData?.serialNameMap || {};
+    // 用 Set 去重（大写序列号）
+    const seenSerials = new Set();
+    const printerOptionList = [];
+    // 先添加在线打印机
+    for (const p of printers) {
       const info = entryIds.find(e => e.printerName === p.printer_name);
       const serial = info?.printerSerial || '';
       const value = serial || p.printer_name;
       const label = serial ? `${serial}(${p.printer_name})` : p.printer_name;
-      return `<option value="${this._escapeHtml(value)}" ${this._filterPrinter === value ? 'selected' : ''}>${this._escapeHtml(label)}</option>`;
-    }).join('') : '';
+      if (serial) seenSerials.add(serial.toUpperCase());
+      printerOptionList.push({ value, label });
+    }
+    // 再添加全局查询中发现但不在在线列表中的序列号（已删除打印机）
+    for (const serial of wsSerials) {
+      const upperSerial = (serial || '').toUpperCase();
+      if (!upperSerial || seenSerials.has(upperSerial)) continue;
+      seenSerials.add(upperSerial);
+      const name = wsNameMap[upperSerial] || '';
+      const value = serial;
+      const label = name ? `${serial}(${name})` : serial;
+      printerOptionList.push({ value, label });
+    }
+    const printerOptions = printerOptionList.length > 1 ? printerOptionList.map(o =>
+      `<option value="${this._escapeHtml(o.value)}" ${this._filterPrinter === o.value ? 'selected' : ''}>${this._escapeHtml(o.label)}</option>`
+    ).join('') : '';
 
     // 分页
     const totalPages = Math.max(1, Math.ceil(total / this._pageSize));
@@ -5856,8 +5914,10 @@ class PrinterAnalyticsCard extends HTMLElement {
         </select>` : ''}
         <select class="filter-select" id="filter-slice-mode">
           <option value="">切片模式</option>
-          <option value="cloud" ${this._filterSliceMode === 'cloud' ? 'selected' : ''}>云端切片</option>
-          <option value="local" ${this._filterSliceMode === 'local' ? 'selected' : ''}>本地切片</option>
+          <option value="cloud_slice" ${this._filterSliceMode === 'cloud_slice' ? 'selected' : ''}>云切片</option>
+          <option value="cloud_file" ${this._filterSliceMode === 'cloud_file' ? 'selected' : ''}>云文件</option>
+          <option value="lan_file" ${this._filterSliceMode === 'lan_file' ? 'selected' : ''}>局域网文件</option>
+          <option value="auto_repeat" ${this._filterSliceMode === 'auto_repeat' ? 'selected' : ''}>自动重复</option>
         </select>
         <select class="filter-select" id="filter-over-500g">
           <option value="">重量筛选</option>
@@ -6027,7 +6087,7 @@ class PrinterAnalyticsCard extends HTMLElement {
       { label: '总层数', value: record.total_layer_count || '-' },
       { label: '速度模式', value: record.speed_profile || '-' },
       { label: '准备时间', value: record.prepare_time_minutes ? `${record.prepare_time_minutes} 分钟` : '-' },
-      { label: '切片模式', value: record.slice_mode === 'cloud' ? '云切片' : record.slice_mode === 'local' ? '本地切片' : (record.slice_mode || '-') },
+      { label: '切片模式', value: record.slice_mode === 'cloud_slice' ? '云切片' : record.slice_mode === 'cloud_file' ? '云文件' : record.slice_mode === 'lan_file' ? '局域网文件' : record.slice_mode === 'auto_repeat' ? '自动重复' : (record.slice_mode || '-') },
       { label: '超500g', value: record.over_500g === true ? '是' : record.over_500g === false ? '否' : '-' },
       { label: '能耗', value: record.energy_kwh ? `${record.energy_kwh.toFixed(3)} kWh` : '-' },
       { label: '💨 腔体温度', value: this._getDetailChamberTemp(record), color: 'var(--primary-light)' },
