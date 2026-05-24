@@ -1037,6 +1037,7 @@ class PrintTracker:
             "ams_used": ams_used,
             "speed_profile": speed_profile or None,
             "slice_mode": slice_mode,
+            "design_id": None,  # 从云端反查填充
             "prepare_start_time": start_time,  # 记录准备开始时间
             "running_start_time": datetime.now(timezone.utc).isoformat() if new_status_val == PRINT_STATUS_RUNNING else None,
         }

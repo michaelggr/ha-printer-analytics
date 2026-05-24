@@ -1,4 +1,18 @@
-﻿﻿# 打印分析卡片 - 修改记录
+# 打印分析卡片 - 修改记录
+
+## v5.12.1 (2026-05-25)
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 功能 | 新增 design_id 字段（MakerWorld模型ID），详情弹窗可点击跳转 MakerWorld | coordinator.py#L389, print_tracker.py#L1040, pa-v5.11.js#L5960 |
+| 功能 | 实现 async_import_history 导入方法，支持向后兼容合并（序列号+结束时间±2分钟判定重复，仅填充空字段） | coordinator.py#L1052-1117 |
+| 功能 | 实现 async_backup_history 备份方法 | coordinator.py#L1119-1123 |
+| 功能 | 云端反查任务名时同步补全 design_id | coordinator.py#L882-885 |
+| 功能 | CSV导出新增模型ID列 | pa-v5.11.js#L5306,5355 |
+| 功能 | 导入模板更新所有新字段（design_id、printer_serial、ams_used、slice_mode等） | pa-v5.11.js#L5447-5525 |
+| 功能 | 导入页面添加合并规则说明文字 | pa-v5.11.js#L5407-5409 |
+
+---
 
 ## v5.12.0 (2026-05-24)
 

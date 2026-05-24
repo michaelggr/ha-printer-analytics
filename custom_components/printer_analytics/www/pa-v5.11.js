@@ -5303,7 +5303,7 @@ class PrinterAnalyticsCard extends HTMLElement {
 
     const statusMap = { 'finish': '成功', '完成': '成功', '成功': '成功', 'failed': '失败', 'fail': '失败', '失败': '失败', 'cancelled': '已取消', '已取消': '已取消' };
     // 导出字段：模型名和项目名分开显示，序列号列
-    const headers = ['序号', '序列号', '模型名称', '项目名称', '打印机', '状态', '开始时间', '结束时间', '时长(分钟)', '耗材类型', '耗材颜色', '耗材重量(g)', '耗材长度(m)', '能耗(kWh)', '腔温(°C)', '喷嘴尺寸', '使用AMS', '多色打印', '速度模式', '准备时间(分钟)', '切片模式', '超500g', '封面图URL', '快照图URL'];
+    const headers = ['序号', '序列号', '模型名称', '项目名称', '打印机', '状态', '开始时间', '结束时间', '时长(分钟)', '耗材类型', '耗材颜色', '耗材重量(g)', '耗材长度(m)', '能耗(kWh)', '腔温(°C)', '喷嘴尺寸', '使用AMS', '多色打印', '速度模式', '准备时间(分钟)', '切片模式', '超500g', '模型ID', '封面图URL', '快照图URL'];
     const rows = filtered.map((r, i) => {
       const chamberTemp = r.chamber_temp_last5min?.avg ?? r.chamber_temp_final ?? '';
       // 获取封面图和快照图URL
@@ -5352,6 +5352,7 @@ class PrinterAnalyticsCard extends HTMLElement {
         r.prepare_time_minutes || '',
         r.slice_mode || '',
         r.over_500g ? '是' : '否',
+        r.design_id || '',
         coverUrl,
         snapshotUrl
       ];
@@ -5403,6 +5404,9 @@ class PrinterAnalyticsCard extends HTMLElement {
             <div class="import-panel-section-title">2. 选择文件导入</div>
             <div class="import-panel-desc">支持导入 JSON 格式文件（.json），单次最多 5000 条记录。</div>
             <div class="import-format-hint">{"history": [{"task_name":"示例任务","status":"finish","start_time":"2026-01-01 10:00","end_time":"2026-01-01 12:00","duration_minutes":120,"filament_type":"PLA","total_weight":25.5,...}]}</div>
+            <div class="import-panel-desc" style="margin-top:8px;padding:8px 12px;background:var(--surface-card);border-radius:var(--radius);border:1px solid var(--border);font-size:12px;line-height:1.6;">
+              <strong>合并规则：</strong>导入时自动检测重复记录（相同设备序列号 + 结束时间相差2分钟以内），重复记录仅补充空字段，不覆盖已有数据。支持老格式字段名（如 endTime→end_time、deviceId→printer_serial、duration_minutes→duration_hours）。
+            </div>
             <div class="import-panel-actions" style="margin-top:10px;">
               <button class="btn-import-action btn-import-file" id="btn-choose-import-file">📂 选择文件</button>
               <button class="btn-import-action btn-import-close" id="btn-close-import-panel">取消</button>
@@ -5450,15 +5454,27 @@ class PrinterAnalyticsCard extends HTMLElement {
         "status": "状态：finish=成功, failed=失败, cancelled=已取消",
         "start_time": "开始时间，格式：YYYY-MM-DD HH:mm",
         "end_time": "结束时间，格式：YYYY-MM-DD HH:mm",
-        "duration_minutes": "时长（分钟）",
+        "duration_minutes": "时长（分钟），会自动转换为小时",
         "filament_type": "耗材类型，如 PLA、PETG、ABS",
         "filament_color": "耗材颜色，如 #FF0000",
         "total_weight": "耗材重量（克）",
         "total_length": "耗材长度（米）",
         "energy_kwh": "能耗（千瓦时）",
+        "nozzle_type": "喷嘴类型",
         "nozzle_size": "喷嘴尺寸，如 0.4",
+        "print_bed_type": "热床类型",
+        "total_layer_count": "总层数",
         "colors_used": "使用的颜色列表，如 [\"#FF0000\", \"#0000FF\"]",
-        "cover_image_url": "封面图URL（可选）"
+        "cover_image_url": "封面图URL（可选）",
+        "printer_serial": "打印机序列号/设备ID（用于区分不同打印机）",
+        "ams_used": "是否使用AMS：true/false",
+        "multi_color": "是否多色打印：true/false",
+        "speed_profile": "速度模式",
+        "prepare_time_minutes": "打印准备时间（分钟）",
+        "slice_mode": "切片模式：cloud=云切片, local=本地切片",
+        "over_500g": "是否超500g：true/false",
+        "design_id": "模型ID（MakerWorld模型ID，可跳转查看模型）",
+        "color_usage": "耗材颜色详情，如 [{\"color\":\"#FF0000\",\"type\":\"PLA\",\"weight_g\":25.5,\"length_m\":8.3}]"
       },
       "history": [
         {
@@ -5472,9 +5488,21 @@ class PrinterAnalyticsCard extends HTMLElement {
           "total_weight": 25.5,
           "total_length": 8.3,
           "energy_kwh": 0.12,
+          "nozzle_type": "",
           "nozzle_size": "0.4",
+          "print_bed_type": "",
+          "total_layer_count": 500,
           "colors_used": ["#2898F7"],
-          "cover_image_url": ""
+          "cover_image_url": "",
+          "printer_serial": "01S00C000000000",
+          "ams_used": true,
+          "multi_color": false,
+          "speed_profile": "",
+          "prepare_time_minutes": 5,
+          "slice_mode": "cloud",
+          "over_500g": false,
+          "design_id": "123456",
+          "color_usage": [{"color": "#2898F7", "type": "PLA", "weight_g": 25.5, "length_m": 8.3}]
         },
         {
           "task_name": "另一个打印任务",
@@ -5488,7 +5516,13 @@ class PrinterAnalyticsCard extends HTMLElement {
           "total_length": 3.5,
           "energy_kwh": 0.05,
           "nozzle_size": "0.4",
-          "colors_used": ["#FF6600"]
+          "colors_used": ["#FF6600"],
+          "printer_serial": "01S00C000000001",
+          "ams_used": false,
+          "multi_color": false,
+          "slice_mode": "local",
+          "over_500g": false,
+          "design_id": ""
         }
       ]
     };
@@ -5957,6 +5991,7 @@ class PrinterAnalyticsCard extends HTMLElement {
       { label: '总层数', value: record.total_layer_count || '-' },
       { label: '能耗', value: record.energy_kwh ? `${record.energy_kwh.toFixed(3)} kWh` : '-' },
       { label: '💨 腔体温度', value: this._getDetailChamberTemp(record), color: 'var(--primary-light)' },
+      { label: '模型ID', value: record.design_id || '-', isDesignId: true },
     ].filter(f => f !== null);
 
     let fieldsHtml = fields.map(f => {
@@ -5970,6 +6005,15 @@ class PrinterAnalyticsCard extends HTMLElement {
               <button class="btn-edit-field" data-field="${f.field}" data-record-id="${f.recordId}" title="修改">✏️</button>
               <button class="btn-backfill-field" data-field="${f.field}" data-record-id="${f.recordId}" title="从Bambu API反查">🔄</button>
             </div>
+          </div>`;
+      }
+      // 模型ID字段显示为可点击的 MakerWorld 链接
+      if (f.isDesignId && f.value && f.value !== '-') {
+        const mwUrl = `https://makerworld.com.cn/zh/models/${this._escapeHtml(String(f.value))}`;
+        return `
+          <div class="detail-field">
+            <div class="detail-field-label">${f.label}</div>
+            <div class="detail-field-value"><a href="${mwUrl}" target="_blank" rel="noopener" style="color:var(--primary-light);text-decoration:none;">${this._escapeHtml(String(f.value))} ↗</a></div>
           </div>`;
       }
       return `

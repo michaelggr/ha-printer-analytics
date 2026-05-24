@@ -386,6 +386,7 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
                 "prepare_time_minutes": None,
                 "slice_mode": None,
                 "over_500g": None,
+                "design_id": None,
             }
             for key, default in new_fields.items():
                 if key not in record:
@@ -832,12 +833,13 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
             end_str = task.get("endTime", "")
             start_str = task.get("startTime", "")
             title = task.get("designTitle", "") or task.get("title", "") or task.get("name", "")
+            design_id = task.get("designId", "") or ""
             if not title or not end_str:
                 continue
             try:
                 end_dt = datetime.fromisoformat(end_str.replace("Z", "+00:00"))
                 start_dt = datetime.fromisoformat(start_str.replace("Z", "+00:00")) if start_str else None
-                cloud_tasks.append({"title": title, "end_dt": end_dt, "start_dt": start_dt})
+                cloud_tasks.append({"title": title, "end_dt": end_dt, "start_dt": start_dt, "design_id": design_id})
             except (ValueError, TypeError):
                 continue
 
@@ -875,6 +877,11 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
             if new_name != old_name:
                 LOGGER.info("Task name updated: '%s' -> '%s'", (old_name or "")[:40], new_name[:40])
                 record["task_name"] = new_name
+                updated += 1
+            # 补全 design_id（仅当记录没有时才填充）
+            cloud_design_id = best_match.get("design_id", "")
+            if cloud_design_id and not record.get("design_id"):
+                record["design_id"] = cloud_design_id
                 updated += 1
 
         if updated > 0:
@@ -956,3 +963,161 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         if self.storage:
             return self.storage.query_records(filters=filters, page=page, page_size=page_size)
         return {"records": [], "pagination": {"page": 1, "page_size": page_size, "total": 0, "total_pages": 1}, "filter_options": {}}
+
+    # 默认值集合：这些值不算"已有有效数据"，导入合并时可覆盖
+    _DEFAULT_VALUES = frozenset({None, "", 0, 0.0, False, [], {}})
+
+    def _is_empty_value(self, val: any) -> bool:
+        """判断值是否为空/默认值（导入合并时判断是否可填充）"""
+        if val is None:
+            return True
+        if isinstance(val, str) and val.strip() == "":
+            return True
+        if isinstance(val, (int, float)) and val == 0:
+            return True
+        if isinstance(val, bool):
+            return val is False  # False 视为默认值
+        if isinstance(val, (list, dict)) and len(val) == 0:
+            return True
+        return False
+
+    def _find_duplicate_record(self, record: dict) -> dict | None:
+        """根据设备序列号+结束时间(±2分钟)查找已有重复记录"""
+        serial = record.get("printer_serial") or record.get("deviceId") or ""
+        end_time_str = record.get("end_time") or record.get("endTime") or ""
+        if not serial or not end_time_str:
+            return None
+
+        end_dt = self._normalize_to_utc(end_time_str)
+        if not end_dt:
+            return None
+
+        for existing in self.history:
+            ex_serial = existing.get("printer_serial") or existing.get("deviceId") or ""
+            if ex_serial != serial:
+                continue
+            ex_end_str = existing.get("end_time") or existing.get("endTime") or ""
+            if not ex_end_str:
+                continue
+            ex_dt = self._normalize_to_utc(ex_end_str)
+            if not ex_dt:
+                continue
+            # 结束时间差在 ±2 分钟内视为同一条记录
+            if abs((end_dt - ex_dt).total_seconds()) <= 120:
+                return existing
+        return None
+
+    def _merge_record(self, existing: dict, incoming: dict) -> bool:
+        """合并导入记录到已有记录：仅填充空/默认字段，不覆盖已有有效数据"""
+        changed = False
+        # 字段名映射：老格式 → 新格式
+        field_map = {
+            "endTime": "end_time",
+            "startTime": "start_time",
+            "deviceId": "printer_serial",
+            "duration_minutes": "duration_hours",
+            "energy_wh": "energy_kwh",
+            "designId": "design_id",
+        }
+        for old_key, new_key in field_map.items():
+            if old_key in incoming and new_key not in incoming:
+                incoming[new_key] = incoming.pop(old_key)
+
+        # duration_minutes → duration_hours 转换
+        if "duration_minutes" in incoming and "duration_hours" not in incoming:
+            dm = incoming.pop("duration_minutes", 0) or 0
+            incoming["duration_hours"] = round(dm / 60, 2) if dm else 0
+
+        # energy_wh → energy_kwh 转换
+        if "energy_wh" in incoming and "energy_kwh" not in incoming:
+            wh = incoming.pop("energy_wh", 0) or 0
+            incoming["energy_kwh"] = round(wh / 1000, 4) if wh else None
+
+        # 状态映射
+        status_map = {"完成": "finish", "失败": "failed", "取消": "cancelled"}
+        if incoming.get("status") in status_map:
+            incoming["status"] = status_map[incoming["status"]]
+
+        for key, value in incoming.items():
+            if key.startswith("_"):
+                continue  # 跳过内部字段
+            if self._is_empty_value(value):
+                continue  # 导入值也是空的，无需填充
+            existing_val = existing.get(key)
+            if self._is_empty_value(existing_val):
+                existing[key] = value
+                changed = True
+        return changed
+
+    async def async_import_history(self, json_data: str) -> int:
+        """导入历史记录（向后兼容，重复记录合并填充空字段）
+
+        重复判定：设备序列号(printer_serial) + 结束时间(end_time) ±2分钟
+        合并策略：仅填充已有记录中为空/默认的字段，不覆盖已有有效数据
+        """
+        try:
+            data = json.loads(json_data)
+        except json.JSONDecodeError as err:
+            raise ValueError(f"JSON 格式错误: {err}") from err
+
+        # 支持多种数据格式
+        records = []
+        if isinstance(data, list):
+            records = data
+        elif isinstance(data, dict):
+            if "history" in data:
+                records = data["history"]
+            else:
+                # 多打印机格式：{"printer1": {"history": [...]}, ...}
+                for v in data.values():
+                    if isinstance(v, dict) and "history" in v:
+                        records.extend(v["history"])
+
+        if not records:
+            raise ValueError("导入数据中没有找到有效记录")
+
+        # 必填字段检查
+        for i, rec in enumerate(records[:5]):
+            if not rec.get("task_name") and not rec.get("name") and not rec.get("title"):
+                raise ValueError(f"第 {i + 1} 条记录缺少任务名称(task_name)")
+            if not rec.get("status"):
+                raise ValueError(f"第 {i + 1} 条记录缺少状态(status)")
+
+        added = 0
+        merged = 0
+        for rec in records:
+            # 清理内部字段
+            rec = {k: v for k, v in rec.items() if not k.startswith("_") or k == "_pending_color_validation"}
+
+            # 确保有 id
+            if "id" not in rec:
+                rec["id"] = str(uuid.uuid4())
+
+            # 查找重复记录
+            duplicate = self._find_duplicate_record(rec)
+            if duplicate:
+                if self._merge_record(duplicate, rec):
+                    merged += 1
+            else:
+                # 新记录：确保关键字段完整
+                if "printer_serial" not in rec:
+                    rec["printer_serial"] = self.printer_serial or None
+                self.history.append(rec)
+                added += 1
+
+        if added > 0 or merged > 0:
+            # 对新记录执行迁移
+            self._migrate_history_records()
+            if self.statistics:
+                self.statistics.invalidate_cache()
+            await self._save_history()
+            self.async_set_updated_data(self._calculate_statistics())
+
+        LOGGER.info("Import completed: %d added, %d merged", added, merged)
+        return added + merged
+
+    async def async_backup_history(self) -> str:
+        """备份历史记录到 HA 备份目录"""
+        if self.storage:
+            return await self.storage.export_history_json()
+        return ""
