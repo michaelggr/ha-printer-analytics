@@ -903,3 +903,9 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         if self.storage:
             return await self.storage.get_storage_statistics()
         return {}
+
+    def query_history(self, filters: dict = None, page: int = 1, page_size: int = 20) -> dict:
+        """查询历史记录（同步方法，供WebSocket调用）"""
+        if self.storage:
+            return self.storage.query_records(filters=filters, page=page, page_size=page_size)
+        return {"records": [], "pagination": {"page": 1, "page_size": page_size, "total": 0, "total_pages": 1}, "filter_options": {}}
