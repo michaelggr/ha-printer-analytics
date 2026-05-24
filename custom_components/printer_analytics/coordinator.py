@@ -1,4 +1,4 @@
-"""Printer Analytics Coordinator - 主协调器"""
+﻿"""Printer Analytics Coordinator - 主协调器"""
 from __future__ import annotations
 
 import asyncio
@@ -1010,28 +1010,25 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
     def _merge_record(self, existing: dict, incoming: dict) -> bool:
         """合并导入记录到已有记录：仅填充空/默认字段，不覆盖已有有效数据"""
         changed = False
+
+        # 先做单位转换（在字段名映射之前，避免被映射覆盖）
+        if "duration_minutes" in incoming and "duration_hours" not in incoming:
+            dm = incoming.pop("duration_minutes", 0) or 0
+            incoming["duration_hours"] = round(dm / 60, 2) if dm else 0
+        if "energy_wh" in incoming and "energy_kwh" not in incoming:
+            wh = incoming.pop("energy_wh", 0) or 0
+            incoming["energy_kwh"] = round(wh / 1000, 4) if wh else None
+
         # 字段名映射：老格式 → 新格式
         field_map = {
             "endTime": "end_time",
             "startTime": "start_time",
             "deviceId": "printer_serial",
-            "duration_minutes": "duration_hours",
-            "energy_wh": "energy_kwh",
             "designId": "design_id",
         }
         for old_key, new_key in field_map.items():
             if old_key in incoming and new_key not in incoming:
                 incoming[new_key] = incoming.pop(old_key)
-
-        # duration_minutes → duration_hours 转换
-        if "duration_minutes" in incoming and "duration_hours" not in incoming:
-            dm = incoming.pop("duration_minutes", 0) or 0
-            incoming["duration_hours"] = round(dm / 60, 2) if dm else 0
-
-        # energy_wh → energy_kwh 转换
-        if "energy_wh" in incoming and "energy_kwh" not in incoming:
-            wh = incoming.pop("energy_wh", 0) or 0
-            incoming["energy_kwh"] = round(wh / 1000, 4) if wh else None
 
         # 状态映射
         status_map = {"完成": "finish", "失败": "failed", "取消": "cancelled"}

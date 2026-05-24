@@ -1,4 +1,4 @@
-"""
+﻿"""
 单元测试 - __init__.py 中的纯函数
 覆盖: _sanitize_record, _match_status, _calculate_history_stats,
       _extract_available_colors, _apply_filters, _process_history_request
@@ -745,3 +745,293 @@ class TestStatisticsNewCharts:
         filtered = [t for t in sorted_times if lower <= t <= upper]
         assert 100.0 not in filtered
         assert len(filtered) == 5
+
+
+# ==================== 导入合并逻辑测试 ====================
+
+class TestIsEmptyValue:
+    """_is_empty_value 判断测试"""
+
+    @staticmethod
+    def _is_empty_value(val):
+        """判断值是否为空/默认值"""
+        if val is None:
+            return True
+        if isinstance(val, str) and val.strip() == "":
+            return True
+        if isinstance(val, (int, float)) and val == 0:
+            return True
+        if isinstance(val, bool):
+            return val is False
+        if isinstance(val, (list, dict)) and len(val) == 0:
+            return True
+        return False
+
+    def test_none_is_empty(self):
+        assert self._is_empty_value(None) is True
+
+    def test_empty_string_is_empty(self):
+        assert self._is_empty_value("") is True
+        assert self._is_empty_value("   ") is True
+
+    def test_zero_is_empty(self):
+        assert self._is_empty_value(0) is True
+        assert self._is_empty_value(0.0) is True
+
+    def test_false_is_empty(self):
+        assert self._is_empty_value(False) is True
+
+    def test_empty_list_is_empty(self):
+        assert self._is_empty_value([]) is True
+
+    def test_empty_dict_is_empty(self):
+        assert self._is_empty_value({}) is True
+
+    def test_non_empty_string_not_empty(self):
+        assert self._is_empty_value("PLA") is False
+
+    def test_positive_number_not_empty(self):
+        assert self._is_empty_value(42) is False
+        assert self._is_empty_value(3.14) is False
+
+    def test_true_not_empty(self):
+        assert self._is_empty_value(True) is False
+
+    def test_non_empty_list_not_empty(self):
+        assert self._is_empty_value(["#ff0000"]) is False
+
+
+class TestMergeRecord:
+    """_merge_record 合并记录测试"""
+
+    @staticmethod
+    def _merge_record(existing, incoming):
+        """模拟合并逻辑：仅填充空/默认字段"""
+        def is_empty(val):
+            if val is None:
+                return True
+            if isinstance(val, str) and val.strip() == "":
+                return True
+            if isinstance(val, (int, float)) and val == 0:
+                return True
+            if isinstance(val, bool):
+                return val is False
+            if isinstance(val, (list, dict)) and len(val) == 0:
+                return True
+            return False
+
+        # 先做单位转换（在字段名映射之前）
+        if "duration_minutes" in incoming and "duration_hours" not in incoming:
+            dm = incoming.pop("duration_minutes", 0) or 0
+            incoming["duration_hours"] = round(dm / 60, 2) if dm else 0
+        if "energy_wh" in incoming and "energy_kwh" not in incoming:
+            wh = incoming.pop("energy_wh", 0) or 0
+            incoming["energy_kwh"] = round(wh / 1000, 4) if wh else None
+
+        # 字段名映射
+        field_map = {
+            "endTime": "end_time",
+            "startTime": "start_time",
+            "deviceId": "printer_serial",
+            "designId": "design_id",
+        }
+        for old_key, new_key in field_map.items():
+            if old_key in incoming and new_key not in incoming:
+                incoming[new_key] = incoming.pop(old_key)
+
+        # 状态映射
+        status_map = {"完成": "finish", "失败": "failed", "取消": "cancelled"}
+        if incoming.get("status") in status_map:
+            incoming["status"] = status_map[incoming["status"]]
+
+        changed = False
+        for key, value in incoming.items():
+            if key.startswith("_"):
+                continue
+            if is_empty(value):
+                continue
+            existing_val = existing.get(key)
+            if is_empty(existing_val):
+                existing[key] = value
+                changed = True
+        return changed
+
+    def test_fill_empty_fields(self):
+        """空字段被填充"""
+        existing = {"task_name": "test", "design_id": None, "filament_type": ""}
+        incoming = {"task_name": "test", "design_id": "123456", "filament_type": "PLA"}
+        changed = self._merge_record(existing, incoming)
+        assert changed is True
+        assert existing["design_id"] == "123456"
+        assert existing["filament_type"] == "PLA"
+
+    def test_no_overwrite_existing(self):
+        """已有有效数据不被覆盖"""
+        existing = {"task_name": "真实名称", "design_id": "existing_id", "filament_type": "PETG"}
+        incoming = {"task_name": "导入名称", "design_id": "new_id", "filament_type": "PLA"}
+        changed = self._merge_record(existing, incoming)
+        assert changed is False
+        assert existing["task_name"] == "真实名称"
+        assert existing["design_id"] == "existing_id"
+        assert existing["filament_type"] == "PETG"
+
+    def test_default_values_can_be_filled(self):
+        """默认值（0、False、空列表）可被覆盖"""
+        existing = {"ams_used": False, "multi_color": False, "total_weight": 0}
+        incoming = {"ams_used": True, "multi_color": True, "total_weight": 25.5}
+        changed = self._merge_record(existing, incoming)
+        assert changed is True
+        assert existing["ams_used"] is True
+        assert existing["multi_color"] is True
+        assert existing["total_weight"] == 25.5
+
+    def test_old_field_name_mapping(self):
+        """老格式字段名自动转换"""
+        existing = {"task_name": "test", "printer_serial": None, "end_time": None}
+        incoming = {"task_name": "test", "deviceId": "SERIAL123", "endTime": "2026-01-01T12:00:00+08:00"}
+        changed = self._merge_record(existing, incoming)
+        assert changed is True
+        assert existing["printer_serial"] == "SERIAL123"
+        assert existing["end_time"] == "2026-01-01T12:00:00+08:00"
+        assert "deviceId" not in incoming  # 老字段已移除
+
+    def test_duration_minutes_conversion(self):
+        """duration_minutes 自动转换为 duration_hours"""
+        existing = {"task_name": "test", "duration_hours": 0}
+        incoming = {"task_name": "test", "duration_minutes": 150}
+        changed = self._merge_record(existing, incoming)
+        assert changed is True
+        assert existing["duration_hours"] == 2.5
+
+    def test_energy_wh_conversion(self):
+        """energy_wh 自动转换为 energy_kwh"""
+        existing = {"task_name": "test", "energy_kwh": None}
+        incoming = {"task_name": "test", "energy_wh": 120}
+        changed = self._merge_record(existing, incoming)
+        assert changed is True
+        assert existing["energy_kwh"] == 0.12
+
+    def test_chinese_status_mapping(self):
+        """中文状态自动转换为英文"""
+        existing = {"task_name": "test", "status": ""}
+        incoming = {"task_name": "test", "status": "完成"}
+        changed = self._merge_record(existing, incoming)
+        assert changed is True
+        assert existing["status"] == "finish"
+
+    def test_design_id_from_old_format(self):
+        """designId 老格式自动转为 design_id"""
+        existing = {"task_name": "test", "design_id": None}
+        incoming = {"task_name": "test", "designId": "MW999"}
+        changed = self._merge_record(existing, incoming)
+        assert changed is True
+        assert existing["design_id"] == "MW999"
+
+    def test_skip_internal_fields(self):
+        """内部字段（_开头）不参与合并"""
+        existing = {"task_name": "test", "_internal": "secret"}
+        incoming = {"task_name": "test", "_new_internal": "data", "filament_type": "PLA"}
+        changed = self._merge_record(existing, incoming)
+        assert changed is True
+        assert existing.get("_new_internal") is None
+        assert existing["filament_type"] == "PLA"
+
+    def test_incoming_empty_values_ignored(self):
+        """导入值为空时不覆盖已有数据"""
+        existing = {"task_name": "真实名称", "design_id": "existing_id"}
+        incoming = {"task_name": "", "design_id": None}
+        changed = self._merge_record(existing, incoming)
+        assert changed is False
+        assert existing["task_name"] == "真实名称"
+        assert existing["design_id"] == "existing_id"
+
+
+class TestFindDuplicateRecord:
+    """_find_duplicate_record 重复判定测试"""
+
+    @staticmethod
+    def _find_duplicate(record, history):
+        """模拟重复查找：序列号 + 结束时间 ±2分钟（纯标准库实现）"""
+        from datetime import datetime, timezone, timedelta
+
+        serial = record.get("printer_serial") or record.get("deviceId") or ""
+        end_time_str = record.get("end_time") or record.get("endTime") or ""
+        if not serial or not end_time_str:
+            return None
+
+        def parse_to_utc(s):
+            try:
+                dt = datetime.fromisoformat(s)
+                if dt.tzinfo is None:
+                    # 无时区信息默认按 UTC+8 处理
+                    dt = dt.replace(tzinfo=timezone(timedelta(hours=8)))
+                return dt.astimezone(timezone.utc)
+            except (ValueError, TypeError):
+                return None
+
+        end_dt = parse_to_utc(end_time_str)
+        if not end_dt:
+            return None
+
+        for existing in history:
+            ex_serial = existing.get("printer_serial") or existing.get("deviceId") or ""
+            if ex_serial != serial:
+                continue
+            ex_end_str = existing.get("end_time") or existing.get("endTime") or ""
+            if not ex_end_str:
+                continue
+            ex_dt = parse_to_utc(ex_end_str)
+            if not ex_dt:
+                continue
+            if abs((end_dt - ex_dt).total_seconds()) <= 120:
+                return existing
+        return None
+
+    def test_exact_match(self):
+        """完全匹配"""
+        history = [{"printer_serial": "SERIAL1", "end_time": "2026-01-01T12:00:00+08:00"}]
+        record = {"printer_serial": "SERIAL1", "end_time": "2026-01-01T12:00:00+08:00"}
+        result = self._find_duplicate(record, history)
+        assert result is not None
+
+    def test_within_2_minutes(self):
+        """结束时间差在2分钟内"""
+        history = [{"printer_serial": "SERIAL1", "end_time": "2026-01-01T12:00:00+08:00"}]
+        record = {"printer_serial": "SERIAL1", "end_time": "2026-01-01T12:01:30+08:00"}
+        result = self._find_duplicate(record, history)
+        assert result is not None
+
+    def test_beyond_2_minutes(self):
+        """结束时间差超过2分钟"""
+        history = [{"printer_serial": "SERIAL1", "end_time": "2026-01-01T12:00:00+08:00"}]
+        record = {"printer_serial": "SERIAL1", "end_time": "2026-01-01T12:03:00+08:00"}
+        result = self._find_duplicate(record, history)
+        assert result is None
+
+    def test_different_serial(self):
+        """不同序列号不匹配"""
+        history = [{"printer_serial": "SERIAL1", "end_time": "2026-01-01T12:00:00+08:00"}]
+        record = {"printer_serial": "SERIAL2", "end_time": "2026-01-01T12:00:00+08:00"}
+        result = self._find_duplicate(record, history)
+        assert result is None
+
+    def test_missing_serial(self):
+        """缺少序列号不匹配"""
+        history = [{"printer_serial": "SERIAL1", "end_time": "2026-01-01T12:00:00+08:00"}]
+        record = {"end_time": "2026-01-01T12:00:00+08:00"}
+        result = self._find_duplicate(record, history)
+        assert result is None
+
+    def test_old_field_name_deviceId(self):
+        """老格式 deviceId 也参与匹配"""
+        history = [{"printer_serial": "SERIAL1", "end_time": "2026-01-01T12:00:00+08:00"}]
+        record = {"deviceId": "SERIAL1", "endTime": "2026-01-01T12:00:00+08:00"}
+        result = self._find_duplicate(record, history)
+        assert result is not None
+
+    def test_design_id_not_in_duplicate_check(self):
+        """design_id 不参与重复判定"""
+        history = [{"printer_serial": "SERIAL1", "end_time": "2026-01-01T12:00:00+08:00", "design_id": "AAA"}]
+        record = {"printer_serial": "SERIAL1", "end_time": "2026-01-01T12:00:00+08:00", "design_id": "BBB"}
+        result = self._find_duplicate(record, history)
+        assert result is not None  # 仍然匹配，design_id 不影响判定
