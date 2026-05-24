@@ -380,11 +380,27 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
                 "snapshot_image_local": None,
                 "multi_color_summary": None,
                 "printer_serial": self.printer_serial or None,
+                "ams_used": None,
+                "multi_color": None,
+                "speed_profile": None,
+                "prepare_time_minutes": None,
+                "slice_mode": None,
+                "over_500g": None,
             }
             for key, default in new_fields.items():
                 if key not in record:
                     record[key] = default
                     changed = True
+
+            # 推断已有记录的派生字段
+            if record.get("multi_color") is None:
+                total_c = record.get("total_colors", 0) or 0
+                record["multi_color"] = total_c > 1
+                changed = True
+            if record.get("over_500g") is None:
+                w = record.get("total_weight", 0) or 0
+                record["over_500g"] = w > 500
+                changed = True
 
             if changed:
                 migrated += 1

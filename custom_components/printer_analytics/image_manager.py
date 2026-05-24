@@ -1,4 +1,4 @@
-﻿"""图片下载管理模块"""
+"""图片下载管理模块"""
 import asyncio
 import hashlib
 import logging
@@ -324,7 +324,7 @@ class ImageManager:
             return None
 
     async def _download_image_via_http(self, download_url: str) -> bytes | None:
-        """通过HTTP下载图片"""
+        """通过HTTP下载图片，自动附加access_token认证"""
         try:
             if not download_url:
                 return None
@@ -334,6 +334,18 @@ class ImageManager:
             else:
                 base_url = self.coordinator._get_ha_base_url()
                 full_url = f"{base_url}{download_url}"
+
+            # 如果URL中已有token参数，直接使用；否则尝试从实体获取
+            if "?token=" not in full_url:
+                # 尝试从cover_image实体获取access_token
+                cover_entity = self._entity_map.get("cover_image", "")
+                if cover_entity:
+                    state = self.hass.states.get(cover_entity)
+                    if state:
+                        at = state.attributes.get("access_token", "")
+                        if at:
+                            sep = "&" if "?" in full_url else "?"
+                            full_url = f"{full_url}{sep}token={at}"
 
             from homeassistant.helpers.aiohttp_client import async_get_clientsession
             session = async_get_clientsession(self.hass)
@@ -400,7 +412,7 @@ class ImageManager:
                 image = await async_get_image(self.hass, camera_entity)
                 content = image.content
             except Exception as cam_err:
-                LOGGER.warning("Camera async_get_image failed: %s", cam_err)
+                LOGGER.warning("Camera async_get_image failed for %s: %s", camera_entity, cam_err)
                 content = await self._snapshot_http_fallback(camera_entity)
 
             if not content or len(content) < IMAGE_MIN_SIZE_BYTES:
@@ -435,12 +447,23 @@ class ImageManager:
             return None
 
     async def _snapshot_http_fallback(self, camera_entity: str) -> bytes | None:
-        """HTTP方式获取快照（备用）"""
+        """HTTP方式获取快照（备用），优先使用实体access_token认证"""
         try:
             from homeassistant.helpers.aiohttp_client import async_get_clientsession
             session = async_get_clientsession(self.hass)
             base_url = self.coordinator._get_ha_base_url()
-            snapshot_url = f"{base_url}/api/camera_proxy/{camera_entity}"
+
+            # 优先从摄像头实体获取 access_token（HA自动生成的短期令牌）
+            cam_state = self.hass.states.get(camera_entity)
+            access_token = ""
+            if cam_state:
+                access_token = cam_state.attributes.get("access_token", "")
+
+            if access_token:
+                snapshot_url = f"{base_url}/api/camera_proxy/{camera_entity}?token={access_token}"
+            else:
+                snapshot_url = f"{base_url}/api/camera_proxy/{camera_entity}"
+
             headers = self.coordinator._get_auth_headers()
             async with session.get(snapshot_url, headers=headers,
                                    timeout=aiohttp.ClientTimeout(total=HTTP_REQUEST_TIMEOUT_SECS)) as resp:

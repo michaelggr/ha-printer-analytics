@@ -263,6 +263,9 @@ class PrintTracker:
             if self.coordinator.current_print:
                 # current_print 已存在（可能是恢复后的状态更新），只更新状态
                 self.coordinator.current_print["status"] = new_status
+                # 记录实际运行开始时间（用于计算准备时间）
+                if new_status == PRINT_STATUS_RUNNING and not self.coordinator.current_print.get("running_start_time"):
+                    self.coordinator.current_print["running_start_time"] = datetime.now(timezone.utc).isoformat()
                 self._validate_colors_on_recovery()
                 self._save_current_print()
             else:
@@ -882,6 +885,9 @@ class PrintTracker:
         if not self._entity_map.get("print_weight"):
             self.hass.add_job(self.coordinator._discover_entities())
 
+        # 获取当前打印状态（用于判断是否已在running）
+        new_status_val = self.get_current_status() or ""
+
         start_time_entity = self._entity_map.get("start_time")
         start_time_val = self.coordinator.get_entity_state(start_time_entity)
         if start_time_val:
@@ -978,6 +984,31 @@ class PrintTracker:
 
         start_energy = self.coordinator.get_float_state(self.coordinator.energy_entity)
 
+        speed_profile = self.coordinator.get_entity_state(self._entity_map.get("speed_profile", ""), "")
+        gcode_filename = self.coordinator.get_entity_state(self._entity_map.get("gcode_filename", ""), "")
+
+        # 判断是否使用AMS：检查AMS tray实体是否存在且有耗材
+        ams_used = False
+        ams_tray_entities = self._get_ams_tray_entities()
+        if ams_tray_entities:
+            for eid in ams_tray_entities:
+                state = self.hass.states.get(eid)
+                if state and state.state not in INVALID_ENTITY_STATES:
+                    try:
+                        if float(state.state) > 0:
+                            ams_used = True
+                            break
+                    except (ValueError, TypeError):
+                        pass
+
+        # 判断切片模式：云端切片的gcode路径通常包含 /data/ 前缀
+        slice_mode = None
+        if gcode_filename:
+            if gcode_filename.startswith("/data/"):
+                slice_mode = "cloud"
+            else:
+                slice_mode = "local"
+
         self.coordinator.current_print = {
             "id": str(uuid.uuid4()),
             "start_time": start_time,
@@ -1003,6 +1034,11 @@ class PrintTracker:
             "snapshot_image_local": None,
             "color_usage": [],
             "printer_serial": self.coordinator.printer_serial or None,
+            "ams_used": ams_used,
+            "speed_profile": speed_profile or None,
+            "slice_mode": slice_mode,
+            "prepare_start_time": start_time,  # 记录准备开始时间
+            "running_start_time": datetime.now(timezone.utc).isoformat() if new_status_val == PRINT_STATUS_RUNNING else None,
         }
 
         self.start_material_cache()
@@ -1090,6 +1126,20 @@ class PrintTracker:
 
         chamber_temp_last5min, chamber_temp_final = self.coordinator._build_chamber_temp_data(end_dt)
 
+        # 计算准备时间（从 start_time 到 running_start_time）
+        prepare_time_minutes = None
+        running_start = cp.get("running_start_time")
+        prepare_start = cp.get("prepare_start_time") or cp.get("start_time")
+        if running_start and prepare_start:
+            ps_dt = self.coordinator._normalize_to_utc(prepare_start)
+            rs_dt = self.coordinator._normalize_to_utc(running_start)
+            if ps_dt and rs_dt:
+                prepare_time_minutes = round((rs_dt - ps_dt).total_seconds() / 60, 1)
+
+        # 派生字段
+        multi_color = total_colors > 1 if total_colors else False
+        over_500g = (total_weight or 0) > 500
+
         base_record = {
             "id": cp["id"],
             "start_time": cp["start_time"],
@@ -1120,6 +1170,12 @@ class PrintTracker:
             "cover_image_url": cover_image_url or None,
             "chamber_temp_final": chamber_temp_final,
             "chamber_temp_last5min": chamber_temp_last5min,
+            "ams_used": cp.get("ams_used", False),
+            "multi_color": multi_color,
+            "speed_profile": cp.get("speed_profile"),
+            "prepare_time_minutes": prepare_time_minutes,
+            "slice_mode": cp.get("slice_mode"),
+            "over_500g": over_500g,
         }
 
         snapshot_image_local = cp.get("snapshot_image_local")

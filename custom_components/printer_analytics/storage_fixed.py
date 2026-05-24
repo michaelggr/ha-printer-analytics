@@ -138,8 +138,6 @@ class StorageManager:
         date_from = filters.get("date_from", "")
         date_to = filters.get("date_to", "")
         search = filters.get("search", "").lower()
-        slice_mode_filter = filters.get("slice_mode", "")
-        over_500g_filter = filters.get("over_500g", "")
 
         # 收集所有颜色（筛选项，不受筛选影响）
         all_colors: set[str] = set()
@@ -168,8 +166,7 @@ class StorageManager:
 
                 # 以下为筛选逻辑
                 if not self._match_filter(r, status_filter, color_filter,
-                                          printer_filter, date_from, date_to, search,
-                                          slice_mode_filter, over_500g_filter):
+                                          printer_filter, date_from, date_to, search):
                     continue
 
                 sort_key = r.get("end_time") or r.get("start_time") or ""
@@ -201,7 +198,6 @@ class StorageManager:
             "filter_options": {
                 "colors": sorted(all_colors),
                 "printer_name": self.coordinator.printer_name,
-                "printer_serial": self.coordinator.printer_serial,
                 "total_records": total_records,
             },
         }
@@ -209,8 +205,7 @@ class StorageManager:
     @staticmethod
     def _match_filter(r: dict, status_filter: str, color_filter: str,
                       printer_filter: str, date_from: str, date_to: str,
-                      search: str, slice_mode_filter: str = "",
-                      over_500g_filter: str = "") -> bool:
+                      search: str) -> bool:
         """判断单条记录是否匹配筛选条件"""
         # 状态筛选
         if status_filter:
@@ -233,14 +228,10 @@ class StorageManager:
             if not match:
                 return False
 
-        # 打印机筛选（使用序列号匹配）
-        if printer_filter:
-            r_serial = (r.get("printer_serial") or "").upper()
-            r_name = (r.get("_printer_name") or "").lower()
-            filter_upper = printer_filter.upper()
-            filter_lower = printer_filter.lower()
-            if r_serial != filter_upper and r_name != filter_lower:
-                return False
+        # 打印机筛选
+        if printer_filter and self is not None:
+            # 通过 coordinator 访问 printer_name（在 query_records 中处理）
+            pass
 
         # 日期筛选
         if date_from or date_to:
@@ -258,20 +249,6 @@ class StorageManager:
             name = (r.get("task_name") or "").lower()
             ftype = (r.get("filament_type") or "").lower()
             if search not in name and search not in ftype:
-                return False
-
-        # 切片模式筛选
-        if slice_mode_filter:
-            r_mode = (r.get("slice_mode") or "").lower()
-            if r_mode != slice_mode_filter.lower():
-                return False
-
-        # 超500g筛选
-        if over_500g_filter:
-            is_over = r.get("over_500g", False)
-            if over_500g_filter == "yes" and not is_over:
-                return False
-            elif over_500g_filter == "no" and is_over:
                 return False
 
         return True
@@ -399,7 +376,12 @@ class StorageManager:
         LOGGER.debug("已保存 %d 年数据: %d 条记录", year, len(records))
 
     async def save_history(self) -> None:
-        """保存历史记录到分片存储（只写脏年份，减少 I/O）"""
+        """保存历史记录到分片存储（只写脏年份，减少 I/O）
+
+        关键：内存缓存最多只保留 cache_limit 条记录，
+        但磁盘上可能有更多。保存时需要从磁盘读取完整年份文件，
+        用内存中的变更记录合并更新，避免数据丢失。
+        """
         try:
             dirty = set(self._dirty_years)
             self._dirty_years.clear()
@@ -408,17 +390,54 @@ class StorageManager:
             save_all = len(dirty) == 0
 
             def _write():
-                records_by_year: dict[int, list[dict]] = {}
+                # 构建内存中记录的 id->record 映射
+                cached_by_id: dict[str, dict] = {}
+                cached_by_year: dict[int, list[dict]] = {}
                 for record in self.coordinator.history:
+                    rid = record.get("id", "")
+                    if rid:
+                        cached_by_id[rid] = record
                     year = self._extract_year_from_end_time(record.get("end_time", ""))
-                    if year not in records_by_year:
-                        records_by_year[year] = []
-                    records_by_year[year].append(record)
+                    if year not in cached_by_year:
+                        cached_by_year[year] = []
+                    cached_by_year[year].append(record)
 
-                years_to_save = records_by_year.keys() if save_all else dirty & records_by_year.keys()
+                years_to_save = cached_by_year.keys() if save_all else dirty & cached_by_year.keys()
 
                 for year in years_to_save:
-                    records = records_by_year.get(year, [])
+                    # 从磁盘读取该年份的完整数据
+                    year_file = os.path.join(self._history_dir, f"{self.entry.entry_id}_{year}.json")
+                    disk_records = []
+                    if os.path.exists(year_file):
+                        try:
+                            with open(year_file, "r", encoding="utf-8") as f:
+                                data = json.load(f)
+                            disk_records = data.get("history", []) if isinstance(data, dict) else data
+                        except Exception as err:
+                            LOGGER.warning("读取年份文件失败 %d: %s", year, err)
+
+                    # 合并：磁盘记录为基准，用内存中的变更覆盖
+                    if disk_records:
+                        merged = []
+                        seen_ids = set()
+                        for r in disk_records:
+                            rid = r.get("id", "")
+                            if rid in cached_by_id:
+                                # 内存中有更新版本，使用内存中的
+                                merged.append(cached_by_id[rid])
+                                seen_ids.add(rid)
+                            else:
+                                merged.append(r)
+                        # 添加内存中新增的记录（磁盘中不存在的）
+                        for r in cached_by_year.get(year, []):
+                            rid = r.get("id", "")
+                            if rid and rid not in seen_ids:
+                                merged.append(r)
+                        records = merged
+                    else:
+                        # 磁盘无数据，直接用内存中的
+                        records = cached_by_year.get(year, [])
+
                     self._save_year_file(year, records)
                     self.coordinator._yearly_stats[str(year)] = len(records)
 

@@ -1,4 +1,4 @@
-﻿# Printer Analytics（打印机分析）
+﻿﻿﻿﻿﻿﻿# Printer Analytics（打印机分析）
 
 在 Home Assistant 中追踪和分析你的 3D 打印机数据。与 Bambu Lab 打印机（P2S、A1 Mini 等）通过 `bambu_lab` 集成无缝协作。
 

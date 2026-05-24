@@ -256,6 +256,8 @@ async def _generate_dashboard_yaml(hass: HomeAssistant) -> None:
         "total_print_duration", "total_energy", "material_stats_7d",
         "material_stats_30d", "material_stats_lifetime", "duration_distribution",
         "activity_heatmap", "failure_stage_distribution", "filament_success_stats",
+        "multi_color_ratio", "prepare_time_by_filament", "slice_mode_distribution",
+        "over_500g_ratio", "nozzle_size_distribution", "failed_chamber_temp_distribution",
         "print_status",
     ]
     # 每台打印机需要查找的 BambuLab 实时实体

@@ -23,6 +23,14 @@ class PrinterStats:
     activity_heatmap: dict = field(default_factory=dict)
     failure_stage_distribution: dict = field(default_factory=dict)
     filament_success_stats: dict = field(default_factory=dict)
+    # 新增统计图表
+    multi_color_ratio: dict = field(default_factory=dict)       # 多色模型占比 {multi: N, single: N}
+    prepare_time_by_filament: dict = field(default_factory=dict) # 各材料类型平均准备时间 {PLA: {avg, count}, ...}
+    slice_mode_distribution: dict = field(default_factory=dict)  # 切片模式分布 {cloud: N, local: N}
+    over_500g_ratio: dict = field(default_factory=dict)         # 超500g模型占比 {over: N, under: N}
+    nozzle_size_distribution: dict = field(default_factory=dict) # 喷嘴尺寸分布 {0.4: N, 0.2: N, ...}
+    failed_chamber_temp_distribution: dict = field(default_factory=dict)  # 失败仓温分布
+    # 通用字段
     history: list = field(default_factory=list)
     current_print: dict | None = None
     is_printing: bool = False

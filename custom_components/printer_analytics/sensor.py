@@ -97,6 +97,36 @@ SENSORS: dict[str, SensorEntityDescription] = {
         name="耗材成功率统计",
         icon="mdi:file-chart-outline",
     ),
+    "multi_color_ratio": SensorEntityDescription(
+        key="multi_color_ratio",
+        name="多色模型占比",
+        icon="mdi:palette-outline",
+    ),
+    "prepare_time_by_filament": SensorEntityDescription(
+        key="prepare_time_by_filament",
+        name="材料准备时间",
+        icon="mdi:timer-sand",
+    ),
+    "slice_mode_distribution": SensorEntityDescription(
+        key="slice_mode_distribution",
+        name="切片模式分布",
+        icon="mdi:cloud-outline",
+    ),
+    "over_500g_ratio": SensorEntityDescription(
+        key="over_500g_ratio",
+        name="超500g模型占比",
+        icon="mdi:weight",
+    ),
+    "nozzle_size_distribution": SensorEntityDescription(
+        key="nozzle_size_distribution",
+        name="喷嘴尺寸分布",
+        icon="mdi:circle-outline",
+    ),
+    "failed_chamber_temp_distribution": SensorEntityDescription(
+        key="failed_chamber_temp_distribution",
+        name="失败仓温分布",
+        icon="mdi:thermometer-alert",
+    ),
     "print_history": SensorEntityDescription(
         key="print_history",
         name="打印历史",
@@ -150,6 +180,24 @@ def _get_sensor_value(sensor_key: str, data: PrinterStats) -> Any:
         case "filament_success_stats":
             total = len(data.filament_success_stats) if isinstance(data.filament_success_stats, dict) else 0
             return total
+        case "multi_color_ratio":
+            total = sum(data.multi_color_ratio.values()) if isinstance(data.multi_color_ratio, dict) else 0
+            return total
+        case "prepare_time_by_filament":
+            total = len(data.prepare_time_by_filament) if isinstance(data.prepare_time_by_filament, dict) else 0
+            return total
+        case "slice_mode_distribution":
+            total = sum(data.slice_mode_distribution.values()) if isinstance(data.slice_mode_distribution, dict) else 0
+            return total
+        case "over_500g_ratio":
+            total = sum(data.over_500g_ratio.values()) if isinstance(data.over_500g_ratio, dict) else 0
+            return total
+        case "nozzle_size_distribution":
+            total = sum(data.nozzle_size_distribution.values()) if isinstance(data.nozzle_size_distribution, dict) else 0
+            return total
+        case "failed_chamber_temp_distribution":
+            total = sum(data.failed_chamber_temp_distribution.values()) if isinstance(data.failed_chamber_temp_distribution, dict) else 0
+            return total
         case "print_history":
             return data.last_update or "暂无数据"
         case "print_status":
@@ -176,6 +224,18 @@ def _get_sensor_attrs(sensor_key: str, data: PrinterStats) -> dict | None:
             return data.failure_stage_distribution
         case "filament_success_stats":
             return data.filament_success_stats
+        case "multi_color_ratio":
+            return data.multi_color_ratio
+        case "prepare_time_by_filament":
+            return data.prepare_time_by_filament
+        case "slice_mode_distribution":
+            return data.slice_mode_distribution
+        case "over_500g_ratio":
+            return data.over_500g_ratio
+        case "nozzle_size_distribution":
+            return data.nozzle_size_distribution
+        case "failed_chamber_temp_distribution":
+            return data.failed_chamber_temp_distribution
         case "print_history":
             return _truncate_history_attrs(data)
         case _:

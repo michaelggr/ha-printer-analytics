@@ -36,11 +36,15 @@ class PrinterAnalyticsCard extends HTMLElement {
     this._filterStatus = '';
     this._filterColor = '';
     this._filterPrinter = '';
+    this._filterSliceMode = '';
+    this._filterOver500g = '';
     this._searchQuery = '';
     this._currentPage = 1;
     this._pageSize = 20;
     this._pendingFilterStatus = '';
     this._pendingFilterColor = '';
+    this._pendingFilterSliceMode = '';
+    this._pendingFilterOver500g = '';
     this._pendingDateFrom = '';
     this._pendingDateTo = '';
     this._pendingSearchQuery = '';
@@ -354,6 +358,8 @@ class PrinterAnalyticsCard extends HTMLElement {
       'total_print_duration', 'total_energy', 'material_stats_7d',
       'material_stats_30d', 'material_stats_lifetime', 'duration_distribution',
       'activity_heatmap', 'failure_stage_distribution', 'filament_success_stats',
+      'multi_color_ratio', 'prepare_time_by_filament', 'slice_mode_distribution',
+      'over_500g_ratio', 'nozzle_size_distribution', 'failed_chamber_temp_distribution',
       'print_status', 'current_task', 'print_progress', 'current_weight',
       'current_length', 'total_usage', 'nozzle_temperature', 'bed_temperature',
       'chamber_temperature', 'active_tray', 'ams_1_tray_1', 'ams_1_tray_2',
@@ -2414,6 +2420,24 @@ class PrinterAnalyticsCard extends HTMLElement {
       try { html += this._renderFailureStageDistribution(); } catch (e) {
         html += `<div class="error-state">失败阶段分布渲染失败: ${this._escapeHtml(e.message)}</div>`;
       }
+      try { html += this._renderMultiColorRatio(); } catch (e) {
+        html += `<div class="error-state">多色模型占比渲染失败: ${this._escapeHtml(e.message)}</div>`;
+      }
+      try { html += this._renderPrepareTimeByFilament(); } catch (e) {
+        html += `<div class="error-state">材料准备时间渲染失败: ${this._escapeHtml(e.message)}</div>`;
+      }
+      try { html += this._renderSliceModeDistribution(); } catch (e) {
+        html += `<div class="error-state">切片模式分布渲染失败: ${this._escapeHtml(e.message)}</div>`;
+      }
+      try { html += this._renderOver500gRatio(); } catch (e) {
+        html += `<div class="error-state">超500g占比渲染失败: ${this._escapeHtml(e.message)}</div>`;
+      }
+      try { html += this._renderNozzleSizeDistribution(); } catch (e) {
+        html += `<div class="error-state">喷嘴尺寸分布渲染失败: ${this._escapeHtml(e.message)}</div>`;
+      }
+      try { html += this._renderFailedChamberTempDistribution(); } catch (e) {
+        html += `<div class="error-state">失败仓温分布渲染失败: ${this._escapeHtml(e.message)}</div>`;
+      }
       html += `</div>`;
 
       // 全部历史 Tab
@@ -2549,6 +2573,10 @@ class PrinterAnalyticsCard extends HTMLElement {
     if (statusSel) statusSel.value = this._pendingFilterStatus || this._filterStatus || '';
     const printerSel = root.getElementById('filter-printer');
     if (printerSel) printerSel.value = this._pendingFilterPrinter || this._filterPrinter || '';
+    const sliceModeSel = root.getElementById('filter-slice-mode');
+    if (sliceModeSel) sliceModeSel.value = this._pendingFilterSliceMode || this._filterSliceMode || '';
+    const over500gSel = root.getElementById('filter-over-500g');
+    if (over500gSel) over500gSel.value = this._pendingFilterOver500g || this._filterOver500g || '';
     if (dateFrom) dateFrom.value = this._pendingDateFrom || this._dateFrom || '';
     if (dateTo) dateTo.value = this._pendingDateTo || this._dateTo || '';
     if (searchInput) searchInput.value = this._pendingSearchQuery || this._searchQuery || '';
@@ -2623,6 +2651,8 @@ class PrinterAnalyticsCard extends HTMLElement {
       sel.addEventListener('change', (e) => {
         if (e.target.id === 'filter-status') this._pendingFilterStatus = e.target.value;
         if (e.target.id === 'filter-printer') this._pendingFilterPrinter = e.target.value;
+        if (e.target.id === 'filter-slice-mode') this._pendingFilterSliceMode = e.target.value;
+        if (e.target.id === 'filter-over-500g') this._pendingFilterOver500g = e.target.value;
       });
     });
 
@@ -2681,6 +2711,8 @@ class PrinterAnalyticsCard extends HTMLElement {
         this._filterStatus = this._pendingFilterStatus;
         this._filterColor = this._pendingFilterColor;
         this._filterPrinter = this._pendingFilterPrinter;
+        this._filterSliceMode = this._pendingFilterSliceMode || '';
+        this._filterOver500g = this._pendingFilterOver500g || '';
         this._dateFrom = this._pendingDateFrom;
         this._dateTo = this._pendingDateTo;
         this._searchQuery = this._pendingSearchQuery;
@@ -2698,12 +2730,16 @@ class PrinterAnalyticsCard extends HTMLElement {
         this._filterStatus = '';
         this._filterColor = '';
         this._filterPrinter = '';
+        this._filterSliceMode = '';
+        this._filterOver500g = '';
         this._dateFrom = '';
         this._dateTo = '';
         this._searchQuery = '';
         this._pendingFilterStatus = '';
         this._pendingFilterColor = '';
         this._pendingFilterPrinter = '';
+        this._pendingFilterSliceMode = '';
+        this._pendingFilterOver500g = '';
         this._pendingDateFrom = '';
         this._pendingDateTo = '';
         this._pendingSearchQuery = '';
@@ -3577,6 +3613,305 @@ class PrinterAnalyticsCard extends HTMLElement {
     }
 
     return `<div class="section-header"><div class="section-title"><span class="section-icon">🧵</span><span>耗材成功率统计</span></div></div><div class="chart-container">${rowsHtml}</div>`;
+  }
+
+  /**
+   * 渲染多色模型占比图（横向条形图）
+   */
+  _renderMultiColorRatio() {
+    const entityId = this._getEntityForPrinter(this._selectedPrinter, 'multi_color_ratio');
+    if (this._selectedPrinter !== '全部' && !entityId) return '';
+
+    let data = this._getAggregatedAttr('multi_color_ratio');
+    // 过滤非数据字段
+    const cleaned = {};
+    for (const key in data) {
+      if (!['icon', 'friendly_name', 'device_class', 'unit_of_measurement'].includes(key) && typeof data[key] === 'number') {
+        cleaned[key] = data[key];
+      }
+    }
+    data = cleaned;
+
+    const single = data.single || 0;
+    const multi = data.multi || 0;
+    const total = single + multi;
+    if (total === 0) {
+      return `<div class="section-header"><div class="section-title"><span class="section-icon">🎨</span><span>多色模型占比</span></div></div><div class="chart-container"><div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">暂无数据</div></div></div>`;
+    }
+
+    const singlePct = Math.round(single / total * 100);
+    const multiPct = 100 - singlePct;
+
+    return `<div class="section-header"><div class="section-title"><span class="section-icon">🎨</span><span>多色模型占比</span></div></div><div class="chart-container">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+        <span style="font-size:13px;color:var(--text-secondary);">单色 ${single}次 (${singlePct}%)</span>
+        <span style="font-size:13px;color:var(--text-secondary);">多色 ${multi}次 (${multiPct}%)</span>
+      </div>
+      <div style="width:100%;height:24px;background:rgba(15,23,42,0.3);border-radius:12px;overflow:hidden;display:flex;">
+        <div style="width:${singlePct}%;height:100%;background:#3b82f6;border-radius:12px 0 0 12px;transition:width 0.5s ease;opacity:0.85;"></div>
+        <div style="width:${multiPct}%;height:100%;background:#a855f7;border-radius:0 12px 12px 0;transition:width 0.5s ease;opacity:0.85;"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:8px;">
+        <div style="display:flex;align-items:center;gap:6px;"><div style="width:10px;height:10px;border-radius:50%;background:#3b82f6;"></div><span style="font-size:12px;color:var(--text-secondary);">单色</span></div>
+        <div style="display:flex;align-items:center;gap:6px;"><div style="width:10px;height:10px;border-radius:50%;background:#a855f7;"></div><span style="font-size:12px;color:var(--text-secondary);">多色</span></div>
+      </div>
+    </div>`;
+  }
+
+  /**
+   * 渲染各材料平均准备时间对比（横向柱状图）
+   */
+  _renderPrepareTimeByFilament() {
+    const entityId = this._getEntityForPrinter(this._selectedPrinter, 'prepare_time_by_filament');
+    if (this._selectedPrinter !== '全部' && !entityId) return '';
+
+    let stats = this._getAggregatedAttr('prepare_time_by_filament');
+    // 过滤非数据字段，只保留对象类型
+    const cleaned = {};
+    for (const key in stats) {
+      if (!['icon', 'friendly_name', 'device_class', 'unit_of_measurement'].includes(key) && typeof stats[key] === 'object' && stats[key] !== null) {
+        cleaned[key] = stats[key];
+      }
+    }
+    stats = cleaned;
+
+    const types = Object.keys(stats);
+    if (types.length === 0) {
+      return `<div class="section-header"><div class="section-title"><span class="section-icon">⏱️</span><span>打印准备时间（按材料类型）</span></div></div><div class="chart-container"><div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">暂无数据</div></div></div>`;
+    }
+
+    // 找到最大平均值用于归一化
+    let maxAvg = 0;
+    for (const ft of types) {
+      const avg = stats[ft].avg || 0;
+      if (avg > maxAvg) maxAvg = avg;
+    }
+
+    // 材料颜色映射
+    const filamentColors = { 'PLA': '#22c55e', 'PETG': '#3b82f6', 'ABS': '#ef4444', 'TPU': '#a855f7', 'ASA': '#f97316', 'PA': '#eab308' };
+    const getColor = (ft) => filamentColors[ft] || '#6366f1';
+
+    let rowsHtml = '';
+    for (const ft of types) {
+      const d = stats[ft];
+      const avg = d.avg || 0;
+      const count = d.count || 0;
+      const barWidth = maxAvg > 0 ? Math.round(avg / maxAvg * 100) : 0;
+      const color = getColor(ft);
+      rowsHtml += `<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);">
+        <div style="min-width:80px;font-weight:600;font-size:13px;">${this._escapeHtml(ft)}</div>
+        <div style="flex:1;position:relative;">
+          <div style="width:100%;height:20px;background:rgba(15,23,42,0.3);border-radius:10px;overflow:hidden;">
+            <div style="width:${Math.max(barWidth, 3)}%;height:100%;background:${color};border-radius:10px;transition:width 0.5s ease;opacity:0.8;"></div>
+          </div>
+          <div style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:12px;font-weight:700;color:${color};">${avg.toFixed(1)}分钟</div>
+        </div>
+        <div style="min-width:60px;font-size:12px;color:var(--text-secondary);text-align:right;">${count}次</div>
+      </div>`;
+    }
+
+    return `<div class="section-header"><div class="section-title"><span class="section-icon">⏱️</span><span>打印准备时间（按材料类型）</span></div></div><div class="chart-container">${rowsHtml}</div>`;
+  }
+
+  /**
+   * 渲染切片模式数量对比（横向条形图）
+   */
+  _renderSliceModeDistribution() {
+    const entityId = this._getEntityForPrinter(this._selectedPrinter, 'slice_mode_distribution');
+    if (this._selectedPrinter !== '全部' && !entityId) return '';
+
+    let data = this._getAggregatedAttr('slice_mode_distribution');
+    const cleaned = {};
+    for (const key in data) {
+      if (!['icon', 'friendly_name', 'device_class', 'unit_of_measurement'].includes(key) && typeof data[key] === 'number') {
+        cleaned[key] = data[key];
+      }
+    }
+    data = cleaned;
+
+    const total = Object.values(data).reduce((s, v) => s + v, 0);
+    if (total === 0) {
+      return `<div class="section-header"><div class="section-title"><span class="section-icon">☁️</span><span>切片模式分布</span></div></div><div class="chart-container"><div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">暂无数据</div></div></div>`;
+    }
+
+    // 标签映射
+    const labelMap = { 'cloud': '云端切片', 'local': '本地切片', 'unknown': '未知' };
+    const colorMap = { 'cloud': '#3b82f6', 'local': '#22c55e', 'unknown': '#94a3b8' };
+
+    // 计算各段百分比
+    const segments = Object.keys(data).map(key => {
+      const value = data[key];
+      const pct = Math.round(value / total * 100);
+      return { key, label: labelMap[key] || key, value, pct, color: colorMap[key] || '#6366f1' };
+    });
+
+    // 横向条形图
+    const barHtml = segments.map(s =>
+      `<div style="width:${s.pct}%;height:100%;background:${s.color};transition:width 0.5s ease;opacity:0.85;"></div>`
+    ).join('');
+
+    // 图例
+    const legendHtml = segments.map(s =>
+      `<div style="display:flex;align-items:center;gap:6px;"><div style="width:10px;height:10px;border-radius:50%;background:${s.color};"></div><span style="font-size:12px;color:var(--text-secondary);">${s.label} ${s.value}次 (${s.pct}%)</span></div>`
+    ).join('');
+
+    return `<div class="section-header"><div class="section-title"><span class="section-icon">☁️</span><span>切片模式分布</span></div></div><div class="chart-container">
+      <div style="width:100%;height:24px;background:rgba(15,23,42,0.3);border-radius:12px;overflow:hidden;display:flex;">${barHtml}</div>
+      <div style="display:flex;gap:16px;margin-top:10px;flex-wrap:wrap;">${legendHtml}</div>
+    </div>`;
+  }
+
+  /**
+   * 渲染超500g模型占比图（横向条形图）
+   */
+  _renderOver500gRatio() {
+    const entityId = this._getEntityForPrinter(this._selectedPrinter, 'over_500g_ratio');
+    if (this._selectedPrinter !== '全部' && !entityId) return '';
+
+    let data = this._getAggregatedAttr('over_500g_ratio');
+    const cleaned = {};
+    for (const key in data) {
+      if (!['icon', 'friendly_name', 'device_class', 'unit_of_measurement'].includes(key) && typeof data[key] === 'number') {
+        cleaned[key] = data[key];
+      }
+    }
+    data = cleaned;
+
+    const under = data.under || 0;
+    const over = data.over || 0;
+    const total = under + over;
+    if (total === 0) {
+      return `<div class="section-header"><div class="section-title"><span class="section-icon">⚖️</span><span>超500g模型占比</span></div></div><div class="chart-container"><div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">暂无数据</div></div></div>`;
+    }
+
+    const underPct = Math.round(under / total * 100);
+    const overPct = 100 - underPct;
+
+    return `<div class="section-header"><div class="section-title"><span class="section-icon">⚖️</span><span>超500g模型占比</span></div></div><div class="chart-container">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+        <span style="font-size:13px;color:var(--text-secondary);">500g以下 ${under}次 (${underPct}%)</span>
+        <span style="font-size:13px;color:var(--text-secondary);">超500g ${over}次 (${overPct}%)</span>
+      </div>
+      <div style="width:100%;height:24px;background:rgba(15,23,42,0.3);border-radius:12px;overflow:hidden;display:flex;">
+        <div style="width:${underPct}%;height:100%;background:#3b82f6;border-radius:12px 0 0 12px;transition:width 0.5s ease;opacity:0.85;"></div>
+        <div style="width:${overPct}%;height:100%;background:#f97316;border-radius:0 12px 12px 0;transition:width 0.5s ease;opacity:0.85;"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:8px;">
+        <div style="display:flex;align-items:center;gap:6px;"><div style="width:10px;height:10px;border-radius:50%;background:#3b82f6;"></div><span style="font-size:12px;color:var(--text-secondary);">500g以下</span></div>
+        <div style="display:flex;align-items:center;gap:6px;"><div style="width:10px;height:10px;border-radius:50%;background:#f97316;"></div><span style="font-size:12px;color:var(--text-secondary);">超500g</span></div>
+      </div>
+    </div>`;
+  }
+
+  /**
+   * 渲染喷嘴尺寸使用分布（横向柱状图）
+   */
+  _renderNozzleSizeDistribution() {
+    const entityId = this._getEntityForPrinter(this._selectedPrinter, 'nozzle_size_distribution');
+    if (this._selectedPrinter !== '全部' && !entityId) return '';
+
+    let data = this._getAggregatedAttr('nozzle_size_distribution');
+    const cleaned = {};
+    for (const key in data) {
+      if (!['icon', 'friendly_name', 'device_class', 'unit_of_measurement'].includes(key) && typeof data[key] === 'number') {
+        cleaned[key] = data[key];
+      }
+    }
+    data = cleaned;
+
+    const keys = Object.keys(data);
+    if (keys.length === 0) {
+      return `<div class="section-header"><div class="section-title"><span class="section-icon">🔧</span><span>喷嘴尺寸使用分布</span></div></div><div class="chart-container"><div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">暂无数据</div></div></div>`;
+    }
+
+    // 找到最大值用于归一化
+    let maxVal = 0;
+    for (const k of keys) {
+      if (data[k] > maxVal) maxVal = data[k];
+    }
+
+    // 按尺寸排序
+    const sorted = keys.sort((a, b) => parseFloat(a) - parseFloat(b));
+
+    // 尺寸颜色映射
+    const sizeColors = { '0.2': '#22c55e', '0.4': '#3b82f6', '0.6': '#f97316', '0.8': '#ef4444' };
+    const getColor = (size) => sizeColors[size] || '#6366f1';
+
+    let rowsHtml = '';
+    for (const size of sorted) {
+      const value = data[size];
+      const barWidth = maxVal > 0 ? Math.round(value / maxVal * 100) : 0;
+      const color = getColor(size);
+      rowsHtml += `<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);">
+        <div style="min-width:60px;font-weight:600;font-size:13px;">${size}mm</div>
+        <div style="flex:1;position:relative;">
+          <div style="width:100%;height:20px;background:rgba(15,23,42,0.3);border-radius:10px;overflow:hidden;">
+            <div style="width:${Math.max(barWidth, 3)}%;height:100%;background:${color};border-radius:10px;transition:width 0.5s ease;opacity:0.8;"></div>
+          </div>
+        </div>
+        <div style="min-width:60px;font-size:12px;color:var(--text-secondary);text-align:right;">${value}次</div>
+      </div>`;
+    }
+
+    return `<div class="section-header"><div class="section-title"><span class="section-icon">🔧</span><span>喷嘴尺寸使用分布</span></div></div><div class="chart-container">${rowsHtml}</div>`;
+  }
+
+  /**
+   * 渲染失败打印仓温分布（横向柱状图）
+   */
+  _renderFailedChamberTempDistribution() {
+    const entityId = this._getEntityForPrinter(this._selectedPrinter, 'failed_chamber_temp_distribution');
+    if (this._selectedPrinter !== '全部' && !entityId) return '';
+
+    let data = this._getAggregatedAttr('failed_chamber_temp_distribution');
+    const cleaned = {};
+    for (const key in data) {
+      if (!['icon', 'friendly_name', 'device_class', 'unit_of_measurement'].includes(key) && typeof data[key] === 'number') {
+        cleaned[key] = data[key];
+      }
+    }
+    data = cleaned;
+
+    const keys = Object.keys(data);
+    if (keys.length === 0) {
+      return `<div class="section-header"><div class="section-title"><span class="section-icon">🌡️</span><span>失败打印仓温分布</span></div></div><div class="chart-container"><div class="empty-state"><div style="font-size:28px;margin-bottom:8px;">🎉</div><div style="color:var(--success);font-weight:600;">暂无失败记录</div></div></div>`;
+    }
+
+    // 找到最大值用于归一化
+    let maxVal = 0;
+    for (const k of keys) {
+      if (data[k] > maxVal) maxVal = data[k];
+    }
+
+    // 温度区间排序和颜色映射
+    const tempOrder = ['<40°C', '40-50°C', '50-60°C', '60-70°C', '>70°C'];
+    const tempColors = { '<40°C': '#3b82f6', '40-50°C': '#22c55e', '50-60°C': '#eab308', '60-70°C': '#f97316', '>70°C': '#ef4444' };
+    const getColor = (key) => tempColors[key] || '#6366f1';
+
+    // 按温度区间排序，未知的放最后
+    const sorted = keys.sort((a, b) => {
+      const ia = tempOrder.indexOf(a);
+      const ib = tempOrder.indexOf(b);
+      return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+    });
+
+    let rowsHtml = '';
+    for (const key of sorted) {
+      const value = data[key];
+      const barWidth = maxVal > 0 ? Math.round(value / maxVal * 100) : 0;
+      const color = getColor(key);
+      rowsHtml += `<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);">
+        <div style="min-width:70px;font-weight:600;font-size:13px;">${this._escapeHtml(key)}</div>
+        <div style="flex:1;position:relative;">
+          <div style="width:100%;height:20px;background:rgba(15,23,42,0.3);border-radius:10px;overflow:hidden;">
+            <div style="width:${Math.max(barWidth, 3)}%;height:100%;background:${color};border-radius:10px;transition:width 0.5s ease;opacity:0.8;"></div>
+          </div>
+        </div>
+        <div style="min-width:60px;font-size:12px;color:var(--text-secondary);text-align:right;">${value}次</div>
+      </div>`;
+    }
+
+    return `<div class="section-header"><div class="section-title"><span class="section-icon">🌡️</span><span>失败打印仓温分布</span></div></div><div class="chart-container">${rowsHtml}</div>`;
   }
 
   /**
@@ -4849,6 +5184,15 @@ class PrinterAnalyticsCard extends HTMLElement {
         }
         if (!matchColor) return false;
       }
+      if (this._filterSliceMode) {
+        const rMode = (r.slice_mode || '').toLowerCase();
+        if (rMode !== this._filterSliceMode.toLowerCase()) return false;
+      }
+      if (this._filterOver500g) {
+        const isOver = r.over_500g || false;
+        if (this._filterOver500g === 'yes' && !isOver) return false;
+        if (this._filterOver500g === 'no' && isOver) return false;
+      }
       if (this._searchQuery) {
         const q = this._searchQuery.toLowerCase();
         const name = (r.task_name || '').toLowerCase();
@@ -4899,6 +5243,8 @@ class PrinterAnalyticsCard extends HTMLElement {
             status: this._filterStatus || '',
             color: this._filterColor || '',
             printer: this._filterPrinter || '',
+            slice_mode: this._filterSliceMode || '',
+            over_500g: this._filterOver500g || '',
             date_from: this._dateFrom || '',
             date_to: this._dateTo || '',
             search: this._searchQuery || '',
@@ -4957,7 +5303,7 @@ class PrinterAnalyticsCard extends HTMLElement {
 
     const statusMap = { 'finish': '成功', '完成': '成功', '成功': '成功', 'failed': '失败', 'fail': '失败', '失败': '失败', 'cancelled': '已取消', '已取消': '已取消' };
     // 导出字段：模型名和项目名分开显示，序列号列
-    const headers = ['序号', '序列号', '模型名称', '项目名称', '打印机', '状态', '开始时间', '结束时间', '时长(分钟)', '耗材类型', '耗材颜色', '耗材重量(g)', '耗材长度(m)', '能耗(kWh)', '腔温(°C)', '喷嘴尺寸', '封面图URL', '快照图URL'];
+    const headers = ['序号', '序列号', '模型名称', '项目名称', '打印机', '状态', '开始时间', '结束时间', '时长(分钟)', '耗材类型', '耗材颜色', '耗材重量(g)', '耗材长度(m)', '能耗(kWh)', '腔温(°C)', '喷嘴尺寸', '使用AMS', '多色打印', '速度模式', '准备时间(分钟)', '切片模式', '超500g', '封面图URL', '快照图URL'];
     const rows = filtered.map((r, i) => {
       const chamberTemp = r.chamber_temp_last5min?.avg ?? r.chamber_temp_final ?? '';
       // 获取封面图和快照图URL
@@ -5000,6 +5346,12 @@ class PrinterAnalyticsCard extends HTMLElement {
         energyVal,
         chamberTemp,
         r.nozzle_size || '',
+        r.ams_used === true ? '是' : r.ams_used === false ? '否' : '',
+        r.multi_color ? '是' : '否',
+        r.speed_profile || '',
+        r.prepare_time_minutes || '',
+        r.slice_mode || '',
+        r.over_500g ? '是' : '否',
         coverUrl,
         snapshotUrl
       ];
@@ -5435,6 +5787,16 @@ class PrinterAnalyticsCard extends HTMLElement {
           <option value="" ${!this._filterPrinter ? 'selected' : ''}>全部打印机</option>
           ${printerOptions}
         </select>` : ''}
+        <select class="filter-select" id="filter-slice-mode">
+          <option value="">切片模式</option>
+          <option value="cloud" ${this._filterSliceMode === 'cloud' ? 'selected' : ''}>云端切片</option>
+          <option value="local" ${this._filterSliceMode === 'local' ? 'selected' : ''}>本地切片</option>
+        </select>
+        <select class="filter-select" id="filter-over-500g">
+          <option value="">重量筛选</option>
+          <option value="yes" ${this._filterOver500g === 'yes' ? 'selected' : ''}>超500g</option>
+          <option value="no" ${this._filterOver500g === 'no' ? 'selected' : ''}>500g以下</option>
+        </select>
         <select class="filter-select" id="filter-status">
           <option value="" ${!this._filterStatus ? 'selected' : ''}>全部状态</option>
           <option value="finish" ${this._filterStatus === 'finish' ? 'selected' : ''}>✅ 成功</option>
