@@ -1,4 +1,4 @@
-﻿"""Printer Analytics Coordinator - 主协调器"""
+"""Printer Analytics Coordinator - 主协调器"""
 from __future__ import annotations
 
 import asyncio
@@ -834,6 +834,15 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
             self.hass.async_create_task(self._save_history())
             LOGGER.info("Backfilled %d task names", updated)
         return updated
+
+    async def backfill_task_names_from_history(self) -> int:
+        """从HA历史状态中反查补全任务名
+
+        使用 current_stage 过渡方法从 HA 实体历史中推断模型名和项目名。
+        """
+        if self.print_tracker:
+            return await self.print_tracker.backfill_model_names_from_history()
+        return 0
 
     def _calculate_statistics(self) -> PrinterStats:
         """计算统计数据"""

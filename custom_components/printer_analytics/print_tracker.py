@@ -1,5 +1,6 @@
-﻿"""打印跟踪模块"""
+"""打印跟踪模块"""
 import asyncio
+import json
 import logging
 import os
 import re
@@ -49,6 +50,7 @@ class PrintTracker:
         self._entity_map = coordinator._entity_map
         self._material_cache_interval = None
         self._ams_tray_entity_ids: list[str] | None = None
+        self._recovered_from_disk = False  # 防止恢复后首次tick误判
 
     def get_current_status(self) -> str | None:
         """获取当前打印状态"""
@@ -58,6 +60,50 @@ class PrintTracker:
         state = self.hass.states.get(status_entity)
         return state.state if state and state.state not in INVALID_ENTITY_STATES else None
 
+    def _current_print_file(self) -> str:
+        """获取 current_print 持久化文件路径"""
+        return os.path.join(
+            self.coordinator._history_base_dir,
+            f"{self.coordinator.entry.entry_id}_current_print.json"
+        )
+
+    def _save_current_print(self) -> None:
+        """持久化 current_print 到磁盘"""
+        if not self.coordinator.current_print:
+            return
+        try:
+            filepath = self._current_print_file()
+            os.makedirs(os.path.dirname(filepath), exist_ok=True)
+            # 清理内部字段再保存
+            data = {k: v for k, v in self.coordinator.current_print.items()
+                    if not k.startswith("_") or k in ("_pending_color_validation",)}
+            with open(filepath, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except Exception as err:
+            LOGGER.warning("保存 current_print 失败: %s", err)
+
+    def _load_current_print(self) -> dict | None:
+        """从磁盘加载 current_print"""
+        try:
+            filepath = self._current_print_file()
+            if not os.path.exists(filepath):
+                return None
+            with open(filepath, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return data
+        except Exception as err:
+            LOGGER.warning("加载 current_print 失败: %s", err)
+            return None
+
+    def _delete_current_print_file(self) -> None:
+        """删除 current_print 持久化文件"""
+        try:
+            filepath = self._current_print_file()
+            if os.path.exists(filepath):
+                os.remove(filepath)
+        except Exception as err:
+            LOGGER.warning("删除 current_print 文件失败: %s", err)
+
     def recover_active_print(self) -> None:
         """恢复活跃打印 - 完整收集打印信息"""
         if self.coordinator.current_print:
@@ -66,6 +112,16 @@ class PrintTracker:
         # 检查当前状态是否在打印中
         current_status = self.get_current_status()
         if current_status not in ACTIVE_PRINT_STATUSES:
+            # 状态不可用时，先检查磁盘是否有持久化数据
+            saved = self._load_current_print()
+            if saved:
+                self.coordinator.current_print = saved
+                self.coordinator.current_print["_pending_color_validation"] = True
+                self.start_material_cache()
+                LOGGER.info("状态不可用但磁盘有持久化数据，先恢复: %s", saved.get("task_name", ""))
+                self.coordinator.async_set_updated_data(self.coordinator._calculate_statistics())
+                return
+            self._delete_current_print_file()
             return
 
         # 获取开始时间
@@ -156,6 +212,16 @@ class PrintTracker:
             "color_usage": [],
         }
 
+        # 如果能耗无效，尝试重新获取 start_energy
+        if not self.coordinator.current_print.get("energy_valid") and self.coordinator.energy_entity:
+            current_energy = self.coordinator.get_float_state(self.coordinator.energy_entity)
+            if current_energy > 0:
+                self.coordinator.current_print["start_energy"] = current_energy
+                self.coordinator.current_print["energy_valid"] = True
+                LOGGER.info("恢复时重新获取 start_energy: %.4f kWh", current_energy)
+        self._validate_colors_on_recovery()
+        self._save_current_print()
+
         self.start_material_cache()
         LOGGER.info("已完整恢复活跃打印记录: %s | 初始颜色: %s (%s)", task_name, filament_color, filament_type)
 
@@ -194,7 +260,31 @@ class PrintTracker:
 
         # 开始打印
         if new_status in ACTIVE_PRINT_STATUSES and old_status not in ACTIVE_PRINT_STATUSES:
-            self.on_print_start()
+            if self.coordinator.current_print:
+                # current_print 已存在（可能是恢复后的状态更新），只更新状态
+                self.coordinator.current_print["status"] = new_status
+                self._validate_colors_on_recovery()
+                self._save_current_print()
+            else:
+                # 先检查磁盘是否有持久化数据
+                saved = self._load_current_print()
+                if saved:
+                    self.coordinator.current_print = saved
+                    self.coordinator.current_print["status"] = new_status
+                    self.coordinator.current_print["_recovered_from_disk"] = True
+                    self._recovered_from_disk = True
+                    # 如果能耗无效，尝试重新获取 start_energy
+                    if not saved.get("energy_valid") and self.coordinator.energy_entity:
+                        current_energy = self.coordinator.get_float_state(self.coordinator.energy_entity)
+                        if current_energy > 0:
+                            self.coordinator.current_print["start_energy"] = current_energy
+                            self.coordinator.current_print["energy_valid"] = True
+                            LOGGER.info("handle_state_change 恢复时重新获取 start_energy: %.4f kWh", current_energy)
+                    self._validate_colors_on_recovery()
+                    self._save_current_print()
+                    self.start_material_cache()
+                else:
+                    self.on_print_start()
         # 结束打印
         elif new_status in END_PRINT_STATUSES:
             # 正常情况：从活跃状态变为结束
@@ -224,11 +314,35 @@ class PrintTracker:
     def _on_material_cache_tick(self, now: datetime) -> None:
         """定时缓存耗材数据"""
         if self.coordinator.current_print:
+            # 延迟颜色验证（AMS 恢复后重试）
+            if self.coordinator.current_print.get("_pending_color_validation"):
+                self._validate_colors_on_recovery()
+            # 延迟能耗恢复
+            if not self.coordinator.current_print.get("energy_valid") and self.coordinator.energy_entity:
+                current_energy = self.coordinator.get_float_state(self.coordinator.energy_entity)
+                if current_energy > 0:
+                    self.coordinator.current_print["start_energy"] = current_energy
+                    self.coordinator.current_print["energy_valid"] = True
+                    LOGGER.info("延迟恢复 start_energy: %.4f kWh", current_energy)
+            # 延迟状态验证（防止恢复后状态已变但未触发事件）
+            current_status = self.get_current_status()
+            if self._recovered_from_disk:
+                self._recovered_from_disk = False  # 首次tick后清除标记
+            elif current_status and current_status in END_PRINT_STATUSES:
+                LOGGER.info("延迟检测到打印已结束: %s，保存记录", current_status)
+                self.hass.add_job(self._on_print_end(current_status))
+                return
+            elif current_status == PRINT_STATUS_IDLE:
+                LOGGER.warning("延迟检测到 idle，视为异常中断")
+                self.hass.add_job(self._on_print_end("cancelled"))
+                return
             self._cache_print_material_data()
             self._track_color_changes()
             self._cache_delayed_fields()
             self._try_capture_task_name()
             self._cache_chamber_temperature(now)
+            # 持久化 current_print 到磁盘
+            self._save_current_print()
             # 通过事件循环安全地通知数据更新，避免线程安全违规
             self.hass.loop.call_soon_threadsafe(
                 self.coordinator.async_set_updated_data,
@@ -340,6 +454,66 @@ class PrintTracker:
             self._entity_map.get("active_tray", ""), "color", ""
         )
         return (ftype or "", color or "")
+
+    def _get_ams_known_colors(self) -> set[str]:
+        """获取 AMS 中所有已知颜色"""
+        colors = set()
+        ams_entities = self._get_ams_tray_entities()
+        for eid in ams_entities:
+            state = self.hass.states.get(eid)
+            if not state:
+                continue
+            color = state.attributes.get("color", "")
+            if color and isinstance(color, str):
+                colors.add(color.lower())
+        return colors
+
+    def _validate_colors_on_recovery(self) -> None:
+        """恢复时验证 colors_used，移除不在 AMS 中的误报颜色"""
+        cp = self.coordinator.current_print
+        if not cp:
+            return
+        colors_used = cp.get("colors_used", [])
+        if not colors_used:
+            return
+        ams_colors = self._get_ams_known_colors()
+        active_type, active_color = self._get_current_filament_info()
+        valid_colors = set()
+        if active_color:
+            valid_colors.add(active_color.lower())
+        if ams_colors:
+            valid_colors.update(ams_colors)
+        LOGGER.info("恢复验证颜色: colors_used=%s, ams=%s, active=%s, valid=%s",
+                     colors_used, ams_colors, active_color, valid_colors)
+        if not valid_colors:
+            # AMS 不可用，标记延迟验证
+            cp["_pending_color_validation"] = True
+            LOGGER.info("AMS 不可用，标记延迟颜色验证")
+            return
+        self._do_color_validation(colors_used, valid_colors, active_color)
+
+    def _do_color_validation(self, colors_used: list, valid_colors: set,
+                             active_color: str) -> None:
+        """执行颜色验证和清理"""
+        cp = self.coordinator.current_print
+        if not cp:
+            return
+        cleaned = [c for c in colors_used if c.lower() in valid_colors]
+        if len(cleaned) < len(colors_used):
+            removed = [c for c in colors_used if c not in cleaned]
+            LOGGER.info("恢复时清理误报颜色: %s → %s (移除: %s)", colors_used, cleaned, removed)
+            cp["colors_used"] = cleaned
+            init_color = cp.get("filament_color", "")
+            if init_color and init_color.lower() not in valid_colors:
+                cp["filament_color"] = active_color or (cleaned[0] if cleaned else "")
+                LOGGER.info("修正 filament_color: %s → %s", init_color, cp["filament_color"])
+            color_changes = cp.get("color_changes", [])
+            cp["color_changes"] = [cc for cc in color_changes
+                                   if cc.get("to_color", "").lower() in valid_colors]
+            cp["total_colors"] = len(cleaned)
+        else:
+            LOGGER.info("恢复验证颜色: 无需清理")
+        cp.pop("_pending_color_validation", None)
 
     def _track_color_changes(self) -> None:
         """追踪颜色变化"""
@@ -556,15 +730,102 @@ class PrintTracker:
         LOGGER.debug("历史记录中未找到配置 '%s' 对应的模型名 (共搜索 %d 条)", target, searched)
         return None
 
+    def _extract_model_config_from_states(self, task_states: list, stage_states: list) -> tuple:
+        """从 task_name 和 current_stage 历史状态中提取模型名和项目名
+
+        利用 current_stage 的过渡时间精确定位：
+        Bambu 在 current_stage 从"空闲"变为"归位工具头/热床预热"时，
+        task_name 先显示模型名（几秒），然后切换为项目名/配置名。
+        """
+        STAGE_IDLE_VALUES = {"idle", "空闲", ""}
+        STAGE_START_VALUES = {"homing_toolhead", "heatbed_preheating", "归位工具头", "热床预热"}
+
+        # 找到 current_stage 过渡时间
+        transition_time = None
+        for i in range(1, len(stage_states)):
+            prev_val = (stage_states[i-1].state or "").strip().lower()
+            curr_val = (stage_states[i].state or "").strip().lower()
+            if prev_val in STAGE_IDLE_VALUES and curr_val in STAGE_START_VALUES:
+                transition_time = stage_states[i].last_changed
+                break
+
+        model_name = ""
+        config_name = ""
+
+        if transition_time and task_states:
+            # 方法1：以 current_stage 过渡时间为分界
+            try:
+                trans_dt = transition_time if isinstance(transition_time, datetime) else \
+                           datetime.fromisoformat(str(transition_time).replace("Z", "+00:00"))
+            except Exception:
+                trans_dt = None
+
+            if trans_dt:
+                before_values = []
+                after_values = []
+                for s in task_states:
+                    value = (s.state or "").strip()
+                    if not value or value in INVALID_ENTITY_STATES:
+                        continue
+                    try:
+                        s_time = s.last_changed if isinstance(s.last_changed, datetime) else \
+                                 datetime.fromisoformat(str(s.last_changed).replace("Z", "+00:00"))
+                    except Exception:
+                        continue
+                    if s_time <= trans_dt:
+                        before_values.append(value)
+                    else:
+                        after_values.append(value)
+
+                # 过渡前的 task_name = 模型名
+                for v in before_values:
+                    if not self._is_param_description(v):
+                        model_name = v
+                        break
+                    else:
+                        config_name = config_name or v
+
+                # 过渡后的 task_name = 项目名/配置名
+                if model_name:
+                    for v in after_values:
+                        if v != model_name and not self._is_param_description(v):
+                            config_name = v
+                            break
+                    if not config_name:
+                        for v in after_values:
+                            if self._is_param_description(v):
+                                config_name = v
+                                break
+
+        # 方法2（回退）：按时间顺序
+        if not model_name and task_states:
+            seen_values = []
+            for state in task_states:
+                value = (state.state or "").strip()
+                if not value or value in INVALID_ENTITY_STATES:
+                    continue
+                seen_values.append(value)
+            if seen_values:
+                for v in seen_values:
+                    if not self._is_param_description(v):
+                        model_name = v
+                        break
+                    else:
+                        config_name = config_name or v
+                if model_name:
+                    for v in seen_values:
+                        if v != model_name and not self._is_param_description(v):
+                            config_name = v
+                            break
+
+        return model_name, config_name
+
     async def _infer_model_name_from_entity_history(self, task_entity: str, start_time: str) -> None:
-        """从 task_name 实体的 HA 历史记录中反查模型名
+        """从 task_name 和 current_stage 实体的 HA 历史记录中反查模型名和项目名
 
-        BambuLab 的 task_name 实际行为（通过历史数据验证）：
-        - 打印空闲/完成后：显示模型名（如 "抽屉收纳盒60×60×60 - 宜家洞洞板"）
-        - 新打印即将开始时（prepare 前1秒）：变为参数配置名（如 "小号 身长5.5cm , 层高 0.2mm"）
-
-        因此在 start_time 之前最近出现的非参数描述值就是当前打印的模型名。
-        取最后一个（最接近打印开始的）非参数描述值，避免取到更早的上一次打印的模型名。
+        利用 current_stage 的过渡时间精确定位模型名：
+        Bambu 在 current_stage 从"空闲"变为"归位工具头/热床预热"时，
+        task_name 先显示模型名（几秒），然后切换为项目名/配置名。
         """
         if not self.coordinator.current_print or not task_entity or not start_time:
             return
@@ -575,9 +836,13 @@ class PrintTracker:
         if not start_dt:
             return
 
-        # 向前查询5分钟，覆盖 task_name 从模型名变为参数描述的时间窗口
+        # 同时查询 task_name 和 current_stage
+        stage_entity = self._entity_map.get("current_stage", "")
         query_start = start_dt - timedelta(minutes=5)
-        query_end = start_dt + timedelta(minutes=2)
+        query_end = start_dt + timedelta(minutes=5)
+        query_entities = [task_entity]
+        if stage_entity:
+            query_entities.append(stage_entity)
 
         try:
             history_by_entity = await get_instance(self.hass).async_add_executor_job(
@@ -585,30 +850,20 @@ class PrintTracker:
                 self.hass,
                 query_start,
                 query_end,
-                [task_entity],
+                query_entities,
                 None,
                 True,
                 False,
             )
         except Exception as err:
-            LOGGER.warning("读取 task_name 历史失败: %s", err)
+            LOGGER.warning("读取实体历史失败: %s", err)
             return
 
-        states = history_by_entity.get(task_entity, [])
-        model_name = ""
-        config_name = self.coordinator.current_print.get("task_name_config") or ""
+        task_states = history_by_entity.get(task_entity, [])
+        stage_states = history_by_entity.get(stage_entity, []) if stage_entity else []
 
-        # 按时间顺序遍历，取最后一个（最接近打印开始的）非参数描述值
-        # 因为最接近打印开始的模型名才是当前打印的，更早的可能是上一次打印的
-        for state in states:
-            value = (state.state or "").strip()
-            if not value or value in INVALID_ENTITY_STATES:
-                continue
-            if self._is_param_description(value):
-                config_name = config_name or value
-                continue
-            # 不断更新为最新的非参数描述值
-            model_name = value
+        # 使用共用的推断方法
+        model_name, config_name = self._extract_model_config_from_states(task_states, stage_states)
 
         if not self.coordinator.current_print:
             return
@@ -616,10 +871,11 @@ class PrintTracker:
             self.coordinator.current_print["task_name_model"] = model_name
             self.coordinator.current_print["task_name"] = model_name
             self.coordinator._lock_task_name(model_name)
-            LOGGER.info("从 HA task_name 历史反查到模型名: %s", model_name)
+            LOGGER.info("从 HA 历史反查到模型名: %s", model_name)
         if config_name and not self.coordinator.current_print.get("task_name_config"):
             self.coordinator.current_print["task_name_config"] = config_name
             self.coordinator.current_print["config_name"] = config_name
+            LOGGER.info("从 HA 历史反查到配置名: %s", config_name)
 
     def on_print_start(self) -> None:
         """打印开始"""
@@ -749,6 +1005,7 @@ class PrintTracker:
         }
 
         self.start_material_cache()
+        self._save_current_print()
         LOGGER.info("Print started: %s | 初始颜色: %s (%s)", task_name, filament_color, filament_type)
 
         self.hass.add_job(self.coordinator._delayed_cover_download(task_name or "unknown", start_time))
@@ -769,8 +1026,13 @@ class PrintTracker:
             LOGGER.warning("Print end detected but no active print record")
             return
 
+        # 防重复触发：先检查 → 立即清空 → 再删文件
+        cp = self.coordinator.current_print
+        self.coordinator.current_print = None
+        self._delete_current_print_file()
+
         end_time = datetime.now(timezone.utc).isoformat()
-        start_dt = self.coordinator._normalize_to_utc(self.coordinator.current_print["start_time"])
+        start_dt = self.coordinator._normalize_to_utc(cp["start_time"])
         end_dt = self.coordinator._normalize_to_utc(end_time)
 
         if start_dt and end_dt:
@@ -782,32 +1044,45 @@ class PrintTracker:
         if end_status in (PRINT_STATUS_FAIL, PRINT_STATUS_CANCELLED):
             progress = int(self.coordinator.get_float_state(self._entity_map.get("print_progress", ""), 0))
 
-        total_weight = self.coordinator.current_print.get("cached_weight") or self.coordinator.get_float_state(self._entity_map.get("print_weight", ""))
-        total_length = self.coordinator.current_print.get("cached_length") or self.coordinator.get_float_state(self._entity_map.get("print_length", ""))
+        total_weight = cp.get("cached_weight") or self.coordinator.get_float_state(self._entity_map.get("print_weight", ""))
+        total_length = cp.get("cached_length") or self.coordinator.get_float_state(self._entity_map.get("print_length", ""))
 
         energy_kwh = None
-        if self.coordinator.energy_entity and self.coordinator.current_print.get("energy_valid"):
+        if self.coordinator.energy_entity and cp.get("energy_valid"):
             end_energy = self.coordinator.get_float_state(self.coordinator.energy_entity)
-            start_energy = self.coordinator.current_print.get("start_energy", 0)
+            start_energy = cp.get("start_energy", 0)
             delta = end_energy - start_energy
             if 0 < delta < ENERGY_MAX_DELTA_KWH:
                 energy_kwh = round(delta, 4)
             elif delta < 0 or delta >= ENERGY_MAX_DELTA_KWH:
                 LOGGER.warning("Abnormal energy delta %.2f kWh, skipped", delta)
 
-        task_name = self.coordinator.current_print.get("task_name") or ""
-        config_name = self.coordinator.current_print.get("config_name") or ""
+        task_name = cp.get("task_name") or ""
+        config_name = cp.get("config_name") or ""
         # 拼接模型名 + 配置名（如 "宜家洞洞板适配...三重钩 + 5mm版"）
         if config_name and config_name != task_name:
             task_name = f"{task_name} + {config_name}"
-        cover_image_url = self.coordinator.current_print.get("cover_image_url") or ""
-        cover_image_local = self.coordinator.current_print.get("cover_image_local")
-        start_time = self.coordinator.current_print.get("start_time") or ""
+        cover_image_url = cp.get("cover_image_url") or ""
+        cover_image_local = cp.get("cover_image_local")
+        start_time = cp.get("start_time") or ""
 
         if not cover_image_local and self.coordinator.image_manager:
             cover_image_local = await self.coordinator.image_manager._download_cover_from_cloud(task_name, end_time, start_time)
         if not cover_image_local and self.coordinator.image_manager:
             cover_image_local = await self.coordinator.image_manager._download_cover_image(cover_image_url, task_name, end_time)
+
+        # 实时颜色 AMS 验证：移除不在 AMS 中的误报颜色
+        ams_colors = self._get_ams_known_colors()
+        if ams_colors and cp.get("colors_used"):
+            _, active_color = self._get_current_filament_info()
+            valid = set(ams_colors)
+            if active_color:
+                valid.add(active_color.lower())
+            cleaned = [c for c in cp["colors_used"] if c.lower() in valid]
+            if len(cleaned) < len(cp["colors_used"]):
+                LOGGER.info("打印结束时清理误报颜色: %s → %s", cp["colors_used"], cleaned)
+                cp["colors_used"] = cleaned
+                cp["total_colors"] = len(cleaned)
 
         colors_used, types_used, color_changes, color_usage, total_colors, multi_color_summary, clean_color_usage = \
             self.coordinator._build_color_data(end_status, progress)
@@ -815,16 +1090,16 @@ class PrintTracker:
         chamber_temp_last5min, chamber_temp_final = self.coordinator._build_chamber_temp_data(end_dt)
 
         base_record = {
-            "id": self.coordinator.current_print["id"],
-            "start_time": self.coordinator.current_print["start_time"],
+            "id": cp["id"],
+            "start_time": cp["start_time"],
             "end_time": end_time,
             "duration_hours": round(duration_hours, 2),
             "status": end_status,
             "progress": progress,
             "total_weight": round(total_weight, 2) if total_weight else None,
             "total_length": round(total_length, 2) if total_length else None,
-            "filament_type": types_used[0] if types_used else self.coordinator.current_print.get("filament_type"),
-            "filament_color": colors_used[0] if colors_used else self.coordinator.current_print.get("filament_color"),
+            "filament_type": types_used[0] if types_used else cp.get("filament_type"),
+            "filament_color": colors_used[0] if colors_used else cp.get("filament_color"),
             "colors_used": colors_used,
             "types_used": types_used,
             "total_colors": total_colors,
@@ -833,20 +1108,20 @@ class PrintTracker:
             "color_usage": clean_color_usage,
             "energy_kwh": round(energy_kwh, 4) if energy_kwh else None,
             "task_name": task_name or None,
-            "task_name_model": self.coordinator.current_print.get("task_name_model") or None,
-            "task_name_config": self.coordinator.current_print.get("task_name_config") or None,
-            "config_name": self.coordinator.current_print.get("task_name_config") or None,
-            "nozzle_type": self.coordinator.current_print.get("nozzle_type"),
-            "nozzle_size": self.coordinator.current_print.get("nozzle_size"),
-            "speed_profile": self.coordinator.current_print.get("speed_profile"),
-            "print_bed_type": self.coordinator.current_print.get("print_bed_type"),
-            "total_layer_count": self.coordinator.current_print.get("total_layer_count"),
+            "task_name_model": cp.get("task_name_model") or None,
+            "task_name_config": cp.get("task_name_config") or None,
+            "config_name": cp.get("task_name_config") or None,
+            "nozzle_type": cp.get("nozzle_type"),
+            "nozzle_size": cp.get("nozzle_size"),
+            "speed_profile": cp.get("speed_profile"),
+            "print_bed_type": cp.get("print_bed_type"),
+            "total_layer_count": cp.get("total_layer_count"),
             "cover_image_url": cover_image_url or None,
             "chamber_temp_final": chamber_temp_final,
             "chamber_temp_last5min": chamber_temp_last5min,
         }
 
-        snapshot_image_local = self.coordinator.current_print.get("snapshot_image_local")
+        snapshot_image_local = cp.get("snapshot_image_local")
         if not snapshot_image_local and self.coordinator.image_manager:
             full_print_info, snapshot_image_local = await asyncio.gather(
                 self.coordinator._save_full_print_info(base_record, end_time),
@@ -863,8 +1138,66 @@ class PrintTracker:
         }
 
         self.coordinator.history.append(record)
-        self.coordinator.current_print = None
         self.hass.async_create_task(self.coordinator._save_history())
         # 通知 coordinator 数据已更新，触发 sensor 属性重新计算
         self.coordinator.async_set_updated_data(self.coordinator._calculate_statistics())
         LOGGER.info("Print ended: status=%s, duration=%.2f hours", end_status, duration_hours)
+
+    async def backfill_model_names_from_history(self) -> int:
+        """从 HA 实体历史反查补全历史记录的模型名和项目名"""
+        task_entity = self._entity_map.get("task_name", "")
+        stage_entity = self._entity_map.get("current_stage", "")
+        if not task_entity:
+            LOGGER.warning("backfill_model_names: task_name 实体未找到")
+            return 0
+
+        updated = 0
+        for record in self.coordinator.history:
+            model = (record.get("task_name_model") or "").strip()
+            if model:
+                continue
+            start_time = record.get("start_time", "")
+            if not start_time:
+                continue
+            start_dt = self.coordinator._normalize_to_utc(start_time)
+            if not start_dt:
+                continue
+
+            query_start = start_dt - timedelta(minutes=5)
+            query_end = start_dt + timedelta(minutes=5)
+            query_entities = [task_entity]
+            if stage_entity:
+                query_entities.append(stage_entity)
+
+            try:
+                history_by_entity = await get_instance(self.hass).async_add_executor_job(
+                    get_significant_states, self.hass, query_start, query_end,
+                    query_entities, None, False, False)
+            except Exception as err:
+                continue
+
+            if not isinstance(history_by_entity, dict):
+                continue
+
+            task_states = history_by_entity.get(task_entity, [])
+            stage_states = history_by_entity.get(stage_entity, []) if stage_entity else []
+            model_name, config_name = self._extract_model_config_from_states(task_states, stage_states)
+
+            if model_name:
+                record["task_name_model"] = model_name
+                old_task = record.get("task_name", "")
+                if not old_task or self._is_param_description(old_task) or old_task.startswith("/data/"):
+                    record["task_name"] = model_name
+                if config_name and config_name != model_name:
+                    record["task_name_config"] = config_name
+                    old_task = record.get("task_name", "")
+                    if " + " not in old_task:
+                        record["task_name"] = f"{model_name} + {config_name}"
+                updated += 1
+
+        if updated > 0:
+            await self.coordinator._save_history()
+            if self.coordinator.statistics:
+                self.coordinator.statistics.invalidate_cache()
+            self.coordinator.async_set_updated_data(self.coordinator._calculate_statistics())
+        return updated
