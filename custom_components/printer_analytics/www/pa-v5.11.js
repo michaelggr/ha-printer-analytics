@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 打印机分析卡片 - v5.12.0
  * 版本: 5.12.0 (2026-05-24) - 序列号唯一标识、打印记录新字段、6个统计分析图表
  *
@@ -5256,10 +5256,11 @@ class PrinterAnalyticsCard extends HTMLElement {
         const result = await this._hass.callWS(msg);
 
         if (result && result.records) {
-          // 标记打印机名和序列号
+          // 标记打印机名、序列号和实体ID（删除记录时需要）
           result.records.forEach(r => {
             r._printer_name = printerName;
             r._printer_serial = printerSerial || r.printer_serial || '';
+            r._printer_entity = entityId;
           });
           allRecords = allRecords.concat(result.records);
           totalRecords += result.pagination?.total || 0;
