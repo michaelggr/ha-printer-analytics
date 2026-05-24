@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 打印机分析卡片 - v5.12.0
  * 版本: 5.12.0 (2026-05-24) - 序列号唯一标识、打印记录新字段、6个统计分析图表
  *
@@ -5221,77 +5221,109 @@ class PrinterAnalyticsCard extends HTMLElement {
     return result;
   }
 
-  /** 通过 WebSocket 请求服务端筛选+分页数据 */
+  /** 通过 WebSocket 请求全局历史数据（包括已删除打印机的记录） */
   async _loadHistoryViaWS() {
     if (!this._hass || this._wsLoading) return;
-    const entryIds = this._getAllEntryIds();
-    if (entryIds.length === 0) return;
 
     this._wsLoading = true;
 
     try {
-      // 合并所有打印机的筛选结果
-      let allRecords = [];
-      let allColors = new Set();
-      let totalRecords = 0;
-
-      for (const { entryId, printerName, printerSerial } of entryIds) {
-        const msg = {
-          type: 'printer_analytics/query_history',
-          entry_id: entryId,
-          filters: {
-            status: this._filterStatus || '',
-            color: this._filterColor || '',
-            printer: this._filterPrinter || '',
-            slice_mode: this._filterSliceMode || '',
-            over_500g: this._filterOver500g || '',
-            date_from: this._dateFrom || '',
-            date_to: this._dateTo || '',
-            search: this._searchQuery || '',
-          },
-          page: this._currentPage || 1,
-          page_size: this._pageSize || 20,
-        };
-
-        const result = await this._hass.callWS(msg);
-
-        if (result && result.records) {
-          // 标记打印机名、序列号和实体ID（删除记录时需要）
-          result.records.forEach(r => {
-            r._printer_name = printerName;
-            r._printer_serial = printerSerial || r.printer_serial || '';
-            r._printer_entity = entityId;
-          });
-          allRecords = allRecords.concat(result.records);
-          totalRecords += result.pagination?.total || 0;
-
-          // 合并颜色选项
-          if (result.filter_options?.colors) {
-            result.filter_options.colors.forEach(c => allColors.add(c));
-          }
-        }
-      }
-
-      // 按时间排序
-      allRecords.sort((a, b) => {
-        const timeA = a.end_time || a.start_time || '';
-        const timeB = b.end_time || b.start_time || '';
-        return new Date(timeB) - new Date(timeA);
-      });
-
-      this._wsHistoryData = {
-        records: allRecords,
-        totalRecords: totalRecords,
-        colors: [...allColors].sort(),
+      // 使用全局查询，扫描所有历史文件
+      const msg = {
+        type: 'printer_analytics/query_all_history',
+        filters: {
+          status: this._filterStatus || '',
+          color: this._filterColor || '',
+          printer: this._filterPrinter || '',
+          slice_mode: this._filterSliceMode || '',
+          over_500g: this._filterOver500g || '',
+          date_from: this._dateFrom || '',
+          date_to: this._dateTo || '',
+          search: this._searchQuery || '',
+        },
+        page: this._currentPage || 1,
+        page_size: this._pageSize || 20,
       };
 
+      const result = await this._hass.callWS(msg);
+
+      if (result && result.records) {
+        // 全局查询已包含打印机名和实体ID
+        this._wsHistoryData = {
+          records: result.records,
+          totalRecords: result.filter_options?.total_records || result.pagination?.total || 0,
+          colors: result.filter_options?.colors || [],
+          allSerials: result.filter_options?.all_serials || [],
+          serialNameMap: result.filter_options?.serial_name_map || {},
+        };
+      }
+
     } catch (e) {
-      console.warn('[WS] 加载历史失败，回退到实体属性:', e);
+      console.warn('[WS] 全局查询失败，回退到单打印机查询:', e);
       this._wsHistoryData = null;
+      // 回退到旧的按 entry_id 查询方式
+      await this._loadHistoryViaWSFallback();
     } finally {
       this._wsLoading = false;
       this._refreshContent();
     }
+  }
+
+  /** 回退方法：按 entry_id 逐个查询（当全局查询不可用时） */
+  async _loadHistoryViaWSFallback() {
+    const entryIds = this._getAllEntryIds();
+    if (entryIds.length === 0) return;
+
+    let allRecords = [];
+    let allColors = new Set();
+    let totalRecords = 0;
+
+    for (const { entryId, printerName, printerSerial, entityId } of entryIds) {
+      const msg = {
+        type: 'printer_analytics/query_history',
+        entry_id: entryId,
+        filters: {
+          status: this._filterStatus || '',
+          color: this._filterColor || '',
+          printer: this._filterPrinter || '',
+          slice_mode: this._filterSliceMode || '',
+          over_500g: this._filterOver500g || '',
+          date_from: this._dateFrom || '',
+          date_to: this._dateTo || '',
+          search: this._searchQuery || '',
+        },
+        page: this._currentPage || 1,
+        page_size: this._pageSize || 20,
+      };
+
+      const result = await this._hass.callWS(msg);
+
+      if (result && result.records) {
+        result.records.forEach(r => {
+          r._printer_name = printerName;
+          r._printer_serial = printerSerial || r.printer_serial || '';
+          r._printer_entity = entityId;
+        });
+        allRecords = allRecords.concat(result.records);
+        totalRecords += result.pagination?.total || 0;
+
+        if (result.filter_options?.colors) {
+          result.filter_options.colors.forEach(c => allColors.add(c));
+        }
+      }
+    }
+
+    allRecords.sort((a, b) => {
+      const timeA = a.end_time || a.start_time || '';
+      const timeB = b.end_time || b.start_time || '';
+      return new Date(timeB) - new Date(timeA);
+    });
+
+    this._wsHistoryData = {
+      records: allRecords,
+      totalRecords: totalRecords,
+      colors: [...allColors].sort(),
+    };
   }
 
   _exportHistoryToCSV() {

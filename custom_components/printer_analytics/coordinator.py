@@ -1,4 +1,4 @@
-﻿"""Printer Analytics Coordinator - 主协调器"""
+"""Printer Analytics Coordinator - 主协调器"""
 from __future__ import annotations
 
 import asyncio
@@ -122,6 +122,14 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
 
         # 实体发现后，填充打印机序列号
         self._update_printer_serial()
+
+        # 序列号更新后，迁移旧文件名并更新存储键
+        if self.printer_serial and self.storage:
+            try:
+                await self.hass.async_add_executor_job(self.storage.migrate_entry_id_to_serial)
+                self.storage.update_storage_key()
+            except Exception as err:
+                LOGGER.warning("存储键迁移失败: %s", err)
 
         try:
             await self.hass.async_add_executor_job(self.image_manager.detect_placeholder_images)
@@ -982,29 +990,42 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
 
     def _find_duplicate_record(self, record: dict) -> dict | None:
         """根据设备序列号+结束时间(±2分钟)查找已有重复记录"""
-        serial = record.get("printer_serial") or record.get("deviceId") or ""
-        end_time_str = record.get("end_time") or record.get("endTime") or ""
-        if not serial or not end_time_str:
-            return None
-
-        end_dt = self._normalize_to_utc(end_time_str)
-        if not end_dt:
-            return None
-
         for existing in self.history:
-            ex_serial = existing.get("printer_serial") or existing.get("deviceId") or ""
-            if ex_serial != serial:
-                continue
-            ex_end_str = existing.get("end_time") or existing.get("endTime") or ""
-            if not ex_end_str:
-                continue
-            ex_dt = self._normalize_to_utc(ex_end_str)
-            if not ex_dt:
-                continue
-            # 结束时间差在 ±2 分钟内视为同一条记录
-            if abs((end_dt - ex_dt).total_seconds()) <= 120:
+            if self._is_duplicate_record(existing, record):
                 return existing
         return None
+
+    @staticmethod
+    def _is_duplicate_record(existing: dict, record: dict) -> bool:
+        """判断两条记录是否重复（序列号+结束时间±2分钟）"""
+        serial = record.get("printer_serial") or record.get("deviceId") or ""
+        ex_serial = existing.get("printer_serial") or existing.get("deviceId") or ""
+        if serial != ex_serial or not serial:
+            return False
+
+        end_time_str = record.get("end_time") or record.get("endTime") or ""
+        ex_end_str = existing.get("end_time") or existing.get("endTime") or ""
+        if not end_time_str or not ex_end_str:
+            return False
+
+        # 简单时间比较（避免依赖 _normalize_to_utc 的实例方法）
+        try:
+            from datetime import datetime, timezone
+            def _parse(t):
+                t = t.replace("Z", "+00:00")
+                if "T" in t:
+                    return datetime.fromisoformat(t)
+                return datetime.fromisoformat(t.replace(" ", "T"))
+            dt1 = _parse(end_time_str)
+            dt2 = _parse(ex_end_str)
+            # 统一到无时区比较
+            if dt1.tzinfo:
+                dt1 = dt1.replace(tzinfo=None)
+            if dt2.tzinfo:
+                dt2 = dt2.replace(tzinfo=None)
+            return abs((dt1 - dt2).total_seconds()) <= 120
+        except Exception:
+            return False
 
     def _merge_record(self, existing: dict, incoming: dict) -> bool:
         """合并导入记录到已有记录：仅填充空/默认字段，不覆盖已有有效数据"""
@@ -1050,6 +1071,7 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
 
         重复判定：设备序列号(printer_serial) + 结束时间(end_time) ±2分钟
         合并策略：仅填充已有记录中为空/默认的字段，不覆盖已有有效数据
+        支持导入不属于当前打印机的记录（按 serial 写入对应文件）
         """
         try:
             data = json.loads(json_data)
@@ -1079,38 +1101,115 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
             if not rec.get("status"):
                 raise ValueError(f"第 {i + 1} 条记录缺少状态(status)")
 
-        added = 0
-        merged = 0
+        # 按序列号分组：属于当前 coordinator 的 vs 其他序列号的
+        my_serial = (self.printer_serial or "").upper()
+        my_records = []
+        other_by_serial: dict[str, list[dict]] = {}
+
         for rec in records:
             # 清理内部字段
             rec = {k: v for k, v in rec.items() if not k.startswith("_") or k == "_pending_color_validation"}
-
-            # 确保有 id
             if "id" not in rec:
                 rec["id"] = str(uuid.uuid4())
 
-            # 查找重复记录
+            rec_serial = (rec.get("printer_serial") or rec.get("deviceId") or "").upper()
+            if not rec_serial:
+                rec_serial = my_serial
+
+            if rec_serial == my_serial and my_serial:
+                if "printer_serial" not in rec:
+                    rec["printer_serial"] = self.printer_serial or None
+                my_records.append(rec)
+            else:
+                # 其他序列号的记录
+                if "printer_serial" not in rec and rec_serial:
+                    rec["printer_serial"] = rec_serial
+                other_by_serial.setdefault(rec_serial, []).append(rec)
+
+        # 处理当前 coordinator 的记录
+        added = 0
+        merged = 0
+        for rec in my_records:
             duplicate = self._find_duplicate_record(rec)
             if duplicate:
                 if self._merge_record(duplicate, rec):
                     merged += 1
             else:
-                # 新记录：确保关键字段完整
-                if "printer_serial" not in rec:
-                    rec["printer_serial"] = self.printer_serial or None
                 self.history.append(rec)
                 added += 1
 
         if added > 0 or merged > 0:
-            # 对新记录执行迁移
             self._migrate_history_records()
             if self.statistics:
                 self.statistics.invalidate_cache()
             await self._save_history()
             self.async_set_updated_data(self._calculate_statistics())
 
-        LOGGER.info("Import completed: %d added, %d merged", added, merged)
-        return added + merged
+        # 处理其他序列号的记录：直接写入对应文件
+        other_count = 0
+        if other_by_serial and self.storage:
+            other_count = await self.hass.async_add_executor_job(
+                self._import_other_serial_records, other_by_serial
+            )
+
+        LOGGER.info("Import completed: %d added, %d merged, %d other serial", added, merged, other_count)
+        return added + merged + other_count
+
+    def _import_other_serial_records(self, records_by_serial: dict[str, list[dict]]) -> int:
+        """导入不属于当前 coordinator 的记录，直接写入对应序列号的文件"""
+        from .storage import StorageManager as _SM
+
+        total = 0
+        for serial, records in records_by_serial.items():
+            if not serial:
+                continue
+            # 读取该序列号现有的所有记录
+            existing_records = []
+            year_files = []
+            if os.path.isdir(self._history_dir):
+                for f in os.listdir(self._history_dir):
+                    if f.startswith(f"{serial}_") and f.endswith(".json"):
+                        year_files.append(f)
+
+            for yf in year_files:
+                fp = os.path.join(self._history_dir, yf)
+                try:
+                    with open(fp, "r", encoding="utf-8") as fh:
+                        d = json.load(fh)
+                    existing_records.extend(d.get("history", []) if isinstance(d, dict) else d)
+                except Exception:
+                    continue
+
+            # 合并新记录
+            for rec in records:
+                # 查找重复
+                is_dup = False
+                for ex in existing_records:
+                    if self._is_duplicate_record(ex, rec):
+                        if self._merge_record(ex, rec):
+                            total += 1
+                        is_dup = True
+                        break
+                if not is_dup:
+                    existing_records.append(rec)
+                    total += 1
+
+            # 按年份分组写回
+            records_by_year: dict[int, list[dict]] = {}
+            for r in existing_records:
+                year = _SM._extract_year_from_end_time(r.get("end_time", ""))
+                records_by_year.setdefault(year, []).append(r)
+
+            for year, year_records in records_by_year.items():
+                year_file = os.path.join(self._history_dir, f"{serial}_{year}.json")
+                data = {"version": HISTORY_VERSION, "year": year, "history": year_records}
+                try:
+                    with open(year_file, "w", encoding="utf-8") as f:
+                        json.dump(data, f, ensure_ascii=False, indent=2)
+                except Exception as err:
+                    LOGGER.warning("写入序列号 %s 的 %d 年数据失败: %s", serial, year, err)
+
+        return total
 
     async def async_backup_history(self) -> str:
         """备份历史记录到 HA 备份目录"""

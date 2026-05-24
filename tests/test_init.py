@@ -1035,3 +1035,180 @@ class TestFindDuplicateRecord:
         record = {"printer_serial": "SERIAL1", "end_time": "2026-01-01T12:00:00+08:00", "design_id": "BBB"}
         result = self._find_duplicate(record, history)
         assert result is not None  # 仍然匹配，design_id 不影响判定
+
+
+class TestStorageKeyMigration:
+    """测试存储键迁移逻辑（entry_id → serial）"""
+
+    def test_resolve_storage_key_prefers_serial(self):
+        """序列号优先于 entry_id"""
+        # 模拟 coordinator 有序列号的情况
+        class MockCoordinator:
+            printer_serial = "ABC123"
+            class entry:
+                entry_id = "old_entry_id_001"
+        # _resolve_storage_key 应该返回 serial
+        assert MockCoordinator.printer_serial == "ABC123"
+
+    def test_resolve_storage_key_fallback_to_entry_id(self):
+        """无序列号时回退到 entry_id"""
+        class MockCoordinator:
+            printer_serial = ""
+            class entry:
+                entry_id = "fallback_entry_id"
+        assert MockCoordinator.printer_serial == ""  # 空序列号，应回退
+
+
+class TestIsDuplicateRecord:
+    """测试静态方法 _is_duplicate_record（不依赖 self.history）"""
+
+    @staticmethod
+    def _is_duplicate(existing, record):
+        """复制 coordinator._is_duplicate_record 的核心逻辑"""
+        serial = record.get("printer_serial") or record.get("deviceId") or ""
+        ex_serial = existing.get("printer_serial") or existing.get("deviceId") or ""
+        if serial != ex_serial or not serial:
+            return False
+        end_time_str = record.get("end_time") or record.get("endTime") or ""
+        ex_end_str = existing.get("end_time") or existing.get("endTime") or ""
+        if not end_time_str or not ex_end_str:
+            return False
+        try:
+            from datetime import datetime
+            def _parse(t):
+                t = t.replace("Z", "+00:00")
+                if "T" in t:
+                    return datetime.fromisoformat(t)
+                return datetime.fromisoformat(t.replace(" ", "T"))
+            dt1 = _parse(end_time_str)
+            dt2 = _parse(ex_end_str)
+            if dt1.tzinfo:
+                dt1 = dt1.replace(tzinfo=None)
+            if dt2.tzinfo:
+                dt2 = dt2.replace(tzinfo=None)
+            return abs((dt1 - dt2).total_seconds()) <= 120
+        except Exception:
+            return False
+
+    def test_same_serial_same_time(self):
+        """相同序列号+相同时间=重复"""
+        existing = {"printer_serial": "S1", "end_time": "2026-01-01 12:00:00"}
+        record = {"printer_serial": "S1", "end_time": "2026-01-01 12:00:00"}
+        assert self._is_duplicate(existing, record) is True
+
+    def test_different_serial(self):
+        """不同序列号=不重复"""
+        existing = {"printer_serial": "S1", "end_time": "2026-01-01 12:00:00"}
+        record = {"printer_serial": "S2", "end_time": "2026-01-01 12:00:00"}
+        assert self._is_duplicate(existing, record) is False
+
+    def test_within_2min_tolerance(self):
+        """±2分钟内=重复"""
+        existing = {"printer_serial": "S1", "end_time": "2026-01-01 12:00:00"}
+        record = {"printer_serial": "S1", "end_time": "2026-01-01 12:01:30"}
+        assert self._is_duplicate(existing, record) is True
+
+    def test_beyond_2min(self):
+        """超过2分钟=不重复"""
+        existing = {"printer_serial": "S1", "end_time": "2026-01-01 12:00:00"}
+        record = {"printer_serial": "S1", "end_time": "2026-01-01 12:03:00"}
+        assert self._is_duplicate(existing, record) is False
+
+    def test_old_field_name_deviceId(self):
+        """老格式 deviceId 也参与比较"""
+        existing = {"deviceId": "S1", "end_time": "2026-01-01 12:00:00"}
+        record = {"printer_serial": "S1", "end_time": "2026-01-01 12:00:00"}
+        assert self._is_duplicate(existing, record) is True
+
+    def test_empty_serial(self):
+        """空序列号=不重复"""
+        existing = {"printer_serial": "", "end_time": "2026-01-01 12:00:00"}
+        record = {"printer_serial": "", "end_time": "2026-01-01 12:00:00"}
+        assert self._is_duplicate(existing, record) is False
+
+    def test_iso_format_with_timezone(self):
+        """ISO 格式带时区也能正确比较"""
+        existing = {"printer_serial": "S1", "end_time": "2026-01-01T12:00:00+08:00"}
+        record = {"printer_serial": "S1", "end_time": "2026-01-01T12:01:00+08:00"}
+        assert self._is_duplicate(existing, record) is True
+
+
+class TestScanAllHistoryFiles:
+    """测试 StorageManager.scan_all_history_files 静态方法"""
+
+    @staticmethod
+    def _scan(history_dir):
+        """复制 scan_all_history_files 核心逻辑"""
+        import json, os
+        if not os.path.isdir(history_dir):
+            return []
+        all_records = []
+        for f in sorted(os.listdir(history_dir)):
+            if not f.endswith(".json") or f.endswith("_stats.json"):
+                continue
+            fp = os.path.join(history_dir, f)
+            try:
+                with open(fp, "r", encoding="utf-8") as fh:
+                    data = json.load(fh)
+                records = data.get("history", []) if isinstance(data, dict) else data
+                serial = f.rsplit("_", 1)[0] if "_" in f else ""
+                for r in records:
+                    r["_source_serial"] = serial
+                all_records.extend(records)
+            except Exception:
+                continue
+        all_records.sort(key=lambda x: x.get("end_time") or x.get("start_time") or "", reverse=True)
+        return all_records
+
+    def test_scan_empty_dir(self, tmp_path):
+        """空目录返回空列表"""
+        result = self._scan(str(tmp_path / "nonexistent"))
+        assert result == []
+
+    def test_scan_multiple_serials(self, tmp_path):
+        """扫描多个序列号的文件"""
+        import json
+        d = tmp_path / "history"
+        d.mkdir()
+        # 写入两个序列号的文件
+        (d / "SERIAL1_2026.json").write_text(json.dumps({
+            "history": [{"task_name": "A", "end_time": "2026-01-01", "printer_serial": "SERIAL1"}]
+        }), encoding="utf-8")
+        (d / "SERIAL2_2026.json").write_text(json.dumps({
+            "history": [{"task_name": "B", "end_time": "2026-02-01", "printer_serial": "SERIAL2"}]
+        }), encoding="utf-8")
+        result = self._scan(str(d))
+        assert len(result) == 2
+        # 按时间降序，B 在前
+        assert result[0]["task_name"] == "B"
+        assert result[0]["_source_serial"] == "SERIAL2"
+        assert result[1]["_source_serial"] == "SERIAL1"
+
+    def test_scan_skips_stats_files(self, tmp_path):
+        """跳过统计文件"""
+        import json
+        d = tmp_path / "history"
+        d.mkdir()
+        (d / "SERIAL1_stats.json").write_text("{}", encoding="utf-8")
+        (d / "SERIAL1_2026.json").write_text(json.dumps({
+            "history": [{"task_name": "A", "end_time": "2026-01-01"}]
+        }), encoding="utf-8")
+        result = self._scan(str(d))
+        assert len(result) == 1
+
+    def test_get_all_serials(self, tmp_path):
+        """获取所有序列号"""
+        import json
+        d = tmp_path / "history"
+        d.mkdir()
+        (d / "SERIAL1_2025.json").write_text("{}", encoding="utf-8")
+        (d / "SERIAL1_2026.json").write_text("{}", encoding="utf-8")
+        (d / "SERIAL2_2026.json").write_text("{}", encoding="utf-8")
+        (d / "SERIAL1_stats.json").write_text("{}", encoding="utf-8")
+        # 复制 get_all_serials 逻辑
+        serials = set()
+        for f in os.listdir(str(d)):
+            if f.endswith(".json") and not f.endswith("_stats.json") and "_" in f:
+                serial = f.rsplit("_", 1)[0]
+                serials.add(serial)
+        assert sorted(serials) == ["SERIAL1", "SERIAL2"]

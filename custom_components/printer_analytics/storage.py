@@ -24,7 +24,12 @@ _INTERNAL_KEYS = frozenset({"_pending_color", "_pending_color_count", "_color_ch
 
 
 class StorageManager:
-    """历史数据存储管理器 - 支持按需读取、增量统计、脏标记只写变化年份"""
+    """历史数据存储管理器 - 支持按需读取、增量统计、脏标记只写变化年份
+
+    文件命名规则：{serial}_{year}.json（优先使用序列号，回退到 entry_id）
+    这样即使打印机从 HA 删除后重新添加（entry_id 变化但 serial 不变），
+    也能自动关联到同一份历史数据。
+    """
 
     def __init__(self, coordinator: "PrinterAnalyticsCoordinator") -> None:
         self.coordinator = coordinator
@@ -39,8 +44,51 @@ class StorageManager:
         self._dirty_years: set[int] = set()
         self._save_debounce = None
 
+        # 存储键：优先用序列号，回退到 entry_id
+        self._storage_key = self._resolve_storage_key()
+
         # 统计缓存文件路径
-        self._stats_file = os.path.join(self._history_dir, f"{self.entry.entry_id}_stats.json")
+        self._stats_file = os.path.join(self._history_dir, f"{self._storage_key}_stats.json")
+
+    def _resolve_storage_key(self) -> str:
+        """确定存储键：优先使用序列号，回退到 entry_id
+
+        序列号作为文件前缀，确保同一台打印机即使重新添加到 HA
+        （entry_id 变化）也能关联到同一份历史数据。
+        """
+        serial = self.coordinator.printer_serial
+        if serial:
+            return serial
+        return self.entry.entry_id
+
+    def update_storage_key(self) -> None:
+        """序列号更新后重新计算存储键并迁移文件"""
+        new_key = self._resolve_storage_key()
+        if new_key == self._storage_key:
+            return
+
+        old_key = self._storage_key
+        LOGGER.info("存储键变更: %s → %s，开始迁移文件...", old_key, new_key)
+
+        # 重命名所有年份文件
+        if os.path.isdir(self._history_dir):
+            for f in os.listdir(self._history_dir):
+                if f.startswith(f"{old_key}_") and f.endswith(".json"):
+                    old_path = os.path.join(self._history_dir, f)
+                    new_name = f.replace(f"{old_key}_", f"{new_key}_", 1)
+                    new_path = os.path.join(self._history_dir, new_name)
+                    if not os.path.exists(new_path):
+                        os.rename(old_path, new_path)
+                        LOGGER.debug("重命名: %s → %s", f, new_name)
+
+        # 重命名统计文件
+        old_stats = os.path.join(self._history_dir, f"{old_key}_stats.json")
+        new_stats = os.path.join(self._history_dir, f"{new_key}_stats.json")
+        if os.path.exists(old_stats) and not os.path.exists(new_stats):
+            os.rename(old_stats, new_stats)
+
+        self._storage_key = new_key
+        self._stats_file = new_stats
 
     # ================================================================
     # 脏标记
@@ -91,9 +139,83 @@ class StorageManager:
         except Exception as err:
             LOGGER.error("迁移旧版数据失败: %s", err)
 
-    # ================================================================
-    # 工具方法
-    # ================================================================
+    def migrate_entry_id_to_serial(self) -> None:
+        """将 entry_id 前缀的文件迁移为 serial 前缀
+
+        启动时调用，确保旧版文件名（entry_id_2025.json）自动重命名为
+        新版格式（SERIAL_2025.json），支持打印机重新添加后数据自动关联。
+        """
+        entry_id = self.entry.entry_id
+        serial = self.coordinator.printer_serial
+        if not serial or serial == entry_id:
+            return  # 没有序列号或已经是 serial 格式，无需迁移
+
+        if not os.path.isdir(self._history_dir):
+            return
+
+        migrated = 0
+        for f in os.listdir(self._history_dir):
+            if f.startswith(f"{entry_id}_") and f.endswith(".json"):
+                old_path = os.path.join(self._history_dir, f)
+                new_name = f.replace(f"{entry_id}_", f"{serial}_", 1)
+                new_path = os.path.join(self._history_dir, new_name)
+                if not os.path.exists(new_path):
+                    os.rename(old_path, new_path)
+                    migrated += 1
+                    LOGGER.debug("迁移文件: %s → %s", f, new_name)
+
+        # 迁移统计文件
+        old_stats = os.path.join(self._history_dir, f"{entry_id}_stats.json")
+        new_stats = os.path.join(self._history_dir, f"{serial}_stats.json")
+        if os.path.exists(old_stats) and not os.path.exists(new_stats):
+            os.rename(old_stats, new_stats)
+            migrated += 1
+
+        if migrated > 0:
+            LOGGER.info("已迁移 %d 个文件: entry_id=%s → serial=%s", migrated, entry_id, serial)
+
+    @staticmethod
+    def scan_all_history_files(history_dir: str) -> list[dict]:
+        """全局扫描所有历史文件，返回所有记录（用于全部历史和统计）
+
+        扫描 history_by_year/ 下所有 JSON 文件，包括已删除打印机的记录。
+        每条记录会附加 _source_serial 字段标识来源。
+        """
+        if not os.path.isdir(history_dir):
+            return []
+
+        all_records = []
+        for f in sorted(os.listdir(history_dir)):
+            if not f.endswith(".json") or f.endswith("_stats.json"):
+                continue
+            file_path = os.path.join(history_dir, f)
+            try:
+                with open(file_path, "r", encoding="utf-8") as fh:
+                    data = json.load(fh)
+                records = data.get("history", []) if isinstance(data, dict) else data
+                # 从文件名提取序列号
+                serial = f.rsplit("_", 1)[0] if "_" in f else ""
+                for r in records:
+                    r["_source_serial"] = serial
+                all_records.extend(records)
+            except Exception as err:
+                LOGGER.warning("全局扫描读取文件失败 %s: %s", f, err)
+
+        # 按时间降序排序
+        all_records.sort(key=lambda x: x.get("end_time") or x.get("start_time") or "", reverse=True)
+        return all_records
+
+    @staticmethod
+    def get_all_serials(history_dir: str) -> list[str]:
+        """获取历史目录中所有序列号（去重排序）"""
+        if not os.path.isdir(history_dir):
+            return []
+        serials = set()
+        for f in os.listdir(history_dir):
+            if f.endswith(".json") and not f.endswith("_stats.json") and "_" in f:
+                serial = f.rsplit("_", 1)[0]
+                serials.add(serial)
+        return sorted(serials)
 
     @staticmethod
     def _extract_year_from_end_time(end_time: str) -> int:
@@ -106,17 +228,17 @@ class StorageManager:
             return 2020
 
     def _get_year_files(self) -> list[str]:
-        """获取当前 entry 的所有年份文件名（已排序）"""
+        """获取当前存储键的所有年份文件名（已排序）"""
         if not os.path.isdir(self._history_dir):
             return []
         return sorted(
             f for f in os.listdir(self._history_dir)
-            if f.startswith(f"{self.entry.entry_id}_") and f.endswith(".json")
+            if f.startswith(f"{self._storage_key}_") and f.endswith(".json")
         )
 
     def _year_file_path(self, year: int) -> str:
         """获取年份文件路径"""
-        return os.path.join(self._history_dir, f"{self.entry.entry_id}_{year}.json")
+        return os.path.join(self._history_dir, f"{self._storage_key}_{year}.json")
 
     # ================================================================
     # 按需查询（核心新增 - 不加载全量到内存）
@@ -323,7 +445,7 @@ class StorageManager:
                         records = data.get("history", []) if isinstance(data, dict) else data
                         count = len(records)
                         total_count += count
-                        year = year_file.replace(f"{self.entry.entry_id}_", "").replace(".json", "")
+                        year = year_file.replace(f"{self._storage_key}_", "").replace(".json", "")
                         self.coordinator._yearly_stats[year] = count
                     except Exception as err:
                         LOGGER.warning("加载年份文件失败 %s: %s", year_file, err)
@@ -392,7 +514,7 @@ class StorageManager:
     def _save_year_data(self, year: int, records: list[dict]) -> None:
         """保存单年份数据（直接写入，由外层 executor 调度）"""
         os.makedirs(self._history_dir, exist_ok=True)
-        year_file = os.path.join(self._history_dir, f"{self.entry.entry_id}_{year}.json")
+        year_file = os.path.join(self._history_dir, f"{self._storage_key}_{year}.json")
         data = {"version": HISTORY_VERSION, "year": year, "history": records}
         with open(year_file, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
@@ -436,7 +558,7 @@ class StorageManager:
     def _save_year_file(self, year: int, records: list[dict]) -> None:
         """保存单年份文件（直接写入，外层已在 executor 中）"""
         os.makedirs(self._history_dir, exist_ok=True)
-        year_file = os.path.join(self._history_dir, f"{self.entry.entry_id}_{year}.json")
+        year_file = os.path.join(self._history_dir, f"{self._storage_key}_{year}.json")
         data = {"version": HISTORY_VERSION, "year": year, "history": records}
 
         try:
@@ -458,7 +580,7 @@ class StorageManager:
 
         os.makedirs(self._archive_dir, exist_ok=True)
         archive_file = os.path.join(
-            self._archive_dir, f"{self.entry.entry_id}_{year}_archive_{self.coordinator._total_records}.json.gz"
+            self._archive_dir, f"{self._storage_key}_{year}_archive_{self.coordinator._total_records}.json.gz"
         )
 
         try:
@@ -474,7 +596,7 @@ class StorageManager:
         os.makedirs(self._archive_dir, exist_ok=True)
         timestamp = self.coordinator._total_records
         backup_file = os.path.join(
-            self._archive_dir, f"{self.entry.entry_id}_full_backup_{timestamp}.json.gz"
+            self._archive_dir, f"{self._storage_key}_full_backup_{timestamp}.json.gz"
         )
 
         try:
@@ -507,7 +629,7 @@ class StorageManager:
                 [
                     f
                     for f in os.listdir(self._archive_dir)
-                    if f.startswith(f"{self.entry.entry_id}_full_backup_")
+                    if f.startswith(f"{self._storage_key}_full_backup_")
                 ],
                 reverse=True,
             )
@@ -532,7 +654,7 @@ class StorageManager:
                 f
                 for f in os.listdir(self._ha_backup_dir)
                 if f.endswith(".json.gz")
-                and f.startswith(f"{self.entry.entry_id}_full_backup_")
+                and f.startswith(f"{self._storage_key}_full_backup_")
             ]
 
             if not backups:
@@ -575,9 +697,9 @@ class StorageManager:
 
             latest_year = max(
                 (
-                    int(f.replace(f"{self.entry.entry_id}_", "").replace(".json", ""))
+                    int(f.replace(f"{self._storage_key}_", "").replace(".json", ""))
                     for f in os.listdir(self._history_dir)
-                    if f.startswith(f"{self.entry.entry_id}_") and f.endswith(".json")
+                    if f.startswith(f"{self._storage_key}_") and f.endswith(".json")
                 ),
                 default=None,
             )
@@ -586,11 +708,11 @@ class StorageManager:
                 return
 
             current_file = os.path.join(
-                self._history_dir, f"{self.entry.entry_id}_{latest_year}.json"
+                self._history_dir, f"{self._storage_key}_{latest_year}.json"
             )
 
             sync_file = os.path.join(
-                self._ha_backup_dir, f"{self.entry.entry_id}_current.json.gz"
+                self._ha_backup_dir, f"{self._storage_key}_current.json.gz"
             )
 
             with gzip.open(sync_file, "wt", encoding="utf-8") as gz:
@@ -601,7 +723,7 @@ class StorageManager:
                 f
                 for f in os.listdir(self._ha_backup_dir)
                 if f.endswith(".json.gz")
-                and f.startswith(f"{self.entry.entry_id}_archive_")
+                and f.startswith(f"{self._storage_key}_archive_")
             ]
             archives.sort(reverse=True)
             for old in archives[SYNC_ARCHIVE_COUNT:]:
