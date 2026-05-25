@@ -1,4 +1,4 @@
-﻿﻿"""打印跟踪模块"""
+"""打印跟踪模块"""
 import asyncio
 import json
 import logging
@@ -32,7 +32,7 @@ from .const import (
     TASK_NAME_CAPTURE_WINDOW_SECS,
     TRANSITIONAL_STATUSES,
 )
-from .utils import is_param_description
+from .utils import extract_model_from_gcode_filename, is_param_description
 
 if TYPE_CHECKING:
     from .coordinator import PrinterAnalyticsCoordinator
@@ -104,35 +104,61 @@ class PrintTracker:
         except Exception as err:
             LOGGER.warning("删除 current_print 文件失败: %s", err)
 
-    def recover_active_print(self) -> None:
-        """恢复活跃打印 - 完整收集打印信息"""
-        if self.coordinator.current_print:
-            return
+    def _try_recover_from_disk(self) -> bool:
+        """尝试从磁盘恢复打印记录
 
-        # 检查当前状态是否在打印中
+        当打印机状态不在活跃打印状态时，检查磁盘是否有持久化数据并恢复。
+
+        Returns:
+            bool: 是否成功从磁盘恢复（True 表示主方法应直接返回）
+        """
         current_status = self.get_current_status()
-        if current_status not in ACTIVE_PRINT_STATUSES:
-            # 状态不可用时，先检查磁盘是否有持久化数据
-            saved = self._load_current_print()
-            if saved:
-                self.coordinator.current_print = saved
-                self.coordinator.current_print["_pending_color_validation"] = True
-                self.start_material_cache()
-                LOGGER.info("状态不可用但磁盘有持久化数据，先恢复: %s", saved.get("task_name", ""))
-                self.coordinator.async_set_updated_data(self.coordinator._calculate_statistics())
-                return
-            self._delete_current_print_file()
-            return
+        if current_status in ACTIVE_PRINT_STATUSES:
+            return False
 
-        # 获取开始时间
-        start_time = datetime.now(timezone.utc).isoformat()  # 默认
+        # 状态不可用时，检查磁盘是否有持久化数据
+        saved = self._load_current_print()
+        if saved:
+            self.coordinator.current_print = saved
+            self.coordinator.current_print["_pending_color_validation"] = True
+            self.start_material_cache()
+            LOGGER.info("状态不可用但磁盘有持久化数据，先恢复: %s", saved.get("task_name", ""))
+            self.coordinator.async_set_updated_data(self.coordinator._calculate_statistics())
+            return True
+
+        # 无磁盘数据，清理可能存在的旧文件
+        self._delete_current_print_file()
+        return False
+
+    def _collect_start_time(self) -> str:
+        """收集打印开始时间
+
+        Returns:
+            str: ISO格式的开始时间
+        """
+        start_time = datetime.now(timezone.utc).isoformat()  # 默认值
         start_time_entity = self._entity_map.get("start_time")
         if start_time_entity:
             start_time_val = self.coordinator.get_entity_state(start_time_entity)
             if start_time_val and start_time_val not in INVALID_ENTITY_STATES:
                 start_time = self.coordinator._ensure_timezone(start_time_val)
+        return start_time
 
-        # 收集任务名称
+    def _collect_task_name(self) -> tuple[str, str, str]:
+        """收集任务名称信息
+
+        综合即时名称、预缓存模型名/项目名、gcode文件名和历史推断，确定模型名和配置名。
+
+        优先级：
+        1. 预缓存模型名（来自 task_name 实体变化监听，最可靠）
+        2. gcode_file_downloaded 提取的模型名（次可靠）
+        3. 即时 task_name（可能是项目名，需验证）
+        4. 历史推断（最后回退）
+
+        Returns:
+            tuple: (task_name, model_name, config_name)
+        """
+        # 获取即时任务名称
         task_entity = self._entity_map.get("task_name", "")
         immediate_name = ""
         if task_entity:
@@ -141,74 +167,161 @@ class PrintTracker:
         model_name = ""
         config_name = ""
 
-        # 预缓存的模型名作为候选（来自 task_name 实体变化监听）
-        # 但如果 immediate_name 是有效的非参数描述模型名，优先使用它
+        # 获取预缓存的模型名和项目名（来自 task_name 实体变化监听）
         pre_cached_model = self.coordinator._pre_print_model_name
+        pre_cached_project = self.coordinator._pre_print_project_name
         if pre_cached_model:
             self.coordinator._pre_print_model_name = ""
+            self.coordinator._pre_print_project_name = ""
 
+        # 从 gcode_file_downloaded 提取模型名（作为回退源）
+        gcode_model = self._extract_model_from_gcode()
+
+        # 判断任务名称类型并设置 model_name 和 config_name
         if immediate_name and immediate_name not in INVALID_ENTITY_STATES:
             self._task_name_variants = [immediate_name]
             if self._is_param_description(immediate_name):
                 config_name = immediate_name
-                # immediate_name 是参数描述，使用预缓存或从历史推断
-                model_name = pre_cached_model or self._infer_model_name_from_history(immediate_name) or ""
+                # 参数描述：使用预缓存 > gcode > 历史推断
+                model_name = pre_cached_model or gcode_model or self._infer_model_name_from_history(immediate_name) or ""
+            elif immediate_name == pre_cached_project:
+                # 即时名称等于预缓存的项目名 → 使用预缓存的模型名
+                model_name = pre_cached_model or gcode_model or ""
+                config_name = immediate_name
+            elif pre_cached_model and immediate_name != pre_cached_model:
+                # 即时名称与预缓存模型名不同 → 即时名称可能是项目名
+                model_name = pre_cached_model
+                config_name = immediate_name
             else:
-                # immediate_name 是模型名，优先使用（比预缓存更准确）
-                model_name = immediate_name
+                # 即时名称与预缓存模型名相同，或无预缓存
+                # 验证即时名称是否可能是项目名（与 gcode 模型名不同）
+                if gcode_model and immediate_name != gcode_model and not self._is_param_description(immediate_name):
+                    # gcode 提取的模型名与即时名称不同 → 即时名称可能是项目名
+                    model_name = gcode_model
+                    config_name = immediate_name
+                else:
+                    model_name = immediate_name
         elif pre_cached_model:
             model_name = pre_cached_model
+            if pre_cached_project:
+                config_name = pre_cached_project
+        elif gcode_model:
+            model_name = gcode_model
 
         task_name = model_name or config_name or ""
         self.coordinator._lock_task_name(task_name)
 
-        # 收集耗材信息
-        filament_type, filament_color = self._get_current_filament_info()
-        if filament_color:
-            filament_color = filament_color.lower()
+        return task_name, model_name, config_name
 
-        # 收集封面图
+    def _extract_model_from_gcode(self) -> str:
+        """从 gcode_file_downloaded 实体提取模型名"""
+        gcode_entity = self._entity_map.get("gcode_file_downloaded", "")
+        if not gcode_entity:
+            return ""
+        gcode_value = self.coordinator.get_entity_state(gcode_entity, "") or ""
+        if not gcode_value or gcode_value in INVALID_ENTITY_STATES:
+            return ""
+        model = extract_model_from_gcode_filename(gcode_value)
+        if model:
+            LOGGER.info("从 gcode_file_downloaded 提取模型名: %s (原始值: %s)", model, gcode_value)
+        return model
+
+    def _collect_cover_image(self) -> str:
+        """收集封面图URL
+
+        优先使用配置中的封面图实体，若不存在则通过模式匹配查找。
+
+        Returns:
+            str: 封面图URL，空字符串表示未找到
+        """
         cover_entity = self._entity_map.get("cover_image", "")
         if not cover_entity:
+            # 尝试通过模式匹配查找封面图实体
             prefix = self.coordinator.printer_name.lower()
             image_entities = list(self.hass.states.async_entity_ids("image"))
             for eid in image_entities:
                 if eid.startswith(f"image.{prefix}_") and eid.endswith("_cover_image"):
                     cover_entity = eid
                     break
-        cover_image_url = self.coordinator.get_entity_attr(cover_entity, "entity_picture", "")
+        return self.coordinator.get_entity_attr(cover_entity, "entity_picture", "")
 
-        # 收集开始能耗
+    def _collect_print_metadata(self) -> dict:
+        """收集打印元数据（喷嘴、打印床、层数等）
+
+        Returns:
+            dict: 包含各种元数据的字典
+        """
+        return {
+            "nozzle_type": self.coordinator.get_entity_state(
+                self._entity_map.get("nozzle_type", ""), ""
+            ) or None,
+            "nozzle_size": self.coordinator.get_entity_state(
+                self._entity_map.get("nozzle_size", ""), ""
+            ) or None,
+            "print_bed_type": self.coordinator.get_entity_state(
+                self._entity_map.get("print_bed_type", ""), ""
+            ) or None,
+            "total_layer_count": int(self.coordinator.get_float_state(
+                self._entity_map.get("total_layer_count", ""), 0
+            )) or None,
+        }
+
+    def _collect_print_recovery_data(self) -> dict:
+        """收集打印恢复所需的所有数据
+
+        Returns:
+            dict: 包含所有收集到的数据的字典
+        """
+        start_time = self._collect_start_time()
+        task_name, model_name, config_name = self._collect_task_name()
+
+        filament_type, filament_color = self._get_current_filament_info()
+        if filament_color:
+            filament_color = filament_color.lower()
+
+        cover_image_url = self._collect_cover_image()
         start_energy = self.coordinator.get_float_state(self.coordinator.energy_entity)
+        metadata = self._collect_print_metadata()
 
-        # 收集其他信息
-        nozzle_type = self.coordinator.get_entity_state(self._entity_map.get("nozzle_type", ""), "")
-        nozzle_size = self.coordinator.get_entity_state(self._entity_map.get("nozzle_size", ""), "")
-        print_bed_type = self.coordinator.get_entity_state(self._entity_map.get("print_bed_type", ""), "")
-        total_layer_count = self.coordinator.get_float_state(self._entity_map.get("total_layer_count", ""), 0)
+        return {
+            "start_time": start_time,
+            "task_name": task_name,
+            "model_name": model_name,
+            "config_name": config_name,
+            "filament_type": filament_type,
+            "filament_color": filament_color,
+            "cover_image_url": cover_image_url,
+            "start_energy": start_energy,
+            **metadata,
+        }
 
-        # 构建完整的 current_print
+    def _build_and_save_print_record(self, data: dict) -> None:
+        """构建并保存打印记录
+
+        Args:
+            data: 收集到的打印数据
+        """
         self.coordinator.current_print = {
             "id": str(uuid.uuid4()),
-            "start_time": start_time,
+            "start_time": data["start_time"],
             "status": "running",
-            "start_energy": start_energy,
-            "energy_valid": start_energy > 0,
-            "task_name": task_name or None,
-            "task_name_model": model_name or None,
-            "task_name_config": config_name or None,
-            "config_name": config_name or None,
-            "nozzle_type": nozzle_type or None,
-            "nozzle_size": nozzle_size or None,
-            "print_bed_type": print_bed_type or None,
-            "total_layer_count": int(total_layer_count) if total_layer_count else None,
-            "colors_used": [filament_color] if filament_color else [],
-            "types_used": [filament_type] if filament_type else [],
+            "start_energy": data["start_energy"],
+            "energy_valid": data["start_energy"] > 0,
+            "task_name": data["task_name"] or None,
+            "task_name_model": data["model_name"] or None,
+            "task_name_config": data["config_name"] or None,
+            "config_name": data["config_name"] or None,
+            "nozzle_type": data["nozzle_type"],
+            "nozzle_size": data["nozzle_size"],
+            "print_bed_type": data["print_bed_type"],
+            "total_layer_count": data["total_layer_count"],
+            "colors_used": [data["filament_color"]] if data["filament_color"] else [],
+            "types_used": [data["filament_type"]] if data["filament_type"] else [],
             "color_changes": [],
-            "total_colors": 1 if filament_color else 0,
-            "filament_type": filament_type or None,
-            "filament_color": filament_color or None,
-            "cover_image_url": cover_image_url or None,
+            "total_colors": 1 if data["filament_color"] else 0,
+            "filament_type": data["filament_type"] or None,
+            "filament_color": data["filament_color"] or None,
+            "cover_image_url": data["cover_image_url"] or None,
             "cover_image_local": None,
             "snapshot_image_local": None,
             "color_usage": [],
@@ -221,21 +334,49 @@ class PrintTracker:
                 self.coordinator.current_print["start_energy"] = current_energy
                 self.coordinator.current_print["energy_valid"] = True
                 LOGGER.info("恢复时重新获取 start_energy: %.4f kWh", current_energy)
+
         self._validate_colors_on_recovery()
         self._save_current_print()
-
         self.start_material_cache()
-        LOGGER.info("已完整恢复活跃打印记录: %s | 初始颜色: %s (%s)", task_name, filament_color, filament_type)
+        LOGGER.info("已完整恢复活跃打印记录: %s | 初始颜色: %s (%s)",
+                     data["task_name"], data["filament_color"], data["filament_type"])
+
+    def _trigger_recovery_notifications(self, data: dict) -> None:
+        """触发恢复后的通知和下载任务
+
+        Args:
+            data: 打印数据字典
+        """
+        task_name = data["task_name"] or "unknown"
+        start_time = data["start_time"]
 
         # 触发封面图和快照下载
-        self.hass.add_job(self.coordinator._delayed_cover_download(task_name or "unknown", start_time))
-        self.hass.add_job(self.coordinator._delayed_snapshot_download(task_name or "unknown", start_time))
+        self.hass.add_job(self.coordinator._delayed_cover_download(task_name, start_time))
+        self.hass.add_job(self.coordinator._delayed_snapshot_download(task_name, start_time))
 
         # 通过事件循环安全地通知数据更新，避免线程安全违规
         self.hass.loop.call_soon_threadsafe(
             self.coordinator.async_set_updated_data,
             self.coordinator._calculate_statistics()
         )
+
+    def recover_active_print(self) -> None:
+        """恢复活跃打印 - 完整收集打印信息"""
+        if self.coordinator.current_print:
+            return
+
+        # 尝试从磁盘恢复
+        if self._try_recover_from_disk():
+            return
+
+        # 从实体收集数据
+        print_data = self._collect_print_recovery_data()
+
+        # 构建并保存打印记录
+        self._build_and_save_print_record(print_data)
+
+        # 触发恢复后操作
+        self._trigger_recovery_notifications(print_data)
 
     def handle_state_change(self, event: Any) -> None:
         """处理状态变化"""
@@ -906,23 +1047,45 @@ class PrintTracker:
         model_name = ""
         config_name = ""
 
-        # 预缓存的模型名作为候选（来自 task_name 实体变化监听）
-        # 但如果 immediate_name 是有效的非参数描述模型名，优先使用它
+        # 预缓存的模型名和项目名（来自 task_name 实体变化监听）
         pre_cached_model = self.coordinator._pre_print_model_name
+        pre_cached_project = self.coordinator._pre_print_project_name
         if pre_cached_model:
             self.coordinator._pre_print_model_name = ""
+            self.coordinator._pre_print_project_name = ""
+
+        # 从 gcode_file_downloaded 提取模型名（作为回退源）
+        gcode_model = self._extract_model_from_gcode()
 
         if immediate_name and immediate_name not in INVALID_ENTITY_STATES:
             self._task_name_variants.append(immediate_name)
             if self._is_param_description(immediate_name):
                 config_name = immediate_name
-                # immediate_name 是参数描述，使用预缓存或从历史推断
-                model_name = pre_cached_model or self._infer_model_name_from_history(immediate_name) or ""
+                # immediate_name 是参数描述，使用预缓存 > gcode > 历史推断
+                model_name = pre_cached_model or gcode_model or self._infer_model_name_from_history(immediate_name) or ""
+            elif immediate_name == pre_cached_project:
+                # 即时名称等于预缓存的项目名 → 使用预缓存的模型名
+                model_name = pre_cached_model or gcode_model or ""
+                config_name = immediate_name
+            elif pre_cached_model and immediate_name != pre_cached_model:
+                # 即时名称与预缓存模型名不同 → 即时名称可能是项目名
+                model_name = pre_cached_model
+                config_name = immediate_name
             else:
-                # immediate_name 是模型名，优先使用（比预缓存更准确）
-                model_name = immediate_name
+                # 即时名称与预缓存模型名相同，或无预缓存
+                # 验证即时名称是否可能是项目名（与 gcode 模型名不同）
+                if gcode_model and immediate_name != gcode_model and not self._is_param_description(immediate_name):
+                    # gcode 提取的模型名与即时名称不同 → 即时名称可能是项目名
+                    model_name = gcode_model
+                    config_name = immediate_name
+                else:
+                    model_name = immediate_name
         elif pre_cached_model:
             model_name = pre_cached_model
+            if pre_cached_project:
+                config_name = pre_cached_project
+        elif gcode_model:
+            model_name = gcode_model
 
         async def _delayed_task_name_capture() -> None:
             await asyncio.sleep(8)
@@ -1070,6 +1233,9 @@ class PrintTracker:
         """打印结束"""
         self.stop_material_cache()
         self.coordinator._clear_locked_task_name()
+        # 清除预缓存，避免上一次打印的模型名污染下一次
+        self.coordinator._pre_print_model_name = ""
+        self.coordinator._pre_print_project_name = ""
 
         if self.coordinator.current_print is None:
             LOGGER.warning("Print end detected but no active print record")

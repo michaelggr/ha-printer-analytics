@@ -127,6 +127,7 @@ class EntityDiscovery:
             "end_time": [r"end.*time|结束.*时间"],
             "task_name": [r"task.*name|subtask|任务.*名称|任务名|taskname"],
             "gcode_filename": [r"gcode.*file|gcode.*filename|文件名"],
+            "gcode_file_downloaded": [r"gcode.*download|下载.*gcode|GCODE文件下载"],
             "active_tray": [r"active.*tray|ams.*tray|活动.*托盘|当前.*托盘|激活.*料盘"],
             "externalspool_active": [r"externalspool.*active|外挂.*激活|外挂.*料盘.*激活"],
             "ams_active": [r"ams_\d+_active|ams.*active"],

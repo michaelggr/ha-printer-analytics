@@ -56,6 +56,7 @@ BAMBULAB_ENTITY_KEYS = {
     "print_bed_type": ["print_bed_type"],
     "speed_profile": ["speed_profile"],
     "gcode_filename": ["gcode_filename", "gcode_file"],
+    "gcode_file_downloaded": ["gcode_file_downloaded"],
     "chamber_temperature": [
         "chamber_temperature",
         "chamber_temp",
@@ -91,7 +92,7 @@ FAILURE_STAGE_BUCKETS = [
 ]
 
 CARD_FILENAME = "pa-v5.11.js"
-CARD_VERSION = "5.13.0"
+CARD_VERSION = "5.14.0"
 CARD_URL = f"/local/{CARD_FILENAME}?v={CARD_VERSION}"
 DASHBOARD_FILE = "ui-printer-analytics.yaml"
 PLATFORMS = ["sensor"]

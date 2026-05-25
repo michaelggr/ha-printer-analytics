@@ -295,8 +295,10 @@ class TestApplyFilters:
         assert len(result) == 1
 
     def test_filter_by_printer_name_ignored_when_no_tag(self, history):
+        # 新逻辑：无 _printer_name 时，仍匹配 printer_serial 和 device_name
+        # 测试数据无 printer_serial/device_name，也不匹配 _printer_name，所以结果为空
         result = _apply_filters(history, "", "", "P2S", "", "", "")
-        assert len(result) == len(history)
+        assert len(result) == 0
 
     def test_color_filter_matches_colors_used_list(self, history):
         history[0]["colors_used"] = ["#ff0000", "#00ff00"]
@@ -416,26 +418,47 @@ class TestMatchFilterSliceMode:
 
     def test_filter_cloud_slice(self):
         records = [
-            {"slice_mode": "cloud", "status": "finish"},
-            {"slice_mode": "local", "status": "finish"},
+            {"slice_mode": "cloud_slice", "status": "finish"},
+            {"slice_mode": "lan_file", "status": "finish"},
         ]
-        result = [r for r in records if _match_filter_storage(r, "", "", "", "", "", "", "cloud", "")]
+        result = [r for r in records if _match_filter_storage(r, "", "", "", "", "", "", "cloud_slice", "")]
         assert len(result) == 1
-        assert result[0]["slice_mode"] == "cloud"
+        assert result[0]["slice_mode"] == "cloud_slice"
 
-    def test_filter_local_slice(self):
+    def test_filter_cloud_file(self):
         records = [
-            {"slice_mode": "cloud", "status": "finish"},
-            {"slice_mode": "local", "status": "finish"},
+            {"slice_mode": "cloud_file", "status": "finish"},
+            {"slice_mode": "lan_file", "status": "finish"},
         ]
-        result = [r for r in records if _match_filter_storage(r, "", "", "", "", "", "", "local", "")]
+        result = [r for r in records if _match_filter_storage(r, "", "", "", "", "", "", "cloud_file", "")]
         assert len(result) == 1
-        assert result[0]["slice_mode"] == "local"
+        assert result[0]["slice_mode"] == "cloud_file"
+
+    def test_filter_lan_file(self):
+        records = [
+            {"slice_mode": "cloud_slice", "status": "finish"},
+            {"slice_mode": "lan_file", "status": "finish"},
+        ]
+        result = [r for r in records if _match_filter_storage(r, "", "", "", "", "", "", "lan_file", "")]
+        assert len(result) == 1
+        assert result[0]["slice_mode"] == "lan_file"
+
+    def test_legacy_cloud_maps_to_cloud_slice(self):
+        """旧值 cloud 应映射到 cloud_slice"""
+        records = [{"slice_mode": "cloud", "status": "finish"}]
+        result = [r for r in records if _match_filter_storage(r, "", "", "", "", "", "", "cloud_slice", "")]
+        assert len(result) == 1
+
+    def test_legacy_local_maps_to_lan_file(self):
+        """旧值 local 应映射到 lan_file"""
+        records = [{"slice_mode": "local", "status": "finish"}]
+        result = [r for r in records if _match_filter_storage(r, "", "", "", "", "", "", "lan_file", "")]
+        assert len(result) == 1
 
     def test_empty_slice_mode_filter(self):
         records = [
-            {"slice_mode": "cloud"},
-            {"slice_mode": "local"},
+            {"slice_mode": "cloud_slice"},
+            {"slice_mode": "lan_file"},
         ]
         result = [r for r in records if _match_filter_storage(r, "", "", "", "", "", "", "", "")]
         assert len(result) == 2
@@ -443,14 +466,14 @@ class TestMatchFilterSliceMode:
     def test_missing_slice_mode_field(self):
         records = [
             {"status": "finish"},  # 无 slice_mode 字段
-            {"slice_mode": "cloud"},
+            {"slice_mode": "cloud_slice"},
         ]
-        result = [r for r in records if _match_filter_storage(r, "", "", "", "", "", "", "cloud", "")]
+        result = [r for r in records if _match_filter_storage(r, "", "", "", "", "", "", "cloud_slice", "")]
         assert len(result) == 1
 
     def test_case_insensitive(self):
-        records = [{"slice_mode": "Cloud"}]
-        result = [r for r in records if _match_filter_storage(r, "", "", "", "", "", "", "cloud", "")]
+        records = [{"slice_mode": "Cloud_Slice"}]
+        result = [r for r in records if _match_filter_storage(r, "", "", "", "", "", "", "cloud_slice", "")]
         assert len(result) == 1
 
 
@@ -493,13 +516,13 @@ class TestMatchFilterOver500g:
 
     def test_combined_slice_and_weight_filter(self):
         records = [
-            {"slice_mode": "cloud", "over_500g": True},
-            {"slice_mode": "cloud", "over_500g": False},
-            {"slice_mode": "local", "over_500g": True},
+            {"slice_mode": "cloud_slice", "over_500g": True},
+            {"slice_mode": "cloud_slice", "over_500g": False},
+            {"slice_mode": "lan_file", "over_500g": True},
         ]
-        result = [r for r in records if _match_filter_storage(r, "", "", "", "", "", "", "cloud", "yes")]
+        result = [r for r in records if _match_filter_storage(r, "", "", "", "", "", "", "cloud_slice", "yes")]
         assert len(result) == 1
-        assert result[0]["slice_mode"] == "cloud"
+        assert result[0]["slice_mode"] == "cloud_slice"
         assert result[0]["over_500g"] is True
 
 
@@ -1212,3 +1235,61 @@ class TestScanAllHistoryFiles:
                 serial = f.rsplit("_", 1)[0]
                 serials.add(serial)
         assert sorted(serials) == ["SERIAL1", "SERIAL2"]
+
+
+# ==================== extract_model_from_gcode_filename 测试 ====================
+
+# 从 utils.py 提取纯函数
+_UTILS_PATH = os.path.join(
+    os.path.dirname(__file__), "..",
+    "custom_components", "printer_analytics", "utils.py",
+)
+_UTILS_SOURCE = open(_UTILS_PATH, "r", encoding="utf-8").read()
+
+_ns_utils = {"re": __import__("re"), "os": __import__("os"), "logging": __import__("logging"), "shutil": __import__("shutil"), "datetime": __import__("datetime"), "timezone": __import__("datetime").timezone, "Path": __import__("pathlib").Path, "Optional": __import__("typing").Optional}
+exec(_UTILS_SOURCE[_UTILS_SOURCE.index("def extract_model_from_gcode_filename"):], _ns_utils)
+extract_model_from_gcode_filename = _ns_utils["extract_model_from_gcode_filename"]
+
+
+class TestExtractModelFromGcodeFilename:
+    """从 gcode_file_downloaded 值提取模型名"""
+
+    def test_standard_format(self):
+        """标准格式：designId-模型名+参数描述.gcode.gcode"""
+        result = extract_model_from_gcode_filename("925294-问号箱0.2mm 层高, 2 层墙, 15% 填充.gcode.gcode")
+        assert result == "问号箱"
+
+    def test_no_param_description(self):
+        """无参数描述：只有模型名"""
+        result = extract_model_from_gcode_filename("12345-简单模型.gcode.gcode")
+        assert result == "简单模型"
+
+    def test_empty_string(self):
+        """空字符串"""
+        result = extract_model_from_gcode_filename("")
+        assert result == ""
+
+    def test_single_gcode_suffix(self):
+        """只有一个 .gcode 后缀"""
+        result = extract_model_from_gcode_filename("925294-测试模型0.2mm 层高.gcode")
+        assert result == "测试模型"
+
+    def test_no_design_id_prefix(self):
+        """无 designId 前缀"""
+        result = extract_model_from_gcode_filename("直接模型名0.4mm 层高.gcode.gcode")
+        assert result == "直接模型名"
+
+    def test_model_with_slash(self):
+        """模型名包含斜杠（如 X2D/P2S）"""
+        result = extract_model_from_gcode_filename("123-X2D/P2S X轴一体化密封盖0.2mm 层高.gcode.gcode")
+        assert result == "X2D/P2S X轴一体化密封盖"
+
+    def test_model_with_english_name(self):
+        """英文模型名"""
+        result = extract_model_from_gcode_filename("999-MyModel0.2mm.gcode.gcode")
+        assert result == "MyModel"
+
+    def test_only_design_id(self):
+        """只有 designId，无模型名"""
+        result = extract_model_from_gcode_filename("12345-.gcode.gcode")
+        assert result == ""

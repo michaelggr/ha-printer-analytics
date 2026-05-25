@@ -1,5 +1,20 @@
 ﻿# 打印分析卡片 - 修改记录
 
+## v5.14.0 (2026-05-26)
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 修复 | 模型名捕获：idle 状态下只关注 task_name 变化事件，不再缓存静态值（避免缓存上一次打印的项目名） | coordinator.py#L531-598 |
+| 修复 | 模型名→项目名过渡捕获：当 task_name 从模型名变为不同的非参数描述值时，保留模型名 | coordinator.py#L580-586 |
+| 修复 | 打印结束时清除预缓存，避免上一次打印的模型名污染下一次 | print_tracker.py#L1195-1197 |
+| 功能 | 新增 `_pre_print_project_name` 字段，记录项目名与模型名区分 | coordinator.py#L80 |
+| 功能 | `_collect_task_name` / `on_print_start` 集成项目名识别和 gcode 回退 | print_tracker.py#L147-227, 1046-1088 |
+| 功能 | 新增 `gcode_file_downloaded` 实体发现与映射 | const.py#L59, entity_discovery.py#L130 |
+| 功能 | 新增 `extract_model_from_gcode_filename` 工具函数 | utils.py#L29-70 |
+| 文档 | README 更新最新功能、更新日志、QQ交流群 | README.md |
+
+---
+
 ## v5.13.0 (2026-05-25)
 
 | 类型 | 内容 | 涉及文件 |

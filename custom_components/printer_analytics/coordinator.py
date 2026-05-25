@@ -1,4 +1,4 @@
-﻿"""Printer Analytics Coordinator - 主协调器"""
+"""Printer Analytics Coordinator - 主协调器"""
 from __future__ import annotations
 
 import asyncio
@@ -77,6 +77,7 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         self._unsub_listener = None
         self._unsub_task_name_listener = None
         self._pre_print_model_name: str = ""  # 打印开始前缓存的模型名
+        self._pre_print_project_name: str = ""  # 打印开始前缓存的项目名（模型名之后出现的非参数描述值）
         self._material_cache_interval = None
         self._http_session: aiohttp.ClientSession | None = None
         self._time_cache: dict[str, datetime] = {}
@@ -531,15 +532,15 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         """处理 task_name 实体变化
 
         BambuLab 的 task_name 实际行为（通过历史数据验证）：
-        - 打印空闲/完成后：显示模型名（如 "抽屉收纳盒60×60×60 - 宜家洞洞板"）
-        - 新打印即将开始时（prepare 前1秒）：变为参数配置名（如 "小号 身长5.5cm , 层高 0.2mm"）
-        - task_name 变化时 _previous_status 可能还是 finish（因为变化比 prepare 早1秒）
+        - 打印空闲/完成后：task_name 停留在上一次打印的项目名（如"适合 X2D"）
+        - 新打印即将开始前（homing 前15~25秒）：先短暂显示模型名，再切换为项目名
+        - 变化序列示例：参数描述 → 模型名 → 参数描述(闪回) → 模型名 → 项目名
 
-        策略：
-        1. 非打印状态下，缓存非参数描述的值作为模型名
-        2. 当 task_name 从模型名变为参数描述时，说明新打印即将开始，
-           锁定之前的模型名，不被参数描述覆盖
-        3. 打印中收到参数描述，更新 config_name
+        策略（idle 状态下只关注变化事件，不缓存静态值）：
+        1. 非参数描述 → 参数描述：old_value 是模型名，锁定
+        2. 非参数描述 → 不同的非参数描述：old_value 是模型名，new_value 是项目名
+        3. 参数描述 → 非参数描述：new_value 可能是模型名，缓存为候选
+        4. 打印中收到参数描述，更新 config_name
         """
         new_state = event.data.get("new_state")
         old_state = event.data.get("old_state")
@@ -564,18 +565,37 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
                     LOGGER.info("打印中捕获到配置名: %s", new_value)
             return
 
-        # 关键场景：task_name 从模型名变为参数描述
-        # 这说明新打印即将开始（prepare 会在1秒后到来）
-        # 此时必须锁定 old_value（模型名），不被参数描述覆盖
-        if is_param_description(new_value) and old_value and not is_param_description(old_value) and len(old_value) >= 3:
-            self._pre_print_model_name = old_value
-            LOGGER.info("检测到新打印即将开始，锁定模型名: %s (参数描述: %s)", old_value, new_value)
+        # idle/prepare/slicing 状态下，只关注变化事件（old_value != new_value）
+        if not old_value or old_value == new_value:
             return
 
-        # 非打印状态下，缓存非参数描述的值作为模型名
-        if not is_param_description(new_value) and len(new_value) >= 3:
-            self._pre_print_model_name = new_value
-            LOGGER.debug("预缓存模型名: %s (当前状态: %s)", new_value, current_status)
+        # 场景1：非参数描述 → 参数描述
+        # old_value 是模型名（如"X2D/P2S X轴一体化密封盖"），new_value 是参数描述
+        if is_param_description(new_value) and not is_param_description(old_value) and len(old_value) >= 3:
+            self._pre_print_model_name = old_value
+            self._pre_print_project_name = ""
+            LOGGER.info("捕获模型名（→参数描述）: %s", old_value)
+            return
+
+        # 场景2：非参数描述 → 不同的非参数描述
+        # old_value 是模型名，new_value 是项目名（如"适合 X2D"）
+        if not is_param_description(new_value) and not is_param_description(old_value) and len(old_value) >= 3 and new_value != old_value:
+            self._pre_print_model_name = old_value
+            self._pre_print_project_name = new_value
+            LOGGER.info("捕获模型名（→项目名）: %s, 项目名: %s", old_value, new_value)
+            return
+
+        # 场景3：参数描述 → 非参数描述
+        # new_value 可能是模型名，缓存为候选
+        if is_param_description(old_value) and not is_param_description(new_value) and len(new_value) >= 3:
+            if current_status in ("prepare", "slicing"):
+                self._pre_print_model_name = new_value
+                LOGGER.info("prepare/slicing 阶段缓存模型名: %s", new_value)
+            elif current_status in ("idle", "offline", "unknown"):
+                # 缓存为候选，但可能后续会被场景1/2覆盖
+                self._pre_print_model_name = new_value
+                self._pre_print_project_name = ""
+                LOGGER.info("idle 状态缓存模型名候选（参数→非参数）: %s", new_value)
 
     def _build_tray_color_map(self) -> dict[str, dict]:
         """构建AMS tray颜色映射（使用缓存的实体列表）"""

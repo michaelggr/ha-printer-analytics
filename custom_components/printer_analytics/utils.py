@@ -26,6 +26,50 @@ def is_param_description(task_name: str) -> bool:
     return any(re.search(p, task_name) for p in PARAM_DESCRIPTION_PATTERNS)
 
 
+def extract_model_from_gcode_filename(gcode_value: str) -> str:
+    """从 gcode_file_downloaded 实体值中提取模型名
+
+    Bambu 的 gcode_file_downloaded 格式：
+        {designId}-{modelName}{paramDescription}.gcode.gcode
+    例如：
+        925294-问号箱0.2mm 层高, 2 层墙, 15% 填充.gcode.gcode
+        → 模型名 = "问号箱"
+
+    提取逻辑：
+        1. 去掉 .gcode.gcode 后缀
+        2. 去掉 designId- 前缀（纯数字+短横线）
+        3. 在剩余部分中，找到参数描述的起始位置
+        4. 参数描述前的部分就是模型名
+    """
+    if not gcode_value:
+        return ""
+
+    name = gcode_value.strip()
+
+    # 去掉 .gcode 后缀（可能有一个或两个）
+    while name.lower().endswith(".gcode"):
+        name = name[:-len(".gcode")].strip()
+
+    # 去掉 designId- 前缀（纯数字+短横线）
+    match = re.match(r'^\d+-', name)
+    if match:
+        name = name[match.end():]
+
+    if not name:
+        return ""
+
+    # 在模型名中找到参数描述的起始位置
+    # 参数描述通常以数字+mm开头，如 "0.2mm"
+    param_match = re.search(r'\d+\.?\d*\s*mm', name)
+    if param_match:
+        model_part = name[:param_match.start()].strip()
+        if model_part:
+            return model_part
+
+    # 没有找到参数描述，整个名称就是模型名
+    return name
+
+
 class SecureFileHandler:
     """安全的文件操作处理器 - 防止路径遍历和文件注入攻击"""
 
