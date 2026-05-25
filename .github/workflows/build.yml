@@ -1,4 +1,4 @@
-﻿name: Build & Release
+name: Build & Release
 
 on:
   push:
@@ -17,13 +17,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
 
-      - name: Cache npm node_modules
+      - name: Cache node_modules
         uses: actions/cache@v4
         with:
           path: node_modules
-          key: nm-win-${{ hashFiles('package-lock.json') }}
+          key: nm-win-${{ hashFiles('package.json') }}
           restore-keys: nm-win-
 
       - name: Cache Electron binary
@@ -33,7 +32,7 @@ jobs:
           key: electron-${{ runner.os }}-${{ hashFiles('package.json') }}
 
       - name: Install dependencies
-        run: npm ci || npm install
+        run: npm install
 
       - name: Build Electron app
         run: npm run build:electron
@@ -65,13 +64,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
 
-      - name: Cache npm node_modules
+      - name: Cache node_modules
         uses: actions/cache@v4
         with:
           path: node_modules
-          key: nm-linux-${{ hashFiles('package-lock.json') }}
+          key: nm-linux-${{ hashFiles('package.json') }}
           restore-keys: nm-linux-
 
       - name: Setup JDK 17
@@ -94,7 +92,7 @@ jobs:
           restore-keys: gradle-
 
       - name: Install dependencies
-        run: npm ci || npm install
+        run: npm install
 
       - name: Build frontend
         run: npm run build
