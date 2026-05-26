@@ -98,7 +98,17 @@ jobs:
         run: npm run build
 
       - name: Add Android platform
-        run: npx cap add android || npx cap sync android
+        run: |
+          if [ -d "android/gradle" ]; then
+            echo "Android platform already initialized, syncing..."
+            npx cap sync android
+          else
+            if [ -d "android" ]; then
+              echo "Removing incomplete android directory..."
+              rm -rf android
+            fi
+            npx cap add android
+          fi
 
       - name: Sync Capacitor
         run: npx cap sync android
