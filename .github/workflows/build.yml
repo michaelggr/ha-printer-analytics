@@ -1,17 +1,17 @@
-﻿name: HACS Validate & Release
+﻿name: HACS Validate & Hassfest
 
 on:
   push:
-    tags:
-      - 'v*'
-  workflow_dispatch:
+    branches: [main]
+    tags: ['v*']
   pull_request:
-    paths:
-      - 'custom_components/**'
+    paths: ['custom_components/**']
+  workflow_dispatch:
 
 jobs:
-  # HACS 配置验证
-  validate:
+  # HACS 配置验证（检查 hacs.json、manifest.json、仓库结构等）
+  validate_hacs:
+    name: HACS Validation
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,20 +21,12 @@ jobs:
         with:
           category: integration
 
-      - name: Hassfest
-        uses: home-assistant/actions/hassfest@master
-
-  # 创建 GitHub Release
-  release:
-    needs: validate
-    if: startsWith(github.ref, 'refs/tags/v')
+  # hassfest 检查（检查 manifest.json 格式、必填字段、版本号等）
+  validate_hassfest:
+    name: Hassfest
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          generate_release_notes: true
+      - name: Hassfest
+        uses: home-assistant/actions/hassfest@master
