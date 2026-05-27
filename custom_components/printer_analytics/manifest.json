@@ -1,10 +1,10 @@
 {
   "domain": "printer_analytics",
   "name": "Printer Analytics",
+  "after_dependencies": ["lovelace", "recorder"],
   "codeowners": ["@michaelggr"],
   "config_flow": true,
   "dependencies": [],
-  "after_dependencies": ["lovelace", "recorder"],
   "documentation": "https://github.com/michaelggr/ha-printer-analytics",
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/michaelggr/ha-printer-analytics/issues",
