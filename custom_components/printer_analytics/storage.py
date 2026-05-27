@@ -1,4 +1,4 @@
-﻿"""历史数据存储管理 - 支持按需读取和增量统计"""
+"""历史数据存储管理 - 支持按需读取和增量统计"""
 import gzip
 import json
 import logging
