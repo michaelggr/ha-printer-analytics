@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import logging
 import os
@@ -342,3 +342,88 @@ class URLValidator:
             return False
 
         return True
+
+
+def match_record_filter(record: dict, status_filter: str = "", color_filter: str = "",
+                        printer_filter: str = "", date_from: str = "", date_to: str = "",
+                        search: str = "", slice_mode_filter: str = "",
+                        over_500g_filter: str = "") -> bool:
+    """判断单条记录是否匹配筛选条件（统一实现，供 __init__.py 和 storage.py 共享）
+
+    所有筛选参数为空时返回 True（即无筛选 = 全部匹配）。
+    """
+    # 状态筛选（兼容别名：finish→completed/success, failed→fail, cancelled→cancel）
+    if status_filter:
+        r_status = (record.get("status") or "").lower()
+        if status_filter == "finish":
+            if r_status not in ("finish", "completed", "success", "完成", "成功"):
+                return False
+        elif status_filter == "failed":
+            if r_status not in ("fail", "failed", "失败"):
+                return False
+        elif status_filter == "cancelled":
+            if r_status not in ("cancel", "cancelled", "已取消"):
+                return False
+        elif r_status != status_filter:
+            return False
+
+    # 颜色筛选
+    if color_filter:
+        used_colors = record.get("colors_used") or []
+        color_match = color_filter in used_colors or record.get("filament_color") == color_filter
+        if not color_match:
+            color_match = any(
+                usage and usage.get("color") == color_filter
+                for usage in record.get("color_usage") or []
+            )
+        if not color_match:
+            return False
+
+    # 打印机筛选（同时匹配序列号、打印机名、_printer_name、_source_serial）
+    if printer_filter:
+        p_upper = printer_filter.upper()
+        p_lower = printer_filter.lower()
+        r_serial = (record.get("printer_serial") or "").upper()
+        r_name = (record.get("_printer_name") or "").lower()
+        r_device_name = (record.get("device_name") or "").lower()
+        r_source_serial = (record.get("_source_serial") or "").upper()
+        if r_serial != p_upper and r_name != p_lower and r_device_name != p_lower and r_source_serial != p_upper:
+            return False
+
+    # 日期筛选
+    if date_from or date_to:
+        time_value = record.get("end_time") or record.get("start_time") or ""
+        if not time_value:
+            return False
+        date_value = str(time_value)[:10]
+        if date_from and date_value < date_from:
+            return False
+        if date_to and date_value > date_to:
+            return False
+
+    # 搜索筛选
+    if search:
+        search_value = search.lower()
+        task_name = (record.get("task_name") or "").lower()
+        filament_type = (record.get("filament_type") or "").lower()
+        if search_value not in task_name and search_value not in filament_type:
+            return False
+
+    # 切片模式筛选（兼容旧值 cloud→cloud_slice, local→lan_file）
+    if slice_mode_filter:
+        r_mode = (record.get("slice_mode") or "").lower()
+        f_mode = slice_mode_filter.lower()
+        mode_map = {"cloud": "cloud_slice", "local": "lan_file"}
+        r_mapped = mode_map.get(r_mode, r_mode)
+        if r_mapped != f_mode:
+            return False
+
+    # 超500g筛选
+    if over_500g_filter:
+        is_over = record.get("over_500g", False)
+        if over_500g_filter == "yes" and not is_over:
+            return False
+        elif over_500g_filter == "no" and is_over:
+            return False
+
+    return True
