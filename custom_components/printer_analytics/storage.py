@@ -1,4 +1,4 @@
-"""历史数据存储管理 - 支持按需读取和增量统计"""
+﻿"""历史数据存储管理 - 支持按需读取和增量统计"""
 import gzip
 import json
 import logging
@@ -13,6 +13,7 @@ from .const import (
     MAX_HISTORY_RECORDS,
     SYNC_ARCHIVE_COUNT,
 )
+from .utils import match_record_filter
 
 if TYPE_CHECKING:
     from .coordinator import PrinterAnalyticsCoordinator
@@ -248,11 +249,8 @@ class StorageManager:
                       page: int = 1, page_size: int = 20) -> dict:
         """从文件逐条筛选+分页，只把匹配的分页结果加载到内存
 
-        筛选逻辑与原 coordinator.query_history 一致，
-        但不需要 self.history 全量在内存中。
+        筛选逻辑委托给 utils.match_record_filter 统一实现。
         """
-        from .utils import is_param_description as _is_param
-
         filters = filters or {}
         status_filter = filters.get("status", "")
         color_filter = filters.get("color", "")
@@ -266,8 +264,8 @@ class StorageManager:
         # 收集所有颜色（筛选项，不受筛选影响）
         all_colors: set[str] = set()
         total_records = 0
-        # 筛选后的记录（只保留排序键，最后再加载分页内容）
-        filtered_keys: list[tuple[str, str]] = []  # [(sort_key, year, index_in_year)]
+        # 筛选后的记录
+        filtered_keys: list[tuple[str, str]] = []
 
         # 按年份文件倒序扫描（最新年份优先）
         year_files = list(reversed(self._get_year_files()))
@@ -288,10 +286,9 @@ class StorageManager:
                 # 收集颜色选项（始终执行，不受筛选影响）
                 self._collect_colors(r, all_colors)
 
-                # 以下为筛选逻辑
-                if not self._match_filter(r, status_filter, color_filter,
-                                          printer_filter, date_from, date_to, search,
-                                          slice_mode_filter, over_500g_filter):
+                # 使用统一的筛选匹配函数
+                if not match_record_filter(r, status_filter, color_filter, printer_filter,
+                                           date_from, date_to, search, slice_mode_filter, over_500g_filter):
                     continue
 
                 sort_key = r.get("end_time") or r.get("start_time") or ""
@@ -327,80 +324,6 @@ class StorageManager:
                 "total_records": total_records,
             },
         }
-
-    @staticmethod
-    def _match_filter(r: dict, status_filter: str, color_filter: str,
-                      printer_filter: str, date_from: str, date_to: str,
-                      search: str, slice_mode_filter: str = "",
-                      over_500g_filter: str = "") -> bool:
-        """判断单条记录是否匹配筛选条件"""
-        # 状态筛选
-        if status_filter:
-            r_status = (r.get("status") or "").lower()
-            if status_filter == "finish" and r_status not in ("finish", "completed", "success"):
-                return False
-            elif status_filter == "failed" and r_status not in ("fail", "failed"):
-                return False
-            elif status_filter == "cancelled" and r_status not in ("cancel", "cancelled"):
-                return False
-            elif status_filter not in ("finish", "failed", "cancelled") and r_status != status_filter:
-                return False
-
-        # 颜色筛选
-        if color_filter:
-            colors = r.get("colors_used") or []
-            match = color_filter in colors or r.get("filament_color") == color_filter
-            if not match and r.get("color_usage"):
-                match = any(cu.get("color") == color_filter for cu in r["color_usage"] if cu)
-            if not match:
-                return False
-
-        # 打印机筛选（使用序列号匹配，含 _source_serial 回退）
-        if printer_filter:
-            r_serial = (r.get("printer_serial") or "").upper()
-            r_name = (r.get("_printer_name") or "").lower()
-            r_source_serial = (r.get("_source_serial") or "").upper()
-            filter_upper = printer_filter.upper()
-            filter_lower = printer_filter.lower()
-            if r_serial != filter_upper and r_name != filter_lower and r_source_serial != filter_upper:
-                return False
-
-        # 日期筛选
-        if date_from or date_to:
-            time_str = r.get("end_time") or r.get("start_time") or ""
-            if not time_str:
-                return False
-            date_str = time_str[:10]
-            if date_from and date_str < date_from:
-                return False
-            if date_to and date_str > date_to:
-                return False
-
-        # 搜索筛选
-        if search:
-            name = (r.get("task_name") or "").lower()
-            ftype = (r.get("filament_type") or "").lower()
-            if search not in name and search not in ftype:
-                return False
-
-        # 切片模式筛选（兼容旧值 cloud→cloud_slice, local→lan_file）
-        if slice_mode_filter:
-            r_mode = (r.get("slice_mode") or "").lower()
-            f_mode = slice_mode_filter.lower()
-            mode_map = {"cloud": "cloud_slice", "local": "lan_file"}
-            r_mapped = mode_map.get(r_mode, r_mode)
-            if r_mapped != f_mode:
-                return False
-
-        # 超500g筛选
-        if over_500g_filter:
-            is_over = r.get("over_500g", False)
-            if over_500g_filter == "yes" and not is_over:
-                return False
-            elif over_500g_filter == "no" and is_over:
-                return False
-
-        return True
 
     @staticmethod
     def _collect_colors(r: dict, colors: set[str]) -> None:
