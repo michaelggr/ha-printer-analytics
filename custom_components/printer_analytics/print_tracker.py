@@ -1031,6 +1031,7 @@ class PrintTracker:
         # 获取当前打印状态（用于判断是否已在running）
         new_status_val = self.get_current_status() or ""
 
+        # 收集开始时间
         start_time_entity = self._entity_map.get("start_time")
         start_time_val = self.coordinator.get_entity_state(start_time_entity)
         if start_time_val:
@@ -1038,54 +1039,11 @@ class PrintTracker:
         else:
             start_time = datetime.now(timezone.utc).isoformat()
 
+        # 复用 _collect_task_name() 解析任务名（消除重复逻辑）
+        task_name, model_name, config_name = self._collect_task_name()
+
+        # 延迟捕获任务名（8秒后再检查一次）
         task_entity = self._entity_map.get("task_name", "")
-        immediate_name = ""
-        if task_entity:
-            immediate_name = self.coordinator.get_entity_state(task_entity, "") or ""
-
-        self._task_name_variants = []
-        model_name = ""
-        config_name = ""
-
-        # 预缓存的模型名和项目名（来自 task_name 实体变化监听）
-        pre_cached_model = self.coordinator._pre_print_model_name
-        pre_cached_project = self.coordinator._pre_print_project_name
-        if pre_cached_model:
-            self.coordinator._pre_print_model_name = ""
-            self.coordinator._pre_print_project_name = ""
-
-        # 从 gcode_file_downloaded 提取模型名（作为回退源）
-        gcode_model = self._extract_model_from_gcode()
-
-        if immediate_name and immediate_name not in INVALID_ENTITY_STATES:
-            self._task_name_variants.append(immediate_name)
-            if self._is_param_description(immediate_name):
-                config_name = immediate_name
-                # immediate_name 是参数描述，使用预缓存 > gcode > 历史推断
-                model_name = pre_cached_model or gcode_model or self._infer_model_name_from_history(immediate_name) or ""
-            elif immediate_name == pre_cached_project:
-                # 即时名称等于预缓存的项目名 → 使用预缓存的模型名
-                model_name = pre_cached_model or gcode_model or ""
-                config_name = immediate_name
-            elif pre_cached_model and immediate_name != pre_cached_model:
-                # 即时名称与预缓存模型名不同 → 即时名称可能是项目名
-                model_name = pre_cached_model
-                config_name = immediate_name
-            else:
-                # 即时名称与预缓存模型名相同，或无预缓存
-                # 验证即时名称是否可能是项目名（与 gcode 模型名不同）
-                if gcode_model and immediate_name != gcode_model and not self._is_param_description(immediate_name):
-                    # gcode 提取的模型名与即时名称不同 → 即时名称可能是项目名
-                    model_name = gcode_model
-                    config_name = immediate_name
-                else:
-                    model_name = immediate_name
-        elif pre_cached_model:
-            model_name = pre_cached_model
-            if pre_cached_project:
-                config_name = pre_cached_project
-        elif gcode_model:
-            model_name = gcode_model
 
         async def _delayed_task_name_capture() -> None:
             await asyncio.sleep(8)
@@ -1111,77 +1069,21 @@ class PrintTracker:
             self.hass.add_job(_delayed_task_name_capture())
             self.hass.add_job(self._infer_model_name_from_entity_history(task_entity, start_time))
 
-        if config_name and not model_name:
-            model_name = self._infer_model_name_from_history(config_name) or ""
-
-        if not model_name:
-            for variant in self._task_name_variants:
-                if not self._is_param_description(variant):
-                    model_name = variant
-                    break
-        if not config_name:
-            for variant in self._task_name_variants:
-                if self._is_param_description(variant):
-                    config_name = variant
-                    break
-
-        task_name = model_name or config_name or ""
-        self.coordinator._lock_task_name(task_name)
-        nozzle_type = self.coordinator.get_entity_state(self._entity_map.get("nozzle_type", ""), "")
-        nozzle_size = self.coordinator.get_entity_state(self._entity_map.get("nozzle_size", ""), "")
-        print_bed_type = self.coordinator.get_entity_state(self._entity_map.get("print_bed_type", ""), "")
-        total_layer_count = self.coordinator.get_float_state(self._entity_map.get("total_layer_count", ""), 0)
-
+        # 复用已有收集方法
+        metadata = self._collect_print_metadata()
         filament_type, filament_color = self._get_current_filament_info()
         if filament_color:
             filament_color = filament_color.lower()
-
-        cover_entity = self._entity_map.get("cover_image", "")
-        if not cover_entity:
-            prefix = self.coordinator.printer_name.lower()
-            image_entities = list(self.hass.states.async_entity_ids("image"))
-            for eid in image_entities:
-                if eid.startswith(f"image.{prefix}_") and eid.endswith("_cover_image"):
-                    cover_entity = eid
-                    break
-        cover_image_url = self.coordinator.get_entity_attr(cover_entity, "entity_picture", "")
-
+        cover_image_url = self._collect_cover_image()
         start_energy = self.coordinator.get_float_state(self.coordinator.energy_entity)
-
         speed_profile = self.coordinator.get_entity_state(self._entity_map.get("speed_profile", ""), "")
         gcode_filename = self.coordinator.get_entity_state(self._entity_map.get("gcode_filename", ""), "")
 
-        # 判断是否使用AMS：检查AMS tray实体是否存在且有耗材
-        ams_used = False
-        ams_tray_entities = self._get_ams_tray_entities()
-        if ams_tray_entities:
-            for eid in ams_tray_entities:
-                state = self.hass.states.get(eid)
-                if state and state.state not in INVALID_ENTITY_STATES:
-                    try:
-                        if float(state.state) > 0:
-                            ams_used = True
-                            break
-                    except (ValueError, TypeError):
-                        pass
+        # 判断是否使用AMS
+        ams_used = self._detect_ams_usage()
 
-        # 判断切片模式：使用 print_type 实体区分云切片/云文件/局域网文件
-        slice_mode = None
-        print_type = self.coordinator.get_entity_state(self._entity_map.get("print_type", ""), "").lower()
-        if print_type == "cloud":
-            # 云端发送的打印任务，gcode路径含 /data/ 为云切片，否则为云文件
-            if gcode_filename and gcode_filename.startswith("/data/"):
-                slice_mode = "cloud_slice"
-            else:
-                slice_mode = "cloud_file"
-        elif print_type == "local" or print_type == "lan":
-            slice_mode = "lan_file"
-        elif gcode_filename:
-            # 回退：无 print_type 时根据 gcode 路径推断
-            if gcode_filename.startswith("/data/"):
-                slice_mode = "cloud_slice"
-            else:
-                slice_mode = "lan_file"
+        # 判断切片模式
+        slice_mode = self._detect_slice_mode(gcode_filename)
 
         self.coordinator.current_print = {
             "id": str(uuid.uuid4()),
@@ -1193,10 +1095,10 @@ class PrintTracker:
             "task_name_model": model_name or None,
             "task_name_config": config_name or None,
             "config_name": config_name or None,
-            "nozzle_type": nozzle_type or None,
-            "nozzle_size": nozzle_size or None,
-            "print_bed_type": print_bed_type or None,
-            "total_layer_count": int(total_layer_count) if total_layer_count else None,
+            "nozzle_type": metadata["nozzle_type"],
+            "nozzle_size": metadata["nozzle_size"],
+            "print_bed_type": metadata["print_bed_type"],
+            "total_layer_count": metadata["total_layer_count"],
             "colors_used": [filament_color] if filament_color else [],
             "types_used": [filament_type] if filament_type else [],
             "color_changes": [],
@@ -1211,8 +1113,8 @@ class PrintTracker:
             "ams_used": ams_used,
             "speed_profile": speed_profile or None,
             "slice_mode": slice_mode,
-            "design_id": None,  # 从云端反查填充
-            "prepare_start_time": start_time,  # 记录准备开始时间
+            "design_id": None,
+            "prepare_start_time": start_time,
             "running_start_time": datetime.now(timezone.utc).isoformat() if new_status_val == PRINT_STATUS_RUNNING else None,
         }
 
@@ -1228,6 +1130,32 @@ class PrintTracker:
             self.coordinator.async_set_updated_data,
             self.coordinator._calculate_statistics()
         )
+
+    def _detect_ams_usage(self) -> bool:
+        """检测当前是否使用AMS"""
+        ams_tray_entities = self._get_ams_tray_entities()
+        if not ams_tray_entities:
+            return False
+        for eid in ams_tray_entities:
+            state = self.hass.states.get(eid)
+            if state and state.state not in INVALID_ENTITY_STATES:
+                try:
+                    if float(state.state) > 0:
+                        return True
+                except (ValueError, TypeError):
+                    pass
+        return False
+
+    def _detect_slice_mode(self, gcode_filename: str) -> str | None:
+        """判断切片模式：云切片/云文件/局域网文件"""
+        print_type = self.coordinator.get_entity_state(self._entity_map.get("print_type", ""), "").lower()
+        if print_type == "cloud":
+            return "cloud_slice" if gcode_filename and gcode_filename.startswith("/data/") else "cloud_file"
+        elif print_type in ("local", "lan"):
+            return "lan_file"
+        elif gcode_filename:
+            return "cloud_slice" if gcode_filename.startswith("/data/") else "lan_file"
+        return None
 
     async def _on_print_end(self, end_status: str) -> None:
         """打印结束"""
