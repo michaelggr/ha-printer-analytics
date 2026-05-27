@@ -16,6 +16,19 @@ _INIT_PATH = os.path.join(
 _SOURCE = open(_INIT_PATH, "r", encoding="utf-8").read()
 
 _ns = {}
+# 先加载 utils.py 中的 match_record_filter（_apply_filters 依赖它）
+_UTILS_PATH = os.path.join(
+    os.path.dirname(__file__), "..",
+    "custom_components", "printer_analytics", "utils.py",
+)
+_utils_src = open(_UTILS_PATH, "r", encoding="utf-8").read()
+_match_filter_src = _utils_src[
+    _utils_src.index("def match_record_filter("):
+    _utils_src.index("\ndef ", _utils_src.index("def match_record_filter(") + 10) if "\ndef " in _utils_src[_utils_src.index("def match_record_filter(") + 10:] else len(_utils_src)
+]
+exec(_match_filter_src, _ns)
+
+# 再加载 __init__.py 中的纯函数
 exec(_SOURCE[_SOURCE.index("def _sanitize_record"):_SOURCE.index("def _process_history_request")], _ns)
 exec(_SOURCE[_SOURCE.index("def _process_history_request"):], _ns)
 
@@ -394,23 +407,9 @@ class TestProcessHistoryRequest:
 
 # ==================== storage._match_filter 新筛选项测试 ====================
 
-# 从 storage.py 提取 _match_filter 纯函数
-_STORAGE_PATH = os.path.join(
-    os.path.dirname(__file__), "..",
-    "custom_components", "printer_analytics", "storage.py",
-)
-_storage_src = open(_STORAGE_PATH, "r", encoding="utf-8").read()
-
-# 提取 _match_filter 方法并转为独立函数
-_ns2 = {}
-_match_filter_src = _storage_src[
-    _storage_src.index("    @staticmethod\n    def _match_filter"):
-    _storage_src.index("    @staticmethod\n    def _collect_colors")
-]
-# 去掉 @staticmethod 和 self 参数，转为独立函数
-_match_filter_src = _match_filter_src.replace("    @staticmethod\n", "").replace("    def _match_filter", "def _match_filter_storage")
-exec(_match_filter_src, _ns2)
-_match_filter_storage = _ns2["_match_filter_storage"]
+# match_record_filter 已从 utils.py 提取到 _ns 中，直接复用
+_ns2 = _ns
+_match_filter_storage = _ns["match_record_filter"]
 
 
 class TestMatchFilterSliceMode:
