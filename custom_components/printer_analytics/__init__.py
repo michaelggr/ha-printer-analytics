@@ -37,6 +37,7 @@ from .const import (
     SERVICE_UPDATE_RECORD_FIELD,
 )
 from .coordinator import PrinterAnalyticsCoordinator
+from .utils import match_record_filter
 
 LOGGER = logging.getLogger(__name__)
 
@@ -119,74 +120,10 @@ def _extract_available_colors(history: list[dict]) -> list[str]:
 
 
 def _apply_filters(history: list[dict], status_filter: str, color_filter: str, printer_filter: str, date_from: str, date_to: str, search: str, slice_mode_filter: str = "", over_500g_filter: str = "") -> list[dict]:
-    records = history or []
-    has_printer_tags = any(record.get("_printer_name") for record in records)
-    search_value = (search or "").lower()
-    result = []
-
-    for record in records:
-        if not _match_status(record.get("status"), status_filter):
-            continue
-
-        if color_filter:
-            used_colors = record.get("colors_used") or []
-            color_match = color_filter in used_colors or record.get("filament_color") == color_filter
-            if not color_match:
-                color_match = any(
-                    usage and usage.get("color") == color_filter
-                    for usage in record.get("color_usage") or []
-                )
-            if not color_match:
-                continue
-
-        # 打印机筛选：同时匹配序列号、打印机名、_printer_name、_source_serial
-        if printer_filter:
-            p_upper = printer_filter.upper()
-            p_lower = printer_filter.lower()
-            r_serial = (record.get("printer_serial") or "").upper()
-            r_name = (record.get("_printer_name") or "").lower()
-            r_device_name = (record.get("device_name") or "").lower()
-            r_source_serial = (record.get("_source_serial") or "").upper()
-            if r_serial != p_upper and r_name != p_lower and r_device_name != p_lower and r_source_serial != p_upper:
-                continue
-
-        if date_from or date_to:
-            time_value = record.get("end_time") or record.get("start_time") or ""
-            if not time_value:
-                continue
-            date_value = str(time_value)[:10]
-            if date_from and date_value < date_from:
-                continue
-            if date_to and date_value > date_to:
-                continue
-
-        if search_value:
-            task_name = (record.get("task_name") or "").lower()
-            filament_type = (record.get("filament_type") or "").lower()
-            if search_value not in task_name and search_value not in filament_type:
-                continue
-
-        # 切片模式筛选（兼容旧值 cloud→cloud_slice, local→lan_file）
-        if slice_mode_filter:
-            r_mode = (record.get("slice_mode") or "").lower()
-            f_mode = slice_mode_filter.lower()
-            # 旧值映射
-            mode_map = {"cloud": "cloud_slice", "local": "lan_file"}
-            r_mapped = mode_map.get(r_mode, r_mode)
-            if r_mapped != f_mode:
-                continue
-
-        # 超500g筛选
-        if over_500g_filter:
-            is_over = record.get("over_500g", False)
-            if over_500g_filter == "yes" and not is_over:
-                continue
-            elif over_500g_filter == "no" and is_over:
-                continue
-
-        result.append(record)
-
-    return result
+    """筛选历史记录（委托给 utils.match_record_filter 统一实现）"""
+    return [record for record in (history or [])
+            if match_record_filter(record, status_filter, color_filter, printer_filter,
+                                   date_from, date_to, search, slice_mode_filter, over_500g_filter)]
 
 
 def _process_history_request(coordinator, sort: str, page: int, page_size: int, status_filter: str, color_filter: str, printer_filter: str, date_from: str, date_to: str, search: str) -> dict:
