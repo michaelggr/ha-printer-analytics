@@ -1,5 +1,17 @@
 ﻿﻿# 打印分析卡片 - 修改记录
 
+## v5.17.0 (2026-05-28)
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 重构 | 提取 match_record_filter() 统一筛选逻辑，消除 __init__.py 和 storage.py 约70行重复代码 | utils.py, __init__.py, storage.py |
+| 重构 | 提取 _collect_task_name/_collect_cover_image/_collect_print_metadata 复用方法，消除 on_print_start 约80行重复代码 | print_tracker.py |
+| 重构 | 提取 _detect_ams_usage/_detect_slice_mode 辅助方法 | print_tracker.py |
+| 配置 | CI 流水线优化：HACS 验证和 hassfest 并行运行，新增 push 到 main 触发，移除自动 Release | .github/workflows/build.yml |
+| 配置 | hacs.json 移除 icon 字段（HACS 不允许），修复拼写错误 | hacs.json |
+
+---
+
 ## v5.14.1 (2026-05-27)
 
 | 类型 | 内容 | 涉及文件 |
