@@ -1,4 +1,4 @@
-{
+﻿{
   "domain": "printer_analytics",
   "name": "Printer Analytics",
   "codeowners": ["@michaelggr"],
@@ -9,6 +9,5 @@
   "issue_tracker": "https://github.com/michaelggr/ha-printer-analytics/issues",
   "requirements": [],
   "version": "5.14.0",
-  "icon": "mdi:chart-timeline-variant",
   "homeassistant": "2024.1.0"
 }
