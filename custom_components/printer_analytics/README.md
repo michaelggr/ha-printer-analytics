@@ -84,9 +84,49 @@
 
 ## Lovelace 卡片
 
-安装后，集成会自动创建仪表板。在侧边栏的"打印机分析"中访问。
+安装后，集成会自动创建仪表板。在侧边栏的**「打印机分析」**中访问。
+
+### 卡片概览
+
+内置 Lovelace 卡片包含 **3 个页签**，覆盖实时监控、统计分析和历史管理：
+
+#### 📺 实时监控面板（默认页）
+
+![实时监控面板](docs/screenshot-overview.png)
+
+- **打印机切换按钮** — 多台打印机一键切换
+- **当前任务信息** — 任务名、进度、耗材、仓温、功耗实时显示
+- **之最统计** — 最长/最短/最重/最轻打印记录速览
+- **最近打印** — 最新 5 条打印记录快速浏览
+
+#### 📊 统计分析页
+
+![统计分析](docs/screenshot-stats.png)
+
+6 种专业分析图表 + 活动热力图：
+
+| 图表 | 说明 |
+|------|------|
+| 多色占比 | 单色/双色/多色打印比例 |
+| 切片模式分布 | 云切片 vs 本地切片 vs 自动重复 |
+| 超 500g 占比 | 大重量打印比例 |
+| 喷嘴尺寸分布 | 0.2mm / 0.4mm / 0.6mm / 0.8mm 使用情况 |
+| 准备时间（按耗材） | 不同耗材的平均准备时长对比 |
+| 失败仓温分布 | 打印失败时的舱内温度区间分析 |
+| 活动热力图 | 按星期×时段的打印活跃度热力图 |
+
+#### 📋 全部历史页
+
+![全部历史](docs/screenshot-history.png)
+
+- **多维筛选** — 状态、颜色、日期范围、打印机、切片模式、超500g
+- **全文搜索** — 按任务名或耗材型号搜索
+- **批量操作** — 导出 CSV、导入 JSON（智能合并）、备份数据
+- **分页浏览** — 支持按时间正序/倒序排列
 
 ### 手动卡片配置
+
+如果需要手动添加到其他仪表板：
 
 ```yaml
 type: custom:printer-analytics-card
@@ -98,6 +138,8 @@ print_progress: sensor.p2s_xxx_print_progress
 nozzle_temp: sensor.p2s_xxx_nozzle_temperature
 bed_temp: sensor.p2s_xxx_bed_temperature
 ```
+
+> **提示**：集成安装后会自动创建 `ui-printer-analytics.yaml` 仪表板并注册到侧边栏，通常无需手动配置。
 
 ## 服务
 
@@ -161,6 +203,10 @@ bed_temp: sensor.p2s_xxx_bed_temperature
 ### 任务名显示项目名而非模型名
 
 Bambu Lab 的 task_name 实体会先短暂显示模型名（约15秒），然后切换为项目名。集成通过监听 task_name 变化事件自动捕获模型名。如果集成启动时打印已经开始，可能无法捕获，下次打印时会自动解决。
+
+## 相关项目
+
+- **[bambu-print-history-export](https://github.com/michaelggr/bambu-print-history-export)** — Bambu Lab 打印历史导出桌面工具，支持从 Bambu Lab 云端导出打印记录为 JSON/CSV/HA 格式，包含独立统计分析、热力图等功能（TypeScript / Electron）
 
 ## 支持
 
