@@ -1,4 +1,4 @@
-﻿﻿# Printer Analytics（打印机分析）
+﻿﻿﻿﻿# Printer Analytics（打印机分析）
 
 在 Home Assistant 中追踪和分析你的 3D 打印机数据。与 Bambu Lab 打印机（P2S、A1 Mini 等）通过 `bambu_lab` 集成无缝协作。
 
@@ -45,17 +45,42 @@
 
 1. 进入 设置 → 设备与服务 → 添加集成
 2. 搜索 "Printer Analytics"
-3. 配置打印机名称和打印状态实体
+3. 填写配置信息（如下图所示）
 
-### 配置项
+![配置向导](docs/images/setup-config.png)
 
-| 选项 | 说明 | 必填 |
-|------|------|------|
-| 打印机名称 | 打印机的显示名称 | 是 |
-| 打印状态实体 | 打印状态传感器实体（如 `sensor.p2s_xxx_print_status`） | 是 |
-| 功率实体 | 功率传感器实体 | 否 |
-| 能耗实体 | 能耗传感器实体 | 否 |
-| 腔体温度实体 | 腔体温度传感器实体 | 否 |
+### 配置项说明
+
+| 选项 | 说明 | 必填 | 推荐配置 |
+|------|------|------|----------|
+| 打印机名称 | 打印机的显示名称 | 是 | 如 `P2S`、`A1 Mini` |
+| 打印状态实体 | 打印机打印状态传感器 | 是 | `bambu_lab` 集成的 `sensor.xxx_print_status` |
+| **功率实体** | 实时功率传感器 | 否 | **米家计量版插座**的功率实体（`sensor.xxx_power`） |
+| **能耗实体** | 累计能耗传感器 | 否 | **米家计量版插座**的电量实体（`sensor.xxx_energy`） |
+| 腔体温度实体 | 打印舱内温度传感器 | 否 | `bambu_lab` 集成的 `sensor.xxx_chamber_temperature` |
+
+### ⚡ 功耗/能耗传感器推荐：米家计量版插座
+
+> **为什么要配？** 配置后可统计每次打印的实时功耗和累计用电量，在统计面板中查看能耗数据。
+
+**推荐设备：小米/米家智能插座（计量版）**
+
+- 通过 Home Assistant 的 `Xiaomi Miot Auto` 或 `Local Tuya` 集成接入
+- 功率实体示例：`sensor.xiaomi_plug_power`（单位：W）
+- 能耗实体示例：`sensor.xiaomi_plug_energy`（单位：kWh）
+- 使用时将打印机电源插入计量插座即可自动记录
+
+### 🌡️ A 系列打印机仓温传感器推荐
+
+> **背景**：Bambu Lab A1 / A1 Mini 等机型**没有内置舱温传感器**，`bambu_lab` 集成不会提供 `chamber_temperature` 实体。如需统计失败打印时的舱内温度分布，可配置第三方温度传感器。
+
+**推荐方案：在打印机舱内放置蓝牙/Zigbee 温湿度计**
+
+- **米家蓝牙温湿度计 2** — 通过 `Xiaomi Miot Auto` 集成接入，实体示例：`sensor.mi_temperature_humidity_temperature`
+- **涂鸦智能温湿度传感器** — 通过 `Local Tuya` 集成接入
+- **其他品牌** — 任何能接入 HA 的温度传感器均可（需为 `sensor` 域）
+
+配置时将第三方温度传感器填入「腔体温度实体」字段即可，集成会自动将其数据纳入统计面板中的「失败仓温分布」图表。
 
 ## Lovelace 卡片
 
