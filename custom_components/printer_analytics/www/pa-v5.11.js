@@ -182,36 +182,6 @@ class PrinterAnalyticsCard extends HTMLElement {
         d.count = wCount || (d.count || 0);
       }
     }
-    if (entityKey === 'extreme_stats') {
-      // 从各打印机的极端值中选出全局最极端的
-      const candidates = { longest: [], shortest: [], heaviest: [], lightest: [], most_colors: [] };
-      for (const p of this._getPrintersConfig()) {
-        const eid = this._getEntityForPrinter(p.printer_name, entityKey);
-        if (!eid) continue;
-        const a = this._getAttr(eid);
-        for (const key of Object.keys(candidates)) {
-          if (a[key] && typeof a[key] === 'object') {
-            a[key]._printer_name = p.printer_name;
-            candidates[key].push(a[key]);
-          }
-        }
-      }
-      if (candidates.longest.length > 0) {
-        merged.longest = candidates.longest.reduce((a, b) => (a.duration_hours || 0) > (b.duration_hours || 0) ? a : b);
-      }
-      if (candidates.shortest.length > 0) {
-        merged.shortest = candidates.shortest.reduce((a, b) => (a.duration_hours || 0) < (b.duration_hours || 0) ? a : b);
-      }
-      if (candidates.heaviest.length > 0) {
-        merged.heaviest = candidates.heaviest.reduce((a, b) => (a.total_weight || 0) > (b.total_weight || 0) ? a : b);
-      }
-      if (candidates.lightest.length > 0) {
-        merged.lightest = candidates.lightest.reduce((a, b) => (a.total_weight || 0) < (b.total_weight || 0) ? a : b);
-      }
-      if (candidates.most_colors.length > 0) {
-        merged.most_colors = candidates.most_colors.reduce((a, b) => (a.colors_used || []).length > (b.colors_used || []).length ? a : b);
-      }
-    }
   }
 
   /**
@@ -539,6 +509,17 @@ class PrinterAnalyticsCard extends HTMLElement {
       'material_stats_lifetime': 'zhong_shen',
       'material_stats_7d': '7tian',
       'material_stats_30d': '30tian',
+      'extreme_stats': 'zhi_zui',
+      'duration_distribution': 'shi_chang',
+      'filament_success_stats': 'hao_cai_cheng',
+      'multi_color_ratio': 'duo_se',
+      'prepare_time_by_filament': 'zhun_bei',
+      'slice_mode_distribution': 'qie_pian',
+      'over_500g_ratio': 'chao_500g',
+      'nozzle_size_distribution': 'pen_zui',
+      'failed_chamber_temp_distribution': 'cang_wen',
+      'activity_heatmap': 'huo_dong',
+      'failure_stage_distribution': 'shi_bai',
     };
     const period = autoDiscoverMap[entityKey];
     if (!period || !this._hass?.states) return '';
@@ -547,9 +528,11 @@ class PrinterAnalyticsCard extends HTMLElement {
     const prefixMatch = historyEntityId.match(/^sensor\.(\w+)_/);
     if (!prefixMatch) return '';
     const prefix = prefixMatch[1];
-    // 搜索 sensor.{prefix}_{prefix}_{period}_hao_cai_tong_ji
-    const targetId = `sensor.${prefix}_${prefix}_${period}_hao_cai_tong_ji`;
-    if (this._hass.states[targetId]) return targetId;
+    // 搜索 sensor.{prefix}_{prefix}_{period}_* 模式
+    const pattern = new RegExp(`^sensor\\.${prefix}_${prefix}_${period}`);
+    for (const eid of Object.keys(this._hass.states)) {
+      if (pattern.test(eid)) return eid;
+    }
     return '';
   }
 
@@ -4197,7 +4180,41 @@ class PrinterAnalyticsCard extends HTMLElement {
    * 渲染"之最"页签 - 各种极端记录
    */
   _renderExtremeStats() {
-    const extreme = this._getAggregatedAttr('extreme_stats');
+    let extreme;
+    if (this._selectedPrinter !== '全部') {
+      const eid = this._getEntityForPrinter(this._selectedPrinter, 'extreme_stats');
+      extreme = eid ? this._getAttr(eid) : null;
+    } else {
+      // 多打印机：从各打印机的极端值中选出全局最极端的
+      extreme = {};
+      const candidates = { longest: [], shortest: [], heaviest: [], lightest: [], most_colors: [] };
+      for (const p of this._getPrintersConfig()) {
+        const eid = this._getEntityForPrinter(p.printer_name, 'extreme_stats');
+        if (!eid) continue;
+        const a = this._getAttr(eid);
+        for (const key of Object.keys(candidates)) {
+          if (a[key] && typeof a[key] === 'object') {
+            a[key]._printer_name = p.printer_name;
+            candidates[key].push(a[key]);
+          }
+        }
+      }
+      if (candidates.longest.length > 0) {
+        extreme.longest = candidates.longest.reduce((a, b) => (a.duration_hours || 0) > (b.duration_hours || 0) ? a : b);
+      }
+      if (candidates.shortest.length > 0) {
+        extreme.shortest = candidates.shortest.reduce((a, b) => (a.duration_hours || 0) < (b.duration_hours || 0) ? a : b);
+      }
+      if (candidates.heaviest.length > 0) {
+        extreme.heaviest = candidates.heaviest.reduce((a, b) => (a.total_weight || 0) > (b.total_weight || 0) ? a : b);
+      }
+      if (candidates.lightest.length > 0) {
+        extreme.lightest = candidates.lightest.reduce((a, b) => (a.total_weight || 0) < (b.total_weight || 0) ? a : b);
+      }
+      if (candidates.most_colors.length > 0) {
+        extreme.most_colors = candidates.most_colors.reduce((a, b) => (a.colors_used || []).length > (b.colors_used || []).length ? a : b);
+      }
+    }
     if (!extreme || Object.keys(extreme).length === 0) return '';
 
     const recordCard = (icon, title, record, valueFn, extraFn) => {
