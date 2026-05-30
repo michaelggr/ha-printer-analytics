@@ -525,7 +525,7 @@ class PrinterAnalyticsCard extends HTMLElement {
     if (!period || !this._hass?.states) return '';
     // 从 print_history 实体提取打印机前缀（如 p2s、a1mini）
     const historyEntityId = p?.entities?.print_history || '';
-    const prefixMatch = historyEntityId.match(/^sensor\.(\w+)_/);
+    const prefixMatch = historyEntityId.match(/^sensor\.([a-z0-9]+?)_/);
     if (!prefixMatch) return '';
     const prefix = prefixMatch[1];
     // 搜索 sensor.{prefix}_{prefix}_{period}_* 模式
