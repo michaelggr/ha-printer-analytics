@@ -1,6 +1,6 @@
 /**
- * 打印机分析卡片 - v5.14.0
- * 版本: 5.14.0 (2026-05-26) - 模型名捕获修复、项目名区分、QQ交流群
+ * 打印机分析卡片 - v5.17.0
+ * 版本: 5.17.0 (2026-05-31) - 统计分析改用后端数据、极端值后端计算
  *
  * 设计特点:
  * - 顶部打印机实时监控（多打印机卡片）
@@ -2509,7 +2509,7 @@ class PrinterAnalyticsCard extends HTMLElement {
               <div class="header-title">${title}</div>
             </div>
           </div>
-        <div class="header-badge">v5.14.0</div>
+        <div class="header-badge">v5.17.0</div>
         </div>
       `;
 
