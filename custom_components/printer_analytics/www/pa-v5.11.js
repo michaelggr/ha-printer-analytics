@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 打印机分析卡片 - v5.14.0
  * 版本: 5.14.0 (2026-05-26) - 模型名捕获修复、项目名区分、QQ交流群
  *
@@ -83,7 +83,6 @@ class PrinterAnalyticsCard extends HTMLElement {
     this._detailRecord = null;
   }
 
-  // 获取实体属性，"全部"模式下聚合所有打印机同名属性（数值求和）
   _getAggregatedAttr(entityKey) {
     if (this._selectedPrinter !== '全部') {
       const eid = this._getEntityForPrinter(this._selectedPrinter, entityKey);
@@ -92,7 +91,7 @@ class PrinterAnalyticsCard extends HTMLElement {
     const printers = this._getPrintersConfig();
     const merged = {};
     for (const p of printers) {
-      const eid = p.entities[entityKey];
+      const eid = this._getEntityForPrinter(p.printer_name, entityKey);
       if (!eid) continue;
       const attrs = this._getAttr(eid);
       for (const k in attrs) {
@@ -121,7 +120,68 @@ class PrinterAnalyticsCard extends HTMLElement {
         }
       }
     }
+    this._recalcAggregatedFields(entityKey, merged);
     return merged;
+  }
+
+  _recalcAggregatedFields(entityKey, merged) {
+    if (entityKey.startsWith('material_stats_')) {
+      if (merged.total_prints > 0) {
+        merged.success_rate = Math.round((merged.successful || 0) / merged.total_prints * 1000) / 10;
+      } else {
+        merged.success_rate = 0;
+      }
+      if (merged.total_prints > 0) {
+        let weightedSum = 0, weightTotal = 0;
+        for (const p of this._getPrintersConfig()) {
+          const eid = this._getEntityForPrinter(p.printer_name, entityKey);
+          if (!eid) continue;
+          const a = this._getAttr(eid);
+          const tp = a.total_prints || 0;
+          const ad = a.average_duration_hours || 0;
+          if (tp > 0 && ad > 0) {
+            weightedSum += ad * tp;
+            weightTotal += tp;
+          }
+        }
+        merged.average_duration_hours = weightTotal > 0 ? Math.round(weightedSum / weightTotal * 100) / 100 : 0;
+      } else {
+        merged.average_duration_hours = 0;
+      }
+    }
+    if (entityKey === 'filament_success_stats') {
+      for (const ft in merged) {
+        if (typeof merged[ft] !== 'object' || !merged[ft]) continue;
+        const d = merged[ft];
+        if (d.total > 0) {
+          d.success_rate = Math.round((d.success || 0) / d.total * 1000) / 10;
+        } else {
+          d.success_rate = 0;
+        }
+      }
+    }
+    if (entityKey === 'prepare_time_by_filament') {
+      for (const ft in merged) {
+        if (typeof merged[ft] !== 'object' || !merged[ft]) continue;
+        const d = merged[ft];
+        let wSum = 0, wCount = 0;
+        for (const p of this._getPrintersConfig()) {
+          const eid = this._getEntityForPrinter(p.printer_name, entityKey);
+          if (!eid) continue;
+          const a = this._getAttr(eid);
+          if (a[ft] && typeof a[ft] === 'object') {
+            const c = a[ft].count || 0;
+            const av = a[ft].avg || 0;
+            if (c > 0 && av > 0) {
+              wSum += av * c;
+              wCount += c;
+            }
+          }
+        }
+        d.avg = wCount > 0 ? Math.round(wSum / wCount * 10) / 10 : (d.avg || 0);
+        d.count = wCount || (d.count || 0);
+      }
+    }
   }
 
   /**
@@ -436,14 +496,31 @@ class PrinterAnalyticsCard extends HTMLElement {
    */
   _getEntityForPrinter(printerName, entityKey) {
     const printers = this._getPrintersConfig();
-    // 支持序列号(名称)格式或纯名称格式
     const p = printers.find(x => {
       if (x.printer_name === printerName) return true;
       const match = printerName.match(/^(.+)\((.+)\)$/);
       if (match && x.printer_name === match[2]) return true;
       return false;
     });
-    return p?.entities?.[entityKey] || '';
+    const configured = p?.entities?.[entityKey];
+    if (configured) return configured;
+    // 自动发现：统计类实体未配置时，根据打印机前缀从 hass.states 搜索
+    const autoDiscoverMap = {
+      'material_stats_lifetime': 'zhong_shen',
+      'material_stats_7d': '7tian',
+      'material_stats_30d': '30tian',
+    };
+    const period = autoDiscoverMap[entityKey];
+    if (!period || !this._hass?.states) return '';
+    // 从 print_history 实体提取打印机前缀（如 p2s、a1mini）
+    const historyEntityId = p?.entities?.print_history || '';
+    const prefixMatch = historyEntityId.match(/^sensor\.(\w+)_/);
+    if (!prefixMatch) return '';
+    const prefix = prefixMatch[1];
+    // 搜索 sensor.{prefix}_{prefix}_{period}_hao_cai_tong_ji
+    const targetId = `sensor.${prefix}_${prefix}_${period}_hao_cai_tong_ji`;
+    if (this._hass.states[targetId]) return targetId;
+    return '';
   }
 
   /**
@@ -1654,24 +1731,50 @@ class PrinterAnalyticsCard extends HTMLElement {
         .history-loading-overlay {
           position: absolute;
           inset: 0;
-          background: rgba(255,255,255,0.7);
+          background: rgba(15,23,42,0.92);
           display: flex;
           align-items: center;
           justify-content: center;
           z-index: 100;
-          font-size: 16px;
-          color: var(--primary);
+          font-size: 14px;
+          color: var(--text-primary);
           font-weight: 500;
+          flex-direction: column;
+          gap: 10px;
+          padding: 24px;
         }
         .history-loading-overlay::before {
-          content: '';
-          width: 24px;
-          height: 24px;
-          border: 3px solid var(--border);
-          border-top-color: var(--primary);
-          border-radius: 50%;
-          animation: spin 0.8s linear infinite;
-          margin-right: 8px;
+          display: none;
+        }
+        .loading-stage {
+          font-size: 15px;
+          font-weight: 600;
+          color: var(--primary-light);
+          letter-spacing: 0.5px;
+        }
+        .loading-bar-track {
+          width: 200px;
+          height: 6px;
+          background: rgba(99,102,241,0.2);
+          border-radius: 3px;
+          overflow: hidden;
+        }
+        .loading-bar-fill {
+          height: 100%;
+          background: linear-gradient(90deg, var(--primary), var(--secondary));
+          border-radius: 3px;
+          transition: width 0.3s ease;
+        }
+        .loading-text {
+          font-size: 13px;
+          color: var(--text-secondary);
+        }
+        .loading-detail {
+          font-size: 12px;
+          color: var(--text-muted);
+          max-width: 280px;
+          text-align: center;
+          line-height: 1.4;
         }
         @keyframes spin {
           to { transform: rotate(360deg); }
@@ -3262,18 +3365,47 @@ class PrinterAnalyticsCard extends HTMLElement {
    * 显示历史页面的加载遮罩
    * @param {string} text 加载提示文字
    */
-  _showHistoryLoading(text = '加载中...') {
+  _showHistoryLoading(text = '加载中...', options = {}) {
     const tabMerged = this.shadowRoot.getElementById('tab-merged');
     if (!tabMerged) return;
-    // 确保父容器有 position: relative
     tabMerged.style.position = 'relative';
-    // 移除已有的遮罩
     this._hideHistoryLoading();
     const overlay = document.createElement('div');
     overlay.className = 'history-loading-overlay';
     overlay.id = 'history-loading-overlay';
-    overlay.textContent = text;
+    const { progress, stage, detail } = options;
+    let html = '';
+    if (stage) {
+      html += '<div class="loading-stage">' + stage + '</div>';
+    }
+    if (progress != null) {
+      html += '<div class="loading-bar-track"><div class="loading-bar-fill" style="width:' + Math.min(100, Math.max(0, progress)) + '%"></div></div>';
+    }
+    html += '<div class="loading-text">' + text + '</div>';
+    if (detail) {
+      html += '<div class="loading-detail">' + detail + '</div>';
+    }
+    overlay.innerHTML = html;
     tabMerged.appendChild(overlay);
+  }
+
+  /** 更新加载遮罩内容（不重建DOM，仅更新文字/进度） */
+  _updateHistoryLoading(text, options = {}) {
+    const existing = this.shadowRoot.getElementById('history-loading-overlay');
+    if (!existing) return this._showHistoryLoading(text, options);
+    const { progress, stage, detail } = options;
+    let html = '';
+    if (stage) {
+      html += '<div class="loading-stage">' + stage + '</div>';
+    }
+    if (progress != null) {
+      html += '<div class="loading-bar-track"><div class="loading-bar-fill" style="width:' + Math.min(100, Math.max(0, progress)) + '%"></div></div>';
+    }
+    html += '<div class="loading-text">' + text + '</div>';
+    if (detail) {
+      html += '<div class="loading-detail">' + detail + '</div>';
+    }
+    existing.innerHTML = html;
   }
 
   /** 隐藏历史页面的加载遮罩 */
@@ -3286,44 +3418,17 @@ class PrinterAnalyticsCard extends HTMLElement {
    * 渲染实时统计维度卡片
    */
   _renderTimeDimension() {
-    const printerName = this._selectedPrinter;
-    const history = this._getHistoryForPrinter(printerName);
-    let totalPrints = 0, successCount = 0, failCount = 0;
-    let totalWeight = 0, totalLength = 0, totalEnergy = 0;
-    let totalDuration = 0, durationCount = 0;
-
-    if (Array.isArray(history)) {
-      for (const item of history) {
-        totalPrints++;
-        const status = (item.status || '').toLowerCase();
-        const weight = item.total_weight || 0;
-        const length = item.total_length || 0;
-        const energy = item.energy_kwh || 0;
-        const duration = item.duration_hours || (item.duration_minutes ? item.duration_minutes / 60 : 0);
-
-        if (status === 'finish' || status === '完成' || status === '成功') {
-          successCount++;
-          totalWeight += weight;
-          totalLength += length;
-        } else if (status === 'failed' || status === 'fail' || status === '失败') {
-          failCount++;
-          totalWeight += weight;
-          totalLength += length;
-        }
-        totalEnergy += energy;
-        if (duration > 0) {
-          totalDuration += duration;
-          durationCount++;
-        }
-      }
-    }
-
-    const successRate = totalPrints > 0 ? (successCount / totalPrints * 100).toFixed(1) : '0';
-    const avgDuration = durationCount > 0 ? (totalDuration / durationCount).toFixed(2) : '0';
-    const weightStr = totalWeight.toFixed(1);
-    const lengthStr = totalLength.toFixed(1);
-    const totalDurationStr = totalDuration.toFixed(2);
-    const totalEnergyStr = totalEnergy.toFixed(2);
+    // 优先使用后端统计数据，避免前端遍历 history 重复计算
+    const stats = this._getAggregatedAttr('material_stats_lifetime');
+    const totalPrints = stats.total_prints || 0;
+    const successCount = stats.successful || 0;
+    const failCount = stats.failed || 0;
+    const successRate = stats.success_rate != null ? Number(stats.success_rate).toFixed(1) : '0';
+    const avgDuration = stats.average_duration_hours != null ? Number(stats.average_duration_hours).toFixed(2) : '0';
+    const weightStr = (stats.total_weight_g || 0).toFixed(1);
+    const lengthStr = (stats.total_length_m || 0).toFixed(1);
+    const totalDurationStr = (stats.total_duration_hours || 0).toFixed(2);
+    const totalEnergyStr = (stats.total_energy_kwh || 0).toFixed(2);
 
     // 打印质量 = 成功率 + 质量等级
     const rateNum = parseFloat(successRate) || 0;
@@ -3382,55 +3487,32 @@ class PrinterAnalyticsCard extends HTMLElement {
    * 渲染周期统计（7天/30天）
    */
   _renderPeriodStats() {
-    const printerName = this._selectedPrinter;
-    const history = this._getHistoryForPrinter(printerName);
-    const now = new Date();
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 3600 * 1000);
+    // 全部使用后端统计数据，不再前端遍历 history 计算
+    const stats7d = this._getAggregatedAttr('material_stats_7d');
+    const stats30d = this._getAggregatedAttr('material_stats_30d');
+    const statsLifetime = this._getAggregatedAttr('material_stats_lifetime');
 
-    const calcPeriod = (records, since) => {
-      let totalPrints = 0, successful = 0, failed = 0;
-      let totalWeight = 0, totalLength = 0, totalEnergy = 0;
-      let totalDuration = 0, durationCount = 0;
-      for (const item of records) {
-        const endTime = item.end_time || item.start_time || '';
-        const endDt = endTime ? new Date(endTime) : null;
-        if (since && endDt && endDt < since) continue;
-        totalPrints++;
-        const status = (item.status || '').toLowerCase();
-        const weight = item.total_weight || 0;
-        const length = item.total_length || 0;
-        const energy = item.energy_kwh || 0;
-        const duration = item.duration_hours || (item.duration_minutes ? item.duration_minutes / 60 : 0);
-        if (status === 'finish' || status === '完成' || status === '成功') {
-          successful++;
-          totalWeight += weight;
-          totalLength += length;
-        } else if (status === 'failed' || status === 'fail' || status === '失败') {
-          failed++;
-          totalWeight += weight;
-          totalLength += length;
-        } else if (status === 'cancelled' || status === '已取消') {
-          totalWeight += weight;
-          totalLength += length;
-        }
-        totalEnergy += energy;
-        if (duration > 0) { totalDuration += duration; durationCount++; }
+    const fmtPeriod = (label, s) => {
+      if (!s || !s.total_prints) {
+        return { label, totalPrints: 0, successful: 0, failed: 0, successRate: '0', totalWeight: '0.0', totalLength: '0.0', totalEnergy: '0.00', avgDuration: '0' };
       }
       return {
-        totalPrints, successful, failed,
-        successRate: totalPrints > 0 ? (successful / totalPrints * 100).toFixed(1) : '0',
-        totalWeight: totalWeight.toFixed(1),
-        totalLength: totalLength.toFixed(1),
-        totalEnergy: totalEnergy.toFixed(2),
-        avgDuration: durationCount > 0 ? (totalDuration / durationCount).toFixed(2) : '0'
+        label,
+        totalPrints: s.total_prints || 0,
+        successful: s.successful || 0,
+        failed: s.failed || 0,
+        successRate: s.success_rate != null ? String(s.success_rate) : '0',
+        totalWeight: s.total_weight_g != null ? Number(s.total_weight_g).toFixed(1) : '0.0',
+        totalLength: s.total_length_m != null ? Number(s.total_length_m).toFixed(1) : '0.0',
+        totalEnergy: s.total_energy_kwh != null ? Number(s.total_energy_kwh).toFixed(2) : '0.00',
+        avgDuration: s.average_duration_hours != null ? Number(s.average_duration_hours).toFixed(2) : '0',
       };
     };
 
     const periodData = [
-      { label: '7天', ...calcPeriod(history, sevenDaysAgo) },
-      { label: '30天', ...calcPeriod(history, thirtyDaysAgo) },
-      { label: '总', ...calcPeriod(history, null) },
+      fmtPeriod('7天', stats7d),
+      fmtPeriod('30天', stats30d),
+      fmtPeriod('总', statsLifetime),
     ];
 
     const d = periodData;
@@ -3480,50 +3562,33 @@ class PrinterAnalyticsCard extends HTMLElement {
    * 渲染打印时长分布
    */
   _renderDurationDistribution() {
-    const records = this._getHistoryForPrinter(this._selectedPrinter);
-    if (!Array.isArray(records) || records.length === 0) {
+    // 优先使用后端 duration_distribution 传感器数据
+    const distribution = this._getAggregatedAttr('duration_distribution');
+    if (!distribution || Object.keys(distribution).length === 0) {
       return `<div class="section-header"><div class="section-title"><span class="section-icon">📊</span><span>打印时长分布</span></div></div><div class="chart-container"><div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">暂无数据</div></div></div>`;
     }
 
-    const buckets = [
-      { label: '0-30分钟', min: 0, max: 30 },
-      { label: '30-60分钟', min: 30, max: 60 },
-      { label: '1-3小时', min: 60, max: 180 },
-      { label: '3-6小时', min: 180, max: 360 },
-      { label: '6-12小时', min: 360, max: 720 },
-      { label: '12小时+', min: 720, max: Infinity },
-    ];
-
-    const distribution = {};
-    for (const b of buckets) distribution[b.label] = 0;
-
-    for (const r of records) {
-      if ((r.duration_hours || 0) <= 0) continue;
-      const mins = r.duration_hours * 60;
-      for (const b of buckets) {
-        if (mins >= b.min && mins < b.max) { distribution[b.label]++; break; }
-      }
-    }
-
-    const activeBuckets = buckets.filter(b => distribution[b.label] > 0);
+    // 后端已按桶分好，直接使用
+    const bucketOrder = ['0-30分钟', '30-60分钟', '1-3小时', '3-6小时', '6-12小时', '12小时+'];
+    const activeBuckets = bucketOrder.filter(b => distribution[b] > 0);
     if (activeBuckets.length === 0) {
       return `<div class="section-header"><div class="section-title"><span class="section-icon">📊</span><span>打印时长分布</span></div></div><div class="chart-container"><div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">暂无数据</div></div></div>`;
     }
 
-    const maxVal = Math.max(...activeBuckets.map(b => distribution[b.label]), 1);
+    const maxVal = Math.max(...activeBuckets.map(b => distribution[b]), 1);
     const colors = ['#22c55e', '#84cc16', '#eab308', '#f97316', '#ef4444', '#a855f7'];
 
     let barsHtml = '';
     for (let i = 0; i < activeBuckets.length; i++) {
-      const bucket = activeBuckets[i];
-      const value = distribution[bucket.label];
+      const label = activeBuckets[i];
+      const value = distribution[label];
       const heightPct = (value / maxVal) * 100;
       barsHtml += `<div style="flex:1;display:flex;flex-direction:column;align-items:center;min-height:110px;">
         <div class="table-value" style="font-size:14px;margin-bottom:8px;">${value}</div>
         <div style="width:100%;background:rgba(15,23,42,0.4);border-radius:8px;height:90px;padding:4px;position:relative;">
           <div style="width:100%;height:${Math.max(heightPct, 5)}%;background:linear-gradient(to top,${colors[i % colors.length]},${colors[(i + 1) % colors.length]});border-radius:6px;transition:height 0.5s ease;"></div>
         </div>
-        <div style="font-size:12px;color:var(--text-secondary);margin-top:10px;text-align:center;font-weight:500;">${bucket.label}</div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-top:10px;text-align:center;font-weight:500;">${label}</div>
       </div>`;
     }
 
@@ -4280,15 +4345,21 @@ class PrinterAnalyticsCard extends HTMLElement {
    * 渲染耗材使用情况
    */
   _renderFilamentBarCharts() {
-    const history = this._getHistoryForPrinter(this._selectedPrinter);
     let typeUsage = {};
     let colorUsage = {};
 
-    if (Array.isArray(history) && history.length > 0 &&
-      history.some(item => this._isSuccessStatus(item.status) && (item.total_weight > 0 || item.filament_type))) {
-      this._extractFilamentFromHistory(history, typeUsage, colorUsage);
+    // 优先使用后端 filament_success_stats 提取类型使用量
+    this._extractTypeUsageFromBackendStats(typeUsage);
+
+    // 颜色使用量后端无数据，仍需从 history 提取
+    const history = this._getHistoryForPrinter(this._selectedPrinter);
+    if (Array.isArray(history) && history.length > 0) {
+      const tmpType = {};
+      this._extractFilamentFromHistory(history, tmpType, colorUsage);
+      // 后端 typeUsage 更准确（基于全量记录），不覆盖
     }
 
+    // 最终回退：从 AMS tray 传感器读取
     if (Object.keys(typeUsage).length === 0 && Object.keys(colorUsage).length === 0) {
       this._extractFilamentFromStats(typeUsage, colorUsage);
     }
@@ -4302,21 +4373,27 @@ class PrinterAnalyticsCard extends HTMLElement {
   }
 
   _renderFilamentUsage() {
-    const history = this._getHistoryForPrinter(this._selectedPrinter);
     let typeUsage = {};
     let colorUsage = {};
     let multiColorPrints = [];
     let hasData = false;
 
-    if (Array.isArray(history) && history.length > 0 &&
-      history.some(item => this._isSuccessStatus(item.status) && (item.total_weight > 0 || item.filament_type))) {
+    // 优先使用后端 filament_success_stats 提取类型使用量
+    this._extractTypeUsageFromBackendStats(typeUsage);
+    if (Object.keys(typeUsage).length > 0) hasData = true;
 
-      const result = this._extractFilamentFromHistory(history, typeUsage, colorUsage);
-      hasData = result.hasData;
-      multiColorPrints = result.multiColorPrints || [];
-
+    // 颜色使用量和多色打印仍需从 history 提取
+    const history = this._getHistoryForPrinter(this._selectedPrinter);
+    if (Array.isArray(history) && history.length > 0) {
+      const tmpType = {};
+      const result = this._extractFilamentFromHistory(history, tmpType, colorUsage);
+      if (result.multiColorPrints && result.multiColorPrints.length > 0) {
+        multiColorPrints = result.multiColorPrints;
+      }
+      if (Object.keys(colorUsage).length > 0) hasData = true;
     }
 
+    // 最终回退
     if (!hasData && Object.keys(typeUsage).length === 0 && Object.keys(colorUsage).length === 0) {
       hasData = this._extractFilamentFromStats(typeUsage, colorUsage);
     }
@@ -4929,6 +5006,33 @@ class PrinterAnalyticsCard extends HTMLElement {
     };
   }
 
+  _isHistoryComplete() {
+    const printers = this._getPrintersConfig();
+    for (const p of printers) {
+      if (this._selectedPrinter !== '全部' && p.printer_name !== this._selectedPrinter) continue;
+      if (!p.entities.print_history || !this._hass) continue;
+      const entity = this._hass.states[p.entities.print_history];
+      if (!entity) continue;
+      const attrs = entity.attributes || {};
+      if (attrs.truncated) return false;
+      const historyCount = (attrs.history || []).length;
+      const totalCount = attrs.total_count || 0;
+      if (totalCount > 0 && historyCount < totalCount) return false;
+    }
+    return true;
+  }
+
+  _extractTypeUsageFromBackendStats(typeUsage) {
+    const stats = this._getAggregatedAttr('filament_success_stats');
+    for (const ft in stats) {
+      if (typeof stats[ft] !== 'object' || !stats[ft]) continue;
+      const weight = stats[ft].weight_g || 0;
+      if (weight > 0) {
+        typeUsage[this._escapeHtml(ft)] = weight;
+      }
+    }
+  }
+
   _extractFilamentFromStats(typeUsage, colorUsage) {
     let hasData = false;
     const currentWeight = this._getState(this.config.current_weight);
@@ -4984,7 +5088,7 @@ class PrinterAnalyticsCard extends HTMLElement {
     return '📊';
   }
 
-  _renderHistoryStats(history) {
+  _renderHistoryStats(history, totalRecords, wsStats) {
     if (!Array.isArray(history) || history.length === 0) {
       return `
         <div class="summary-item"><div class="summary-number">0</div><div class="summary-text">总记录</div></div>
@@ -4993,17 +5097,33 @@ class PrinterAnalyticsCard extends HTMLElement {
         <div class="summary-item"><div class="summary-number">0h</div><div class="summary-text">总时长</div></div>
       `;
     }
-    const total = history.length;
-    const success = history.filter(h => this._isSuccessStatus(h.status)).length;
-    const successRate = total > 0 ? ((success / total) * 100).toFixed(1) : 0;
-    const totalWeight = history.reduce((sum, h) => sum + (h.total_weight || 0), 0).toFixed(1);
-    const totalDuration = this._calculateTotalDuration(history);
+
+    // 优先使用后端统计（WS 模式下基于筛选后全量数据计算）
+    if (wsStats && typeof wsStats === 'object') {
+      const sr = wsStats.success_rate || 0;
+      const tw = wsStats.total_weight || 0;
+      const td = this._formatDurationHours(wsStats.total_duration_hours || 0);
+      const t = wsStats.total != null ? wsStats.total : totalRecords;
+      return `
+        <div class="summary-item"><div class="summary-number">${t}</div><div class="summary-text">总记录</div></div>
+        <div class="summary-item"><div class="summary-number" style="color:${sr >= 80 ? 'var(--success)' : 'var(--warning)'};">${sr}%<span style="font-size:9px;opacity:0.8;margin-left:2px;display:block;">${sr >= 95 ? '优秀' : sr >= 80 ? '良好' : '需关注'}</span></div><div class="summary-text">成功率</div></div>
+        <div class="summary-item"><div class="summary-number">${this._formatWeight(tw)}</div><div class="summary-text">总耗材</div></div>
+        <div class="summary-item"><div class="summary-number">${td}</div><div class="summary-text">总时长</div></div>
+      `;
+    }
+
+    // 无 wsStats 时，使用后端 material_stats_lifetime 传感器数据
+    const stats = this._getAggregatedAttr('material_stats_lifetime');
+    const total = stats.total_prints || totalRecords || history.length;
+    const sr = stats.success_rate || 0;
+    const tw = stats.total_weight_g || 0;
+    const td = this._formatDurationHours(stats.total_duration_hours || 0);
 
     return `
       <div class="summary-item"><div class="summary-number">${total}</div><div class="summary-text">总记录</div></div>
-      <div class="summary-item"><div class="summary-number" style="color:${successRate >= 80 ? 'var(--success)' : 'var(--warning)'};">${successRate}%</div><div class="summary-text">成功率</div></div>
-      <div class="summary-item"><div class="summary-number">${this._formatWeight(totalWeight)}</div><div class="summary-text">总耗材</div></div>
-      <div class="summary-item"><div class="summary-number">${totalDuration}</div><div class="summary-text">总时长</div></div>
+      <div class="summary-item"><div class="summary-number" style="color:${sr >= 80 ? 'var(--success)' : 'var(--warning)'};">${sr}%</div><div class="summary-text">成功率</div></div>
+      <div class="summary-item"><div class="summary-number">${this._formatWeight(tw)}</div><div class="summary-text">总耗材</div></div>
+      <div class="summary-item"><div class="summary-number">${td}</div><div class="summary-text">总时长</div></div>
     `;
   }
 
@@ -5288,7 +5408,7 @@ class PrinterAnalyticsCard extends HTMLElement {
         // 全局查询已包含打印机名和实体ID
         this._wsHistoryData = {
           records: result.records,
-          totalRecords: result.filter_options?.total_records || result.pagination?.total || 0,
+          totalRecords: result.pagination?.total || result.filter_options?.total_records || 0,
           colors: result.filter_options?.colors || [],
           allSerials: result.filter_options?.all_serials || [],
           serialNameMap: result.filter_options?.serial_name_map || {},
@@ -5620,17 +5740,18 @@ class PrinterAnalyticsCard extends HTMLElement {
       return;
     }
 
-    this._showHistoryLoading('导入中...');
+    this._showHistoryLoading('准备导入...', { stage: '1/5 读取文件', progress: 5 });
 
     try {
+      // ---- 第1步：读取文件 ----
       const text = await file.text();
+      this._updateHistoryLoading('解析JSON...', { stage: '2/5 校验格式', progress: 15, detail: '文件大小: ' + (text.length / 1024).toFixed(1) + 'KB' });
 
-      // ---- 第1步：JSON 语法校验 ----
+      // ---- 第2步：JSON 语法校验 ----
       let data;
       try {
         data = JSON.parse(text);
       } catch (e) {
-        // 提取错误位置，给出友好提示
         const pos = e.message.match(/position\s+(\d+)/i);
         let hint = '请检查文件内容是否为合法的 JSON 格式。';
         if (pos) {
@@ -5642,17 +5763,16 @@ class PrinterAnalyticsCard extends HTMLElement {
         return;
       }
 
-      // ---- 第2步：数据结构校验 ----
+      this._updateHistoryLoading('分析数据结构...', { stage: '3/5 数据校验', progress: 30 });
+
+      // ---- 第3步：数据结构校验 ----
       let records = [];
       if (Array.isArray(data)) {
-        // 纯数组格式：[{...}, {...}]
         records = data;
       } else if (typeof data === 'object' && data !== null) {
         if (Array.isArray(data.history)) {
-          // 标准格式：{"history": [...]}
           records = data.history;
         } else {
-          // 尝试多打印机格式：{"entry_id": {"history": [...]}}
           let found = false;
           for (const key of Object.keys(data)) {
             if (data[key] && typeof data[key] === 'object' && Array.isArray(data[key].history)) {
@@ -5670,19 +5790,18 @@ class PrinterAnalyticsCard extends HTMLElement {
         return;
       }
 
-      // ---- 第3步：记录内容校验 ----
+      this._updateHistoryLoading('检查记录内容...', { stage: '3/5 数据校验', progress: 40, detail: '共 ' + records.length + ' 条记录待处理' });
+
       if (records.length === 0) {
         alert('❌ 导入数据为空\n\n"history" 数组中没有记录。\n请至少添加一条打印记录后再导入。');
         return;
       }
 
-      // 检查记录数上限
       if (records.length > 5000) {
         alert('❌ 记录数超限\n\n单次最多导入 5000 条记录。\n当前：' + records.length + ' 条');
         return;
       }
 
-      // 检查必填字段
       const requiredFields = ['task_name', 'status'];
       const missingRecords = [];
       for (let i = 0; i < records.length && i < 5; i++) {
@@ -5696,7 +5815,6 @@ class PrinterAnalyticsCard extends HTMLElement {
         return;
       }
 
-      // 检查 status 值是否合法
       const validStatuses = ['finish', 'failed', 'cancelled'];
       const invalidStatusRecords = [];
       for (let i = 0; i < records.length && i < 5; i++) {
@@ -5710,35 +5828,54 @@ class PrinterAnalyticsCard extends HTMLElement {
         return;
       }
 
-      // ---- 第4步：调用后端导入 ----
-      // 获取打印机实体ID
-      let entityId = '';
+      this._updateHistoryLoading('发送到服务器...', { stage: '4/5 导入中', progress: 60, detail: '正在写入数据库...' });
+
+      let entryId = '';
       const entryIds = this._getAllEntryIds();
       if (entryIds.length > 0) {
-        entityId = entryIds[0].entryId;
-      } else {
-        const printers = this._getPrintersConfig();
-        const firstPrinter = printers.find(p => p.entities.print_history);
-        if (firstPrinter) {
-          entityId = firstPrinter.entities.print_history;
-        }
+        entryId = entryIds[0].entryId;
       }
 
-      if (!entityId) {
+      if (!entryId) {
         this._hideHistoryLoading();
         alert('❌ 没有可用的打印机配置');
         return;
       }
 
-      await this._hass.callService('printer_analytics', 'import_history', {
-        entity_id: entityId,
+      // 通过 WebSocket 导入，获取结构化统计结果
+      const importResult = await this._hass.callWS({
+        type: 'printer_analytics/import_history',
+        entry_id: entryId,
         json_data: text
       });
 
-      alert('✅ 导入成功！\n\n已导入 ' + records.length + ' 条记录，即将刷新数据...');
+      this._updateHistoryLoading('刷新页面数据...', { stage: '5/5 刷新中', progress: 85, detail: '导入完成，正在加载最新数据...' });
 
-      // 刷新数据
       this._loadHistoryViaWS();
+
+      // 构建导入摘要
+      const summary = importResult || {};
+      const inputCount = summary.input || records.length;
+      const addedCount = summary.added || 0;
+      const mergedCount = summary.merged || 0;
+      const dupSkipped = summary.duplicate_skipped || 0;
+      const otherSerial = summary.other_serial || 0;
+      const finalTotal = summary.final_total || 0;
+
+      const lines = [];
+      lines.push('读取：' + inputCount + ' 条');
+      if (addedCount > 0) lines.push('新增：' + addedCount + ' 条');
+      if (mergedCount > 0) lines.push('合并更新：' + mergedCount + ' 条');
+      if (dupSkipped > 0) lines.push('重复跳过：' + dupSkipped + ' 条');
+      if (otherSerial > 0) lines.push('其他打印机：' + otherSerial + ' 条');
+      lines.push('当前总数：' + finalTotal + ' 条');
+
+      setTimeout(() => {
+        this._updateHistoryLoading('导入完成！', { stage: '✅ 完成', progress: 100, detail: lines.join('  |  ') });
+      }, 500);
+      setTimeout(() => {
+        this._hideHistoryLoading();
+      }, 4000);
 
     } catch (e) {
       console.warn('[导入] 导入失败:', e);
@@ -5804,13 +5941,15 @@ class PrinterAnalyticsCard extends HTMLElement {
     let colorOptions = '';
     let allRecords = [];
     let filtered = [];
+    let wsStats = null;
     let startIdx = 0;
 
     if (this._wsHistoryData && this._wsHistoryData.records) {
-      // WS 模式：服务端已筛选+分页
+      // WS 模式：服务端已筛选+分页，使用后端统计（基于筛选后全量数据）
       pageItems = this._wsHistoryData.records;
       filtered = pageItems;
       total = this._wsHistoryData.totalRecords || pageItems.length;
+      wsStats = this._wsHistoryData.stats || null;
       colorOptions = (this._wsHistoryData.colors || []).map(c =>
         `<div class="color-dropdown-item ${this._filterColor === c ? 'selected' : ''}" data-color="${this._escapeHtml(c)}" title="${this._formatColorName(c)}"><span class="color-dot" style="background:${this._sanitizeColor(c)};"></span>${this._formatColorName(c)}</div>`
       ).join('');
@@ -5963,7 +6102,7 @@ class PrinterAnalyticsCard extends HTMLElement {
         <input type="file" class="hidden-file-input" id="file-import" accept=".json">
       </div>
       <div class="summary-bar">
-        ${this._renderHistoryStats(filtered)}
+        ${this._renderHistoryStats(filtered, total, wsStats)}
       </div>
       <div id="delete-bar" class="delete-bar" style="display:${this._selectedRecords.size > 0 ? 'flex' : 'none'};">
         <span class="delete-bar-text">已选择 <span id="selected-count">${this._selectedRecords.size}</span> 条记录</span>

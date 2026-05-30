@@ -6,9 +6,9 @@ from typing import TYPE_CHECKING
 from .const import (
     DURATION_BUCKETS,
     FAILURE_STAGE_BUCKETS,
-    PRINT_STATUS_CANCELLED,
-    PRINT_STATUS_FINISH,
-    PRINT_STATUS_FAIL,
+    SUCCESS_STATUSES,
+    FAILURE_STATUSES,
+    CANCELLED_STATUSES,
 )
 from .data_models import PrinterStats
 
@@ -216,15 +216,15 @@ class StatisticsCalculator:
                 LOGGER.warning("Abnormal energy value %.2f kWh, filtered out", energy)
                 energy = 0.0
 
-            if status == PRINT_STATUS_FINISH:
+            if status in SUCCESS_STATUSES:
                 successful_count += 1
                 total_weight += weight
                 total_length += length
-            elif status == PRINT_STATUS_FAIL:
+            elif status in FAILURE_STATUSES:
                 failed_count += 1
                 failed_weight += weight
                 failed_length += length
-            elif status == PRINT_STATUS_CANCELLED:
+            elif status in CANCELLED_STATUSES:
                 cancelled_count += 1
 
             if duration > 0:
@@ -253,7 +253,7 @@ class StatisticsCalculator:
                 if bucket_label:
                     duration_dist[bucket_label] += 1
 
-            if status in (PRINT_STATUS_FAIL, PRINT_STATUS_CANCELLED):
+            if status in FAILURE_STATUSES or status in CANCELLED_STATUSES:
                 bucket_label = self._get_failure_stage_bucket(progress)
                 if bucket_label:
                     failure_stages[bucket_label] += 1
@@ -261,16 +261,16 @@ class StatisticsCalculator:
             filament_type = record.get("filament_type")
             if filament_type:
                 if filament_type not in filament_stats:
-                    filament_stats[filament_type] = {"total": 0, "success": 0, "failed": 0, PRINT_STATUS_CANCELLED: 0, "weight": 0.0}
+                    filament_stats[filament_type] = {"total": 0, "success": 0, "failed": 0, "cancelled": 0, "weight": 0.0}
                 fs = filament_stats[filament_type]
                 fs["total"] += 1
                 fs["weight"] += weight
-                if status == PRINT_STATUS_FINISH:
+                if status in SUCCESS_STATUSES:
                     fs["success"] += 1
-                elif status == PRINT_STATUS_FAIL:
+                elif status in FAILURE_STATUSES:
                     fs["failed"] += 1
-                elif status == PRINT_STATUS_CANCELLED:
-                    fs[PRINT_STATUS_CANCELLED] += 1
+                elif status in CANCELLED_STATUSES:
+                    fs["cancelled"] += 1
 
             # 多色/单色统计
             if record.get("multi_color"):
@@ -302,7 +302,7 @@ class StatisticsCalculator:
                 prepare_time_by_filament[ft].append(pt)
 
             # 失败记录的仓温
-            if status in (PRINT_STATUS_FAIL, PRINT_STATUS_CANCELLED):
+            if status in FAILURE_STATUSES or status in CANCELLED_STATUSES:
                 ct = record.get("chamber_temp_final")
                 if ct and ct > 0:
                     failed_chamber_temps.append(ct)
@@ -392,11 +392,11 @@ class StatisticsCalculator:
         period_data['count'] += 1
         period_data['energy'] += energy
 
-        if status == PRINT_STATUS_FINISH:
+        if status in SUCCESS_STATUSES:
             period_data['success'] += 1
             period_data['weight'] += weight
             period_data['length'] += length
-        elif status == PRINT_STATUS_FAIL:
+        elif status in FAILURE_STATUSES:
             period_data['failed'] += 1
             period_data['weight'] += weight
             period_data['length'] += length
@@ -449,7 +449,7 @@ class StatisticsCalculator:
                 "total": total,
                 "success": data["success"],
                 "failed": data["failed"],
-                PRINT_STATUS_CANCELLED: data[PRINT_STATUS_CANCELLED],
+                "cancelled": data["cancelled"],
                 "success_rate": round(data["success"] / total * 100, 1) if total > 0 else 0,
                 "weight_g": round(data["weight"], 2),
             }

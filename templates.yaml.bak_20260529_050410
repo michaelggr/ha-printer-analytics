@@ -1,0 +1,1918 @@
+﻿# Template sensors for printer analytics - New syntax
+
+# Fix for power consumption unit conversion
+- sensor:
+    name: yutai_cn_1169887446_fsov8m_power_consumption_kwh
+    unique_id: yutai_cn_1169887446_fsov8m_power_consumption_kwh
+    unit_of_measurement: kWh
+    device_class: energy
+    state_class: total_increasing
+    icon: mdi:counter
+    state: >
+      {{ (states('sensor.yutai_cn_1169887446_fsov8m_power_consumption_p_4_1')|float(0) / 1000)|round(6) }}
+
+# 打印机今日用电
+- sensor:
+    name: printer_daily_energy
+    unique_id: printer_daily_energy
+    unit_of_measurement: kWh
+    device_class: energy
+    icon: mdi:counter
+    state: >
+      {% set current = states('sensor.yutai_cn_1169887446_fsov8m_power_consumption_p_4_1')|float(0) %}
+      {% set last_reset = now().replace(hour=0, minute=0, second=0, microsecond=0) %}
+      {% set last_reset_str = last_reset.strftime('%Y-%m-%d %H:%M:%S') %}
+      {% set last_state = states('sensor.yutai_cn_1169887446_fsov8m_power_consumption_p_4_1', last_reset_str)|float(0) %}
+      {{ (current - last_state)|round(4) }}
+
+# 打印机本周用电
+- sensor:
+    name: printer_weekly_energy
+    unique_id: printer_weekly_energy
+    unit_of_measurement: kWh
+    device_class: energy
+    icon: mdi:counter
+    state: >
+      {% set current = states('sensor.yutai_cn_1169887446_fsov8m_power_consumption_p_4_1')|float(0) %}
+      {% set week_start = now().date() - timedelta(days=now().weekday()) %}
+      {% set week_start_str = week_start.strftime('%Y-%m-%d') ~ ' 00:00:00' %}
+      {% set week_start_state = states('sensor.yutai_cn_1169887446_fsov8m_power_consumption_p_4_1', week_start_str)|float(0) %}
+      {{ (current - week_start_state)|round(4) }}
+
+# 打印机本月用电
+- sensor:
+    name: printer_monthly_energy
+    unique_id: printer_monthly_energy
+    unit_of_measurement: kWh
+    device_class: energy
+    icon: mdi:counter
+    state: >
+      {% set current = states('sensor.yutai_cn_1169887446_fsov8m_power_consumption_p_4_1')|float(0) %}
+      {% set month_start = now().date().replace(day=1) %}
+      {% set month_start_str = month_start.strftime('%Y-%m-%d') ~ ' 00:00:00' %}
+      {% set month_start_state = states('sensor.yutai_cn_1169887446_fsov8m_power_consumption_p_4_1', month_start_str)|float(0) %}
+      {{ (current - month_start_state)|round(4) }}
+
+- sensor:
+    name: giot_cn_1164778814_v8icm_power_consumption_kwh
+    unique_id: giot_cn_1164778814_v8icm_power_consumption_kwh
+    unit_of_measurement: kWh
+    device_class: energy
+    state_class: total_increasing
+    icon: mdi:counter
+    state: >
+      {{ (states('sensor.giot_cn_1164778814_v8icm_power_consumption_p_4_1')|float(0) / 1000)|round(6) }}
+
+# Printer total prints
+- sensor:
+    name: "Total Prints"
+    unique_id: printer_total_prints
+    unit_of_measurement: "count"
+    icon: "mdi:printer-3d"
+    state: >
+      {% set selected = states('input_select.print_analytics_time_range') %}
+      {% set days = {'7d': 7, '30d': 30, '90d': 90}.get(selected) %}
+      {% set now_ts = as_timestamp(now()) %}
+      {% set ns = namespace(total=0) %}
+      {% for raw in [state_attr('sensor.a1mini_a1mini_da_yin_li_shi', 'history') | default([], true), state_attr('sensor.p2s_p2s_da_yin_li_shi', 'history') | default([], true)] %}
+        {% for record in raw %}
+          {% set ts = as_timestamp(record.start_time) if record.start_time is defined else none %}
+          {% if days is none or (ts is not none and ts >= now_ts - days * 86400) %}
+            {% set ns.total = ns.total + 1 %}
+          {% endif %}
+        {% endfor %}
+      {% endfor %}
+      {{ ns.total }}
+
+- sensor:
+    name: "Success Rate"
+    unique_id: printer_success_rate
+    unit_of_measurement: "%"
+    icon: "mdi:check-circle"
+    state: >
+      {% set selected = states('input_select.print_analytics_time_range') %}
+      {% set days = {'7d': 7, '30d': 30, '90d': 90}.get(selected) %}
+      {% set now_ts = as_timestamp(now()) %}
+      {% set ns = namespace(total=0, success=0) %}
+      {% for raw in [state_attr('sensor.a1mini_a1mini_da_yin_li_shi', 'history') | default([], true), state_attr('sensor.p2s_p2s_da_yin_li_shi', 'history') | default([], true)] %}
+        {% for record in raw %}
+          {% set ts = as_timestamp(record.start_time) if record.start_time is defined else none %}
+          {% if days is none or (ts is not none and ts >= now_ts - days * 86400) %}
+            {% set ns.total = ns.total + 1 %}
+            {% if record.status in ['finish', '完成', 'success', 'finished'] %}
+              {% set ns.success = ns.success + 1 %}
+            {% endif %}
+          {% endif %}
+        {% endfor %}
+      {% endfor %}
+      {{ ((ns.success / ns.total) * 100) | round(1) if ns.total > 0 else 0 }}
+
+- sensor:
+    name: "Average Print Duration"
+    unique_id: printer_average_print_duration
+    unit_of_measurement: "min"
+    icon: "mdi:clock-outline"
+    state: >
+      {% set selected = states('input_select.print_analytics_time_range') %}
+      {% set days = {'7d': 7, '30d': 30, '90d': 90}.get(selected) %}
+      {% set now_ts = as_timestamp(now()) %}
+      {% set ns = namespace(total=0, count=0) %}
+      {% for raw in [state_attr('sensor.a1mini_a1mini_da_yin_li_shi', 'history') | default([], true), state_attr('sensor.p2s_p2s_da_yin_li_shi', 'history') | default([], true)] %}
+        {% for record in raw %}
+          {% set ts = as_timestamp(record.start_time) if record.start_time is defined else none %}
+          {% set duration = (record.duration_hours | float(0) * 60) %}
+          {% if (days is none or (ts is not none and ts >= now_ts - days * 86400)) and duration > 0 %}
+            {% set ns.total = ns.total + duration %}
+            {% set ns.count = ns.count + 1 %}
+          {% endif %}
+        {% endfor %}
+      {% endfor %}
+      {{ (ns.total / ns.count) | round(1) if ns.count > 0 else 0 }}
+
+- sensor:
+    name: "Total Online Duration"
+    unique_id: printer_total_online_duration
+    unit_of_measurement: "h"
+    icon: "mdi:clock"
+    state: >
+      {% set p2s = states('sensor.p2s_22e8bj5a2401765_total_usage') | float(0) %}
+      {% set a1 = states('sensor.a1mini_0300aa5a1600497_total_usage') | float(0) %}
+      {{ (p2s + a1) | round(1) }}
+
+- sensor:
+    name: "Print Duration Distribution"
+    unique_id: printer_print_duration_distribution
+    icon: "mdi:chart-bar"
+    state: >
+      {% set selected = states('input_select.print_analytics_time_range') %}
+      {% set days = {'7d': 7, '30d': 30, '90d': 90}.get(selected) %}
+      {% set now_ts = as_timestamp(now()) %}
+      {% set ns = namespace(a=0,b=0,c=0,d=0,e=0,f=0) %}
+      {% for raw in [state_attr('sensor.a1mini_a1mini_da_yin_li_shi', 'history') | default([], true), state_attr('sensor.p2s_p2s_da_yin_li_shi', 'history') | default([], true)] %}
+        {% for record in raw %}
+          {% set ts = as_timestamp(record.start_time) if record.start_time is defined else none %}
+          {% set duration = (record.duration_hours | float(0) * 60) %}
+          {% if (days is none or (ts is not none and ts >= now_ts - days * 86400)) and duration > 0 %}
+            {% if duration <= 30 %}
+              {% set ns.a = ns.a + 1 %}
+            {% elif duration <= 60 %}
+              {% set ns.b = ns.b + 1 %}
+            {% elif duration <= 180 %}
+              {% set ns.c = ns.c + 1 %}
+            {% elif duration <= 360 %}
+              {% set ns.d = ns.d + 1 %}
+            {% elif duration <= 720 %}
+              {% set ns.e = ns.e + 1 %}
+            {% else %}
+              {% set ns.f = ns.f + 1 %}
+            {% endif %}
+          {% endif %}
+        {% endfor %}
+      {% endfor %}
+      {{ ns.a + ns.b + ns.c + ns.d + ns.e + ns.f }}
+    attributes:
+      distribution: >
+        {% set selected = states('input_select.print_analytics_time_range') %}
+        {% set days = {'7d': 7, '30d': 30, '90d': 90}.get(selected) %}
+        {% set now_ts = as_timestamp(now()) %}
+        {% set ns = namespace(a=0,b=0,c=0,d=0,e=0,f=0) %}
+        {% for raw in [state_attr('sensor.a1mini_a1mini_da_yin_li_shi', 'history') | default([], true), state_attr('sensor.p2s_p2s_da_yin_li_shi', 'history') | default([], true)] %}
+          {% for record in raw %}
+            {% set ts = as_timestamp(record.start_time) if record.start_time is defined else none %}
+            {% set duration = (record.duration_hours | float(0) * 60) %}
+            {% if (days is none or (ts is not none and ts >= now_ts - days * 86400)) and duration > 0 %}
+              {% if duration <= 30 %}
+                {% set ns.a = ns.a + 1 %}
+              {% elif duration <= 60 %}
+                {% set ns.b = ns.b + 1 %}
+              {% elif duration <= 180 %}
+                {% set ns.c = ns.c + 1 %}
+              {% elif duration <= 360 %}
+                {% set ns.d = ns.d + 1 %}
+              {% elif duration <= 720 %}
+                {% set ns.e = ns.e + 1 %}
+              {% else %}
+                {% set ns.f = ns.f + 1 %}
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+        {% endfor %}
+        {{ {'0-30min': ns.a, '30min-1h': ns.b, '1-3h': ns.c, '3-6h': ns.d, '6-12h': ns.e, '12h+': ns.f} | to_json }}
+
+- sensor:
+    name: "Printer Activity Heatmap"
+    unique_id: printer_activity_heatmap
+    icon: "mdi:grid"
+    state: >
+      {% set selected = states('input_select.print_analytics_time_range') %}
+      {% set days = {'7d': 7, '30d': 30, '90d': 90}.get(selected) %}
+      {% set now_ts = as_timestamp(now()) %}
+      {% set ns = namespace(total=0) %}
+      {% for raw in [state_attr('sensor.a1mini_a1mini_da_yin_li_shi', 'history') | default([], true), state_attr('sensor.p2s_p2s_da_yin_li_shi', 'history') | default([], true)] %}
+        {% for record in raw %}
+          {% set ts = as_timestamp(record.start_time) if record.start_time is defined else none %}
+          {% if days is none or (ts is not none and ts >= now_ts - days * 86400) %}
+            {% set ns.total = ns.total + 1 %}
+          {% endif %}
+        {% endfor %}
+      {% endfor %}
+      {{ ns.total }}
+    attributes:
+      heatmap_data: >
+        {% set selected = states('input_select.print_analytics_time_range') %}
+        {% set days = {'7d': 7, '30d': 30, '90d': 90}.get(selected) %}
+        {% set now_ts = as_timestamp(now()) %}
+        {% set ns = namespace(data={}) %}
+        {% for raw in [state_attr('sensor.a1mini_a1mini_da_yin_li_shi', 'history') | default([], true), state_attr('sensor.p2s_p2s_da_yin_li_shi', 'history') | default([], true)] %}
+          {% for record in raw %}
+            {% set ts = as_timestamp(record.start_time) if record.start_time is defined else none %}
+            {% if days is none or (ts is not none and ts >= now_ts - days * 86400) %}
+              {% set dt = as_datetime(record.start_time) if record.start_time is defined else none %}
+              {% if dt %}
+                {% set key = dt.strftime('%w-%H') %}
+                {% set current = ns.data.get(key, 0) %}
+                {% set ns.data = dict(ns.data, **{key: current + 1}) %}
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+        {% endfor %}
+        {{ ns.data | to_json }}
+
+- sensor:
+    name: "P2S Total Prints"
+    unique_id: p2s_total_prints
+    unit_of_measurement: "count"
+    icon: "mdi:printer-3d"
+    state: >
+      {% set selected = states('input_select.print_analytics_time_range') %}
+      {% set days = {'7d': 7, '30d': 30, '90d': 90}.get(selected) %}
+      {% set now_ts = as_timestamp(now()) %}
+      {% set ns = namespace(total=0) %}
+      {% for record in state_attr('sensor.p2s_p2s_da_yin_li_shi', 'history') | default([], true) %}
+        {% set ts = as_timestamp(record.start_time) if record.start_time is defined else none %}
+        {% if days is none or (ts is not none and ts >= now_ts - days * 86400) %}
+          {% set ns.total = ns.total + 1 %}
+        {% endif %}
+      {% endfor %}
+      {{ ns.total }}
+
+- sensor:
+    name: "P2S Success Rate"
+    unique_id: p2s_success_rate
+    unit_of_measurement: "%"
+    icon: "mdi:check-circle"
+    state: >
+      {% set selected = states('input_select.print_analytics_time_range') %}
+      {% set days = {'7d': 7, '30d': 30, '90d': 90}.get(selected) %}
+      {% set now_ts = as_timestamp(now()) %}
+      {% set ns = namespace(total=0, success=0) %}
+      {% for record in state_attr('sensor.p2s_p2s_da_yin_li_shi', 'history') | default([], true) %}
+        {% set ts = as_timestamp(record.start_time) if record.start_time is defined else none %}
+        {% if days is none or (ts is not none and ts >= now_ts - days * 86400) %}
+          {% set ns.total = ns.total + 1 %}
+          {% if record.status in ['finish', '完成', 'success', 'finished'] %}
+            {% set ns.success = ns.success + 1 %}
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+      {{ ((ns.success / ns.total) * 100) | round(1) if ns.total > 0 else 0 }}
+
+- sensor:
+    name: "A1 Mini Total Prints"
+    unique_id: a1mini_total_prints
+    unit_of_measurement: "count"
+    icon: "mdi:printer-3d"
+    state: >
+      {% set selected = states('input_select.print_analytics_time_range') %}
+      {% set days = {'7d': 7, '30d': 30, '90d': 90}.get(selected) %}
+      {% set now_ts = as_timestamp(now()) %}
+      {% set ns = namespace(total=0) %}
+      {% for record in state_attr('sensor.a1mini_a1mini_da_yin_li_shi', 'history') | default([], true) %}
+        {% set ts = as_timestamp(record.start_time) if record.start_time is defined else none %}
+        {% if days is none or (ts is not none and ts >= now_ts - days * 86400) %}
+          {% set ns.total = ns.total + 1 %}
+        {% endif %}
+      {% endfor %}
+      {{ ns.total }}
+
+- sensor:
+    name: "A1 Mini Success Rate"
+    unique_id: a1mini_success_rate
+    unit_of_measurement: "%"
+    icon: "mdi:check-circle"
+    state: >
+      {% set selected = states('input_select.print_analytics_time_range') %}
+      {% set days = {'7d': 7, '30d': 30, '90d': 90}.get(selected) %}
+      {% set now_ts = as_timestamp(now()) %}
+      {% set ns = namespace(total=0, success=0) %}
+      {% for record in state_attr('sensor.a1mini_a1mini_da_yin_li_shi', 'history') | default([], true) %}
+        {% set ts = as_timestamp(record.start_time) if record.start_time is defined else none %}
+        {% if days is none or (ts is not none and ts >= now_ts - days * 86400) %}
+          {% set ns.total = ns.total + 1 %}
+          {% if record.status in ['finish', '完成', 'success', 'finished'] %}
+            {% set ns.success = ns.success + 1 %}
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+      {{ ((ns.success / ns.total) * 100) | round(1) if ns.total > 0 else 0 }}
+
+# Region tracking sensors
+- sensor:
+    name: "Living Room Visits"
+    unique_id: living_room_visits
+    unit_of_measurement: "count"
+    icon: "mdi:counter"
+    state: "{{ states('counter.living_room_visits') | int }}"
+
+- sensor:
+    name: "Bedroom Visits"
+    unique_id: bedroom_visits
+    unit_of_measurement: "count"
+    icon: "mdi:counter"
+    state: "{{ states('counter.bedroom_visits') | int }}"
+
+- sensor:
+    name: "Kitchen Visits"
+    unique_id: kitchen_visits
+    unit_of_measurement: "count"
+    icon: "mdi:counter"
+    state: "{{ states('counter.kitchen_visits') | int }}"
+
+- sensor:
+    name: "Dining Room Visits"
+    unique_id: dining_visits
+    unit_of_measurement: "count"
+    icon: "mdi:counter"
+    state: "{{ states('counter.dining_visits') | int }}"
+
+- sensor:
+    name: "Bathroom Visits"
+    unique_id: bathroom_visits
+    unit_of_measurement: "count"
+    icon: "mdi:counter"
+    state: "{{ states('counter.bathroom_visits') | int }}"
+
+- sensor:
+    name: "Hallway Visits"
+    unique_id: hallway_visits
+    unit_of_measurement: "count"
+    icon: "mdi:counter"
+    state: "{{ states('counter.hallway_visits') | int }}"
+
+- sensor:
+    name: "Doorway Visits"
+    unique_id: doorway_visits
+    unit_of_measurement: "count"
+    icon: "mdi:counter"
+    state: "{{ states('counter.doorway_visits') | int }}"
+
+
+# Light duration sensors
+- sensor:
+    name: "Living Room Ceiling Light"
+    unique_id: light_jdjz_duration
+    unit_of_measurement: "s"
+    icon: "mdi:lightbulb"
+    state: "{{ states('input_number.light_jdjz_duration') | float }}"
+
+- sensor:
+    name: "Living Room Sofa Light"
+    unique_id: light_sofa_duration
+    unit_of_measurement: "s"
+    icon: "mdi:lightbulb"
+    state: "{{ states('input_number.light_sofa_duration') | float }}"
+
+- sensor:
+    name: "Bedroom Light"
+    unique_id: light_bedroom_duration
+    unit_of_measurement: "s"
+    icon: "mdi:lightbulb"
+    state: "{{ states('input_number.light_bedroom_duration') | float }}"
+
+- sensor:
+    name: "Bedroom Strip Light"
+    unique_id: light_bedroom_strip_duration
+    unit_of_measurement: "s"
+    icon: "mdi:lightbulb"
+    state: "{{ states('input_number.light_bedroom_strip_duration') | float }}"
+
+- sensor:
+    name: "Kitchen Light"
+    unique_id: light_kitchen_duration
+    unit_of_measurement: "s"
+    icon: "mdi:lightbulb"
+    state: "{{ states('input_number.light_kitchen_duration') | float }}"
+
+- sensor:
+    name: "Dining Room Light"
+    unique_id: light_dining_duration
+    unit_of_measurement: "s"
+    icon: "mdi:lightbulb"
+    state: "{{ states('input_number.light_dining_duration') | float }}"
+
+- sensor:
+    name: "Bathroom Light"
+    unique_id: light_bathroom_duration
+    unit_of_measurement: "s"
+    icon: "mdi:lightbulb"
+    state: "{{ states('input_number.light_bathroom_duration') | float }}"
+
+- sensor:
+    name: "Yuba Light"
+    unique_id: light_yuba_duration
+    unit_of_measurement: "s"
+    icon: "mdi:lightbulb"
+    state: "{{ states('input_number.light_yuba_duration') | float }}"
+
+- sensor:
+    name: "Hallway Main Light"
+    unique_id: light_hallway_main_duration
+    unit_of_measurement: "s"
+    icon: "mdi:lightbulb"
+    state: "{{ states('input_number.light_hallway_main_duration') | float }}"
+
+- sensor:
+    name: "Hallway Bathroom Light"
+    unique_id: light_hallway_bath_duration
+    unit_of_measurement: "s"
+    icon: "mdi:lightbulb"
+    state: "{{ states('input_number.light_hallway_bath_duration') | float }}"
+
+- sensor:
+    name: "Doorway Light"
+    unique_id: light_doorway_duration
+    unit_of_measurement: "s"
+    icon: "mdi:lightbulb"
+    state: "{{ states('input_number.light_doorway_duration') | float }}"
+
+# Electricity monitoring sensors
+- sensor:
+    name: 总实时功率
+    unique_id: total_power_consumption
+    unit_of_measurement: W
+    icon: mdi:flash
+    state: >
+      {{ 
+        (states('sensor.wiing_cn_1169773877_v8icm_electric_power_p_4_2')|float(0) +
+         states('sensor.cuco_cn_2025564050_v3_electric_power_p_11_2')|float(0) +
+         states('sensor.lumi_cn_684959720_mcn02_electric_power_p_5_1')|float(0) +
+         states('sensor.giot_cn_1162898415_v8icm_electric_power_p_4_2')|float(0) +
+         states('sensor.giot_cn_1162942256_v8icm_electric_power_p_4_2')|float(0) +
+         states('sensor.giot_cn_1163256502_v8icm_electric_power_p_4_2')|float(0) +
+         states('sensor.giot_cn_1164778814_v8icm_electric_power_p_4_2')|float(0) +
+         states('sensor.yutai_cn_1169887446_fsov8m_electric_power_p_4_2')|float(0) +
+         states('sensor.cuco_cn_860509913_v3_electric_power_p_11_2')|float(0)
+        )|round(2)
+      }}
+
+- sensor:
+    name: 今日总用电量
+    unique_id: daily_energy_total
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: >
+      {% set ns = namespace(total=0) %}
+      {% set sensors = [
+        'sensor.doujiangji_daily_kwh',
+        'sensor.oven_daily_kwh',
+        'sensor.heater_daily_kwh',
+        'sensor.computer_daily_kwh',
+        'sensor.nas_daily_kwh',
+        'sensor.xiaoheinu_daily_kwh',
+        'sensor.daheinu_daily_kwh',
+        'sensor.washer_daily_kwh'
+      ] %}
+      {% for s in sensors %}
+        {% set ns.total = ns.total + states(s)|float(0) %}
+      {% endfor %}
+      {{ ns.total|round(4) }}
+
+- sensor:
+    name: 历史总功耗
+    unique_id: total_energy_history
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: >
+      {% set ns = namespace(total=0) %}
+      {% set sensors = [
+        'sensor.doujiangji_total_kwh_v2',
+        'sensor.oven_total_kwh_v2',
+        'sensor.heater_total_kwh_v2',
+        'sensor.computer_total_kwh_v2',
+        'sensor.nas_total_kwh_v2',
+        'sensor.xiaoheinu_total_kwh_v2',
+        'sensor.daheinu_total_kwh_v2',
+        'sensor.washer_total_kwh_v2',
+        'sensor.208907222021213_total_energy_consumption',
+        'sensor.210006733703670_total_energy_consumption'
+      ] %}
+      {% for s in sensors %}
+        {% set ns.total = ns.total + states(s)|float(0) %}
+      {% endfor %}
+      {{ ns.total|round(1) }}
+
+- sensor:
+    name: total_power_v2
+    unique_id: total_power_v2
+    unit_of_measurement: W
+    icon: mdi:flash
+    state: >
+      {{ 
+        (
+          states('sensor.wiing_cn_1169773877_v8icm_electric_power_p_4_2')|float(0) +
+          states('sensor.cuco_cn_2025564050_v3_electric_power_p_11_2')|float(0) +
+          states('sensor.lumi_cn_684959720_mcn02_electric_power_p_5_1')|float(0) +
+          states('sensor.giot_cn_1162898415_v8icm_electric_power_p_4_2')|float(0) +
+          states('sensor.giot_cn_1162942256_v8icm_electric_power_p_4_2')|float(0) +
+          states('sensor.giot_cn_1163256502_v8icm_electric_power_p_4_2')|float(0) +
+          states('sensor.giot_cn_1164778814_v8icm_electric_power_p_4_2')|float(0) +
+          states('sensor.yutai_cn_1169887446_fsov8m_electric_power_p_4_2')|float(0) +
+          states('sensor.cuco_cn_860509913_v3_electric_power_p_11_2')|float(0)
+        )|round(2)
+      }}
+
+- sensor:
+    name: xiaoheinu_total_wh_v2
+    unique_id: xiaoheinu_total_wh_v2
+    unit_of_measurement: Wh
+    icon: mdi:counter
+    state: "{{ states('sensor.giot_cn_1164778814_v8icm_power_consumption_p_4_1')|float(0)/1000000|round(2) }}"
+
+- sensor:
+    name: xiaoheinu_total_kwh_v2
+    unique_id: xiaoheinu_total_kwh_v2
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ (states('sensor.xiaoheinu_total_wh_v2')|float(0) / 1000)|round(4) }}"
+
+- sensor:
+    name: daheinu_total_wh_v2
+    unique_id: daheinu_total_wh_v2
+    unit_of_measurement: Wh
+    icon: mdi:counter
+    state: "{{ states('sensor.yutai_cn_1169887446_fsov8m_power_consumption_p_4_1')|float(0)|round(2) }}"
+
+- sensor:
+    name: daheinu_total_kwh_v2
+    unique_id: daheinu_total_kwh_v2
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ (states('sensor.daheinu_total_wh_v2')|float(0) / 1000)|round(4) }}"
+
+- sensor:
+    name: total_history_energy_kwh_v2
+    unique_id: total_history_energy_kwh_v2
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: >
+      {{ 
+        (
+          states('sensor.doujiangji_total_kwh_v2')|float(0) +
+          states('sensor.oven_total_kwh_v2')|float(0) +
+          states('sensor.heater_total_kwh_v2')|float(0) +
+          states('sensor.computer_total_kwh_v2')|float(0) +
+          states('sensor.nas_total_kwh_v2')|float(0) +
+          states('sensor.xiaoheinu_total_kwh_v2')|float(0) +
+          states('sensor.daheinu_total_kwh_v2')|float(0) +
+          states('sensor.washer_total_kwh_v2')|float(0)
+        )|round(4)
+      }}
+
+- sensor:
+    name: doujiangji_total_kwh_v2
+    unique_id: doujiangji_total_kwh_v2
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.wiing_cn_1169773877_v8icm_power_consumption_p_4_1')|float(0)|round(4) }}"
+
+- sensor:
+    name: oven_total_kwh_v2
+    unique_id: oven_total_kwh_v2
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.cuco_cn_2025564050_v3_power_consumption_p_11_1')|float(0)|round(4) }}"
+
+- sensor:
+    name: heater_total_kwh_v2
+    unique_id: heater_total_kwh_v2
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ (states('sensor.giot_cn_1162898415_v8icm_power_consumption_p_4_1')|float(0)/1000000)|round(6) }}"
+
+- sensor:
+    name: computer_total_kwh_v2
+    unique_id: computer_total_kwh_v2
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ (states('sensor.giot_cn_1162942256_v8icm_power_consumption_p_4_1')|float(0)/1000000)|round(6) }}"
+
+- sensor:
+    name: nas_total_kwh_v2
+    unique_id: nas_total_kwh_v2
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ (states('sensor.giot_cn_1163256502_v8icm_power_consumption_p_4_1')|float(0)/1000000)|round(6) }}"
+
+- sensor:
+    name: washer_total_kwh_v2
+    unique_id: washer_total_kwh_v2
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.cuco_cn_860509913_v3_power_consumption_p_11_1')|float(0)|round(4) }}"
+
+- sensor:
+    name: printer_monthly_total_v2
+    unique_id: printer_monthly_total_v2
+    unit_of_measurement: kWh
+    icon: mdi:printer-3d
+    state: >
+      {{ 
+        states('sensor.yutai_cn_1169887446_fsov8m_power_consumption_p_4_1')|float(0)
+      }}
+
+- sensor:
+    name: test_sensor
+    unique_id: test_sensor
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ 1 + 1 }}"
+
+- sensor:
+    name: home_daily_total_v2
+    unique_id: home_daily_total_v2
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ (states('sensor.doujiangji_daily_energy_v2')|float(0)/1000000 + states('sensor.oven_daily_energy_v2')|float(0) + states('sensor.xiaoheinu_daily_energy_v2')|float(0)/1000000 + states('sensor.daheinu_daily_energy_v2')|float(0) + states('sensor.washer_daily_energy_v2')|float(0) + states('sensor.dian_nao_dian_yuan_ri_yong_dian_liang')|float(0) + states('sensor.nasri_yong_dian_liang')|float(0)/1000000 + states('sensor.qu_nuan_qi_ri_yong_dian_liang')|float(0))|round(4) }}"
+
+- sensor:
+    name: home_weekly_total_v2
+    unique_id: home_weekly_total_v2
+    unit_of_measurement: kWh
+    icon: mdi:calendar-week
+    state: >
+      {{ 
+        (
+          states('sensor.doujiangji_weekly_energy_v2')|float(0)/1000000 +
+          states('sensor.oven_weekly_energy_v2')|float(0) +
+          states('sensor.xiaoheinu_weekly_energy_v2')|float(0)/1000000 +
+          states('sensor.daheinu_weekly_energy_v2')|float(0) +
+          states('sensor.washer_weekly_energy_v2')|float(0) +
+          states('sensor.dian_nao_dian_yuan_zhou_yong_dian_liang')|float(0) +
+          states('sensor.naszhou_yong_dian_liang')|float(0)/1000000 +
+          states('sensor.qu_nuan_qi_zhou_yong_dian_liang')|float(0)
+        )|round(4)
+      }}
+
+- sensor:
+    name: home_monthly_total_v2
+    unique_id: home_monthly_total_v2
+    unit_of_measurement: kWh
+    icon: mdi:calendar-month
+    state: >
+      {{ 
+        (
+          states('sensor.doujiangji_monthly_energy_v2')|float(0)/1000000 +
+          states('sensor.oven_monthly_energy_v2')|float(0) +
+          states('sensor.xiaoheinu_monthly_energy_v2')|float(0)/1000000 +
+          states('sensor.daheinu_monthly_energy_v2')|float(0) +
+          states('sensor.washer_monthly_energy_v2')|float(0) +
+          states('sensor.dian_nao_dian_yuan_yue_yong_dian_liang')|float(0) +
+          states('sensor.nasyue_yong_dian_liang')|float(0)/1000000 +
+          states('sensor.qu_nuan_qi_yue_yong_dian_liang')|float(0)
+        )|round(4)
+      }}
+
+- sensor:
+    name: home_yearly_total_v2
+    unique_id: home_yearly_total_v2
+    unit_of_measurement: kWh
+    icon: mdi:calendar
+    state: >
+      {{ 
+        (
+          states('sensor.doujiangji_yearly_energy_v2')|float(0)/1000000 +
+          states('sensor.oven_yearly_energy_v2')|float(0) +
+          states('sensor.xiaoheinu_yearly_energy_v2')|float(0)/1000000 +
+          states('sensor.daheinu_yearly_energy_v2')|float(0) +
+          states('sensor.washer_yearly_energy_v2')|float(0) +
+          states('sensor.computer_yearly_energy_v2')|float(0) +
+          states('sensor.nas_yearly_energy_v2')|float(0)/1000000 +
+          states('sensor.heater_yearly_energy_v2')|float(0)/1000000
+        )|round(4)
+      }}
+
+- sensor:
+    name: home_daily_cost_v2
+    unique_id: home_daily_cost_v2
+    unit_of_measurement: 元
+    icon: mdi:currency-cny
+    state: "{{ (states('sensor.home_daily_total_v2')|float(0) * 0.6)|round(2) }}"
+
+- sensor:
+    name: home_monthly_cost_v2
+    unique_id: home_monthly_cost_v2
+    unit_of_measurement: 元
+    icon: mdi:currency-cny
+    state: "{{ (states('sensor.home_monthly_total_v2')|float(0) * 0.6)|round(2) }}"
+
+- sensor:
+    name: home_yearly_cost_v2
+    unique_id: home_yearly_cost_v2
+    unit_of_measurement: 元
+    icon: mdi:currency-cny
+    state: "{{ (states('sensor.home_yearly_total_v2')|float(0) * 0.6)|round(2) }}"
+
+# Additional electricity sensors
+- sensor:
+    name: XiaoHeiNu Daily Energy kWh
+    unique_id: xiaoheinu_daily_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.xiaoheinu_daily_energy_v2')|float(0)/1000000|round(4) }}"
+
+- sensor:
+    name: XiaoHeiNu Weekly Energy kWh
+    unique_id: xiaoheinu_weekly_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.xiaoheinu_weekly_energy_v2')|float(0)/1000000|round(4) }}"
+
+- sensor:
+    name: XiaoHeiNu Monthly Energy kWh
+    unique_id: xiaoheinu_monthly_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.xiaoheinu_monthly_energy_v2')|float(0)/1000000|round(4) }}"
+
+- sensor:
+    name: XiaoHeiNu Total Energy kWh
+    unique_id: xiaoheinu_total_kwh
+    unit_of_measurement: kWh
+    device_class: energy
+    state_class: total_increasing
+    icon: mdi:counter
+    state: "{{ states('sensor.giot_cn_1164778814_v8icm_power_consumption_p_4_1')|float(0)/1000000|round(6) }}"
+
+- sensor:
+    name: 小打印机累计用电
+    unique_id: xiaoheinu_total_wh_display
+    unit_of_measurement: Wh
+    icon: mdi:counter
+    state: >
+      {{ (states('sensor.giot_cn_1164778814_v8icm_power_consumption_p_4_1')|float(0) / 1000)|round(2) }}
+
+- sensor:
+    name: DaHeiNu Daily Energy kWh
+    unique_id: daheinu_daily_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.daheinu_daily_energy_v2')|float(0)|round(4) }}"
+
+- sensor:
+    name: 大打印机今日用电
+    unique_id: daheinu_daily_kwh_display
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.daheinu_daily_energy_v2')|float(0)|round(4) }}"
+
+- sensor:
+    name: DaHeiNu Weekly Energy kWh
+    unique_id: daheinu_weekly_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.daheinu_weekly_energy_v2')|float(0)|round(4) }}"
+
+- sensor:
+    name: 大打印机本周用电
+    unique_id: daheinu_weekly_kwh_display
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.daheinu_weekly_energy_v2')|float(0)|round(4) }}"
+
+- sensor:
+    name: DaHeiNu Monthly Energy kWh
+    unique_id: daheinu_monthly_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.daheinu_monthly_energy_v2')|float(0)|round(4) }}"
+
+- sensor:
+    name: 大打印机本月用电
+    unique_id: daheinu_monthly_kwh_display
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.daheinu_monthly_energy_v2')|float(0)|round(4) }}"
+
+- sensor:
+    name: DaHeiNu Total Energy kWh
+    unique_id: daheinu_total_kwh
+    unit_of_measurement: kWh
+    device_class: energy
+    state_class: total_increasing
+    icon: mdi:counter
+    state: "{{ states('sensor.yutai_cn_1169887446_fsov8m_power_consumption_p_4_1')|float(0)|round(6) }}"
+
+- sensor:
+    name: 大打印机累计用电
+    unique_id: daheinu_total_wh_display
+    unit_of_measurement: Wh
+    icon: mdi:counter
+    state: "{{ (states('sensor.yutai_cn_1169887446_fsov8m_power_consumption_p_4_1')|float(0) / 1000)|round(2) }}"
+
+- sensor:
+    name: 打印机月总用电
+    unique_id: printer_monthly_energy_total
+    unit_of_measurement: kWh
+    icon: mdi:printer-3d
+    state: >
+      {{ 
+        (
+          states('sensor.xiaoheinu_monthly_energy_v2')|float(0)/1000000 +
+          states('sensor.daheinu_monthly_energy_v2')|float(0)
+        )|round(4)
+      }}
+
+- sensor:
+    name: 电脑电源今日用电_kwh
+    unique_id: computer_daily_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.dian_nao_dian_yuan_ri_yong_dian_liang')|float(0)|round(4) }}"
+
+- sensor:
+    name: 电脑电源本周用电_kwh
+    unique_id: computer_weekly_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.dian_nao_dian_yuan_zhou_yong_dian_liang')|float(0)|round(4) }}"
+
+- sensor:
+    name: 电脑电源本月用电_kwh
+    unique_id: computer_monthly_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.dian_nao_dian_yuan_yue_yong_dian_liang')|float(0)|round(4) }}"
+
+- sensor:
+    name: 电脑电源累计用电_kwh
+    unique_id: computer_total_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.dian_nao_dian_yuan_lei_ji_yong_dian')|float(0)|round(4) }}"
+
+- sensor:
+    name: NAS今日用电_kwh
+    unique_id: nas_daily_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ (states('sensor.nasri_yong_dian_liang')|float(0)/1000000)|round(4) }}"
+
+- sensor:
+    name: NAS本周用电_kwh
+    unique_id: nas_weekly_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ (states('sensor.naszhou_yong_dian_liang')|float(0)/1000000)|round(4) }}"
+
+- sensor:
+    name: NAS本月用电_kwh
+    unique_id: nas_monthly_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ (states('sensor.nasyue_yong_dian_liang')|float(0)/1000000)|round(4) }}"
+
+- sensor:
+    name: NAS累计用电_kwh
+    unique_id: nas_total_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ (states('sensor.giot_cn_1163256502_v8icm_power_consumption_p_4_1')|float(0)/1000000)|round(4) }}"
+
+- sensor:
+    name: 取暖器今日用电_kwh
+    unique_id: heater_daily_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.qu_nuan_qi_ri_yong_dian_liang')|float(0)|round(4) }}"
+
+- sensor:
+    name: 取暖器本周用电_kwh
+    unique_id: heater_weekly_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.qu_nuan_qi_zhou_yong_dian_liang')|float(0)|round(4) }}"
+
+- sensor:
+    name: 取暖器本月用电_kwh
+    unique_id: heater_monthly_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.qu_nuan_qi_yue_yong_dian_liang')|float(0)|round(4) }}"
+
+- sensor:
+    name: 取暖器累计用电_kwh
+    unique_id: heater_total_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ (states('sensor.giot_cn_1162898415_v8icm_power_consumption_p_4_1')|float(0)/1000000)|round(4) }}"
+
+- sensor:
+    name: 豆浆机今日用电_kwh
+    unique_id: doujiangji_daily_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.wiing_cn_1169773877_v8icm_power_consumption_p_4_1')|float(0)|round(4) }}"
+
+- sensor:
+    name: 豆浆机本周用电_kwh
+    unique_id: doujiangji_weekly_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.wiing_cn_1169773877_v8icm_power_consumption_p_4_1')|float(0)|round(4) }}"
+
+- sensor:
+    name: 豆浆机本月用电_kwh
+    unique_id: doujiangji_monthly_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.wiing_cn_1169773877_v8icm_power_consumption_p_4_1')|float(0)|round(4) }}"
+
+- sensor:
+    name: 豆浆机累计用电_kwh
+    unique_id: doujiangji_total_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.wiing_cn_1169773877_v8icm_power_consumption_p_4_1')|float(0)|round(4) }}"
+
+- sensor:
+    name: 烤箱今日用电_kwh
+    unique_id: oven_daily_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.cuco_cn_2025564050_v3_power_consumption_p_11_1')|float(0)|round(4) }}"
+
+- sensor:
+    name: 烤箱本周用电_kwh
+    unique_id: oven_weekly_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.cuco_cn_2025564050_v3_power_consumption_p_11_1')|float(0)|round(4) }}"
+
+- sensor:
+    name: 烤箱本月用电_kwh
+    unique_id: oven_monthly_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.cuco_cn_2025564050_v3_power_consumption_p_11_1')|float(0)|round(4) }}"
+
+- sensor:
+    name: 烤箱累计用电_kwh
+    unique_id: oven_total_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.cuco_cn_2025564050_v3_power_consumption_p_11_1')|float(0)|round(4) }}"
+
+- sensor:
+    name: 洗衣机今日用电_kwh
+    unique_id: washer_daily_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.cuco_cn_860509913_v3_power_consumption_p_11_1')|float(0)|round(4) }}"
+
+- sensor:
+    name: 洗衣机本周用电_kwh
+    unique_id: washer_weekly_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.cuco_cn_860509913_v3_power_consumption_p_11_1')|float(0)|round(4) }}"
+
+- sensor:
+    name: 洗衣机本月用电_kwh
+    unique_id: washer_monthly_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.cuco_cn_860509913_v3_power_consumption_p_11_1')|float(0)|round(4) }}"
+
+- sensor:
+    name: 洗衣机累计用电_kwh
+    unique_id: washer_total_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.cuco_cn_860509913_v3_power_consumption_p_11_1')|float(0)|round(4) }}"
+
+# Additional sensors for UI compatibility
+- sensor:
+    name: xiaoheinu_daily_energy_kwh
+    unique_id: xiaoheinu_daily_energy_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.xiaoheinu_daily_energy_v2')|float(0)/1000000|round(4) }}"
+
+- sensor:
+    name: xiaoheinu_weekly_energy_kwh
+    unique_id: xiaoheinu_weekly_energy_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.xiaoheinu_weekly_energy_v2')|float(0)/1000000|round(4) }}"
+
+- sensor:
+    name: xiaoheinu_monthly_energy_kwh
+    unique_id: xiaoheinu_monthly_energy_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.xiaoheinu_monthly_energy_v2')|float(0)/1000000|round(4) }}"
+
+- sensor:
+    name: xiaoheinu_total_energy_kwh
+    unique_id: xiaoheinu_total_energy_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.giot_cn_1164778814_v8icm_power_consumption_p_4_1')|float(0)/1000000|round(4) }}"
+
+- sensor:
+    name: daheinu_daily_energy_kwh
+    unique_id: daheinu_daily_energy_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.daheinu_daily_energy_v2')|float(0)|round(4) }}"
+
+- sensor:
+    name: daheinu_weekly_energy_kwh
+    unique_id: daheinu_weekly_energy_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.daheinu_weekly_energy_v2')|float(0)|round(4) }}"
+
+- sensor:
+    name: daheinu_monthly_energy_kwh
+    unique_id: daheinu_monthly_energy_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.daheinu_monthly_energy_v2')|float(0)|round(4) }}"
+
+- sensor:
+    name: daheinu_total_energy_kwh
+    unique_id: daheinu_total_energy_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.yutai_cn_1169887446_fsov8m_power_consumption_p_4_1')|float(0)|round(4) }}"
+
+# Fix for daheinu_daily_energy_v2 value
+- sensor:
+    name: daheinu_daily_energy_v2_corrected
+    unique_id: daheinu_daily_energy_v2_corrected
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.daheinu_daily_energy_v2')|float(0)|round(4) }}"
+
+- sensor:
+    name: daheinu_weekly_energy_v2_corrected
+    unique_id: daheinu_weekly_energy_v2_corrected
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.daheinu_weekly_energy_v2')|float(0)|round(4) }}"
+
+- sensor:
+    name: daheinu_monthly_energy_v2_corrected
+    unique_id: daheinu_monthly_energy_v2_corrected
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.daheinu_monthly_energy_v2')|float(0)|round(4) }}"
+
+- sensor:
+    name: daheinu_yearly_energy_v2_corrected
+    unique_id: daheinu_yearly_energy_v2_corrected
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.daheinu_yearly_energy_v2')|float(0)|round(4) }}"
+
+- sensor:
+    name: xiaoheinu_daily_energy_v2_corrected
+    unique_id: xiaoheinu_daily_energy_v2_corrected
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.xiaoheinu_daily_energy_v2')|float(0)/1000000|round(4) }}"
+
+- sensor:
+    name: xiaoheinu_weekly_energy_v2_corrected
+    unique_id: xiaoheinu_weekly_energy_v2_corrected
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.xiaoheinu_weekly_energy_v2')|float(0)/1000000|round(4) }}"
+
+- sensor:
+    name: xiaoheinu_monthly_energy_v2_corrected
+    unique_id: xiaoheinu_monthly_energy_v2_corrected
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.xiaoheinu_monthly_energy_v2')|float(0)/1000000|round(4) }}"
+
+- sensor:
+    name: xiaoheinu_yearly_energy_v2_corrected
+    unique_id: xiaoheinu_yearly_energy_v2_corrected
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.xiaoheinu_yearly_energy_v2')|float(0)/1000000|round(4) }}"
+
+# Fix for daheinu_daily_energy_v2 unit conversion
+- sensor:
+    name: daheinu_daily_energy_v2_fixed
+    unique_id: daheinu_daily_energy_v2_fixed
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.daheinu_daily_energy_v2')|float(0)|round(4) }}"
+
+- sensor:
+    name: daheinu_weekly_energy_v2_fixed
+    unique_id: daheinu_weekly_energy_v2_fixed
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.daheinu_weekly_energy_v2')|float(0)|round(4) }}"
+
+- sensor:
+    name: daheinu_monthly_energy_v2_fixed
+    unique_id: daheinu_monthly_energy_v2_fixed
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.daheinu_monthly_energy_v2')|float(0)|round(4) }}"
+
+- sensor:
+    name: daheinu_yearly_energy_v2_fixed
+    unique_id: daheinu_yearly_energy_v2_fixed
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.daheinu_yearly_energy_v2')|float(0)|round(4) }}"
+
+# Fix for xiaoheinu_daily_energy_v2 unit conversion
+- sensor:
+    name: xiaoheinu_daily_energy_v2_fixed
+    unique_id: xiaoheinu_daily_energy_v2_fixed
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.xiaoheinu_daily_energy_v2')|float(0)/1000000|round(4) }}"
+
+- sensor:
+    name: xiaoheinu_weekly_energy_v2_fixed
+    unique_id: xiaoheinu_weekly_energy_v2_fixed
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.xiaoheinu_weekly_energy_v2')|float(0)/1000000|round(4) }}"
+
+- sensor:
+    name: xiaoheinu_monthly_energy_v2_fixed
+    unique_id: xiaoheinu_monthly_energy_v2_fixed
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.xiaoheinu_monthly_energy_v2')|float(0)/1000000|round(4) }}"
+
+- sensor:
+    name: xiaoheinu_yearly_energy_v2_fixed
+    unique_id: xiaoheinu_yearly_energy_v2_fixed
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.xiaoheinu_yearly_energy_v2')|float(0)/1000000|round(4) }}"
+
+# Additional sensors from templates_fixed.yaml
+- sensor:
+    name: living_room_duration
+    unique_id: living_room_duration
+    unit_of_measurement: h
+    icon: mdi:sofa
+    state: "{{ (states('input_number.living_room_duration')|float(0) /3600)|round(0) }}"
+
+- sensor:
+    name: bedroom_duration
+    unique_id: bedroom_duration
+    unit_of_measurement: h
+    icon: mdi:bed
+    state: "{{ (states('input_number.bedroom_duration')|float(0) /3600)|round(0) }}"
+
+- sensor:
+    name: kitchen_duration
+    unique_id: kitchen_duration
+    unit_of_measurement: h
+    icon: mdi:stove
+    state: "{{ (states('input_number.kitchen_duration')|float(0) /3600)|round(0) }}"
+
+- sensor:
+    name: dining_duration
+    unique_id: dining_duration
+    unit_of_measurement: h
+    icon: mdi:silverware-fork-knife
+    state: "{{ (states('input_number.dining_duration')|float(0) /3600)|round(0) }}"
+
+- sensor:
+    name: bathroom_duration
+    unique_id: bathroom_duration
+    unit_of_measurement: h
+    icon: mdi:toilet
+    state: "{{ (states('input_number.bathroom_duration')|float(0) /3600)|round(0) }}"
+
+- sensor:
+    name: hallway_duration
+    unique_id: hallway_duration
+    unit_of_measurement: h
+    icon: mdi:door
+    state: "{{ (states('input_number.hallway_duration')|float(0) /3600)|round(0) }}"
+
+- sensor:
+    name: doorway_duration
+    unique_id: doorway_duration
+    unit_of_measurement: h
+    icon: mdi:door-open
+    state: "{{ (states('input_number.doorway_duration')|float(0) /3600)|round(0) }}"
+
+- sensor:
+    name: most_visited_area_today
+    unique_id: most_visited_area_today
+    icon: mdi:trophy
+    state: >
+      {% set areas = {
+        '客厅': states('counter.living_room_visits')|int(0),
+        '卧室': states('counter.bedroom_visits')|int(0),
+        '厨房': states('counter.kitchen_visits')|int(0),
+        '餐厅': states('counter.dining_visits')|int(0),
+        '卫生间': states('counter.bathroom_visits')|int(0),
+        '走廊玄关': states('counter.hallway_visits')|int(0),
+        '门口': states('counter.doorway_visits')|int(0)
+      } %}
+      {% set max_visits = areas.values()|max %}
+      {% if max_visits > 0 %}
+        {% for area, count in areas.items() if count == max_visits %}{{ area }} ({{ count }}次){% endfor %}
+      {% else %}
+        暂无数据
+      {% endif %}
+
+- sensor:
+    name: longest_stay_area_today
+    unique_id: longest_stay_area_today
+    icon: mdi:clock
+    state: >
+      {% set areas = {
+        '客厅': states('sensor.living_room_duration')|int(0),
+        '卧室': states('sensor.bedroom_duration')|int(0),
+        '厨房': states('sensor.kitchen_duration')|int(0),
+        '餐厅': states('sensor.dining_duration')|int(0),
+        '卫生间': states('sensor.bathroom_duration')|int(0),
+        '走廊玄关': states('sensor.hallway_duration')|int(0),
+        '门口': states('sensor.doorway_duration')|int(0)
+      } %}
+      {% set max_duration = areas.values()|max %}
+      {% if max_duration > 0 %}
+        {% for area, duration in areas.items() if duration == max_duration %}{{ area }} ({{ duration }}分钟){% endfor %}
+      {% else %}
+        暂无数据
+      {% endif %}
+
+- sensor:
+    name: daily_energy_cost
+    unique_id: daily_energy_cost
+    unit_of_measurement: 元
+    icon: mdi:currency-cny
+    state: "{{ (states('sensor.jin_ri_zong_yong_dian_liang_3')|float(0) * 0.6)|round(2) }}"
+
+- sensor:
+    name: monthly_energy_cost
+    unique_id: monthly_energy_cost
+    unit_of_measurement: 元
+    icon: mdi:currency-cny
+    state: "{{ (states('sensor.home_monthly_total_v2')|float(0) * 0.6)|round(2) }}"
+
+- sensor:
+    name: yearly_energy_cost
+    unique_id: yearly_energy_cost
+    unit_of_measurement: 元
+    icon: mdi:currency-cny
+    state: "{{ (states('sensor.home_yearly_total_v2')|float(0) * 0.6)|round(2) }}"
+
+- sensor:
+    name: weekly_energy_total
+    unique_id: weekly_energy_total
+    unit_of_measurement: kWh
+    icon: mdi:calendar-week
+    state: "{{ states('sensor.home_weekly_total_v2')|float(0)|round(2) }}"
+
+- sensor:
+    name: monthly_energy_total
+    unique_id: monthly_energy_total
+    unit_of_measurement: kWh
+    icon: mdi:calendar-month
+    state: "{{ states('sensor.home_monthly_total_v2')|float(0)|round(2) }}"
+
+- sensor:
+    name: yearly_energy_total
+    unique_id: yearly_energy_total
+    unit_of_measurement: kWh
+    icon: mdi:calendar
+    state: "{{ states('sensor.home_yearly_total_v2')|float(0)|round(2) }}"
+
+- sensor:
+    name: living_room_light_duration_min
+    unique_id: living_room_light_duration_min
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: "{{ ((states('input_number.light_jdjz_duration')|float(0) + states('input_number.light_sofa_duration')|float(0)) /3600)|round(0) }}"
+
+- sensor:
+    name: bedroom_light_duration_min
+    unique_id: bedroom_light_duration_min
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: "{{ ((states('input_number.light_bedroom_duration')|float(0) + states('input_number.light_bedroom_strip_duration')|float(0)) /3600)|round(0) }}"
+
+- sensor:
+    name: kitchen_light_duration_min
+    unique_id: kitchen_light_duration_min
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: "{{ (states('input_number.light_kitchen_duration')|float(0) /3600)|round(0) }}"
+
+- sensor:
+    name: dining_light_duration_min
+    unique_id: dining_light_duration_min
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: "{{ (states('input_number.light_dining_duration')|float(0) /3600)|round(0) }}"
+
+- sensor:
+    name: bathroom_light_duration_min
+    unique_id: bathroom_light_duration_min
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: "{{ ((states('input_number.light_bathroom_duration')|float(0) + states('input_number.light_yuba_duration')|float(0)) /3600)|round(0) }}"
+
+- sensor:
+    name: hallway_light_duration_min
+    unique_id: hallway_light_duration_min
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: "{{ ((states('input_number.light_hallway_main_duration')|float(0) + states('input_number.light_hallway_bath_duration')|float(0)) /3600)|round(0) }}"
+
+- sensor:
+    name: doorway_light_duration_min
+    unique_id: doorway_light_duration_min
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: "{{ (states('input_number.light_doorway_duration')|float(0) /3600)|round(0) }}"
+
+# 今日各灯亮灯时长（小时）- 通过历史查询计算今日增量，不依赖 utility_meter
+- sensor:
+    name: 客厅灯今日亮灯
+    unique_id: ke_ting_deng_jin_ri_liang_hour
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: >
+      {% set cur = states('input_number.light_jdjz_duration')|float(0) %}
+      {% set midnight = now().replace(hour=0, minute=0, second=0, microsecond=0) %}
+      {% set midnight_str = midnight.strftime('%Y-%m-%d %H:%M:%S') %}
+      {% set prev = states('input_number.light_jdjz_duration', midnight_str)|float(0) %}
+      {{ ((cur - prev) / 3600)|round(1) }}
+
+- sensor:
+    name: 卧室灯今日亮灯
+    unique_id: wo_shi_deng_jin_ri_liang_hour
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: >
+      {% set cur = states('input_number.light_bedroom_duration')|float(0) + states('input_number.light_bedroom_strip_duration')|float(0) %}
+      {% set midnight = now().replace(hour=0, minute=0, second=0, microsecond=0) %}
+      {% set midnight_str = midnight.strftime('%Y-%m-%d %H:%M:%S') %}
+      {% set prev = states('input_number.light_bedroom_duration', midnight_str)|float(0) + states('input_number.light_bedroom_strip_duration', midnight_str)|float(0) %}
+      {{ ((cur - prev) / 3600)|round(1) }}
+
+- sensor:
+    name: 厨房灯今日亮灯
+    unique_id: chu_fang_deng_jin_ri_liang_hour
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: >
+      {% set cur = states('input_number.light_kitchen_duration')|float(0) %}
+      {% set midnight = now().replace(hour=0, minute=0, second=0, microsecond=0) %}
+      {% set midnight_str = midnight.strftime('%Y-%m-%d %H:%M:%S') %}
+      {% set prev = states('input_number.light_kitchen_duration', midnight_str)|float(0) %}
+      {{ ((cur - prev) / 3600)|round(1) }}
+
+- sensor:
+    name: 餐厅灯今日亮灯
+    unique_id: can_ting_deng_jin_ri_liang_hour
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: >
+      {% set cur = states('input_number.light_dining_duration')|float(0) %}
+      {% set midnight = now().replace(hour=0, minute=0, second=0, microsecond=0) %}
+      {% set midnight_str = midnight.strftime('%Y-%m-%d %H:%M:%S') %}
+      {% set prev = states('input_number.light_dining_duration', midnight_str)|float(0) %}
+      {{ ((cur - prev) / 3600)|round(1) }}
+
+- sensor:
+    name: 卫生间灯今日亮灯
+    unique_id: wei_sheng_jian_deng_jin_ri_liang_hour
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: >
+      {% set cur = states('input_number.light_bathroom_duration')|float(0) + states('input_number.light_yuba_duration')|float(0) %}
+      {% set midnight = now().replace(hour=0, minute=0, second=0, microsecond=0) %}
+      {% set midnight_str = midnight.strftime('%Y-%m-%d %H:%M:%S') %}
+      {% set prev = states('input_number.light_bathroom_duration', midnight_str)|float(0) + states('input_number.light_yuba_duration', midnight_str)|float(0) %}
+      {{ ((cur - prev) / 3600)|round(1) }}
+
+- sensor:
+    name: 走廊灯今日亮灯
+    unique_id: zou_lang_deng_jin_ri_liang_hour
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: >
+      {% set cur = states('input_number.light_hallway_main_duration')|float(0) + states('input_number.light_hallway_bath_duration')|float(0) %}
+      {% set midnight = now().replace(hour=0, minute=0, second=0, microsecond=0) %}
+      {% set midnight_str = midnight.strftime('%Y-%m-%d %H:%M:%S') %}
+      {% set prev = states('input_number.light_hallway_main_duration', midnight_str)|float(0) + states('input_number.light_hallway_bath_duration', midnight_str)|float(0) %}
+      {{ ((cur - prev) / 3600)|round(1) }}
+
+- sensor:
+    name: 门口灯今日亮灯
+    unique_id: men_kou_deng_jin_ri_liang_hour
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: >
+      {% set cur = states('input_number.light_doorway_duration')|float(0) %}
+      {% set midnight = now().replace(hour=0, minute=0, second=0, microsecond=0) %}
+      {% set midnight_str = midnight.strftime('%Y-%m-%d %H:%M:%S') %}
+      {% set prev = states('input_number.light_doorway_duration', midnight_str)|float(0) %}
+      {{ ((cur - prev) / 3600)|round(1) }}
+
+- sensor:
+    name: 全屋亮灯总时长汇总
+    unique_id: jin_ri_liang_deng_zong_shi_chang_v2
+    unit_of_measurement: h
+    icon: mdi:lightbulb-group-on
+    state: >
+      {{
+        (states('sensor.ke_ting_deng_jin_ri_liang_hour')|float(0) +
+         states('sensor.wo_shi_deng_jin_ri_liang_hour')|float(0) +
+         states('sensor.chu_fang_deng_jin_ri_liang_hour')|float(0) +
+         states('sensor.can_ting_deng_jin_ri_liang_hour')|float(0) +
+         states('sensor.wei_sheng_jian_deng_jin_ri_liang_hour')|float(0) +
+         states('sensor.zou_lang_deng_jin_ri_liang_hour')|float(0) +
+         states('sensor.men_kou_deng_jin_ri_liang_hour')|float(0)
+        )|round(1)
+      }}
+
+- sensor:
+    name: light_jdjz_duration_min
+    unique_id: light_jdjz_duration_min
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: "{{ (states('input_number.light_jdjz_duration')|float(0) /3600)|round(1) }}"
+
+- sensor:
+    name: light_sofa_duration_min
+    unique_id: light_sofa_duration_min
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: "{{ (states('input_number.light_sofa_duration')|float(0) /3600)|round(0) }}"
+
+- sensor:
+    name: light_bedroom_duration_min
+    unique_id: light_bedroom_duration_min
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: "{{ (states('input_number.light_bedroom_duration')|float(0) /3600)|round(0) }}"
+
+- sensor:
+    name: light_bedroom_strip_duration_min
+    unique_id: light_bedroom_strip_duration_min
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: "{{ (states('input_number.light_bedroom_strip_duration')|float(0) /3600)|round(0) }}"
+
+# 修复功耗统计页面缺失的传感器
+- sensor:
+    name: zong_shi_shi_gong_lu_4
+    unique_id: zong_shi_shi_gong_lu_4
+    unit_of_measurement: W
+    icon: mdi:flash
+    state: "{{ states('sensor.total_power_v2')|float(0)|round(2) }}"
+
+- sensor:
+    name: jin_ri_zong_yong_dian_liang_3
+    unique_id: jin_ri_zong_yong_dian_liang_3
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.home_daily_total_v2')|float(0)|round(4) }}"
+
+- sensor:
+    name: li_shi_zong_gong_hao
+    unique_id: li_shi_zong_gong_hao
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: >
+      {% set ns = namespace(total=0) %}
+      {% set sensors = [
+        'sensor.doujiangji_total_kwh_v2',
+        'sensor.oven_total_kwh_v2',
+        'sensor.heater_total_kwh_v2',
+        'sensor.computer_total_kwh_v2',
+        'sensor.nas_total_kwh_v2',
+        'sensor.xiaoheinu_total_kwh_v2',
+        'sensor.daheinu_total_kwh_v2',
+        'sensor.washer_total_kwh_v2'
+      ] %}
+      {% for s in sensors %}
+        {% set ns.total = ns.total + states(s)|float(0) %}
+      {% endfor %}
+      {{ ns.total|round(4) }}
+
+# 小打印机用电统计
+- sensor:
+    name: xiao_da_yin_ji_jin_ri_yong_dian_kwh
+    unique_id: xiao_da_yin_ji_jin_ri_yong_dian_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.xiaoheinu_daily_energy_v2_corrected')|float(0)|round(4) }}"
+
+- sensor:
+    name: xiao_da_yin_ji_ben_zhou_yong_dian_kwh
+    unique_id: xiao_da_yin_ji_ben_zhou_yong_dian_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.xiaoheinu_weekly_energy_v2_corrected')|float(0)|round(4) }}"
+
+- sensor:
+    name: xiao_da_yin_ji_ben_yue_yong_dian_kwh
+    unique_id: xiao_da_yin_ji_ben_yue_yong_dian_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.xiaoheinu_monthly_energy_v2_corrected')|float(0)|round(4) }}"
+
+- sensor:
+    name: xiao_da_yin_ji_lei_ji_yong_dian_kwh
+    unique_id: xiao_da_yin_ji_lei_ji_yong_dian_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.xiaoheinu_yearly_energy_v2_corrected')|float(0)|round(4) }}"
+
+# 大打印机用电统计
+- sensor:
+    name: da_da_yin_ji_jin_ri_yong_dian_kwh
+    unique_id: da_da_yin_ji_jin_ri_yong_dian_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.daheinu_daily_energy_v2_corrected')|float(0)|round(4) }}"
+
+- sensor:
+    name: da_da_yin_ji_ben_zhou_yong_dian_kwh
+    unique_id: da_da_yin_ji_ben_zhou_yong_dian_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.daheinu_weekly_energy_v2_corrected')|float(0)|round(4) }}"
+
+- sensor:
+    name: da_da_yin_ji_ben_yue_yong_dian_kwh
+    unique_id: da_da_yin_ji_ben_yue_yong_dian_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.daheinu_monthly_energy_v2_corrected')|float(0)|round(4) }}"
+
+- sensor:
+    name: da_da_yin_ji_lei_ji_yong_dian_kwh
+    unique_id: da_da_yin_ji_lei_ji_yong_dian_kwh
+    unit_of_measurement: kWh
+    icon: mdi:counter
+    state: "{{ states('sensor.daheinu_yearly_energy_v2_corrected')|float(0)|round(4) }}"
+
+- sensor:
+    name: light_kitchen_duration_min
+    unique_id: light_kitchen_duration_min
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: "{{ (states('input_number.light_kitchen_duration')|float(0) /3600)|round(0) }}"
+
+- sensor:
+    name: light_dining_duration_min
+    unique_id: light_dining_duration_min
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: "{{ (states('input_number.light_dining_duration')|float(0) /3600)|round(0) }}"
+
+- sensor:
+    name: light_bathroom_duration_min
+    unique_id: light_bathroom_duration_min
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: "{{ (states('input_number.light_bathroom_duration')|float(0) /3600)|round(0) }}"
+
+- sensor:
+    name: light_yuba_duration_min
+    unique_id: light_yuba_duration_min
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: "{{ (states('input_number.light_yuba_duration')|float(0) /3600)|round(0) }}"
+
+- sensor:
+    name: light_hallway_main_duration_min
+    unique_id: light_hallway_main_duration_min
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: "{{ (states('input_number.light_hallway_main_duration')|float(0) /3600)|round(0) }}"
+
+- sensor:
+    name: light_hallway_bath_duration_min
+    unique_id: light_hallway_bath_duration_min
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: "{{ (states('input_number.light_hallway_bath_duration')|float(0) /3600)|round(0) }}"
+
+- sensor:
+    name: light_doorway_duration_min
+    unique_id: light_doorway_duration_min
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: "{{ (states('input_number.light_doorway_duration')|float(0) /3600)|round(0) }}"
+
+- sensor:
+    name: total_lights_duration
+    unique_id: total_lights_duration
+    unit_of_measurement: s
+    icon: mdi:lightbulb-group-on
+    state: >
+      {{ 
+        (states('input_number.light_jdjz_duration')|float(0) +
+         states('input_number.light_sofa_duration')|float(0) +
+         states('input_number.light_bedroom_duration')|float(0) +
+         states('input_number.light_bedroom_strip_duration')|float(0) +
+         states('input_number.light_kitchen_duration')|float(0) +
+         states('input_number.light_dining_duration')|float(0) +
+         states('input_number.light_bathroom_duration')|float(0) +
+         states('input_number.light_yuba_duration')|float(0) +
+         states('input_number.light_hallway_main_duration')|float(0) +
+         states('input_number.light_hallway_bath_duration')|float(0) +
+         states('input_number.light_doorway_duration')|float(0)
+        )|round(0)
+      }}
+
+- sensor:
+    name: 全屋灯光总亮灯时长分钟
+    unique_id: total_lights_duration_min
+    unit_of_measurement: h
+    icon: mdi:lightbulb-group-on
+    state: "{{ (states('sensor.quan_wu_deng_guang_zong_liang_deng_shi_chang')|float(0) /3600)|round(0) }}"
+
+- sensor:
+    name: total_lights_duration_hour
+    unique_id: total_lights_duration_hour
+    unit_of_measurement: h
+    icon: mdi:lightbulb-group-on
+    state: "{{ (states('sensor.total_lights_duration')|float(0) / 3600)|round(2) }}"
+
+# Light duration sensors (hours)
+- sensor:
+    name: light_jdjz_total_duration_hours
+    unique_id: light_jdjz_total_duration_hours
+    unit_of_measurement: h
+    icon: mdi:ceiling-light
+    state: "{{ (states('input_number.light_jdjz_duration')|float(0) / 3600)|round(2) }}"
+
+- sensor:
+    name: light_sofa_total_duration_hours
+    unique_id: light_sofa_total_duration_hours
+    unit_of_measurement: h
+    icon: mdi:floor-lamp
+    state: "{{ (states('input_number.light_sofa_duration')|float(0) / 3600)|round(2) }}"
+
+- sensor:
+    name: light_bedroom_total_duration_hours
+    unique_id: light_bedroom_total_duration_hours
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: "{{ (states('input_number.light_bedroom_duration')|float(0) / 3600)|round(2) }}"
+
+- sensor:
+    name: light_bedroom_strip_total_duration_hours
+    unique_id: light_bedroom_strip_total_duration_hours
+    unit_of_measurement: h
+    icon: mdi:led-strip-variant
+    state: "{{ (states('input_number.light_bedroom_strip_duration')|float(0) / 3600)|round(2) }}"
+
+- sensor:
+    name: light_kitchen_total_duration_hours
+    unique_id: light_kitchen_total_duration_hours
+    unit_of_measurement: h
+    icon: mdi:ceiling-light-outline
+    state: "{{ (states('input_number.light_kitchen_duration')|float(0) / 3600)|round(2) }}"
+
+- sensor:
+    name: light_dining_total_duration_hours
+    unique_id: light_dining_total_duration_hours
+    unit_of_measurement: h
+    icon: mdi:ceiling-light-multiple
+    state: "{{ (states('input_number.light_dining_duration')|float(0) / 3600)|round(2) }}"
+
+- sensor:
+    name: light_bathroom_total_duration_hours
+    unique_id: light_bathroom_total_duration_hours
+    unit_of_measurement: h
+    icon: mdi:wall-sconce-flat-variant
+    state: "{{ (states('input_number.light_bathroom_duration')|float(0) / 3600)|round(2) }}"
+
+- sensor:
+    name: light_yuba_total_duration_hours
+    unique_id: light_yuba_total_duration_hours
+    unit_of_measurement: h
+    icon: mdi:heat-wave
+    state: "{{ (states('input_number.light_yuba_duration')|float(0) / 3600)|round(2) }}"
+
+- sensor:
+    name: light_hallway_main_total_duration_hours
+    unique_id: light_hallway_main_total_duration_hours
+    unit_of_measurement: h
+    icon: mdi:track-light
+    state: "{{ (states('input_number.light_hallway_main_duration')|float(0) / 3600)|round(2) }}"
+
+- sensor:
+    name: light_hallway_bath_total_duration_hours
+    unique_id: light_hallway_bath_total_duration_hours
+    unit_of_measurement: h
+    icon: mdi:track-light
+    state: "{{ (states('input_number.light_hallway_bath_duration')|float(0) / 3600)|round(2) }}"
+
+- sensor:
+    name: light_doorway_total_duration_hours
+    unique_id: light_doorway_total_duration_hours
+    unit_of_measurement: h
+    icon: mdi:ceiling-light
+    state: "{{ (states('input_number.light_doorway_duration')|float(0) / 3600)|round(2) }}"
+
+- sensor:
+    name: total_lights_total_duration_hours
+    unique_id: total_lights_total_duration_hours
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: "{{ (states('sensor.total_lights_duration')|float(0) / 3600)|round(2) }}"
+
+# ========== 今日亮灯时长（追加在文件末尾，确保在工作区间） ==========
+- sensor:
+    name: 客厅灯今日亮灯
+    unique_id: ke_ting_deng_jin_ri_v3
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: >
+      {{ ((states('sensor.light_jdjz_total_duration_hours')|float(0) + states('sensor.light_sofa_total_duration_hours')|float(0)) -
+      (states('sensor.light_jdjz_total_duration_hours', now().replace(hour=0,minute=0,second=0,microsecond=0).strftime('%Y-%m-%d %H:%M:%S'))|float(0) +
+       states('sensor.light_sofa_total_duration_hours', now().replace(hour=0,minute=0,second=0,microsecond=0).strftime('%Y-%m-%d %H:%M:%S'))|float(0)))|round(1) }}
+
+- sensor:
+    name: 卧室灯今日亮灯
+    unique_id: wo_shi_deng_jin_ri_v3
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: >
+      {{ ((states('sensor.light_bedroom_total_duration_hours')|float(0) + states('sensor.light_bedroom_strip_total_duration_hours')|float(0)) -
+      (states('sensor.light_bedroom_total_duration_hours', now().replace(hour=0,minute=0,second=0,microsecond=0).strftime('%Y-%m-%d %H:%M:%S'))|float(0) +
+       states('sensor.light_bedroom_strip_total_duration_hours', now().replace(hour=0,minute=0,second=0,microsecond=0).strftime('%Y-%m-%d %H:%M:%S'))|float(0)))|round(1) }}
+
+- sensor:
+    name: 厨房灯今日亮灯
+    unique_id: chu_fang_deng_jin_ri_v3
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: >
+      {{ (states('sensor.light_kitchen_total_duration_hours')|float(0) -
+      states('sensor.light_kitchen_total_duration_hours', now().replace(hour=0,minute=0,second=0,microsecond=0).strftime('%Y-%m-%d %H:%M:%S'))|float(0))|round(1) }}
+
+- sensor:
+    name: 餐厅灯今日亮灯
+    unique_id: can_ting_deng_jin_ri_v3
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: >
+      {{ (states('sensor.light_dining_total_duration_hours')|float(0) -
+      states('sensor.light_dining_total_duration_hours', now().replace(hour=0,minute=0,second=0,microsecond=0).strftime('%Y-%m-%d %H:%M:%S'))|float(0))|round(1) }}
+
+- sensor:
+    name: 卫生间灯今日亮灯
+    unique_id: wei_sheng_jian_deng_jin_ri_v3
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: >
+      {{ ((states('sensor.light_bathroom_total_duration_hours')|float(0) + states('sensor.light_yuba_total_duration_hours')|float(0)) -
+      (states('sensor.light_bathroom_total_duration_hours', now().replace(hour=0,minute=0,second=0,microsecond=0).strftime('%Y-%m-%d %H:%M:%S'))|float(0) +
+       states('sensor.light_yuba_total_duration_hours', now().replace(hour=0,minute=0,second=0,microsecond=0).strftime('%Y-%m-%d %H:%M:%S'))|float(0)))|round(1) }}
+
+- sensor:
+    name: 走廊灯今日亮灯
+    unique_id: zou_lang_deng_jin_ri_v3
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: >
+      {{ ((states('sensor.light_hallway_main_total_duration_hours')|float(0) + states('sensor.light_hallway_bath_total_duration_hours')|float(0)) -
+      (states('sensor.light_hallway_main_total_duration_hours', now().replace(hour=0,minute=0,second=0,microsecond=0).strftime('%Y-%m-%d %H:%M:%S'))|float(0) +
+       states('sensor.light_hallway_bath_total_duration_hours', now().replace(hour=0,minute=0,second=0,microsecond=0).strftime('%Y-%m-%d %H:%M:%S'))|float(0)))|round(1) }}
+
+- sensor:
+    name: 门口灯今日亮灯
+    unique_id: men_kou_deng_jin_ri_v3
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: >
+      {{ (states('sensor.light_doorway_total_duration_hours')|float(0) -
+      states('sensor.light_doorway_total_duration_hours', now().replace(hour=0,minute=0,second=0,microsecond=0).strftime('%Y-%m-%d %H:%M:%S'))|float(0))|round(1) }}
+
+- sensor:
+    name: 厨房灯周亮灯时长h
+    unique_id: chu_fang_deng_zhou_liang_deng_shi_chang_h
+    unit_of_measurement: h
+    device_class: duration
+    icon: mdi:clock-outline
+    state: >
+      {{ (states('sensor.chu_fang_deng_zhou_liang_deng_shi_chang') | float(0) / 3600) | round(1) }}
+
+# ========== 每灯今日亮灯时长（供仪表板使用） ==========
+- sensor:
+    name: light_jdjz_daily_duration_hours
+    unique_id: light_jdjz_daily_duration_hours
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: >
+      {{ (states('sensor.light_jdjz_total_duration_hours')|float(0) -
+      states('sensor.light_jdjz_total_duration_hours', now().replace(hour=0,minute=0,second=0,microsecond=0).strftime('%Y-%m-%d %H:%M:%S'))|float(0))|round(1) }}
+
+- sensor:
+    name: light_sofa_daily_duration_hours
+    unique_id: light_sofa_daily_duration_hours
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: >
+      {{ (states('sensor.light_sofa_total_duration_hours')|float(0) -
+      states('sensor.light_sofa_total_duration_hours', now().replace(hour=0,minute=0,second=0,microsecond=0).strftime('%Y-%m-%d %H:%M:%S'))|float(0))|round(1) }}
+
+- sensor:
+    name: light_bedroom_strip_daily_duration_hours
+    unique_id: light_bedroom_strip_daily_duration_hours
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: >
+      {{ (states('sensor.light_bedroom_strip_total_duration_hours')|float(0) -
+      states('sensor.light_bedroom_strip_total_duration_hours', now().replace(hour=0,minute=0,second=0,microsecond=0).strftime('%Y-%m-%d %H:%M:%S'))|float(0))|round(1) }}
+
+- sensor:
+    name: light_kitchen_daily_duration_hours
+    unique_id: light_kitchen_daily_duration_hours
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: >
+      {{ (states('sensor.light_kitchen_total_duration_hours')|float(0) -
+      states('sensor.light_kitchen_total_duration_hours', now().replace(hour=0,minute=0,second=0,microsecond=0).strftime('%Y-%m-%d %H:%M:%S'))|float(0))|round(1) }}
+
+- sensor:
+    name: light_bathroom_daily_duration_hours
+    unique_id: light_bathroom_daily_duration_hours
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: >
+      {{ (states('sensor.light_bathroom_total_duration_hours')|float(0) -
+      states('sensor.light_bathroom_total_duration_hours', now().replace(hour=0,minute=0,second=0,microsecond=0).strftime('%Y-%m-%d %H:%M:%S'))|float(0))|round(1) }}
+
+- sensor:
+    name: light_yuba_daily_duration_hours
+    unique_id: light_yuba_daily_duration_hours
+    unit_of_measurement: h
+    icon: mdi:heat-wave
+    state: >
+      {{ (states('sensor.light_yuba_total_duration_hours')|float(0) -
+      states('sensor.light_yuba_total_duration_hours', now().replace(hour=0,minute=0,second=0,microsecond=0).strftime('%Y-%m-%d %H:%M:%S'))|float(0))|round(1) }}
+
+- sensor:
+    name: light_hallway_main_daily_duration_hours
+    unique_id: light_hallway_main_daily_duration_hours
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: >
+      {{ (states('sensor.light_hallway_main_total_duration_hours')|float(0) -
+      states('sensor.light_hallway_main_total_duration_hours', now().replace(hour=0,minute=0,second=0,microsecond=0).strftime('%Y-%m-%d %H:%M:%S'))|float(0))|round(1) }}
+
+- sensor:
+    name: light_hallway_bath_daily_duration_hours
+    unique_id: light_hallway_bath_daily_duration_hours
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: >
+      {{ (states('sensor.light_hallway_bath_total_duration_hours')|float(0) -
+      states('sensor.light_hallway_bath_total_duration_hours', now().replace(hour=0,minute=0,second=0,microsecond=0).strftime('%Y-%m-%d %H:%M:%S'))|float(0))|round(1) }}
+
+- sensor:
+    name: light_doorway_daily_duration_hours
+    unique_id: light_doorway_daily_duration_hours
+    unit_of_measurement: h
+    icon: mdi:lightbulb-on
+    state: >
+      {{ (states('sensor.light_doorway_total_duration_hours')|float(0) -
+      states('sensor.light_doorway_total_duration_hours', now().replace(hour=0,minute=0,second=0,microsecond=0).strftime('%Y-%m-%d %H:%M:%S'))|float(0))|round(1) }}
+
+- sensor:
+    name: total_lights_daily_duration_hours
+    unique_id: total_lights_daily_duration_hours
+    unit_of_measurement: h
+    icon: mdi:home-lightbulb-outline
+    state: >
+      {{ (states('sensor.total_lights_total_duration_hours')|float(0) -
+      states('sensor.total_lights_total_duration_hours', now().replace(hour=0,minute=0,second=0,microsecond=0).strftime('%Y-%m-%d %H:%M:%S'))|float(0))|round(1) }}

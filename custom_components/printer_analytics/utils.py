@@ -70,6 +70,32 @@ def extract_model_from_gcode_filename(gcode_value: str) -> str:
     return name
 
 
+def extract_design_id_from_gcode_filename(gcode_value: str) -> str:
+    """从 gcode_file_downloaded 实体值中提取 designId（任务ID）
+
+    Bambu 的 gcode_file_downloaded 格式：
+        {designId}-{modelName}{paramDescription}.gcode.gcode
+    例如：
+        925294-问号箱0.2mm 层高, 2 层墙, 15% 填充.gcode.gcode
+        → designId = "925294"
+
+    提取逻辑：取 designId- 前缀中的纯数字部分
+    """
+    if not gcode_value:
+        return ""
+
+    name = gcode_value.strip()
+
+    while name.lower().endswith(".gcode"):
+        name = name[:-len(".gcode")].strip()
+
+    match = re.match(r'^(\d+)-', name)
+    if match:
+        return match.group(1)
+
+    return ""
+
+
 class SecureFileHandler:
     """安全的文件操作处理器 - 防止路径遍历和文件注入攻击"""
 
@@ -352,17 +378,19 @@ def match_record_filter(record: dict, status_filter: str = "", color_filter: str
 
     所有筛选参数为空时返回 True（即无筛选 = 全部匹配）。
     """
-    # 状态筛选（兼容别名：finish→completed/success, failed→fail, cancelled→cancel）
+    from .const import SUCCESS_STATUSES, FAILURE_STATUSES, CANCELLED_STATUSES
+
+    # 状态筛选（使用统一常量集合，兼容所有别名）
     if status_filter:
-        r_status = (record.get("status") or "").lower()
+        r_status = (record.get("status") or "")
         if status_filter == "finish":
-            if r_status not in ("finish", "completed", "success", "完成", "成功"):
+            if r_status not in SUCCESS_STATUSES:
                 return False
         elif status_filter == "failed":
-            if r_status not in ("fail", "failed", "失败"):
+            if r_status not in FAILURE_STATUSES:
                 return False
         elif status_filter == "cancelled":
-            if r_status not in ("cancel", "cancelled", "已取消"):
+            if r_status not in CANCELLED_STATUSES:
                 return False
         elif r_status != status_filter:
             return False

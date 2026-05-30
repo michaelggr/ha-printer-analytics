@@ -43,7 +43,7 @@ from .const import (
     PRINT_STATUS_RUNNING,
     TASK_NAME_CAPTURE_WINDOW_SECS,
 )
-from .utils import SecureFileHandler, extract_project_from_gcode_filename, is_param_description
+from .utils import SecureFileHandler, extract_model_from_gcode_filename, is_param_description
 
 from .data_models import PrinterStats
 from .storage import StorageManager
@@ -307,7 +307,7 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
     # 老格式 status 中文到英文的映射
     _STATUS_MAP = {
         "完成": PRINT_STATUS_FINISH,
-        "失败": PRINT_STATUS_FAIL,
+        "失败": PRINT_STATUS_FAILED,
         "取消": PRINT_STATUS_CANCELLED,
         "空闲": PRINT_STATUS_IDLE,
         "运行中": PRINT_STATUS_RUNNING,
@@ -689,7 +689,7 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         if not gcode_entity:
             return ""
         gcode_value = self.get_entity_state(gcode_entity, "") or ""
-        return extract_project_from_gcode_filename(gcode_value)
+        return extract_model_from_gcode_filename(gcode_value)
 
     def _build_tray_color_map(self) -> dict[str, dict]:
         """构建AMS tray颜色映射（使用缓存的实体列表）"""
@@ -775,7 +775,7 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
             if not self.current_print:
                 return
             status = self.current_print.get("status", "")
-            if status in (PRINT_STATUS_FINISH, PRINT_STATUS_FAIL, PRINT_STATUS_CANCELLED, "idle"):
+            if status in END_PRINT_STATUSES or status == PRINT_STATUS_IDLE:
                 return
 
             old_path = self.current_print.get("snapshot_image_local")
@@ -1271,19 +1271,26 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
                 changed = True
         return changed
 
-    async def async_import_history(self, json_data: str, overwrite_fields: set | None = None) -> int:
+    async def async_import_history(self, json_data: str, overwrite_fields: set | None = None) -> dict:
         """导入历史记录（向后兼容，重复记录合并填充空字段）
 
         重复判定：设备序列号(printer_serial) + 结束时间(end_time) ±2分钟
         合并策略：仅填充已有记录中为空/默认的字段，不覆盖已有有效数据
         支持导入不属于当前打印机的记录（按 serial 写入对应文件）
+
+        返回结构化导入统计：
+            input: 读取的记录总数
+            added: 新增记录数
+            merged: 命中重复且实际更新了字段的记录数
+            duplicate_skipped: 命中重复且无需更新的记录数
+            other_serial: 属于其他打印机序列号的记录数
+            final_total: 导入后当前打印机的总记录数
         """
         try:
             data = json.loads(json_data)
         except json.JSONDecodeError as err:
             raise ValueError(f"JSON 格式错误: {err}") from err
 
-        # 支持多种数据格式
         records = []
         if isinstance(data, list):
             records = data
@@ -1291,7 +1298,6 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
             if "history" in data:
                 records = data["history"]
             else:
-                # 多打印机格式：{"printer1": {"history": [...]}, ...}
                 for v in data.values():
                     if isinstance(v, dict) and "history" in v:
                         records.extend(v["history"])
@@ -1299,20 +1305,17 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         if not records:
             raise ValueError("导入数据中没有找到有效记录")
 
-        # 必填字段检查
         for i, rec in enumerate(records[:5]):
             if not rec.get("task_name") and not rec.get("name") and not rec.get("title"):
                 raise ValueError(f"第 {i + 1} 条记录缺少任务名称(task_name)")
             if not rec.get("status"):
                 raise ValueError(f"第 {i + 1} 条记录缺少状态(status)")
 
-        # 按序列号分组：属于当前 coordinator 的 vs 其他序列号的
         my_serial = (self.printer_serial or "").upper()
         my_records = []
         other_by_serial: dict[str, list[dict]] = {}
 
         for rec in records:
-            # 清理内部字段
             rec = {k: v for k, v in rec.items() if not k.startswith("_") or k == "_pending_color_validation"}
             if "id" not in rec:
                 rec["id"] = str(uuid.uuid4())
@@ -1326,17 +1329,17 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
                     rec["printer_serial"] = self.printer_serial or None
                 my_records.append(rec)
             else:
-                # 其他序列号的记录
                 if "printer_serial" not in rec and rec_serial:
                     rec["printer_serial"] = rec_serial
                 other_by_serial.setdefault(rec_serial, []).append(rec)
 
-        # 处理当前 coordinator 的记录
         added = 0
         merged = 0
+        matched = 0
         for rec in my_records:
             duplicate = self._find_duplicate_record(rec)
             if duplicate:
+                matched += 1
                 if self._merge_record(duplicate, rec, overwrite_fields=overwrite_fields):
                     merged += 1
             else:
@@ -1350,15 +1353,31 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
             await self._save_history()
             self.async_set_updated_data(self._calculate_statistics())
 
-        # 处理其他序列号的记录：直接写入对应文件
         other_count = 0
+        other_added = 0
+        other_merged = 0
         if other_by_serial and self.storage:
-            other_count = await self.hass.async_add_executor_job(
-                self._import_other_serial_records, other_by_serial
+            other_added, other_merged = await self.hass.async_add_executor_job(
+                self._import_other_serial_records_v2, other_by_serial
             )
+            other_count = other_added + other_merged
 
-        LOGGER.info("Import completed: %d added, %d merged, %d other serial", added, merged, other_count)
-        return added + merged + other_count
+        duplicate_skipped = matched - merged
+        final_total = len(self.history)
+
+        LOGGER.info(
+            "Import history completed: input=%d, added=%d, merged=%d, duplicate_skipped=%d, other_serial=%d, final_total=%d",
+            len(records), added, merged, duplicate_skipped, other_count, final_total,
+        )
+
+        return {
+            "input": len(records),
+            "added": added,
+            "merged": merged,
+            "duplicate_skipped": duplicate_skipped,
+            "other_serial": other_count,
+            "final_total": final_total,
+        }
 
     def _import_other_serial_records(self, records_by_serial: dict[str, list[dict]]) -> int:
         """导入不属于当前 coordinator 的记录，直接写入对应序列号的文件"""
@@ -1415,6 +1434,59 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
                     LOGGER.warning("写入序列号 %s 的 %d 年数据失败: %s", serial, year, err)
 
         return total
+
+    def _import_other_serial_records_v2(self, records_by_serial: dict[str, list[dict]]) -> tuple[int, int]:
+        """导入不属于当前 coordinator 的记录，返回 (added, merged)"""
+        from .storage import StorageManager as _SM
+
+        total_added = 0
+        total_merged = 0
+        for serial, records in records_by_serial.items():
+            if not serial:
+                continue
+            existing_records = []
+            year_files = []
+            if os.path.isdir(self._history_dir):
+                for f in os.listdir(self._history_dir):
+                    if f.startswith(f"{serial}_") and f.endswith(".json"):
+                        year_files.append(f)
+
+            for yf in year_files:
+                fp = os.path.join(self._history_dir, yf)
+                try:
+                    with open(fp, "r", encoding="utf-8") as fh:
+                        d = json.load(fh)
+                    existing_records.extend(d.get("history", []) if isinstance(d, dict) else d)
+                except Exception:
+                    continue
+
+            for rec in records:
+                is_dup = False
+                for ex in existing_records:
+                    if self._is_duplicate_record(ex, rec):
+                        if self._merge_record(ex, rec):
+                            total_merged += 1
+                        is_dup = True
+                        break
+                if not is_dup:
+                    existing_records.append(rec)
+                    total_added += 1
+
+            records_by_year: dict[int, list[dict]] = {}
+            for r in existing_records:
+                year = _SM._extract_year_from_end_time(r.get("end_time", ""))
+                records_by_year.setdefault(year, []).append(r)
+
+            for year, year_records in records_by_year.items():
+                year_file = os.path.join(self._history_dir, f"{serial}_{year}.json")
+                data = {"version": HISTORY_VERSION, "year": year, "history": year_records}
+                try:
+                    with open(year_file, "w", encoding="utf-8") as f:
+                        json.dump(data, f, ensure_ascii=False, indent=2)
+                except Exception as err:
+                    LOGGER.warning("写入序列号 %s 的 %d 年数据失败: %s", serial, year, err)
+
+        return total_added, total_merged
 
     async def async_backup_history(self) -> str:
         """备份历史记录到 HA 备份目录"""

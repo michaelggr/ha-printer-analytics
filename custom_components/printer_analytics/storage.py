@@ -309,6 +309,9 @@ class StorageManager:
         for _, r in page_items:
             clean_records.append({k: v for k, v in r.items() if k not in _INTERNAL_KEYS})
 
+        # 基于筛选后全量数据计算统计（供前端摘要展示）
+        stats = self._calc_quick_stats(filtered_keys)
+
         return {
             "records": clean_records,
             "pagination": {
@@ -323,6 +326,7 @@ class StorageManager:
                 "printer_serial": self.coordinator.printer_serial,
                 "total_records": total_records,
             },
+            "stats": stats,
         }
 
     @staticmethod
@@ -338,6 +342,54 @@ class StorageManager:
         for cu in (r.get("color_usage") or []):
             if cu and cu.get("color") and cu.get("weight_g", 0) > 0:
                 colors.add(cu["color"])
+
+    @staticmethod
+    def _calc_quick_stats(filtered_keys: list[tuple]) -> dict:
+        """基于筛选后的全量记录快速计算统计摘要"""
+        from .const import SUCCESS_STATUSES
+
+        total = len(filtered_keys)
+        success = 0
+        total_weight = 0.0
+        total_duration_hours = 0.0
+
+        for _, r in filtered_keys:
+            status = r.get("status", "")
+            if status in SUCCESS_STATUSES:
+                success += 1
+            total_weight += float(r.get("total_weight") or 0)
+
+            # 时长计算
+            dur = r.get("duration_hours")
+            if dur is not None and str(dur).strip() not in ("", "None", "null"):
+                try:
+                    total_duration_hours += float(dur)
+                except (ValueError, TypeError):
+                    pass
+            else:
+                st = r.get("start_time")
+                et = r.get("end_time")
+                if st and et:
+                    try:
+                        from datetime import datetime
+                        fmt = "%Y-%m-%d %H:%M" if " " in st else "%Y-%m-%dT%H:%M:%S"
+                        sd = datetime.strptime(str(st)[:16], "%Y-%m-%d %H:%M")
+                        ed = datetime.strptime(str(et)[:16], "%Y-%m-%d %H:%M")
+                        delta = (ed - sd).total_seconds() / 3600
+                        if delta > 0:
+                            total_duration_hours += delta
+                    except Exception:
+                        pass
+
+        success_rate = round(success / total * 100, 1) if total > 0 else 0
+
+        return {
+            "total": total,
+            "success": success,
+            "success_rate": success_rate,
+            "total_weight": round(total_weight, 1),
+            "total_duration_hours": round(total_duration_hours, 2),
+        }
 
     # ================================================================
     # 加载历史（启动时只加载最近缓存 + 统计数据）
@@ -391,9 +443,11 @@ class StorageManager:
                         with open(file_path, "r", encoding="utf-8") as f:
                             data = json.load(f)
                         records = data.get("history", []) if isinstance(data, dict) else data
-                        # 取最新的记录
                         remaining = cache_limit - len(recent_records)
-                        recent_records = records[-remaining:] + recent_records
+                        LOGGER.info("load_history: %s 有 %d 条记录, 取前 %d 条, first_end_time=%s",
+                                    year_file, len(records), remaining,
+                                    records[0].get("end_time", "?") if records else "empty")
+                        recent_records = records[:remaining] + recent_records
                     except Exception as err:
                         LOGGER.warning("加载最近记录失败 %s: %s", year_file, err)
 

@@ -49,17 +49,19 @@ def _sanitize_record(record: dict) -> dict:
 
 
 def _match_status(status: str, status_filter: str) -> bool:
-    status_value = (status or "").lower()
+    from .const import SUCCESS_STATUSES, FAILURE_STATUSES, CANCELLED_STATUSES
+
+    status_value = status or ""
     filter_value = (status_filter or "").lower()
     if not filter_value:
         return True
     if filter_value == "finish":
-        return status_value in ("finish", "completed", "success", "完成", "成功")
+        return status_value in SUCCESS_STATUSES
     if filter_value == "failed":
-        return status_value in ("fail", "failed", "失败")
+        return status_value in FAILURE_STATUSES
     if filter_value == "cancelled":
-        return status_value in ("cancel", "cancelled", "已取消")
-    return status_value == filter_value
+        return status_value in CANCELLED_STATUSES
+    return status_value == filter_value or status_value.lower() == filter_value
 
 
 def _calculate_history_stats(history: list[dict]) -> dict:
@@ -522,8 +524,8 @@ def _register_services(hass: HomeAssistant) -> None:
             json_data = call.data.get("json_data", "")
             if json_data:
                 try:
-                    count = await coordinator.async_import_history(json_data)
-                    LOGGER.info("Imported %d history records for %s", count, coordinator.printer_name)
+                    result = await coordinator.async_import_history(json_data)
+                    LOGGER.info("Imported history for %s: %s", coordinator.printer_name, result)
                 except Exception as e:
                     LOGGER.error("Failed to import history: %s", e)
                     raise
@@ -832,3 +834,28 @@ def _register_websocket_commands(hass: HomeAssistant) -> None:
             connection.send_error(msg["id"], "delete_failed", str(err))
 
     websocket_api.async_register_command(hass, ws_delete_global_records)
+
+    @websocket_api.websocket_command({
+        vol.Required("type"): "printer_analytics/import_history",
+        vol.Required("entry_id"): str,
+        vol.Required("json_data"): str,
+    })
+    @websocket_api.async_response
+    async def ws_import_history(hass: HomeAssistant, connection, msg):
+        """通过 WebSocket 导入历史记录，返回结构化统计"""
+        entry_id = msg["entry_id"]
+        coordinator = hass.data.get(DOMAIN, {}).get(entry_id)
+        if not coordinator or not isinstance(coordinator, PrinterAnalyticsCoordinator):
+            connection.send_error(msg["id"], "not_found", f"Coordinator not found for {entry_id}")
+            return
+
+        try:
+            result = await coordinator.async_import_history(msg["json_data"])
+            connection.send_result(msg["id"], result)
+        except ValueError as err:
+            connection.send_error(msg["id"], "invalid_data", str(err))
+        except Exception as err:
+            LOGGER.error("WebSocket 导入失败: %s", err, exc_info=True)
+            connection.send_error(msg["id"], "import_failed", str(err))
+
+    websocket_api.async_register_command(hass, ws_import_history)

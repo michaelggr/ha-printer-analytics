@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 import logging
@@ -263,6 +263,13 @@ def _truncate_history_attrs(data: PrinterStats) -> dict:
         total_count = data.total_prints  # 使用真实总数，而非 len(history)
         current_print = _sanitize_for_attrs(data.current_print)
 
+        # 确保 history 按降序排列（最新在前），方便前端展示
+        if history and len(history) > 1:
+            first_et = history[0].get("end_time", "") if isinstance(history[0], dict) else ""
+            last_et = history[-1].get("end_time", "") if isinstance(history[-1], dict) else ""
+            if first_et < last_et:
+                history = list(reversed(history))
+
         result = {"history": history, "current_print": current_print, "total_count": total_count}
 
         # 检查大小是否超限（HA recorder 16384 字节限制）
@@ -285,10 +292,22 @@ def _truncate_history_attrs(data: PrinterStats) -> dict:
             if len(json.dumps(result, ensure_ascii=False).encode('utf-8')) <= MAX_ATTR_BYTES:
                 return result
 
-        # 仍然超限，截断 history
-        while len(history) > 5:
-            history = history[len(history) // 3:]  # 每次砍掉前2/3
-            result = {"history": history, "current_print": current_print, "total_count": total_count}
+        # 仍然超限，精简记录字段后再截断
+        slim_keys = ('task_name', 'end_time', 'status', 'filament_type', 'filament_color',
+                     'total_weight', 'duration_hours', 'colors_used', 'printer_serial',
+                     'start_time', 'print_progress', 'cover_image_local', 'design_id')
+        slim_history = [{k: r[k] for k in slim_keys if k in r} for r in history]
+        result = {"history": slim_history, "current_print": current_print, "total_count": total_count}
+        if len(json.dumps(result, ensure_ascii=False).encode('utf-8')) <= MAX_ATTR_BYTES:
+            if len(slim_history) < total_count:
+                result["truncated"] = True
+            return result
+
+        # 精简后仍超限，降序排列下去掉尾部旧记录
+        while len(slim_history) > 5:
+            cut = len(slim_history) // 3
+            slim_history = slim_history[:-cut] if cut > 0 else slim_history[:5]
+            result = {"history": slim_history, "current_print": current_print, "total_count": total_count}
             if len(json.dumps(result, ensure_ascii=False).encode('utf-8')) <= MAX_ATTR_BYTES:
                 break
 

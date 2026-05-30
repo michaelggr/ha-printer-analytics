@@ -304,7 +304,7 @@ class PrintTracker:
         self.coordinator.current_print = {
             "id": str(uuid.uuid4()),
             "start_time": data["start_time"],
-            "status": "running",
+            "status": PRINT_STATUS_RUNNING,
             "start_energy": data["start_energy"],
             "energy_valid": data["start_energy"] > 0,
             "task_name": data["task_name"] or None,
@@ -377,6 +377,63 @@ class PrintTracker:
 
         # 触发恢复后操作
         self._trigger_recovery_notifications(print_data)
+
+    def detect_orphan_print(self) -> None:
+        """孤儿打印检测：HA 重启时对比 gcode_file_downloaded 和历史记录
+
+        场景：HA 重启时打印已结束(idle/finish)，正常恢复不会触发记录。
+        通过检查 gcode_file_downloaded 实体值，与最近的历史记录对比，
+        如果该 gcode 文件未被记录过，则创建一条孤儿打印记录。
+        """
+        gcode_entity = self.coordinator._entity_map.get("gcode_file_downloaded", "")
+        if not gcode_entity:
+            return
+
+        gcode_value = self.coordinator.get_entity_state(gcode_entity, "") or ""
+        if not gcode_value:
+            return
+
+        # 检查历史记录中是否已有该 gcode 文件的打印记录
+        history = self.coordinator.history
+        for record in reversed(history):
+            rec_gcode = record.get("gcode_file", "")
+            if rec_gcode and rec_gcode == gcode_value:
+                LOGGER.debug("孤儿打印检测: gcode %s 已在历史记录中，跳过", gcode_value[:50])
+                return
+
+        # 检查当前打印状态，必须是 idle 或 finish 才处理
+        current_status = self.get_current_status()
+        if current_status not in (PRINT_STATUS_IDLE, PRINT_STATUS_FINISH):
+            return
+
+        LOGGER.info("孤儿打印检测: 发现未记录的 gcode %s，创建孤儿记录", gcode_value[:50])
+
+        # 收集可用数据创建孤儿记录
+        start_time = self._collect_start_time()
+        task_name, model_name, config_name = self._collect_task_name()
+        if not model_name:
+            model_name = self._extract_model_from_gcode()
+
+        filament_type, filament_color = self._get_current_filament_info()
+        if filament_color:
+            filament_color = filament_color.lower()
+
+        orphan_record = {
+            "id": str(uuid.uuid4()),
+            "start_time": start_time,
+            "status": PRINT_STATUS_FINISH,
+            "task_name": task_name,
+            "model_name": model_name,
+            "config_name": config_name,
+            "gcode_file": gcode_value,
+            "filament_type": filament_type,
+            "filament_color": filament_color,
+            "cover_image_url": self._collect_cover_image(),
+            "orphan": True,
+        }
+
+        self.coordinator.history.append(orphan_record)
+        self.hass.async_create_task(self.coordinator._save_history())
 
     def handle_state_change(self, event: Any) -> None:
         """处理状态变化"""
@@ -1088,7 +1145,7 @@ class PrintTracker:
         self.coordinator.current_print = {
             "id": str(uuid.uuid4()),
             "start_time": start_time,
-            "status": "running",
+            "status": PRINT_STATUS_RUNNING,
             "start_energy": start_energy,
             "energy_valid": start_energy > 0,
             "task_name": task_name or None,
