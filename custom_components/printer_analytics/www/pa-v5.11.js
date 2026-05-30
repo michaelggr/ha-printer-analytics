@@ -510,16 +510,16 @@ class PrinterAnalyticsCard extends HTMLElement {
       'material_stats_7d': '7tian',
       'material_stats_30d': '30tian',
       'extreme_stats': 'zhi_zui',
-      'duration_distribution': 'shi_chang',
+      'duration_distribution': 'da_yin_shi_chang',
       'filament_success_stats': 'hao_cai_cheng',
       'multi_color_ratio': 'duo_se',
-      'prepare_time_by_filament': 'zhun_bei',
+      'prepare_time_by_filament': 'cai_liao_zhun_bei',
       'slice_mode_distribution': 'qie_pian',
       'over_500g_ratio': 'chao_500g',
       'nozzle_size_distribution': 'pen_zui',
-      'failed_chamber_temp_distribution': 'cang_wen',
-      'activity_heatmap': 'huo_dong',
-      'failure_stage_distribution': 'shi_bai',
+      'failed_chamber_temp_distribution': 'shi_bai_cang_wen',
+      'activity_heatmap': 'da_yin_huo_dong',
+      'failure_stage_distribution': 'shi_bai_jie_duan',
     };
     const period = autoDiscoverMap[entityKey];
     if (!period || !this._hass?.states) return '';
