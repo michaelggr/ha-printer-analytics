@@ -1,4 +1,4 @@
-"""统计计算模块 - 支持增量缓存和持久化"""
+﻿"""统计计算模块 - 支持增量缓存和持久化"""
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING
@@ -81,6 +81,9 @@ class StatisticsCalculator:
         for r in self.coordinator.history:
             if r.get("id") not in cached_ids:
                 all_records.append(r)
+
+        # 确保按 end_time 升序排列，使 history[-50:] 取到最新记录
+        all_records.sort(key=lambda x: x.get("end_time", ""))
 
         return self._calculate_full(all_records, current_print)
 

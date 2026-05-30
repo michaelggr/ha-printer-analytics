@@ -443,11 +443,15 @@ class StorageManager:
                         with open(file_path, "r", encoding="utf-8") as f:
                             data = json.load(f)
                         records = data.get("history", []) if isinstance(data, dict) else data
+                        # 文件可能是升序或降序，统一按 end_time 排序后取最新 N 条
+                        records.sort(key=lambda x: x.get("end_time", ""))
                         remaining = cache_limit - len(recent_records)
-                        LOGGER.info("load_history: %s 有 %d 条记录, 取前 %d 条, first_end_time=%s",
+                        LOGGER.info("load_history: %s 有 %d 条记录, 取最新 %d 条, first_end_time=%s, last_end_time=%s",
                                     year_file, len(records), remaining,
-                                    records[0].get("end_time", "?") if records else "empty")
-                        recent_records = records[:remaining] + recent_records
+                                    records[0].get("end_time", "?") if records else "empty",
+                                    records[-1].get("end_time", "?") if records else "empty")
+                        # 升序排列后取最后 remaining 条（最新的）
+                        recent_records = records[-remaining:] + recent_records
                     except Exception as err:
                         LOGGER.warning("加载最近记录失败 %s: %s", year_file, err)
 
