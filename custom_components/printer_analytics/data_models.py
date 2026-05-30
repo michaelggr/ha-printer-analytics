@@ -1,4 +1,4 @@
-"""数据模型定义"""
+﻿"""数据模型定义"""
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -30,6 +30,7 @@ class PrinterStats:
     over_500g_ratio: dict = field(default_factory=dict)         # 超500g模型占比 {over: N, under: N}
     nozzle_size_distribution: dict = field(default_factory=dict) # 喷嘴尺寸分布 {0.4: N, 0.2: N, ...}
     failed_chamber_temp_distribution: dict = field(default_factory=dict)  # 失败仓温分布
+    extreme_stats: dict = field(default_factory=dict)  # 之最打印 {longest, shortest, heaviest, lightest, most_colors}
     # 通用字段
     history: list = field(default_factory=list)
     current_print: dict | None = None

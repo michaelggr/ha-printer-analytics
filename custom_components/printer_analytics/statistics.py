@@ -381,6 +381,27 @@ class StatisticsCalculator:
                     temp_buckets[">70°C"] += 1
             stats.failed_chamber_temp_distribution = temp_buckets
 
+        # 极端值统计（之最打印），基于全量记录计算
+        extreme = {}
+        with_dur = [r for r in history if (r.get("duration_hours") or 0) > 0]
+        with_weight = [r for r in history if (r.get("total_weight") or 0) > 0]
+        if with_dur:
+            longest = max(with_dur, key=lambda r: r.get("duration_hours", 0))
+            shortest = min(with_dur, key=lambda r: r.get("duration_hours", 0))
+            extreme["longest"] = self._extract_extreme_record(longest)
+            extreme["shortest"] = self._extract_extreme_record(shortest)
+        if with_weight:
+            heaviest = max(with_weight, key=lambda r: r.get("total_weight", 0))
+            lightest = min(with_weight, key=lambda r: r.get("total_weight", 0))
+            extreme["heaviest"] = self._extract_extreme_record(heaviest)
+            extreme["lightest"] = self._extract_extreme_record(lightest)
+        # 最多颜色
+        with_colors = [r for r in history if len(r.get("colors_used") or []) > 1]
+        if with_colors:
+            most_colors = max(with_colors, key=lambda r: len(r.get("colors_used") or []))
+            extreme["most_colors"] = self._extract_extreme_record(most_colors)
+        stats.extreme_stats = extreme
+
         stats.history = history[-50:]
         stats.current_print = current_print
         stats.is_printing = current_print is not None
@@ -407,6 +428,14 @@ class StatisticsCalculator:
         if duration > 0:
             period_data['duration_sum'] += duration
             period_data['duration_count'] += 1
+
+    @staticmethod
+    def _extract_extreme_record(record: dict) -> dict:
+        """提取极端值记录的关键字段，用于传感器属性展示"""
+        keys = ('id', 'task_name', 'end_time', 'start_time', 'status',
+                'duration_hours', 'total_weight', 'filament_type', 'filament_color',
+                'colors_used', 'printer_serial', 'cover_image_local', 'design_id')
+        return {k: record[k] for k in keys if k in record}
 
     @staticmethod
     def _build_period_stats_dict(period_data: dict) -> dict:

@@ -182,6 +182,36 @@ class PrinterAnalyticsCard extends HTMLElement {
         d.count = wCount || (d.count || 0);
       }
     }
+    if (entityKey === 'extreme_stats') {
+      // 从各打印机的极端值中选出全局最极端的
+      const candidates = { longest: [], shortest: [], heaviest: [], lightest: [], most_colors: [] };
+      for (const p of this._getPrintersConfig()) {
+        const eid = this._getEntityForPrinter(p.printer_name, entityKey);
+        if (!eid) continue;
+        const a = this._getAttr(eid);
+        for (const key of Object.keys(candidates)) {
+          if (a[key] && typeof a[key] === 'object') {
+            a[key]._printer_name = p.printer_name;
+            candidates[key].push(a[key]);
+          }
+        }
+      }
+      if (candidates.longest.length > 0) {
+        merged.longest = candidates.longest.reduce((a, b) => (a.duration_hours || 0) > (b.duration_hours || 0) ? a : b);
+      }
+      if (candidates.shortest.length > 0) {
+        merged.shortest = candidates.shortest.reduce((a, b) => (a.duration_hours || 0) < (b.duration_hours || 0) ? a : b);
+      }
+      if (candidates.heaviest.length > 0) {
+        merged.heaviest = candidates.heaviest.reduce((a, b) => (a.total_weight || 0) > (b.total_weight || 0) ? a : b);
+      }
+      if (candidates.lightest.length > 0) {
+        merged.lightest = candidates.lightest.reduce((a, b) => (a.total_weight || 0) < (b.total_weight || 0) ? a : b);
+      }
+      if (candidates.most_colors.length > 0) {
+        merged.most_colors = candidates.most_colors.reduce((a, b) => (a.colors_used || []).length > (b.colors_used || []).length ? a : b);
+      }
+    }
   }
 
   /**
@@ -4167,32 +4197,8 @@ class PrinterAnalyticsCard extends HTMLElement {
    * 渲染"之最"页签 - 各种极端记录
    */
   _renderExtremeStats() {
-    const records = this._getHistoryForPrinter(this._selectedPrinter);
-    if (!records || records.length === 0) return '';
-
-    const allWithDuration = records.filter(r => r.duration_hours > 0);
-    const allWithWeight = records.filter(r => (r.total_weight || 0) > 0);
-
-    const longest = allWithDuration.length > 0
-      ? allWithDuration.reduce((a, b) => a.duration_hours > b.duration_hours ? a : b) : null;
-    const shortest = allWithDuration.length > 0
-      ? allWithDuration.reduce((a, b) => a.duration_hours < b.duration_hours ? a : b) : null;
-    const heaviest = allWithWeight.length > 0
-      ? allWithWeight.reduce((a, b) => (a.total_weight || 0) > (b.total_weight || 0) ? a : b) : null;
-    const lightest = allWithWeight.filter(r => (r.total_weight || 0) > 0).length > 0
-      ? allWithWeight.filter(r => (r.total_weight || 0) > 0).reduce((a, b) => (a.total_weight || 0) < (b.total_weight || 0) ? a : b) : null;
-    // 获取记录的有效颜色数：当 color_usage 没有可靠消耗数据时，回退到 1 种颜色
-    const getEffectiveColorCount = (r) => {
-      const colorsUsed = r.colors_used || [];
-      if (colorsUsed.length <= 1) return colorsUsed.length;
-      // 多色时检查是否有可靠的消耗数据
-      const hasReliableWeight = r.color_usage && Array.isArray(r.color_usage) &&
-        r.color_usage.some(cu => cu && cu.weight_g > 0);
-      if (!hasReliableWeight) return 1;
-      return colorsUsed.length;
-    };
-    const mostColors = records.filter(r => getEffectiveColorCount(r) > 1).length > 0
-      ? records.filter(r => getEffectiveColorCount(r) > 1).reduce((a, b) => getEffectiveColorCount(a) > getEffectiveColorCount(b) ? a : b) : null;
+    const extreme = this._getAggregatedAttr('extreme_stats');
+    if (!extreme || Object.keys(extreme).length === 0) return '';
 
     const recordCard = (icon, title, record, valueFn, extraFn) => {
       if (!record) return '';
@@ -4237,11 +4243,11 @@ class PrinterAnalyticsCard extends HTMLElement {
     };
 
     let html = '<div class="stats-grid" style="gap:10px;">';
-    html += recordCard('⏱️', '最长打印', longest, r => this._formatDurationHours(r.duration_hours), renderColorDots);
-    html += recordCard('⚡', '最短打印', shortest, r => this._formatDurationHours(r.duration_hours), renderColorDots);
-    html += recordCard('⚖️', '最重打印', heaviest, r => `${(r.total_weight || 0).toFixed(1)}g`, renderColorDots);
-    html += recordCard('🪶', '最轻打印', lightest, r => `${(r.total_weight || 0).toFixed(1)}g`, renderColorDots);
-    html += recordCard('🎨', '最多颜色', mostColors, r => `${getEffectiveColorCount(r)} 色`, renderColorDots);
+    html += recordCard('⏱️', '最长打印', extreme.longest, r => this._formatDurationHours(r.duration_hours), renderColorDots);
+    html += recordCard('⚡', '最短打印', extreme.shortest, r => this._formatDurationHours(r.duration_hours), renderColorDots);
+    html += recordCard('⚖️', '最重打印', extreme.heaviest, r => `${(r.total_weight || 0).toFixed(1)}g`, renderColorDots);
+    html += recordCard('🪶', '最轻打印', extreme.lightest, r => `${(r.total_weight || 0).toFixed(1)}g`, renderColorDots);
+    html += recordCard('🎨', '最多颜色', extreme.most_colors, r => `${(r.colors_used || []).length} 色`, renderColorDots);
     html += '</div>';
     return html;
   }

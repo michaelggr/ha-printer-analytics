@@ -127,6 +127,11 @@ SENSORS: dict[str, SensorEntityDescription] = {
         name="失败仓温分布",
         icon="mdi:thermometer-alert",
     ),
+    "extreme_stats": SensorEntityDescription(
+        key="extreme_stats",
+        name="之最打印",
+        icon="mdi:trophy",
+    ),
     "print_history": SensorEntityDescription(
         key="print_history",
         name="打印历史",
@@ -198,6 +203,8 @@ def _get_sensor_value(sensor_key: str, data: PrinterStats) -> Any:
         case "failed_chamber_temp_distribution":
             total = sum(data.failed_chamber_temp_distribution.values()) if isinstance(data.failed_chamber_temp_distribution, dict) else 0
             return total
+        case "extreme_stats":
+            return len(data.extreme_stats) if isinstance(data.extreme_stats, dict) else 0
         case "print_history":
             return data.last_update or "暂无数据"
         case "print_status":
@@ -236,6 +243,8 @@ def _get_sensor_attrs(sensor_key: str, data: PrinterStats) -> dict | None:
             return data.nozzle_size_distribution
         case "failed_chamber_temp_distribution":
             return data.failed_chamber_temp_distribution
+        case "extreme_stats":
+            return data.extreme_stats
         case "print_history":
             return _truncate_history_attrs(data)
         case _:
