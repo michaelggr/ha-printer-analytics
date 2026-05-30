@@ -419,6 +419,7 @@ class StatisticsCalculator:
             "total_length_m": round(period_data['length'], 2),
             "total_energy_kwh": round(period_data['energy'], 4),
             "average_duration_hours": round(period_data['duration_sum'] / period_data['duration_count'], 2) if period_data['duration_count'] > 0 else 0,
+            "total_duration_hours": round(period_data['duration_sum'], 2),
         }
 
     @staticmethod
