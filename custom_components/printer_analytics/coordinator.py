@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import re
+import time
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING
@@ -1560,6 +1561,58 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
             "other_serial": other_count,
             "final_total": final_total,
         }
+
+    async def async_bambu_sync(self) -> dict:
+        """从 Bambu Cloud 拉取历史并导入"""
+        from .bambu_cloud import (
+            load_bambu_token, save_bambu_token,
+            fetch_all_history, convert_to_ha_format, check_token,
+        )
+
+        auth = await load_bambu_token(self.hass)
+        if not auth or not auth.get("token"):
+            return {"success": False, "error": "未登录 Bambu Cloud"}
+
+        token = auth["token"]
+        valid = await check_token(token)
+        if not valid:
+            auth["token"] = ""
+            await save_bambu_token(self.hass, auth)
+            return {"success": False, "error": "登录已过期，请重新登录"}
+
+        items = await fetch_all_history(token)
+        if not items:
+            return {"success": True, "added": 0, "merged": 0, "total": 0, "message": "Bambu Cloud 无新记录"}
+
+        ha_data = convert_to_ha_format(items)
+        json_str = json.dumps(ha_data, ensure_ascii=False)
+
+        import_result = await self.async_import_history(json_str)
+
+        auth["last_sync"] = time.time()
+        auth["last_sync_count"] = import_result.get("added", 0) + import_result.get("merged", 0)
+        await save_bambu_token(self.hass, auth)
+
+        # 异步下载新增记录的封面图
+        if import_result.get("added", 0) > 0 and self.image_manager:
+            self.hass.async_create_task(self._download_synced_covers())
+
+        return {
+            "success": True,
+            "added": import_result.get("added", 0),
+            "merged": import_result.get("merged", 0),
+            "duplicate_skipped": import_result.get("duplicate_skipped", 0),
+            "other_serial": import_result.get("other_serial", 0),
+            "total": len(items),
+        }
+
+    async def _download_synced_covers(self) -> None:
+        """异步下载同步新增记录的封面图"""
+        try:
+            count = await self.backfill_cover_images()
+            LOGGER.info("同步后下载了 %d 张封面图", count)
+        except Exception as err:
+            LOGGER.warning("同步后下载封面图失败: %s", err)
 
     def _import_other_serial_records(self, records_by_serial: dict[str, list[dict]]) -> int:
         """导入不属于当前 coordinator 的记录，直接写入对应序列号的文件"""
