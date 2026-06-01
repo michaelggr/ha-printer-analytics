@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import shutil
+import time
 
 import voluptuous as vol
 from homeassistant.components.lovelace import DOMAIN as LOVELACE_DOMAIN
@@ -419,6 +420,39 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     LOGGER.debug("设备图标已设置")
         except Exception as err:
             LOGGER.debug("设置设备图标跳过: %s", err)
+
+        # 注册 Bambu Cloud 定时同步
+        try:
+            from homeassistant.helpers.event import async_track_time_interval
+            from datetime import timedelta
+            from .const import BAMBU_SYNC_INTERVAL_HOURS
+
+            async def _bambu_scheduled_sync(_now):
+                from .bambu_cloud import load_bambu_token, check_token, save_bambu_token
+                auth = await load_bambu_token(hass)
+                if not auth or not auth.get("token"):
+                    return
+                valid = await check_token(auth["token"])
+                if not valid:
+                    auth["token"] = ""
+                    await save_bambu_token(hass, auth)
+                    LOGGER.info("Bambu Cloud token 过期，已标记")
+                    return
+                for eid, coord in hass.data.get(DOMAIN, {}).items():
+                    if isinstance(coord, PrinterAnalyticsCoordinator):
+                        try:
+                            result = await coord.async_bambu_sync()
+                            LOGGER.info("定时同步完成: %s", result)
+                        except Exception as err:
+                            LOGGER.warning("定时同步失败: %s", err)
+
+            unsub = async_track_time_interval(
+                hass, _bambu_scheduled_sync, timedelta(hours=BAMBU_SYNC_INTERVAL_HOURS)
+            )
+            entry.async_on_unload(unsub)
+            LOGGER.info("Bambu Cloud 定时同步已注册（每 %d 小时）", BAMBU_SYNC_INTERVAL_HOURS)
+        except Exception as err:
+            LOGGER.warning("Bambu Cloud 定时同步注册跳过: %s", err)
 
         LOGGER.info("Printer Analytics setup for %s", entry.data.get(CONF_PRINTER_NAME))
         return True
@@ -859,3 +893,90 @@ def _register_websocket_commands(hass: HomeAssistant) -> None:
             connection.send_error(msg["id"], "import_failed", str(err))
 
     websocket_api.async_register_command(hass, ws_import_history)
+
+    # ---- Bambu Cloud 同步 ----
+
+    @websocket_api.websocket_command({
+        vol.Required("type"): "printer_analytics/bambu_send_code",
+        vol.Required("phone"): str,
+    })
+    @websocket_api.async_response
+    async def ws_bambu_send_code(hass: HomeAssistant, connection, msg):
+        from .bambu_cloud import send_code
+        result = await send_code(msg["phone"])
+        connection.send_result(msg["id"], result)
+
+    websocket_api.async_register_command(hass, ws_bambu_send_code)
+
+    @websocket_api.websocket_command({
+        vol.Required("type"): "printer_analytics/bambu_login",
+        vol.Required("phone"): str,
+        vol.Required("code"): str,
+    })
+    @websocket_api.async_response
+    async def ws_bambu_login(hass: HomeAssistant, connection, msg):
+        from .bambu_cloud import login_with_code, save_bambu_token
+        result = await login_with_code(msg["phone"], msg["code"])
+        if result.get("success") and result.get("token"):
+            auth_data = {
+                "phone": msg["phone"],
+                "token": result["token"],
+                "saved_at": time.time(),
+                "last_sync": None,
+                "last_sync_count": 0,
+            }
+            await save_bambu_token(hass, auth_data)
+        connection.send_result(msg["id"], result)
+
+    websocket_api.async_register_command(hass, ws_bambu_login)
+
+    @websocket_api.websocket_command({
+        vol.Required("type"): "printer_analytics/bambu_sync",
+        vol.Required("entry_id"): str,
+    })
+    @websocket_api.async_response
+    async def ws_bambu_sync(hass: HomeAssistant, connection, msg):
+        entry_id = msg["entry_id"]
+        coordinator = hass.data.get(DOMAIN, {}).get(entry_id)
+        if not coordinator or not isinstance(coordinator, PrinterAnalyticsCoordinator):
+            connection.send_error(msg["id"], "not_found", f"Coordinator not found for {entry_id}")
+            return
+        try:
+            result = await coordinator.async_bambu_sync()
+            connection.send_result(msg["id"], result)
+        except Exception as err:
+            LOGGER.error("Bambu Cloud 同步失败: %s", err, exc_info=True)
+            connection.send_error(msg["id"], "sync_failed", str(err))
+
+    websocket_api.async_register_command(hass, ws_bambu_sync)
+
+    @websocket_api.websocket_command({
+        vol.Required("type"): "printer_analytics/bambu_status",
+    })
+    @websocket_api.async_response
+    async def ws_bambu_status(hass: HomeAssistant, connection, msg):
+        from .bambu_cloud import load_bambu_token, check_token
+        auth = await load_bambu_token(hass)
+        if not auth or not auth.get("token"):
+            connection.send_result(msg["id"], {"logged_in": False, "phone": "", "last_sync": None, "last_sync_count": 0})
+            return
+        valid = await check_token(auth["token"])
+        connection.send_result(msg["id"], {
+            "logged_in": valid,
+            "phone": auth.get("phone", ""),
+            "last_sync": auth.get("last_sync"),
+            "last_sync_count": auth.get("last_sync_count", 0),
+        })
+
+    websocket_api.async_register_command(hass, ws_bambu_status)
+
+    @websocket_api.websocket_command({
+        vol.Required("type"): "printer_analytics/bambu_logout",
+    })
+    @websocket_api.async_response
+    async def ws_bambu_logout(hass: HomeAssistant, connection, msg):
+        from .bambu_cloud import delete_bambu_token
+        await delete_bambu_token(hass)
+        connection.send_result(msg["id"], {"success": True})
+
+    websocket_api.async_register_command(hass, ws_bambu_logout)
