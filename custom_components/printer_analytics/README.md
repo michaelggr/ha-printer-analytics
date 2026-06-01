@@ -1,4 +1,4 @@
-﻿﻿﻿﻿# Printer Analytics（打印机分析）
+﻿# Printer Analytics（打印机分析）
 
 在 Home Assistant 中追踪和分析你的 3D 打印机数据。与 Bambu Lab 打印机（P2S、A1 Mini 等）通过 `bambu_lab` 集成无缝协作。
 
@@ -154,6 +154,20 @@ bed_temp: sensor.p2s_xxx_bed_temperature
 | `printer_analytics.backfill_snapshots` | 补全缺失的打印快照 |
 
 ## 更新日志
+
+### v5.17.1 (2026-06-02)
+
+- **修复**：打印详情点不开 — 新增 `_findRecordById` 优先从 WS 数据查找记录
+- **修复**：历史记录丢失 — `save_history` 改为合并写入，防止覆盖文件中的旧记录
+- **修复**：重置历史不清空文件 — 新增 `clear_all_history_files` 同时清空内存和文件
+- **修复**：删除与保存竞态写入 — 删除改为标记待删除 ID，由 save_history 统一排除
+- **修复**：BOM 字符导致集成加载失败
+
+### v5.17.0 (2026-05-28)
+
+- **重构**：提取 `match_record_filter()` 统一筛选逻辑
+- **重构**：提取 `_collect_task_name`/`_collect_cover_image` 复用方法
+- **配置**：CI 流水线优化，hacs.json 修复
 
 ### v5.14.0 (2026-05-26)
 

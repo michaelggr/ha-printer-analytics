@@ -1,5 +1,5 @@
 /**
- * 打印机分析卡片 - v5.17.0
+ * 打印机分析卡片 - v5.17.1
  * 版本: 5.17.0 (2026-05-31) - 统计分析改用后端数据、极端值后端计算
  *
  * 设计特点:
@@ -2492,7 +2492,7 @@ class PrinterAnalyticsCard extends HTMLElement {
               <div class="header-title">${title}</div>
             </div>
           </div>
-        <div class="header-badge">v5.17.0</div>
+        <div class="header-badge">v5.17.1</div>
         </div>
       `;
 
@@ -2705,9 +2705,7 @@ class PrinterAnalyticsCard extends HTMLElement {
     root.querySelectorAll('.stat-card-clickable').forEach(card => {
       card.addEventListener('click', (e) => {
         const recordId = card.dataset.recordId;
-        if (!recordId) return;
-        const allRecords = this._getAllMergedRecords();
-        const record = allRecords.find(r => r.id === recordId);
+        const record = this._findRecordById(recordId);
         if (record) {
           this._detailRecord = record;
           this._showDetailModal(record);
@@ -2719,9 +2717,7 @@ class PrinterAnalyticsCard extends HTMLElement {
     root.querySelectorAll('.recent-print-item').forEach(item => {
       item.addEventListener('click', (e) => {
         const recordId = item.dataset.recordId;
-        if (!recordId) return;
-        const allRecords = this._getAllMergedRecords();
-        const record = allRecords.find(r => r.id === recordId);
+        const record = this._findRecordById(recordId);
         if (record) {
           this._detailRecord = record;
           this._showDetailModal(record);
@@ -2733,9 +2729,7 @@ class PrinterAnalyticsCard extends HTMLElement {
       item.addEventListener('click', (e) => {
         if (e.target.classList.contains('record-checkbox')) return;
         const recordId = item.dataset.recordId;
-        if (!recordId) return;
-        const allRecords = this._getAllMergedRecords();
-        const record = allRecords.find(r => r.id === recordId);
+        const record = this._findRecordById(recordId);
         if (record) {
           this._detailRecord = record;
           this._showDetailModal(record);
@@ -3073,8 +3067,7 @@ class PrinterAnalyticsCard extends HTMLElement {
 
     try {
       // 获取所有记录，找到对应的记录
-      const allRecords = this._getAllMergedRecords();
-      const record = allRecords.find(r => r.id === recordId);
+      const record = this._findRecordById(recordId);
       if (!record) {
         alert('找不到记录');
         return;
@@ -3169,8 +3162,7 @@ class PrinterAnalyticsCard extends HTMLElement {
       this._loadHistoryViaWS();
 
       // 刷新modal
-      const allRecords = this._getAllMergedRecords();
-      const record = allRecords.find(r => r.id === recordId);
+      const record = this._findRecordById(recordId);
       if (record) {
         this._detailRecord = record;
         this._showDetailModal(record);
@@ -5336,6 +5328,16 @@ class PrinterAnalyticsCard extends HTMLElement {
       return new Date(timeB) - new Date(timeA);
     });
     return allRecords;
+  }
+
+  _findRecordById(recordId) {
+    if (!recordId) return null;
+    if (this._wsHistoryData?.records) {
+      const found = this._wsHistoryData.records.find(r => r.id === recordId);
+      if (found) return found;
+    }
+    const allRecords = this._getAllMergedRecords();
+    return allRecords.find(r => r.id === recordId) || null;
   }
 
   _filterRecordsByDate(records) {

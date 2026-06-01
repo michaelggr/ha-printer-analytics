@@ -1,4 +1,4 @@
-﻿"""统计计算模块 - 支持增量缓存和持久化"""
+"""统计计算模块 - 支持增量缓存和持久化"""
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING

@@ -1,4 +1,4 @@
-﻿﻿﻿﻿# Home Assistant 配置文件（不属于集成）
+﻿# Home Assistant 配置文件（不属于集成）
 *.yaml
 !custom_components/printer_analytics/services.yaml
 !hacs.json
@@ -8,43 +8,18 @@ __pycache__/
 *.pyc
 *.pyo
 
+# 根目录脚本全部忽略（集成代码在 custom_components/ 下）
+/*.py
+!run_tests.py
+
 # 备份文件
 backups/
 backup_history/
 ha_export_server/
 ha_server_backup/
+_server_backup/
 *.bak
 *.zip
-
-# 临时脚本和工具
-_*.py
-check_*.py
-restart_*.py
-verify_*.py
-fix_*.py
-pull_*.py
-upload_*.py
-write_*.py
-add_*.py
-create_*.py
-find_*.py
-get_*.py
-search_*.py
-validate_*.py
-patch_*.py
-reset_*.py
-restore_*.py
-update_*.py
-cleanup_*.py
-do_*.py
-final_*.py
-simple_*.py
-only_*.py
-audit_*.py
-delete_*.py
-reload_*.py
-test_*.py
-backup_*.py
 
 # PowerShell 脚本
 *.ps1
@@ -67,6 +42,7 @@ _to_delete.json
 .trae/
 .vscode/
 .idea/
+.codegraph/
 
 # 连接信息
 .ha_connection_info.json
@@ -79,3 +55,9 @@ BACKUP_README.md
 blueprints/
 python_scripts/
 .storage/
+automations/
+docs/screenshot-*.png
+templates.yaml.bak*
+ui-lovelace.yaml.bak*
+f
+h

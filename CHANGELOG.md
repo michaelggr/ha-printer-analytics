@@ -1,4 +1,18 @@
-﻿﻿# 打印分析卡片 - 修改记录
+﻿# 打印分析卡片 - 修改记录
+
+## v5.17.1 (2026-06-02)
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 修复 | 打印详情点不开：_getAllMergedRecords 返回的记录 id 为 null，新增 _findRecordById 优先从 WS 数据查找 | pa-v5.11.js |
+| 修复 | 历史记录丢失：save_history 直接覆盖文件导致内存缓存外的旧记录丢失，改为合并写入 | storage.py |
+| 修复 | 重置历史不清空文件：async_reset_history 清空内存但文件保留，新增 clear_all_history_files 同时清空 | coordinator.py, storage.py |
+| 修复 | _yearly_stats 计数不准：只统计内存记录数，改为使用合并后的实际记录数 | storage.py |
+| 修复 | 删除与保存竞态写入：删除不再单独写文件，改为 _pending_delete_ids 标记由 save_history 统一排除 | storage.py, coordinator.py |
+| 修复 | _save_year_data 迁移直接覆盖：改为调用 _save_year_file 合并写入 | storage.py |
+| 修复 | BOM 字符导致集成加载失败：移除 manifest.json 和 pa-v5.11.js 的 BOM | manifest.json, pa-v5.11.js |
+
+---
 
 ## v5.17.0 (2026-05-28)
 

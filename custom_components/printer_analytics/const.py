@@ -1,4 +1,4 @@
-﻿DOMAIN = "printer_analytics"
+DOMAIN = "printer_analytics"
 
 CONF_PRINTER_NAME = "printer_name"
 CONF_PRINT_STATUS_ENTITY = "print_status_entity"
@@ -98,7 +98,7 @@ FAILURE_STAGE_BUCKETS = [
 ]
 
 CARD_FILENAME = "pa-v5.11.js"
-CARD_VERSION = "5.17.0"
+CARD_VERSION = "5.17.1"
 CARD_URL = f"/local/{CARD_FILENAME}?v={CARD_VERSION}"
 DASHBOARD_FILE = "ui-printer-analytics.yaml"
 PLATFORMS = ["sensor"]

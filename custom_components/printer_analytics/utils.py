@@ -27,30 +27,43 @@ def is_param_description(task_name: str) -> bool:
 
 
 def extract_model_from_gcode_filename(gcode_value: str) -> str:
-    """从 gcode_file_downloaded 实体值中提取模型名
+    """从 gcode_file_downloaded 实体值中提取项目名（非模型名）
 
-    Bambu 的 gcode_file_downloaded 格式：
-        {designId}-{modelName}{paramDescription}.gcode.gcode
-    例如：
-        925294-问号箱0.2mm 层高, 2 层墙, 15% 填充.gcode.gcode
-        → 模型名 = "问号箱"
+    Bambu gcode_file_downloaded 格式（P2S 双后缀 / A1 Mini 单后缀）：
+        {taskId}-{项目名/配置名/参数描述}.gcode.gcode  (P2S)
+        {taskId}-{项目名/配置名/参数描述}.gcode        (A1 Mini)
+
+    不同切片类型的 gcode 格式：
+        cloud_slice:  {taskId}-{项目名}{参数描述}.gcode.gcode
+                      例: 6551014-适合厚5mm的宜家Skadis洞洞板.gcode.gcode
+                      → 项目名 = "适合厚5mm的宜家Skadis洞洞板"
+        cloud_file:   {taskId}-{参数描述}.gcode.gcode
+                      例: 798802-0.2mm 层高, 7 层墙, 15% 填充.gcode.gcode
+                      → 项目名 = ""（taskId后直接跟参数描述，无项目名）
+        auto_repeat:  {taskId}-{项目名}_{参数描述}.gcode.gcode
+                      例: 18932500-奔跑中的英短小猫_弹性可动_弹簧猫.gcode.gcode
+                      → 项目名 = "奔跑中的英短小猫"（_ 分隔项目名和参数描述）
+        lan_file:     待验证
+
+    注意：提取的是"项目名"（Bambu Studio 中的项目/配置名称），不是 MakerWorld 模型名。
+    真正的模型名需要从 task_name 实体变化或历史记录获取。
 
     提取逻辑：
-        1. 去掉 .gcode.gcode 后缀
-        2. 去掉 designId- 前缀（纯数字+短横线）
+        1. 去掉 .gcode 后缀（兼容单后缀和双后缀）
+        2. 去掉 taskId- 前缀（纯数字+短横线）
         3. 在剩余部分中，找到参数描述的起始位置
-        4. 参数描述前的部分就是模型名
+        4. 参数描述前的部分就是项目名
     """
     if not gcode_value:
         return ""
 
     name = gcode_value.strip()
 
-    # 去掉 .gcode 后缀（可能有一个或两个）
+    # 去掉 .gcode 后缀（P2S 双后缀 .gcode.gcode，A1 Mini 单后缀 .gcode）
     while name.lower().endswith(".gcode"):
         name = name[:-len(".gcode")].strip()
 
-    # 去掉 designId- 前缀（纯数字+短横线）
+    # 去掉 taskId- 前缀（纯数字+短横线）
     match = re.match(r'^\d+-', name)
     if match:
         name = name[match.end():]
@@ -58,28 +71,46 @@ def extract_model_from_gcode_filename(gcode_value: str) -> str:
     if not name:
         return ""
 
-    # 在模型名中找到参数描述的起始位置
-    # 参数描述通常以数字+mm开头，如 "0.2mm"
-    param_match = re.search(r'\d+\.?\d*\s*mm', name)
-    if param_match:
-        model_part = name[:param_match.start()].strip()
-        if model_part:
-            return model_part
+    # auto_repeat 特征：项目名和参数描述之间用 _ 分隔
+    # 例: "奔跑中的英短小猫_弹性可动_弹簧猫" → 项目名="奔跑中的英短小猫"
+    # _ 后面紧跟参数描述（含 mm 关键词或中文描述）
+    if '_' in name:
+        # 找到第一个 _ 后面紧跟参数描述的位置
+        # 参数描述可能以数字+mm开头，也可能直接是中文描述
+        underscore_match = re.search(r'_(?=[\d]*\.?\d*\s*mm|弹性|可动|弹簧)', name)
+        if underscore_match:
+            project_part = name[:underscore_match.start()].strip()
+            if project_part:
+                return project_part
 
-    # 没有找到参数描述，整个名称就是模型名
+    # cloud_slice / cloud_file：在项目名中找到参数描述的起始位置
+    # 参数描述通常以 "X.Xmm 层高" 开头，如 "0.2mm 层高"
+    # 注意：项目名中也可能包含数字+mm（如"60mm直钩"），但后面不会紧跟"层高"
+    param_match = re.search(r'\d+\.?\d*\s*mm\s+层高', name)
+    if param_match:
+        project_part = name[:param_match.start()].strip()
+        if project_part:
+            return project_part
+        # taskId 后直接跟参数描述（cloud_file），无项目名
+        return ""
+
+    # 没有找到参数描述，整个名称就是项目名
     return name
 
 
-def extract_design_id_from_gcode_filename(gcode_value: str) -> str:
-    """从 gcode_file_downloaded 实体值中提取 designId（任务ID）
+def extract_task_id_from_gcode_filename(gcode_value: str) -> str:
+    """从 gcode_file_downloaded 实体值中提取 task ID（gcode 文件 ID）
 
     Bambu 的 gcode_file_downloaded 格式：
-        {designId}-{modelName}{paramDescription}.gcode.gcode
+        {taskId}-{项目名/配置名/参数描述}.gcode.gcode
     例如：
         925294-问号箱0.2mm 层高, 2 层墙, 15% 填充.gcode.gcode
-        → designId = "925294"
+        → taskId = "925294"
+        18932500-奔跑中的英短小猫_弹性可动_弹簧猫.gcode.gcode
+        → taskId = "18932500"
 
-    提取逻辑：取 designId- 前缀中的纯数字部分
+    注意：taskId 是 gcode 文件 ID，与 MakerWorld 的 designId 不同。
+    同一 designId 的不同打印可能使用相同 taskId（cloud_file 复用 gcode）。
     """
     if not gcode_value:
         return ""
@@ -94,6 +125,10 @@ def extract_design_id_from_gcode_filename(gcode_value: str) -> str:
         return match.group(1)
 
     return ""
+
+
+# 向后兼容别名
+extract_design_id_from_gcode_filename = extract_task_id_from_gcode_filename
 
 
 class SecureFileHandler:

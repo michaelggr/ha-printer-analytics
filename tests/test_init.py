@@ -16,6 +16,12 @@ _INIT_PATH = os.path.join(
 _SOURCE = open(_INIT_PATH, "r", encoding="utf-8").read()
 
 _ns = {}
+_CONST_STUB = (
+    "SUCCESS_STATUSES = {'finish', 'completed', 'success', '完成', '成功'}; "
+    "FAILURE_STATUSES = {'fail', 'failed', '失败'}; "
+    "CANCELLED_STATUSES = {'cancelled', '已取消'}"
+)
+
 # 先加载 utils.py 中的 match_record_filter（_apply_filters 依赖它）
 _UTILS_PATH = os.path.join(
     os.path.dirname(__file__), "..",
@@ -26,11 +32,17 @@ _match_filter_src = _utils_src[
     _utils_src.index("def match_record_filter("):
     _utils_src.index("\ndef ", _utils_src.index("def match_record_filter(") + 10) if "\ndef " in _utils_src[_utils_src.index("def match_record_filter(") + 10:] else len(_utils_src)
 ]
+_match_filter_src = _match_filter_src.replace("from .const import SUCCESS_STATUSES, FAILURE_STATUSES, CANCELLED_STATUSES", _CONST_STUB)
 exec(_match_filter_src, _ns)
 
 # 再加载 __init__.py 中的纯函数
-exec(_SOURCE[_SOURCE.index("def _sanitize_record"):_SOURCE.index("def _process_history_request")], _ns)
-exec(_SOURCE[_SOURCE.index("def _process_history_request"):], _ns)
+_init_funcs_1 = _SOURCE[_SOURCE.index("def _sanitize_record"):_SOURCE.index("def _process_history_request")]
+_init_funcs_1 = _init_funcs_1.replace("from .const import SUCCESS_STATUSES, FAILURE_STATUSES, CANCELLED_STATUSES", _CONST_STUB)
+exec(_init_funcs_1, _ns)
+
+_init_funcs_2 = _SOURCE[_SOURCE.index("def _process_history_request"):]
+_init_funcs_2 = _init_funcs_2.replace("from .const import SUCCESS_STATUSES, FAILURE_STATUSES, CANCELLED_STATUSES", _CONST_STUB)
+exec(_init_funcs_2, _ns)
 
 _sanitize_record = _ns["_sanitize_record"]
 _match_status = _ns["_match_status"]
@@ -1284,8 +1296,13 @@ class TestExtractModelFromGcodeFilename:
         assert result == "X2D/P2S X轴一体化密封盖"
 
     def test_model_with_english_name(self):
-        """英文模型名"""
+        """英文模型名 - 0.2mm 无层高跟随，属于项目名的一部分"""
         result = extract_model_from_gcode_filename("999-MyModel0.2mm.gcode.gcode")
+        assert result == "MyModel0.2mm"
+
+    def test_model_with_english_name_and_param(self):
+        """英文模型名 + 参数描述 - 0.2mm 层高 是参数描述起始"""
+        result = extract_model_from_gcode_filename("999-MyModel0.2mm 层高, 4 层墙.gcode.gcode")
         assert result == "MyModel"
 
     def test_only_design_id(self):

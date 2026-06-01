@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿# Printer Analytics - Frontend Assets
+# Printer Analytics - Frontend Assets
 
 This directory contains the Lovelace custom card JavaScript file for the Printer Analytics integration.
 

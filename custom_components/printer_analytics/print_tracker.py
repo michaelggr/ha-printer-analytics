@@ -32,7 +32,7 @@ from .const import (
     TASK_NAME_CAPTURE_WINDOW_SECS,
     TRANSITIONAL_STATUSES,
 )
-from .utils import extract_model_from_gcode_filename, is_param_description
+from .utils import extract_model_from_gcode_filename, is_param_description, extract_task_id_from_gcode_filename
 
 if TYPE_CHECKING:
     from .coordinator import PrinterAnalyticsCoordinator
@@ -149,11 +149,22 @@ class PrintTracker:
 
         综合即时名称、预缓存模型名/项目名、gcode文件名和历史推断，确定模型名和配置名。
 
+        不同切片类型的 task_name 行为（已验证）：
+            cloud_slice:  task_name 从模型名变为参数描述（项目名）
+                          例: "宜家洞洞板适配..." → "0.2mm 层高, 7 层墙, 15% 填充"
+            cloud_file:   task_name 直接是参数描述（无模型名过渡）
+                          需要从历史记录中通过 gcode_task_id 查找模型名
+            auto_repeat:  task_name 直接是参数描述或项目名
+                          gcode 中 _ 分隔项目名和参数描述
+            lan_file:     task_name 始终是模型名，不会变成参数描述（已验证59条记录）
+                          例: "完美宜家skadis洞洞板"、"ams接口分线器"
+
         优先级：
         1. 预缓存模型名（来自 task_name 实体变化监听，最可靠）
-        2. gcode_file_downloaded 提取的模型名（次可靠）
-        3. 即时 task_name（可能是项目名，需验证）
-        4. 历史推断（最后回退）
+        2. gcode_file_downloaded 提取的项目名（次可靠，需验证时序）
+        3. 历史记录中通过 gcode_task_id 查找模型名（cloud_file 场景）
+        4. 即时 task_name（可能是项目名，需验证）
+        5. 历史推断（最后回退）
 
         Returns:
             tuple: (task_name, model_name, config_name)
@@ -174,19 +185,29 @@ class PrintTracker:
             self.coordinator._pre_print_model_name = ""
             self.coordinator._pre_print_project_name = ""
 
-        # 从 gcode_file_downloaded 提取模型名（作为回退源）
-        gcode_model = self._extract_model_from_gcode()
+        # 从 gcode_file_downloaded 提取项目名（作为回退源，暂不带验证）
+        # 注意：提取的是"项目名"（Bambu Studio 项目/配置名称），不是 MakerWorld 模型名
+        gcode_project_raw = self._extract_model_from_gcode()
+
+        # 从历史记录中通过 gcode_task_id 查找模型名（cloud_file 场景）
+        history_model = self._find_model_name_by_task_id()
 
         # 判断任务名称类型并设置 model_name 和 config_name
         if immediate_name and immediate_name not in INVALID_ENTITY_STATES:
             self._task_name_variants = [immediate_name]
             if self._is_param_description(immediate_name):
                 config_name = immediate_name
-                # 参数描述：使用预缓存 > gcode > 历史推断
-                model_name = pre_cached_model or gcode_model or self._infer_model_name_from_history(immediate_name) or ""
+                # 参数描述：使用预缓存 > gcode（带验证）> 历史task_id查找 > 历史推断
+                gcode_project = self._extract_model_from_gcode(config_name=config_name)
+                model_name = pre_cached_model or gcode_project or history_model or self._infer_model_name_from_history(immediate_name) or ""
+                # lan_file 的 task_name 不会变成参数描述（已验证59条记录全部是模型名），
+                # 所以如果走到这里说明不是 lan_file，但所有来源都找不到模型名，
+                # 只好用参数描述代替
+                if not model_name:
+                    model_name = immediate_name
             elif immediate_name == pre_cached_project:
                 # 即时名称等于预缓存的项目名 → 使用预缓存的模型名
-                model_name = pre_cached_model or gcode_model or ""
+                model_name = pre_cached_model or gcode_project_raw or history_model or ""
                 config_name = immediate_name
             elif pre_cached_model and immediate_name != pre_cached_model:
                 # 即时名称与预缓存模型名不同 → 即时名称可能是项目名
@@ -194,10 +215,10 @@ class PrintTracker:
                 config_name = immediate_name
             else:
                 # 即时名称与预缓存模型名相同，或无预缓存
-                # 验证即时名称是否可能是项目名（与 gcode 模型名不同）
-                if gcode_model and immediate_name != gcode_model and not self._is_param_description(immediate_name):
-                    # gcode 提取的模型名与即时名称不同 → 即时名称可能是项目名
-                    model_name = gcode_model
+                # 验证即时名称是否可能是项目名（与 gcode 项目名不同）
+                if gcode_project_raw and immediate_name != gcode_project_raw and not self._is_param_description(immediate_name):
+                    # gcode 提取的项目名与即时名称不同 → 即时名称可能是项目名
+                    model_name = gcode_project_raw
                     config_name = immediate_name
                 else:
                     model_name = immediate_name
@@ -205,16 +226,96 @@ class PrintTracker:
             model_name = pre_cached_model
             if pre_cached_project:
                 config_name = pre_cached_project
-        elif gcode_model:
-            model_name = gcode_model
+        elif gcode_project_raw:
+            model_name = gcode_project_raw
+        elif history_model:
+            model_name = history_model
 
         task_name = model_name or config_name or ""
         self.coordinator._lock_task_name(task_name)
 
         return task_name, model_name, config_name
 
-    def _extract_model_from_gcode(self) -> str:
-        """从 gcode_file_downloaded 实体提取模型名"""
+    def _find_model_name_by_task_id(self) -> str:
+        """通过 gcode_task_id 从历史记录中查找模型名
+
+        cloud_file 场景：gcode 中 taskId 后直接跟参数描述，无项目名。
+        但 taskId 之前出现过（复用已下载的 gcode 文件），
+        可以从历史记录中找到同一 taskId 的首次打印记录，获取其模型名。
+
+        ⚠️ 此方法从传感器读取 gcode 值，可能在新打印排队时读到错误的 task_id。
+        在 _cache_delayed_fields 中应优先使用 _find_model_name_by_stored_task_id()。
+
+        Returns:
+            str: 找到的模型名，空字符串表示未找到
+        """
+        gcode_entity = self._entity_map.get("gcode_file_downloaded", "")
+        if not gcode_entity:
+            return ""
+        gcode_value = self.coordinator.get_entity_state(gcode_entity, "") or ""
+        if not gcode_value or gcode_value in INVALID_ENTITY_STATES:
+            return ""
+
+        from .utils import extract_task_id_from_gcode_filename
+        task_id = extract_task_id_from_gcode_filename(gcode_value)
+        if not task_id:
+            return ""
+
+        return self._lookup_model_by_task_id(task_id)
+
+    def _find_model_name_by_stored_task_id(self) -> str:
+        """通过 current_print 中存储的 gcode_task_id 从历史记录查找模型名
+
+        与 _find_model_name_by_task_id() 的区别：
+        此方法使用 current_print 中已存储的 gcode_task_id，不从传感器重新读取。
+        避免新打印排队时传感器值已变导致使用错误的 task_id。
+
+        Returns:
+            str: 找到的模型名，空字符串表示未找到
+        """
+        if not self.coordinator.current_print:
+            return ""
+        task_id = self.coordinator.current_print.get("gcode_task_id", "")
+        if not task_id:
+            return ""
+        return self._lookup_model_by_task_id(str(task_id))
+
+    def _lookup_model_by_task_id(self, task_id: str) -> str:
+        """根据 task_id 在历史记录中查找模型名（公共逻辑）
+
+        Args:
+            task_id: gcode 文件 ID
+
+        Returns:
+            str: 找到的模型名，空字符串表示未找到
+        """
+        if not task_id or not self.coordinator.history:
+            return ""
+
+        for r in self.coordinator.history:
+            if str(r.get("gcode_task_id", "")) == task_id:
+                hist_model = r.get("task_name_model", "") or r.get("task_name", "")
+                if hist_model and not is_param_description(hist_model):
+                    LOGGER.info("通过 gcode_task_id=%s 从历史记录找到模型名: %s", task_id, hist_model)
+                    return hist_model
+
+        return ""
+
+    def _extract_model_from_gcode(self, config_name: str = "") -> str:
+        """从 gcode_file_downloaded 实体提取项目名
+
+        注意：提取的是"项目名"（Bambu Studio 项目/配置名称），不是 MakerWorld 模型名。
+        gcode 格式: {taskId}-{项目名/配置名/参数描述}.gcode.gcode
+        不同切片类型的项目名提取结果不同：
+            cloud_slice:  提取到项目名（如"适合厚5mm的宜家Skadis洞洞板"）
+            cloud_file:   提取为空（taskId后直接跟参数描述）
+            auto_repeat:  提取到项目名（_分隔符前的部分）
+
+        Args:
+            config_name: 当前已知的配置名（参数描述），用于验证 gcode 是否已更新。
+                         如果 gcode 提取的项目名与 config_name 不匹配（说明 gcode 还是旧值），
+                         则返回空字符串，避免使用上一次打印的项目名。
+        """
         gcode_entity = self._entity_map.get("gcode_file_downloaded", "")
         if not gcode_entity:
             return ""
@@ -222,8 +323,32 @@ class PrintTracker:
         if not gcode_value or gcode_value in INVALID_ENTITY_STATES:
             return ""
         model = extract_model_from_gcode_filename(gcode_value)
-        if model:
-            LOGGER.info("从 gcode_file_downloaded 提取模型名: %s (原始值: %s)", model, gcode_value)
+        if not model:
+            return ""
+        # 验证：如果 config_name 是参数描述，检查 gcode 提取的模型名是否合理
+        # 场景：gcode 还没更新时，提取的是上一次打印的项目名
+        # 例如 gcode="6551014-适合厚5mm的宜家Skadis洞洞板.gcode.gcode"
+        # 提取出 "适合厚5mm的宜家Skadis洞洞板"，但 config_name="0.2mm 层高..."
+        # 这两个完全不匹配，说明 gcode 还是旧值
+        if config_name and is_param_description(config_name):
+            # gcode 格式: {designId}-{modelName}{paramDescription}.gcode.gcode
+            # 如果 gcode 已更新，提取的 paramDescription 应与 config_name 一致
+            # 检查 gcode 原始值中是否包含 config_name 的关键部分
+            gcode_base = gcode_value
+            while gcode_base.lower().endswith(".gcode"):
+                gcode_base = gcode_base[:-len(".gcode")].strip()
+            # 如果 gcode 原始值中不包含参数描述的关键词，说明 gcode 还是旧的
+            # 参数描述通常以 "Xmm 层高" 开头，如 "0.2mm 层高"
+            # ⚠️ 使用 "mm 层高" 而非 "mm" 避免匹配项目名中的尺寸（如 "60mm直钩"）
+            import re as _re
+            param_start = _re.search(r'\d+\.?\d*\s*mm\s+层高', config_name)
+            if param_start:
+                param_keyword = config_name[param_start.start():param_start.start() + 10]
+                if param_keyword not in gcode_base:
+                    LOGGER.info("gcode 尚未更新（不含当前参数描述 '%s'），忽略旧模型名: %s",
+                                param_keyword, model)
+                    return ""
+        LOGGER.info("从 gcode_file_downloaded 提取模型名: %s (原始值: %s)", model, gcode_value)
         return model
 
     def _collect_cover_image(self) -> str:
@@ -819,23 +944,115 @@ class PrintTracker:
             LOGGER.info("捕获到配置名称: %s", new_name)
 
     def _cache_delayed_fields(self) -> None:
-        """缓存延迟字段"""
+        """缓存延迟字段
+
+        ⚠️ 防护：当新打印排队时，gcode/task_name 传感器会提前更新为新打印的值。
+        通过 current_print 中已存储的 gcode_task_id 判断传感器值是否属于当前打印：
+        - 如果传感器值的 task_id 与 current_print 的 gcode_task_id 不匹配 → 忽略
+        - 如果 current_print 无 gcode_task_id → 打印刚开始的时序延迟，接受更新
+        """
         if not self.coordinator.current_print:
             return
 
         current_name = self.coordinator.current_print.get("task_name", "")
+        current_model = self.coordinator.current_print.get("task_name_model", "")
         current_config = self.coordinator.current_print.get("config_name")
+        current_task_id = self.coordinator.current_print.get("gcode_task_id", "")
         raw_task_name = self.coordinator.get_entity_state(self._entity_map.get("task_name", ""), "")
 
+        # 防护：检查 gcode 传感器是否仍属于当前打印
+        # ⚠️ 修正逻辑：on_print_start 时 gcode 可能还没更新，存入了上一个打印的 task_id
+        # 当 gcode 传感器更新后，task_id 可能与 current_print 不同，此时应该更新 current_print
+        gcode_entity = self._entity_map.get("gcode_file_downloaded", "")
+        gcode_still_current = True
+        if gcode_entity:
+            gcode_value = self.coordinator.get_entity_state(gcode_entity, "") or ""
+            if gcode_value and gcode_value not in INVALID_ENTITY_STATES:
+                sensor_task_id = extract_task_id_from_gcode_filename(gcode_value)
+                if sensor_task_id and current_task_id and str(sensor_task_id) != str(current_task_id):
+                    # task_id 不匹配：可能是 on_print_start 时 gcode 还没更新
+                    # 检查打印是否刚开始（<60秒），如果是则更新 task_id
+                    from datetime import datetime, timezone
+                    running_start = self.coordinator.current_print.get("running_start_time", "")
+                    allow_update = False
+                    if running_start:
+                        try:
+                            if isinstance(running_start, str):
+                                start_dt = datetime.fromisoformat(running_start)
+                            else:
+                                start_dt = running_start
+                            if hasattr(start_dt, 'tzinfo') and start_dt.tzinfo is None:
+                                start_dt = start_dt.replace(tzinfo=timezone.utc)
+                            elapsed = (datetime.now(timezone.utc) - start_dt).total_seconds()
+                            if elapsed < 60:
+                                allow_update = True
+                        except Exception:
+                            pass
+                    if allow_update:
+                        LOGGER.info("_cache_delayed_fields: gcode task_id 不匹配但打印刚开始，"
+                                    "更新 task_id: %s → %s", current_task_id, sensor_task_id)
+                        self.coordinator.current_print["gcode_task_id"] = sensor_task_id
+                        current_task_id = sensor_task_id
+                    else:
+                        gcode_still_current = False
+                        LOGGER.info("_cache_delayed_fields: gcode 传感器 task_id=%s 与当前打印 task_id=%s 不匹配，"
+                                    "跳过从 gcode 提取", sensor_task_id, current_task_id)
+
         # 尝试获取更好的模型名（非参数描述）
+        # 注意：如果 candidate 也是参数描述，不应该替换（避免参数描述覆盖项目名）
         need_better_model = not current_name or self._is_param_description(current_name) or current_name.startswith("/data/")
         if need_better_model and raw_task_name and raw_task_name not in INVALID_ENTITY_STATES:
             candidate = self._extract_real_task_name(raw_task_name)
-            if candidate and candidate != current_name:
-                LOGGER.info("Task name improved: '%s' -> '%s'", (current_name or "")[:40], candidate[:40])
-                self.coordinator.current_print["task_name"] = candidate
-                self.coordinator._lock_task_name(candidate)
-                current_name = candidate
+            if candidate and candidate != current_name and not self._is_param_description(candidate):
+                if not self.coordinator._locked_task_name or self.coordinator._locked_task_name == current_name:
+                    LOGGER.info("Task name improved: '%s' -> '%s'", (current_name or "")[:40], candidate[:40])
+                    self.coordinator.current_print["task_name"] = candidate
+                    self.coordinator._lock_task_name(candidate)
+                    current_name = candidate
+
+        # 如果模型名仍为空或是参数描述，尝试从 gcode_file_downloaded 重新提取项目名
+        # 场景：打印开始时 gcode 还没更新，现在应该已经更新了
+        # 注意：如果已有非参数描述的模型名，不应该被覆盖
+        # ⚠️ 只有当 gcode 传感器仍属于当前打印时才提取
+        if (not current_model or self._is_param_description(current_model)) and gcode_still_current:
+            gcode_project = self._extract_model_from_gcode(config_name=current_config or "")
+            if gcode_project and gcode_project != current_model and not self._is_param_description(gcode_project):
+                if not self.coordinator._locked_task_name or self.coordinator._locked_task_name == current_model:
+                    self.coordinator.current_print["task_name_model"] = gcode_project
+                    if not self._is_param_description(current_name):
+                        self.coordinator.current_print["task_name"] = gcode_project
+                        self.coordinator._lock_task_name(gcode_project)
+                LOGGER.info("延迟从 gcode 提取到项目名: %s", gcode_project)
+            else:
+                # gcode 中无项目名（cloud_file 场景），尝试从历史记录查找模型名
+                # ⚠️ 使用 current_print 中存储的 gcode_task_id，不从传感器重新读取
+                history_model = self._find_model_name_by_stored_task_id()
+                if history_model and history_model != current_model:
+                    if not self.coordinator._locked_task_name or self.coordinator._locked_task_name == current_model:
+                        self.coordinator.current_print["task_name_model"] = history_model
+                        self.coordinator.current_print["task_name"] = history_model
+                        self.coordinator._lock_task_name(history_model)
+                    LOGGER.info("延迟从历史记录查找到模型名: %s", history_model)
+
+        # 延迟补充/更新 gcode_task_id（打印开始时 gcode 可能还没更新）
+        # ⚠️ 允许覆盖：on_print_start 时 gcode 可能还没更新，存入了上一个打印的 task_id
+        # ⚠️ 不受 gcode_still_current 限制：因为延迟更新的目的就是修正错误的 task_id
+        if gcode_entity:
+            gcode_value = self.coordinator.get_entity_state(gcode_entity, "") or ""
+            if gcode_value and gcode_value not in INVALID_ENTITY_STATES:
+                task_id = extract_task_id_from_gcode_filename(gcode_value)
+                if task_id and str(task_id) != str(current_task_id):
+                    self.coordinator.current_print["gcode_task_id"] = task_id
+                    LOGGER.info("延迟更新 gcode_task_id: %s → %s (gcode: %s)",
+                                current_task_id, task_id, gcode_value[:60])
+                    # gcode_task_id 更新后，重新判断 slice_mode
+                    # ⚠️ on_print_start 时 gcode 可能还没更新，导致 slice_mode 判断错误
+                    new_slice_mode = self._detect_slice_mode()
+                    if new_slice_mode and new_slice_mode != self.coordinator.current_print.get("slice_mode"):
+                        old_mode = self.coordinator.current_print.get("slice_mode")
+                        self.coordinator.current_print["slice_mode"] = new_slice_mode
+                        LOGGER.info("延迟更新 slice_mode: %s → %s (gcode: %s)",
+                                    old_mode, new_slice_mode, gcode_value[:60])
 
         # 尝试捕获配置名（参数描述，如 "5mm版"）
         if raw_task_name and raw_task_name not in INVALID_ENTITY_STATES:
@@ -1071,9 +1288,10 @@ class PrintTracker:
         if not self.coordinator.current_print:
             return
         if model_name:
-            self.coordinator.current_print["task_name_model"] = model_name
-            self.coordinator.current_print["task_name"] = model_name
-            self.coordinator._lock_task_name(model_name)
+            if not self.coordinator._locked_task_name:
+                self.coordinator.current_print["task_name_model"] = model_name
+                self.coordinator.current_print["task_name"] = model_name
+                self.coordinator._lock_task_name(model_name)
             LOGGER.info("从 HA 历史反查到模型名: %s", model_name)
         if config_name and not self.coordinator.current_print.get("task_name_config"):
             self.coordinator.current_print["task_name_config"] = config_name
@@ -1106,6 +1324,17 @@ class PrintTracker:
             await asyncio.sleep(8)
             if not self.coordinator.current_print:
                 return
+            # 防护：如果 gcode 传感器已不属于当前打印，跳过
+            current_task_id = self.coordinator.current_print.get("gcode_task_id", "")
+            if current_task_id:
+                gcode_entity = self._entity_map.get("gcode_file_downloaded", "")
+                if gcode_entity:
+                    gcode_value = self.coordinator.get_entity_state(gcode_entity, "") or ""
+                    if gcode_value and gcode_value not in INVALID_ENTITY_STATES:
+                        sensor_task_id = extract_task_id_from_gcode_filename(gcode_value)
+                        if sensor_task_id and str(sensor_task_id) != str(current_task_id):
+                            LOGGER.info("_delayed_task_name_capture: gcode 已不属于当前打印，跳过")
+                            return
             delayed_name = self.coordinator.get_entity_state(task_entity, "") or ""
             if not delayed_name or delayed_name in INVALID_ENTITY_STATES or delayed_name in self._task_name_variants:
                 return
@@ -1117,9 +1346,10 @@ class PrintTracker:
                     LOGGER.info("延迟捕获 task_name 配置名: %s", delayed_name)
                 return
             if not self.coordinator.current_print.get("task_name_model"):
-                self.coordinator.current_print["task_name_model"] = delayed_name
-                self.coordinator.current_print["task_name"] = delayed_name
-                self.coordinator._lock_task_name(delayed_name)
+                if not self.coordinator._locked_task_name:
+                    self.coordinator.current_print["task_name_model"] = delayed_name
+                    self.coordinator.current_print["task_name"] = delayed_name
+                    self.coordinator._lock_task_name(delayed_name)
                 LOGGER.info("延迟捕获 task_name 模型名: %s", delayed_name)
 
         if task_entity:
@@ -1136,11 +1366,26 @@ class PrintTracker:
         speed_profile = self.coordinator.get_entity_state(self._entity_map.get("speed_profile", ""), "")
         gcode_filename = self.coordinator.get_entity_state(self._entity_map.get("gcode_filename", ""), "")
 
+        # 从 gcode_file_downloaded 提取 task ID 和原始值
+        gcode_task_id = ""
+        gcode_downloaded_value = ""
+        gcode_entity = self._entity_map.get("gcode_file_downloaded", "")
+        if gcode_entity:
+            gcode_value = self.coordinator.get_entity_state(gcode_entity, "") or ""
+            if gcode_value and gcode_value not in INVALID_ENTITY_STATES:
+                gcode_task_id = extract_task_id_from_gcode_filename(gcode_value)
+                gcode_downloaded_value = gcode_value
+                LOGGER.info("on_print_start: gcode_task_id=%s, gcode=%s", gcode_task_id, gcode_value[:60])
+            else:
+                LOGGER.info("on_print_start: gcode 值无效或为空: '%s'", gcode_value[:40] if gcode_value else "(empty)")
+        else:
+            LOGGER.info("on_print_start: _entity_map 中无 gcode_file_downloaded 映射")
+
         # 判断是否使用AMS
         ams_used = self._detect_ams_usage()
 
-        # 判断切片模式
-        slice_mode = self._detect_slice_mode(gcode_filename)
+        # 判断切片模式（用 gcode 格式 + 封面图域名判断）
+        slice_mode = self._detect_slice_mode(gcode_filename, gcode_downloaded_value, cover_image_url)
 
         self.coordinator.current_print = {
             "id": str(uuid.uuid4()),
@@ -1171,6 +1416,7 @@ class PrintTracker:
             "speed_profile": speed_profile or None,
             "slice_mode": slice_mode,
             "design_id": None,
+            "gcode_task_id": gcode_task_id or None,
             "prepare_start_time": start_time,
             "running_start_time": datetime.now(timezone.utc).isoformat() if new_status_val == PRINT_STATUS_RUNNING else None,
         }
@@ -1203,15 +1449,102 @@ class PrintTracker:
                     pass
         return False
 
-    def _detect_slice_mode(self, gcode_filename: str) -> str | None:
-        """判断切片模式：云切片/云文件/局域网文件"""
-        print_type = self.coordinator.get_entity_state(self._entity_map.get("print_type", ""), "").lower()
-        if print_type == "cloud":
-            return "cloud_slice" if gcode_filename and gcode_filename.startswith("/data/") else "cloud_file"
-        elif print_type in ("local", "lan"):
-            return "lan_file"
-        elif gcode_filename:
-            return "cloud_slice" if gcode_filename.startswith("/data/") else "lan_file"
+    def _detect_slice_mode(self, gcode_filename: str = "", gcode_file_downloaded: str = "",
+                           cover_image_url: str = "") -> str | None:
+        """判断切片模式：云切片/云文件/局域网文件/自动重复
+
+        判断优先级：
+        1. 根据 gcode_file_downloaded 文件名格式判断（最可靠）
+        2. 根据 Bambu Lab 原始封面图 CDN URL 辅助判断（public-cdn = 云端类型）
+        3. 根据 print_type 实体值回退判断
+
+        封面图 URL 获取方式：
+        - 优先使用 Bambu Lab 集成内部的 _task_data.cover（原始 CDN URL）
+        - 回退使用 HA image proxy URL（/api/image_proxy/...，只能判断有无封面，不能区分 CDN 类型）
+
+        CDN URL 规律（已验证）：
+            public-cdn.bblmw.cn → 公共 CDN，永不过期 → 云端类型
+            bbl-prod-model.oss-cn-shanghai.aliyuncs.com/private/ → 私有 OSS，30分钟过期 → lan_file
+
+        gcode_file_downloaded 格式规律（已验证）：
+            cloud_slice:  {taskId}-{项目名}{参数描述}.gcode.gcode
+                          例: 6551014-适合厚5mm的宜家Skadis洞洞板.gcode.gcode
+                          特征: taskId后有项目名，task_name 从模型名变为参数描述
+                          封面图: public-cdn.bblmw.cn（公共CDN，永不过期）
+            cloud_file:   {taskId}-{参数描述}.gcode.gcode
+                          例: 798802-0.2mm 层高, 7 层墙, 15% 填充.gcode.gcode
+                          特征: taskId后直接跟参数描述，无项目名
+                          taskId 之前出现过（复用已下载的 gcode 文件）
+                          封面图: public-cdn.bblmw.cn（公共CDN，永不过期）
+            auto_repeat:  {taskId}-{项目名}_{参数描述}.gcode.gcode
+                          例: 18932500-奔跑中的英短小猫_弹性可动_弹簧猫.gcode.gcode
+                          特征: _ 分隔项目名和参数描述，taskId 之前都有记录
+                          封面图: public-cdn.bblmw.cn（公共CDN，永不过期）
+            lan_file:     从局域网发送的打印
+                          task_name 始终是模型名，不会变成参数描述
+                          封面图: bbl-prod-model.oss-cn-shanghai.aliyuncs.com/private/（私有OSS，30分钟过期，过期后无封面）
+                          或无封面图
+        """
+        # 尝试从 Bambu Lab 集成获取原始 CDN URL（绕过 HA image proxy）
+        original_cover_url = self.coordinator.get_bambu_original_cover_url()
+        # 优先用原始 URL 判断 CDN 类型，回退到 proxy URL 判断有无封面
+        effective_cover_url = original_cover_url or cover_image_url
+        has_public_cdn_cover = "public-cdn.bblmw.cn" in effective_cover_url if effective_cover_url else False
+        has_cover_image = bool(cover_image_url) and cover_image_url not in INVALID_ENTITY_STATES
+        if original_cover_url:
+            LOGGER.info("切片类型判断: 原始CDN URL=%s, public_cdn=%s", original_cover_url[:60], has_public_cdn_cover)
+
+        # 优先用 gcode_file_downloaded 格式判断
+        # ⚠️ 排除法：先判断明确的类型（cloud_slice/auto_repeat/cloud_file），其余归为 lan_file
+        # 原因：局域网打印的 gcode_file_downloaded 也可能有 taskId 前缀，
+        #        且 print_type 实体对局域网打印也报告 "cloud"，无法可靠区分。
+        #        目前唯一可靠的区分方式是排除法：
+        #        - cloud_slice: taskId后有项目名
+        #        - auto_repeat: taskId后用 _ 分隔项目名和参数描述
+        #        - cloud_file: taskId后无项目名 + 历史中有相同taskId的记录（复用已下载gcode）
+        #        - lan_file: 其余所有情况（含taskId但历史无记录、无taskId等）
+        # TODO: 等数据多了再找更精确的区分规律
+        if gcode_file_downloaded and gcode_file_downloaded not in INVALID_ENTITY_STATES:
+            from .utils import extract_task_id_from_gcode_filename, extract_model_from_gcode_filename
+            task_id = extract_task_id_from_gcode_filename(gcode_file_downloaded)
+            project_name = extract_model_from_gcode_filename(gcode_file_downloaded)
+
+            if task_id:
+                # 检查是否是 auto_repeat（_ 分隔符特征）
+                base = gcode_file_downloaded.strip()
+                while base.lower().endswith(".gcode"):
+                    base = base[:-len(".gcode")].strip()
+                import re as _re
+                after_tid = _re.sub(r'^\d+-', '', base)
+
+                if '_' in after_tid and project_name:
+                    # auto_repeat: _ 分隔项目名和参数描述
+                    return "auto_repeat"
+                elif project_name:
+                    # taskId 后有项目名 → 云切片
+                    return "cloud_slice"
+                else:
+                    # taskId 后无项目名 → cloud_file 或 lan_file
+                    # 排除法：只有历史中有相同 taskId 记录时才是 cloud_file（复用已下载 gcode）
+                    # 其余情况（含 taskId 但历史无记录）归为 lan_file
+                    if has_public_cdn_cover:
+                        return "cloud_file"
+                    if self.coordinator.history:
+                        for r in self.coordinator.history:
+                            if str(r.get("gcode_task_id", "")) == task_id:
+                                return "cloud_file"
+                    # ⚠️ 排除法兜底：有 taskId 但无项目名且历史无记录 → lan_file
+                    # Bambu Studio 局域网发送的打印，gcode_file_downloaded 也有 taskId 前缀
+                    LOGGER.info("切片类型判断: taskId=%s 无项目名且历史无记录，排除法归为 lan_file", task_id)
+                    return "lan_file"
+            else:
+                # 无 taskId → 局域网文件
+                return "lan_file"
+
+        # 回退：无 gcode_file_downloaded 时用封面图判断
+        if has_public_cdn_cover:
+            return "cloud_slice"
+        # 无公共CDN封面 + 无gcode_file_downloaded → 无法确定，返回 None
         return None
 
     async def _on_print_end(self, end_status: str) -> None:
@@ -1226,9 +1559,13 @@ class PrintTracker:
             LOGGER.warning("Print end detected but no active print record")
             return
 
-        # 防重复触发：先检查 → 立即清空 → 再删文件
+        # 防重复触发：先检查 → 标记结束 → 再删文件
+        # ⚠️ 不要在此处清空 current_print！后续代码仍需通过 self.coordinator.current_print 访问数据
+        # 在 history.append 之后再清空
         cp = self.coordinator.current_print
-        self.coordinator.current_print = None
+        if cp is None or cp.get("_ending"):
+            return
+        cp["_ending"] = True
         self._delete_current_print_file()
 
         end_time = datetime.now(timezone.utc).isoformat()
@@ -1267,9 +1604,15 @@ class PrintTracker:
         start_time = cp.get("start_time") or ""
 
         if not cover_image_local and self.coordinator.image_manager:
-            cover_image_local = await self.coordinator.image_manager._download_cover_from_cloud(task_name, end_time, start_time)
+            try:
+                cover_image_local = await self.coordinator.image_manager._download_cover_from_cloud(task_name, end_time, start_time)
+            except Exception as err:
+                LOGGER.warning("下载云端封面图失败（不影响记录保存）: %s", err)
         if not cover_image_local and self.coordinator.image_manager:
-            cover_image_local = await self.coordinator.image_manager._download_cover_image(cover_image_url, task_name, end_time)
+            try:
+                cover_image_local = await self.coordinator.image_manager._download_cover_image(cover_image_url, task_name, end_time)
+            except Exception as err:
+                LOGGER.warning("下载封面图失败（不影响记录保存）: %s", err)
 
         # 实时颜色 AMS 验证：移除不在 AMS 中的误报颜色
         ams_colors = self._get_ams_known_colors()
@@ -1339,16 +1682,24 @@ class PrintTracker:
             "prepare_time_minutes": prepare_time_minutes,
             "slice_mode": cp.get("slice_mode"),
             "over_500g": over_500g,
+            "gcode_task_id": cp.get("gcode_task_id"),
         }
 
         snapshot_image_local = cp.get("snapshot_image_local")
+        full_print_info = None
         if not snapshot_image_local and self.coordinator.image_manager:
-            full_print_info, snapshot_image_local = await asyncio.gather(
-                self.coordinator._save_full_print_info(base_record, end_time),
-                self.coordinator.image_manager._download_print_snapshot(end_time, task_name)
-            )
+            try:
+                full_print_info, snapshot_image_local = await asyncio.gather(
+                    self.coordinator._save_full_print_info(base_record, end_time),
+                    self.coordinator.image_manager._download_print_snapshot(end_time, task_name)
+                )
+            except Exception as err:
+                LOGGER.warning("保存打印信息/快照失败（不影响记录保存）: %s", err)
         else:
-            full_print_info = await self.coordinator._save_full_print_info(base_record, end_time)
+            try:
+                full_print_info = await self.coordinator._save_full_print_info(base_record, end_time)
+            except Exception as err:
+                LOGGER.warning("保存打印信息失败（不影响记录保存）: %s", err)
 
         record = {
             **base_record,
@@ -1358,6 +1709,8 @@ class PrintTracker:
         }
 
         self.coordinator.history.append(record)
+        # 记录已保存到 history，现在可以安全清空 current_print
+        self.coordinator.current_print = None
         self.hass.async_create_task(self.coordinator._save_history())
         # 通知 coordinator 数据已更新，触发 sensor 属性重新计算
         self.coordinator.async_set_updated_data(self.coordinator._calculate_statistics())

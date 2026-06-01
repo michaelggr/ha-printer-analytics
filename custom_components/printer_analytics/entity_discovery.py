@@ -32,8 +32,21 @@ class EntityDiscovery:
         self._discovery_retry_scheduled = False
 
     async def discover(self) -> None:
-        """自动发现BambuLab实体"""
+        """自动发现BambuLab实体
+
+        实体发现使用两种前缀匹配：
+        1. printer_name（用户自定义名称，如"大黑奴"）→ 匹配 friendly_name
+        2. 序列号前缀（如"p2s_22e8bj5a2401765"）→ 匹配 entity_id 和 friendly_name
+
+        Bambu Lab 实体的 friendly_name 格式为 "P2S_22E8BJ5A2401765 GCODE文件下载"，
+        entity_id 格式为 "sensor.p2s_22e8bj5a2401765_gcode_file_downloaded"。
+        用户自定义名称（如"大黑奴"）不会出现在 Bambu Lab 实体中。
+        """
         prefix = self.printer_name.lower().replace(" ", "_")
+        serial_prefix = ""
+        serial = self.coordinator.printer_serial
+        if serial:
+            serial_prefix = serial.lower()
 
         discovered = {}
 
@@ -46,7 +59,15 @@ class EntityDiscovery:
             if not friendly_name:
                 continue
 
+            # 先用 printer_name 前缀匹配
             matched_key = self._match_entity_key(friendly_name, prefix)
+            # 如果 printer_name 匹配失败，用序列号前缀匹配
+            if not matched_key and serial_prefix:
+                matched_key = self._match_entity_key(friendly_name, serial_prefix)
+            # 如果 friendly_name 匹配都失败，尝试从 entity_id 匹配
+            if not matched_key and serial_prefix and serial_prefix in eid:
+                matched_key = self._match_entity_key_by_entity_id(eid, serial_prefix)
+
             if matched_key:
                 discovered[matched_key] = eid
 
@@ -54,19 +75,20 @@ class EntityDiscovery:
             if key not in self._entity_map:
                 self._entity_map[key] = entity_id
 
+        # 用序列号前缀发现 camera/light/image 实体
+        search_prefix = serial_prefix or prefix
         for cam_eid in self.hass.states.async_entity_ids("camera"):
-            if cam_eid.startswith(f"camera.{prefix}_") and cam_eid.endswith("_camera"):
+            if cam_eid.startswith(f"camera.{search_prefix}_") and cam_eid.endswith("_camera"):
                 self._entity_map.setdefault("camera", cam_eid)
                 break
 
-        # 发现舱内灯实体（快照抓取时自动开关）
         for light_eid in self.hass.states.async_entity_ids("light"):
-            if light_eid.startswith(f"light.{prefix}_") and "chamber_light" in light_eid:
+            if light_eid.startswith(f"light.{search_prefix}_") and "chamber_light" in light_eid:
                 self._entity_map.setdefault("chamber_light", light_eid)
                 break
 
         for img_eid in self.hass.states.async_entity_ids("image"):
-            if img_eid.startswith(f"image.{prefix}_") and img_eid.endswith("_cover_image"):
+            if img_eid.startswith(f"image.{search_prefix}_") and img_eid.endswith("_cover_image"):
                 self._entity_map.setdefault("cover_image", img_eid)
                 break
 
@@ -107,6 +129,55 @@ class EntityDiscovery:
             for pattern in patterns:
                 if re.search(pattern, name_lower):
                     return key
+
+        return None
+
+    def _match_entity_key_by_entity_id(self, entity_id: str, prefix: str) -> str | None:
+        """从 entity_id 匹配实体键
+
+        当 friendly_name 匹配失败时，从 entity_id 格式推断实体键。
+        entity_id 格式: sensor.{device_prefix}_{key_with_underscores}
+        例: sensor.p2s_22e8bj5a2401765_gcode_file_downloaded → gcode_file_downloaded
+
+        prefix 可能是序列号（如 22e8bj5a2401765），而 entity_id 中
+        包含的是设备型号+序列号（如 p2s_22e8bj5a2401765）。
+        """
+        eid_lower = entity_id.lower()
+        prefix_lower = prefix.lower()
+
+        parts = eid_lower.split(".")
+        if len(parts) < 2:
+            return None
+
+        after_domain = parts[1]
+
+        # 查找 prefix 在 entity_id 中的位置，取其后面的部分作为键
+        idx = after_domain.find(prefix_lower)
+        if idx < 0:
+            return None
+
+        # 键部分从 prefix 结束后开始
+        key_start = idx + len(prefix_lower)
+        if key_start >= len(after_domain):
+            return None
+
+        # 跳过下划线分隔符
+        if after_domain[key_start] == "_":
+            key_start += 1
+
+        key_part = after_domain[key_start:]
+
+        # 直接匹配 BambuLab 实体键
+        all_keys = list(BAMBULAB_ENTITY_KEYS) + list(BAMBULAB_IMAGE_KEYS) + list(BAMBULAB_CAMERA_KEYS)
+        if key_part in all_keys:
+            return key_part
+
+        # 模糊匹配：将 key_part 中的下划线替换为空格，与键名比较
+        key_as_name = key_part.replace("_", " ")
+        for key in all_keys:
+            key_cleaned = key.replace("_", " ")
+            if key_cleaned == key_as_name:
+                return key
 
         return None
 

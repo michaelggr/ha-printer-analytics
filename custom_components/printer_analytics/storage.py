@@ -43,6 +43,7 @@ class StorageManager:
         self._images_dir = coordinator._images_dir
         self._ha_backup_dir = coordinator._ha_backup_dir
         self._dirty_years: set[int] = set()
+        self._pending_delete_ids: set[str] = set()
         self._save_debounce = None
 
         # 存储键：优先用序列号，回退到 entry_id
@@ -431,9 +432,9 @@ class StorageManager:
                         from .utils import BackupManager
                         BackupManager.restore_from_backup(file_path)
 
-                # 只加载最近年份的记录到内存缓存
+                # 只加载最近记录到内存缓存（统计和WS查询已从文件全量读取）
                 recent_records = []
-                cache_limit = 50  # 内存中只保留最近50条
+                cache_limit = 50
 
                 for year_file in reversed(year_files):
                     if len(recent_records) >= cache_limit:
@@ -443,21 +444,14 @@ class StorageManager:
                         with open(file_path, "r", encoding="utf-8") as f:
                             data = json.load(f)
                         records = data.get("history", []) if isinstance(data, dict) else data
-                        # 文件可能是升序或降序，统一按 end_time 排序后取最新 N 条
                         records.sort(key=lambda x: x.get("end_time", ""))
                         remaining = cache_limit - len(recent_records)
-                        LOGGER.info("load_history: %s 有 %d 条记录, 取最新 %d 条, first_end_time=%s, last_end_time=%s",
-                                    year_file, len(records), remaining,
-                                    records[0].get("end_time", "?") if records else "empty",
-                                    records[-1].get("end_time", "?") if records else "empty")
-                        # 升序排列后取最后 remaining 条（最新的）
                         recent_records = records[-remaining:] + recent_records
                     except Exception as err:
                         LOGGER.warning("加载最近记录失败 %s: %s", year_file, err)
 
                 recent_records.sort(key=lambda x: x.get("end_time", ""))
                 LOGGER.info("加载 %d 条最近记录到缓存（总记录数: %d）", len(recent_records), total_count)
-                # 在 executor 内部设置 _total_records
                 self.coordinator._total_records = total_count
                 return recent_records
 
@@ -497,13 +491,8 @@ class StorageManager:
     # ================================================================
 
     def _save_year_data(self, year: int, records: list[dict]) -> None:
-        """保存单年份数据（直接写入，由外层 executor 调度）"""
-        os.makedirs(self._history_dir, exist_ok=True)
-        year_file = os.path.join(self._history_dir, f"{self._storage_key}_{year}.json")
-        data = {"version": HISTORY_VERSION, "year": year, "history": records}
-        with open(year_file, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        LOGGER.debug("已保存 %d 年数据: %d 条记录", year, len(records))
+        """保存单年份数据（合并写入，用于迁移旧数据）"""
+        self._save_year_file(year, records)
 
     async def save_history(self) -> None:
         """保存历史记录到分片存储（只写脏年份，减少 I/O）"""
@@ -514,6 +503,10 @@ class StorageManager:
             # 如果没有脏标记，保存所有年份（兼容旧调用方式）
             save_all = len(dirty) == 0
 
+            # 取出待删除 ID（一次性消费，避免重复排除）
+            exclude_ids = set(self._pending_delete_ids)
+            self._pending_delete_ids.clear()
+
             def _write():
                 records_by_year: dict[int, list[dict]] = {}
                 for record in self.coordinator.history:
@@ -522,12 +515,22 @@ class StorageManager:
                         records_by_year[year] = []
                     records_by_year[year].append(record)
 
-                years_to_save = records_by_year.keys() if save_all else dirty & records_by_year.keys()
+                # 有待删除 ID 时，需要扫描所有年份文件（删除的记录可能不在内存中）
+                if exclude_ids:
+                    years_to_save = set(records_by_year.keys())
+                    for year_file in self._get_year_files():
+                        year_str = year_file.replace(f"{self._storage_key}_", "").replace(".json", "")
+                        try:
+                            years_to_save.add(int(year_str))
+                        except ValueError:
+                            pass
+                else:
+                    years_to_save = records_by_year.keys() if save_all else dirty & records_by_year.keys()
 
                 for year in years_to_save:
                     records = records_by_year.get(year, [])
-                    self._save_year_file(year, records)
-                    self.coordinator._yearly_stats[str(year)] = len(records)
+                    merged_count = self._save_year_file(year, records, exclude_ids=exclude_ids or None)
+                    self.coordinator._yearly_stats[str(year)] = merged_count
 
                 # 增量保存时只备份变化的年份
                 if save_all:
@@ -540,18 +543,94 @@ class StorageManager:
         except Exception as err:
             LOGGER.error("保存历史数据失败: %s", err)
 
-    def _save_year_file(self, year: int, records: list[dict]) -> None:
-        """保存单年份文件（直接写入，外层已在 executor 中）"""
+    def _save_year_file(self, year: int, records: list[dict],
+                        exclude_ids: set[str] | None = None) -> int:
+        """保存单年份文件（合并写入，防止内存缓存外的记录丢失）
+
+        由于 load_history 可能只加载部分记录到内存（cache_limit），
+        直接覆盖文件会丢失不在内存中的旧记录。
+        修复：先读取文件中的现有记录，与内存记录合并后再写入。
+        合并策略：内存记录优先（可能被编辑/更新），文件中独有的记录保留。
+        exclude_ids: 需要从合并结果中排除的记录 ID（用于删除操作）
+        """
         os.makedirs(self._history_dir, exist_ok=True)
         year_file = os.path.join(self._history_dir, f"{self._storage_key}_{year}.json")
-        data = {"version": HISTORY_VERSION, "year": year, "history": records}
+
+        existing_records = []
+        if os.path.exists(year_file):
+            try:
+                with open(year_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                existing_records = data.get("history", []) if isinstance(data, dict) else data
+            except Exception as err:
+                LOGGER.warning("读取年份文件失败（将覆盖） %d: %s", year, err)
+
+        memory_ids = set()
+        memory_by_composite = {}
+        for r in records:
+            rid = r.get("id")
+            if rid:
+                memory_ids.add(rid)
+            else:
+                key = (r.get("end_time", ""), r.get("gcode_filename", ""), r.get("task_name", ""))
+                memory_by_composite[key] = r
+
+        merged = list(records)
+        for r in existing_records:
+            rid = r.get("id")
+            if rid and rid in memory_ids:
+                continue
+            key = (r.get("end_time", ""), r.get("gcode_filename", ""), r.get("task_name", ""))
+            if key in memory_by_composite:
+                continue
+            merged.append(r)
+
+        # 排除待删除的记录
+        if exclude_ids:
+            before = len(merged)
+            merged = [r for r in merged if r.get("id") not in exclude_ids]
+            excluded = before - len(merged)
+            if excluded > 0:
+                LOGGER.debug("年份 %d: 排除 %d 条待删除记录", year, excluded)
+
+        merged.sort(key=lambda x: x.get("end_time", ""))
+
+        data = {"version": HISTORY_VERSION, "year": year, "history": merged}
 
         try:
             with open(year_file, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
             self._sync_to_ha_backup_dir()
+            LOGGER.debug("保存年份文件 %d: 内存 %d + 文件独有 %d = 合并 %d 条",
+                         year, len(records), len(merged) - len(records), len(merged))
         except Exception as err:
             LOGGER.error("保存年份文件失败 %d: %s", year, err)
+
+        return len(merged)
+
+    async def clear_all_history_files(self) -> None:
+        """清空所有年份文件中的历史记录（保留文件结构，清空 history 数组）"""
+        def _clear():
+            if not os.path.isdir(self._history_dir):
+                return
+            for f in sorted(os.listdir(self._history_dir)):
+                if not f.endswith(".json") or f.endswith("_stats.json"):
+                    continue
+                file_path = os.path.join(self._history_dir, f)
+                try:
+                    with open(file_path, "r", encoding="utf-8") as fh:
+                        data = json.load(fh)
+                    if isinstance(data, dict):
+                        data["history"] = []
+                    else:
+                        data = {"version": HISTORY_VERSION, "year": 0, "history": []}
+                    with open(file_path, "w", encoding="utf-8") as fh:
+                        json.dump(data, fh, ensure_ascii=False, indent=2)
+                    LOGGER.info("已清空年份文件: %s", f)
+                except Exception as err:
+                    LOGGER.warning("清空年份文件失败 %s: %s", f, err)
+
+        await self.hass.async_add_executor_job(_clear)
 
     # ================================================================
     # 备份相关

@@ -1,4 +1,4 @@
-﻿"""数据模型定义"""
+"""数据模型定义"""
 from dataclasses import dataclass, field
 from typing import Any
 

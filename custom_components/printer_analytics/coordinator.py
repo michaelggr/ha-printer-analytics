@@ -79,6 +79,7 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         self._locked_task_name: str = ""
         self._unsub_listener = None
         self._unsub_task_name_listener = None
+        self._unsub_gcode_listener = None
         self._pre_print_model_name: str = ""  # 打印开始前缓存的模型名
         self._pre_print_project_name: str = ""  # 打印开始前缓存的项目名（模型名之后出现的非参数描述值）
         self._material_cache_interval = None
@@ -114,12 +115,7 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         self.image_manager = ImageManager(self)
         self.statistics = StatisticsCalculator(self)
 
-        try:
-            await self._load_history()
-        except Exception as err:
-            LOGGER.warning("Failed to load history (will start fresh): %s", err)
-            self.history = []
-
+        # 先发现实体，获取打印机序列号（序列号用于存储键）
         try:
             await self.entity_discovery.discover()
         except Exception as err:
@@ -127,14 +123,36 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
 
         # 实体发现后，填充打印机序列号
         self._update_printer_serial()
+        LOGGER.info("打印机序列号=%s, entry_id=%s", self.printer_serial, self.entry.entry_id)
+
+        # 序列号更新后，重新发现实体（用序列号前缀匹配 Bambu Lab 实体）
+        # 首次发现时 printer_serial 为空，只能用 printer_name 匹配；
+        # 序列号填充后，可以用序列号前缀匹配更多实体
+        if self.printer_serial:
+            try:
+                await self.entity_discovery.discover()
+            except Exception as err:
+                LOGGER.warning("Entity discovery retry failed: %s", err)
 
         # 序列号更新后，迁移旧文件名并更新存储键
+        # 必须在 _load_history 之前执行，否则 _storage_key 还是 entry_id，找不到序列号命名的文件
         if self.printer_serial and self.storage:
             try:
                 await self.hass.async_add_executor_job(self.storage.migrate_entry_id_to_serial)
                 self.storage.update_storage_key()
+                LOGGER.info("存储键已更新=%s", self.storage._storage_key)
             except Exception as err:
                 LOGGER.warning("存储键迁移失败: %s", err)
+        else:
+            LOGGER.warning("无法更新存储键: printer_serial=%s, storage=%s", self.printer_serial, self.storage)
+
+        # 加载历史数据（此时 _storage_key 已更新为序列号）
+        try:
+            await self._load_history()
+            LOGGER.info("历史数据加载完成=%d 条记录", len(self.history))
+        except Exception as err:
+            LOGGER.warning("Failed to load history (will start fresh): %s", err)
+            self.history = []
 
         try:
             await self.hass.async_add_executor_job(self.image_manager.detect_placeholder_images)
@@ -178,6 +196,14 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
             )
             LOGGER.info("已订阅 task_name 实体变化: %s", task_name_entity)
 
+        # 订阅 gcode_file_downloaded 变化，当 gcode 更新时重新提取模型名
+        gcode_entity = self._entity_map.get("gcode_file_downloaded", "")
+        if gcode_entity:
+            self._unsub_gcode_listener = async_track_state_change_event(
+                self.hass, [gcode_entity], self._handle_gcode_file_change
+            )
+            LOGGER.info("已订阅 gcode_file_downloaded 变化: %s", gcode_entity)
+
         # 启动周期性健康检查（兜底：检测卡住的打印状态）
         self._health_check_interval = async_track_time_interval(
             self.hass,
@@ -200,6 +226,9 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         if self._unsub_task_name_listener:
             self._unsub_task_name_listener()
             self._unsub_task_name_listener = None
+        if self._unsub_gcode_listener:
+            self._unsub_gcode_listener()
+            self._unsub_gcode_listener = None
         await self._close_http_session()
         await self._save_history()
 
@@ -499,6 +528,40 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         """获取浮点状态（公共接口）"""
         return self._get_float_state(entity_id, default)
 
+    def get_bambu_original_cover_url(self) -> str:
+        """从 Bambu Lab 集成获取原始封面图 CDN URL
+
+        HA 的 image proxy 隐藏了原始 CDN URL（返回 /api/image_proxy/...），
+        无法通过 entity_picture 属性判断封面图来源（public-cdn vs bbl-private）。
+        此方法直接访问 Bambu Lab 集成的协调器数据，获取 _task_data 中的原始 cover URL。
+
+        CDN URL 规律（已验证）：
+            public-cdn.bblmw.cn → 公共 CDN，永不过期 → 云端类型（cloud_slice/cloud_file/auto_repeat）
+            bbl-prod-model.oss-cn-shanghai.aliyuncs.com/private/ → 私有 OSS，30分钟过期 → lan_file
+
+        Returns:
+            str: 原始 CDN URL，获取失败返回空字符串
+        """
+        try:
+            bambu_data = self.hass.data.get("bambu_lab", {})
+            for _entry_id, coordinator in bambu_data.items():
+                try:
+                    model = coordinator.get_model()
+                    if model and hasattr(model, 'print_job'):
+                        print_job = model.print_job
+                        if hasattr(print_job, '_task_data') and print_job._task_data:
+                            cover_url = print_job._task_data.get('cover', '')
+                            if cover_url:
+                                serial = getattr(model, 'info', None)
+                                if serial and hasattr(serial, 'serial') and serial.serial == self.printer_serial:
+                                    LOGGER.info("获取到 Bambu Lab 原始封面 URL: %s", cover_url[:80])
+                                    return cover_url
+                except Exception:
+                    continue
+        except Exception as err:
+            LOGGER.debug("获取 Bambu Lab 原始封面 URL 失败: %s", err)
+        return ""
+
     def _get_best_task_name(self) -> str:
         """获取最佳任务名"""
         task_entity = self._entity_map.get("task_name", "")
@@ -682,6 +745,116 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
             self._pre_print_model_name = new_value
             self._pre_print_project_name = ""
             LOGGER.info("缓存模型名候选（参数→非参数）: %s", new_value)
+
+    def _handle_gcode_file_change(self, event: Event) -> None:
+        """处理 gcode_file_downloaded 实体变化
+
+        当 gcode 文件更新时，如果当前正在打印且模型名不正确，重新提取项目名。
+        解决时序竞争：gcode 更新比 print_status 慢几秒，导致打印开始时提取到旧项目名。
+
+        gcode 格式规律（已验证）：
+            cloud_slice:  {taskId}-{项目名}{参数描述}.gcode.gcode → 有项目名
+            cloud_file:   {taskId}-{参数描述}.gcode.gcode → 无项目名
+            auto_repeat:  {taskId}-{项目名}_{参数描述}.gcode.gcode → _分隔
+            lan_file:     {taskId}-{参数描述}.gcode.gcode → 无项目名（局域网也有taskId）
+
+        ⚠️ 防护：当新打印排队时，gcode 会提前更新为新打印的值。
+        判断策略：
+        - 如果 current_print 无 gcode_task_id → 打印刚开始的时序延迟，接受更新
+        - 如果 current_print 有 gcode_task_id 且与新 gcode 的 task_id 相同 → 正常更新
+        - 如果 current_print 有 gcode_task_id 且与新 gcode 的 task_id 不同：
+          → 可能是 on_print_start 时 gcode 还没更新，存入了上一个打印的 task_id
+          → 也可能是新打印排队
+          → 通过检查 running_start_time 判断：如果打印刚开始（<60秒），允许覆盖
+        """
+        new_state = event.data.get("new_state")
+        if not new_state:
+            return
+        new_value = (new_state.state or "").strip()
+        if not new_value or new_value in INVALID_ENTITY_STATES:
+            return
+
+        LOGGER.info("gcode_file_downloaded 变化: %s", new_value[:80])
+
+        if not self.current_print:
+            return
+
+        # 防护：检查 gcode 变化是否属于当前打印
+        from .utils import extract_task_id_from_gcode_filename
+        new_task_id = extract_task_id_from_gcode_filename(new_value)
+        current_task_id = self.current_print.get("gcode_task_id", "")
+        if current_task_id and new_task_id and str(current_task_id) != str(new_task_id):
+            # task_id 不匹配，检查是否打印刚开始（允许覆盖错误的 task_id）
+            from datetime import datetime, timezone
+            running_start = self.current_print.get("running_start_time", "")
+            allow_override = False
+            if running_start:
+                try:
+                    if isinstance(running_start, str):
+                        start_dt = datetime.fromisoformat(running_start)
+                    else:
+                        start_dt = running_start
+                    if hasattr(start_dt, 'tzinfo') and start_dt.tzinfo is None:
+                        start_dt = start_dt.replace(tzinfo=timezone.utc)
+                    elapsed = (datetime.now(timezone.utc) - start_dt).total_seconds()
+                    if elapsed < 60:
+                        allow_override = True
+                        LOGGER.info("gcode task_id 不匹配但打印刚开始(%.0fs)，允许覆盖: %s → %s",
+                                    elapsed, current_task_id, new_task_id)
+                except Exception:
+                    pass
+            if not allow_override:
+                LOGGER.info("gcode 变化的 task_id=%s 与当前打印的 task_id=%s 不匹配，"
+                            "可能是新打印排队，忽略此更新", new_task_id, current_task_id)
+                return
+
+        current_model = self.current_print.get("task_name_model", "")
+        current_config = self.current_print.get("config_name", "")
+
+        # 重新判断 slice_mode（gcode 更新后可能有更准确的信息）
+        cover_image_url = self.current_print.get("cover_image_url", "")
+        gcode_filename = self.current_print.get("gcode_filename", "")
+        new_slice_mode = self.print_tracker._detect_slice_mode(gcode_filename, new_value, cover_image_url)
+        if new_slice_mode and new_slice_mode != self.current_print.get("slice_mode"):
+            old_mode = self.current_print.get("slice_mode")
+            self.current_print["slice_mode"] = new_slice_mode
+            LOGGER.info("gcode 更新后重新判断 slice_mode: %s → %s (gcode: %s)",
+                        old_mode, new_slice_mode, new_value[:60])
+
+        # 从新的 gcode 值提取项目名（非模型名）
+        new_project = extract_model_from_gcode_filename(new_value)
+        if new_project:
+            need_update = (
+                not current_model
+                or is_param_description(current_model)
+                or current_model.startswith("/data/")
+            )
+            if need_update and new_project != current_model:
+                if not self._locked_task_name or self._locked_task_name == current_model:
+                    self.current_print["task_name_model"] = new_project
+                    self.current_print["task_name"] = new_project
+                    self._lock_task_name(new_project)
+                LOGGER.info("gcode 更新后重新提取项目名: %s (gcode: %s)", new_project, new_value[:60])
+        else:
+            # gcode 中无项目名（cloud_file 场景），尝试从历史记录查找模型名
+            if new_task_id and self.history:
+                for r in self.history:
+                    if str(r.get("gcode_task_id", "")) == str(new_task_id):
+                        hist_model = r.get("task_name_model", "") or r.get("task_name", "")
+                        if hist_model and not is_param_description(hist_model) and hist_model != current_model:
+                            if not self._locked_task_name or self._locked_task_name == current_model:
+                                self.current_print["task_name_model"] = hist_model
+                                self.current_print["task_name"] = hist_model
+                                self._lock_task_name(hist_model)
+                            LOGGER.info("gcode 更新后从历史记录找到模型名: %s (task_id=%s)", hist_model, new_task_id)
+                        break
+
+        # 存储 gcode_task_id（gcode 文件 ID，用于关联同一 gcode 的不同打印）
+        # ⚠️ 允许覆盖：on_print_start 时 gcode 可能还没更新，存入了上一个打印的 task_id
+        if new_task_id:
+            if not self.current_print.get("gcode_task_id") or str(self.current_print.get("gcode_task_id")) != str(new_task_id):
+                self.current_print["gcode_task_id"] = new_task_id
+                LOGGER.info("gcode 更新后存储 task_id: %s", new_task_id)
 
     def _get_gcode_project_name(self) -> str:
         """从 gcode_file_downloaded 实体提取项目名"""
@@ -1081,17 +1254,20 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         return await self.hass.async_add_executor_job(_do_delete)
 
     async def async_reset_history(self) -> None:
-        """重置历史"""
+        """重置历史（同时清空内存缓存和文件）"""
         self.history = []
         self.current_print = None
+        self._total_records = 0
         if self.statistics:
             self.statistics.invalidate_cache()
-        await self._save_history()
+        # 清空文件中的历史记录
+        if self.storage:
+            await self.storage.clear_all_history_files()
         self.async_set_updated_data(self._calculate_statistics())
         LOGGER.info("History reset for %s", self.printer_name)
 
     async def async_delete_history_records(self, record_ids: list[str]) -> int:
-        """删除历史记录（从内存缓存和文件中同时删除）"""
+        """删除历史记录（从内存缓存移除，标记待删除，由 save_history 统一写入文件）"""
         if not record_ids:
             return 0
         ids_set = set(record_ids)
@@ -1101,17 +1277,23 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         self.history = [r for r in self.history if r.get("id") not in ids_set]
         deleted_count = original_count - len(self.history)
 
-        # 从文件中删除（处理不在内存缓存中的记录）
-        file_deleted = await self._delete_from_files(ids_set)
-        deleted_count += file_deleted
+        # 记录待删除 ID（不在内存中的记录由 save_history 合并写入时排除）
+        if self.storage:
+            self.storage._pending_delete_ids.update(ids_set)
+            # 统计文件中可能存在的待删除记录数（不在内存中的）
+            file_only_ids = ids_set - {r.get("id") for r in self.history}
+            deleted_count += len(file_only_ids)
 
         if deleted_count > 0:
+            self._total_records = max(0, self._total_records - len(ids_set))
             if self.statistics:
                 self.statistics.invalidate_cache()
             await self._save_history()
             self.async_set_updated_data(self._calculate_statistics())
-            LOGGER.info("Deleted %d records (cache=%d, file=%d)", deleted_count, original_count - len(self.history), file_deleted)
-        return deleted_count
+            LOGGER.info("Deleted %d records (memory=%d, file_pending=%d)",
+                        len(ids_set), original_count - len(self.history),
+                        len(ids_set) - (original_count - len(self.history)))
+        return len(ids_set)
 
     def update_options(self, options: dict) -> None:
         """更新选项"""

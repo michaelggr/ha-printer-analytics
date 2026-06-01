@@ -1,4 +1,4 @@
-# Editor
+﻿# Editor
 .vscode/
 .idea/
 *.swp
@@ -36,3 +36,8 @@ env/
 
 # Misc
 *.log
+
+# Debug scripts
+check_*.py
+debug_*.py
+ws_test.py
