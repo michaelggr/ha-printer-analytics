@@ -52,6 +52,9 @@ class PrinterAnalyticsCard extends HTMLElement {
     this._imageRefreshTimer = null;     // image类型摄像头自动刷新定时器
     this._wsHistoryData = null;         // WebSocket 返回的筛选+分页数据
     this._wsLoading = false;            // WS 请求中标记
+    this._bambuStatus = { logged_in: false, phone: '', last_sync: null, last_sync_count: 0 };
+    this._bambuSyncing = false;
+    this._bambuLoginModal = null;
   }
 
   setConfig(config) {
@@ -1735,6 +1738,25 @@ class PrinterAnalyticsCard extends HTMLElement {
         }
         .btn-filter-backup:hover { background: #7c3aed; }
 
+        .btn-filter-bambu-sync {
+          background: linear-gradient(135deg, #1a73e8, #0d47a1);
+          color: #fff;
+          border: none;
+          padding: 6px 14px;
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 13px;
+          white-space: nowrap;
+        }
+        .btn-filter-bambu-sync:hover { opacity: 0.9; }
+        .btn-filter-bambu-sync:disabled { opacity: 0.5; cursor: not-allowed; }
+        .bambu-sync-expired {
+          font-size: 11px;
+          color: #e53935;
+          margin-top: 2px;
+          text-align: right;
+        }
+
         /* 隐藏的文件输入 */
         .hidden-file-input {
           display: none;
@@ -2156,6 +2178,40 @@ class PrinterAnalyticsCard extends HTMLElement {
           width: 90%;
           box-shadow: var(--shadow-lg);
         }
+
+        .bambu-login-overlay {
+          position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+          background: rgba(0,0,0,0.5); z-index: 10000;
+          display: flex; align-items: center; justify-content: center;
+        }
+        .bambu-login-modal {
+          background: var(--card-background-color, #fff);
+          border-radius: 16px; padding: 28px 32px; width: 380px; max-width: 90vw;
+          box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        }
+        .bambu-login-title { font-size: 18px; font-weight: 600; margin-bottom: 6px; }
+        .bambu-login-desc { font-size: 13px; color: var(--secondary-text-color, #888); margin-bottom: 20px; }
+        .bambu-login-field { margin-bottom: 14px; }
+        .bambu-login-field label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px; }
+        .bambu-login-field input {
+          width: 100%; padding: 8px 12px; border: 1px solid var(--divider-color, #ddd);
+          border-radius: 8px; font-size: 14px; box-sizing: border-box;
+          background: var(--input-background-color, #fff); color: var(--primary-text-color, #333);
+        }
+        .bambu-code-row { display: flex; gap: 8px; }
+        .bambu-code-row input { flex: 1; }
+        .bambu-send-code-btn {
+          white-space: nowrap; padding: 8px 14px; border: 1px solid var(--divider-color, #ddd);
+          border-radius: 8px; background: var(--secondary-background-color, #f5f5f5);
+          color: var(--primary-text-color, #333); cursor: pointer; font-size: 13px;
+        }
+        .bambu-send-code-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .bambu-login-error { color: #e53935; font-size: 13px; min-height: 18px; margin-bottom: 8px; }
+        .bambu-login-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
+        .bambu-btn { padding: 8px 20px; border-radius: 8px; border: none; cursor: pointer; font-size: 14px; }
+        .bambu-btn-cancel { background: var(--secondary-background-color, #f5f5f5); color: var(--primary-text-color, #333); }
+        .bambu-btn-submit { background: #1a73e8; color: #fff; }
+        .bambu-btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
 
         .import-panel-title {
           font-size: 16px;
@@ -2676,6 +2732,7 @@ class PrinterAnalyticsCard extends HTMLElement {
 
     this._bindHistoryEvents();
     this._restoreFilterValues();
+    this._checkBambuStatus();
   }
 
   // 恢复筛选控件的值（render后DOM重建，需要恢复选中状态）
@@ -2897,6 +2954,11 @@ class PrinterAnalyticsCard extends HTMLElement {
       });
     }
 
+    const bambuSyncBtn = root.querySelector('#btn-bambu-sync');
+    if (bambuSyncBtn) {
+      bambuSyncBtn.addEventListener('click', () => this._handleBambuSyncClick());
+    }
+
     // 分页按钮
     root.querySelectorAll('.page-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
@@ -2957,6 +3019,169 @@ class PrinterAnalyticsCard extends HTMLElement {
           this._closeConfirmModal();
         }
       });
+    }
+  }
+
+  async _checkBambuStatus() {
+    try {
+      const result = await this.hass.callWS({ type: 'printer_analytics/bambu_status' });
+      this._bambuStatus = result;
+      this.requestUpdate();
+    } catch (e) {
+      console.warn('[Bambu] 状态检查失败:', e);
+    }
+  }
+
+  _handleBambuSyncClick() {
+    if (this._bambuSyncing) return;
+    if (!this._bambuStatus.logged_in) {
+      this._showBambuLoginModal();
+    } else {
+      this._doBambuSync();
+    }
+  }
+
+  _showBambuLoginModal() {
+    const overlay = document.createElement('div');
+    overlay.className = 'bambu-login-overlay';
+    overlay.innerHTML = `
+      <div class="bambu-login-modal">
+        <div class="bambu-login-title">☁️ 登录 Bambu Cloud</div>
+        <div class="bambu-login-desc">登录后自动同步云端打印历史到本地</div>
+        <div class="bambu-login-field">
+          <label>手机号 / 邮箱</label>
+          <input type="text" id="bambu-phone" placeholder="请输入手机号或邮箱" autocomplete="tel">
+        </div>
+        <div class="bambu-login-field">
+          <label>验证码</label>
+          <div class="bambu-code-row">
+            <input type="text" id="bambu-code" placeholder="请输入验证码" maxlength="6">
+            <button id="bambu-send-code" class="bambu-send-code-btn">发送验证码</button>
+          </div>
+        </div>
+        <div id="bambu-login-error" class="bambu-login-error"></div>
+        <div class="bambu-login-actions">
+          <button id="bambu-login-cancel" class="bambu-btn bambu-btn-cancel">取消</button>
+          <button id="bambu-login-submit" class="bambu-btn bambu-btn-submit">登录</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    this._bambuLoginModal = overlay;
+
+    const phoneInput = overlay.querySelector('#bambu-phone');
+    const codeInput = overlay.querySelector('#bambu-code');
+    const sendCodeBtn = overlay.querySelector('#bambu-send-code');
+    const cancelBtn = overlay.querySelector('#bambu-login-cancel');
+    const submitBtn = overlay.querySelector('#bambu-login-submit');
+    const errorDiv = overlay.querySelector('#bambu-login-error');
+
+    let countdown = 0;
+    let countdownTimer = null;
+
+    const startCountdown = () => {
+      countdown = 60;
+      sendCodeBtn.disabled = true;
+      const tick = () => {
+        if (countdown <= 0) {
+          sendCodeBtn.textContent = '发送验证码';
+          sendCodeBtn.disabled = false;
+          return;
+        }
+        sendCodeBtn.textContent = countdown + 's';
+        countdown--;
+        countdownTimer = setTimeout(tick, 1000);
+      };
+      tick();
+    };
+
+    sendCodeBtn.addEventListener('click', async () => {
+      const phone = phoneInput.value.trim();
+      if (!phone) { errorDiv.textContent = '请输入手机号或邮箱'; return; }
+      errorDiv.textContent = '';
+      sendCodeBtn.disabled = true;
+      sendCodeBtn.textContent = '发送中...';
+      try {
+        const result = await this.hass.callWS({ type: 'printer_analytics/bambu_send_code', phone });
+        if (result.success) {
+          startCountdown();
+        } else {
+          errorDiv.textContent = result.error || '发送失败';
+          sendCodeBtn.textContent = '发送验证码';
+          sendCodeBtn.disabled = false;
+        }
+      } catch (e) {
+        errorDiv.textContent = '网络错误';
+        sendCodeBtn.textContent = '发送验证码';
+        sendCodeBtn.disabled = false;
+      }
+    });
+
+    submitBtn.addEventListener('click', async () => {
+      const phone = phoneInput.value.trim();
+      const code = codeInput.value.trim();
+      if (!phone) { errorDiv.textContent = '请输入手机号或邮箱'; return; }
+      if (!code) { errorDiv.textContent = '请输入验证码'; return; }
+      errorDiv.textContent = '';
+      submitBtn.disabled = true;
+      submitBtn.textContent = '登录中...';
+      try {
+        const result = await this.hass.callWS({ type: 'printer_analytics/bambu_login', phone, code });
+        if (result.success) {
+          this._bambuStatus = { logged_in: true, phone, last_sync: null, last_sync_count: 0 };
+          this._closeBambuLoginModal();
+          this._doBambuSync();
+        } else {
+          errorDiv.textContent = result.error || '登录失败';
+          submitBtn.textContent = '登录';
+          submitBtn.disabled = false;
+        }
+      } catch (e) {
+        errorDiv.textContent = '网络错误';
+        submitBtn.textContent = '登录';
+        submitBtn.disabled = false;
+      }
+    });
+
+    cancelBtn.addEventListener('click', () => this._closeBambuLoginModal());
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) this._closeBambuLoginModal(); });
+  }
+
+  _closeBambuLoginModal() {
+    if (this._bambuLoginModal) {
+      this._bambuLoginModal.remove();
+      this._bambuLoginModal = null;
+    }
+  }
+
+  async _doBambuSync() {
+    if (this._bambuSyncing) return;
+    this._bambuSyncing = true;
+    this.requestUpdate();
+    try {
+      const entryId = this.config?.entry_id || '';
+      const result = await this.hass.callWS({ type: 'printer_analytics/bambu_sync', entry_id: entryId });
+      if (result.success) {
+        this._bambuStatus.last_sync = Date.now() / 1000;
+        this._bambuStatus.last_sync_count = result.added + result.merged;
+        const lines = [];
+        if (result.added > 0) lines.push('新增 ' + result.added + ' 条');
+        if (result.merged > 0) lines.push('合并 ' + result.merged + ' 条');
+        if (result.duplicate_skipped > 0) lines.push('跳过 ' + result.duplicate_skipped + ' 条');
+        const msg = lines.length > 0 ? '✅ 同步完成：' + lines.join('，') : '✅ 同步完成，无新记录';
+        alert(msg);
+        this._loadWSHistory();
+      } else {
+        alert('❌ 同步失败：' + result.error);
+        if (result.error && result.error.includes('过期')) {
+          this._bambuStatus.logged_in = false;
+        }
+      }
+    } catch (e) {
+      alert('❌ 同步失败：' + (e.message || e));
+    } finally {
+      this._bambuSyncing = false;
+      this.requestUpdate();
     }
   }
 
@@ -6123,6 +6348,8 @@ class PrinterAnalyticsCard extends HTMLElement {
           <button class="btn-filter btn-filter-export" id="btn-export-csv" title="导出为CSV表格">📥 导出</button>
           <button class="btn-filter btn-filter-import" id="btn-import-json" title="从JSON文件导入">📤 导入</button>
           <button class="btn-filter btn-filter-backup" id="btn-backup" title="立即备份所有数据">💾 备份</button>
+          <button class="btn-filter btn-filter-bambu-sync" id="btn-bambu-sync" title="从 Bambu Cloud 同步打印历史">${this._bambuSyncing ? '🔄 同步中...' : (this._bambuStatus.logged_in ? '🔄 自动同步' : '☁️ 登录同步')}</button>
+          ${!this._bambuStatus.logged_in && this._bambuStatus.phone ? '<div class="bambu-sync-expired">⚠️ 登录已过期</div>' : ''}
         </div>
         <input type="file" class="hidden-file-input" id="file-import" accept=".json">
       </div>
