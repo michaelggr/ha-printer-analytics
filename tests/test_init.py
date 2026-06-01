@@ -1309,3 +1309,198 @@ class TestExtractModelFromGcodeFilename:
         """只有 designId，无模型名"""
         result = extract_model_from_gcode_filename("12345-.gcode.gcode")
         assert result == ""
+
+
+# ---------------------------------------------------------------------------
+# Bambu Cloud 数据转换测试
+# ---------------------------------------------------------------------------
+
+_BAMBU_PATH = os.path.join(
+    os.path.dirname(__file__), "..",
+    "custom_components", "printer_analytics", "bambu_cloud.py",
+)
+_BAMBU_SOURCE = open(_BAMBU_PATH, "r", encoding="utf-8").read()
+_bambu_ns = {}
+exec(_BAMBU_SOURCE, _bambu_ns)
+
+
+class TestBambuParseColor:
+    """颜色解析测试"""
+
+    def test_hex_format(self):
+        assert _bambu_ns["_parse_color"]("#1F79E5") == "#1F79E5"
+
+    def test_hex_long(self):
+        assert _bambu_ns["_parse_color"]("#1F79E5FF") == "#1F79E5"
+
+    def test_rgba_comma(self):
+        assert _bambu_ns["_parse_color"]("31,121,229,255") == "#1F79E5"
+
+    def test_rgb_func(self):
+        assert _bambu_ns["_parse_color"]("rgb(31, 121, 229)") == "#1F79E5"
+
+    def test_none(self):
+        assert _bambu_ns["_parse_color"](None) == ""
+
+    def test_empty(self):
+        assert _bambu_ns["_parse_color"]("") == ""
+
+    def test_bare_hex(self):
+        assert _bambu_ns["_parse_color"]("1F79E5FF") == "#1F79E5"
+
+
+class TestBambuParseStatus:
+    """状态码映射测试"""
+
+    def test_finish(self):
+        assert _bambu_ns["_parse_status"](2) == "finish"
+
+    def test_failed(self):
+        assert _bambu_ns["_parse_status"](3) == "failed"
+
+    def test_cancelled_1(self):
+        assert _bambu_ns["_parse_status"](1) == "cancelled"
+
+    def test_cancelled_4(self):
+        assert _bambu_ns["_parse_status"](4) == "cancelled"
+
+    def test_unknown(self):
+        assert _bambu_ns["_parse_status"](99) == "cancelled"
+
+
+class TestBambuParseTime:
+    """时间格式转换测试"""
+
+    def test_iso_z(self):
+        result = _bambu_ns["_parse_time"]("2026-05-27T14:30:00Z")
+        assert "2026-05-27" in result
+
+    def test_none(self):
+        assert _bambu_ns["_parse_time"](None) == ""
+
+    def test_empty(self):
+        assert _bambu_ns["_parse_time"]("") == ""
+
+
+class TestBambuParseTaskName:
+    """task_name 解析测试"""
+
+    def test_with_underscore(self):
+        assert _bambu_ns["_parse_task_name"]("Model_Config") == ("Model", "Config")
+
+    def test_no_underscore(self):
+        assert _bambu_ns["_parse_task_name"]("NoUnderscore") == ("NoUnderscore", "")
+
+    def test_empty(self):
+        assert _bambu_ns["_parse_task_name"]("") == ("", "")
+
+
+class TestBambuConvertToHAFormat:
+    """完整转换测试"""
+
+    def test_basic_single_record(self):
+        items = [{
+            "id": "12345",
+            "designTitle": "Test_Model_v2",
+            "designId": "D001",
+            "status": 2,
+            "deviceId": "SN001",
+            "startTime": "2026-05-27T10:00:00Z",
+            "endTime": "2026-05-27T14:30:00Z",
+            "costTime": 16200,
+            "cover": "https://example.com/cover.jpg",
+            "mode": "cloud_slice",
+            "bedType": "textured_pei",
+            "useAms": True,
+            "nozzleInfos": [{"diameter": 0.4, "type": "hardened_steel"}],
+            "amsDetailMapping": [
+                {"filamentType": "PLA", "sourceColor": "#FF0000", "weight": 50, "length": 16000},
+            ],
+            "filament": {"1": {"type": "PLA", "color": "#FF0000", "weight": 50, "length": 16000}},
+        }]
+        result = _bambu_ns["convert_to_ha_format"](items)
+        assert result["version"] == 3
+        assert len(result["history"]) == 1
+        rec = result["history"][0]
+        assert rec["id"] == "12345"
+        assert rec["task_name"] == "Test_Model_v2"
+        assert rec["task_name_model"] == "Test"
+        assert rec["task_name_config"] == "Model_v2"
+        assert rec["status"] == "finish"
+        assert rec["printer_serial"] == "SN001"
+        assert abs(rec["duration_hours"] - 4.5) < 0.01
+        assert rec["design_id"] == "D001"
+        assert rec["slice_mode"] == "cloud_slice"
+        assert rec["ams_used"] is True
+        assert rec["nozzle_size"] == "0.4"
+        assert rec["nozzle_type"] == "hardened_steel"
+        assert rec["print_bed_type"] == "textured_pei"
+        assert rec["cover_image_url"] == "https://example.com/cover.jpg"
+        assert rec["progress"] == 100
+        assert rec["total_colors"] == 1
+        assert rec["multi_color"] is False
+        assert rec["over_500g"] is False
+
+    def test_multi_color_over_500g(self):
+        items = [{
+            "id": "67890",
+            "designTitle": "Multi",
+            "status": 2,
+            "deviceId": "SN002",
+            "startTime": "2026-05-27T10:00:00Z",
+            "endTime": "2026-05-27T14:00:00Z",
+            "costTime": 14400,
+            "amsDetailMapping": [
+                {"filamentType": "PLA", "sourceColor": "#FF0000", "weight": 300, "length": 96000},
+                {"filamentType": "PETG", "sourceColor": "#00FF00", "weight": 250, "length": 80000},
+            ],
+        }]
+        result = _bambu_ns["convert_to_ha_format"](items)
+        rec = result["history"][0]
+        assert rec["total_colors"] == 2
+        assert rec["multi_color"] is True
+        assert rec["over_500g"] is True
+        assert len(rec["color_usage"]) == 2
+        assert rec["types_used"] == ["PLA", "PETG"]
+
+    def test_failed_status(self):
+        items = [{
+            "id": "fail1",
+            "designTitle": "Failed",
+            "status": 3,
+            "deviceId": "SN003",
+            "startTime": "2026-05-27T10:00:00Z",
+            "endTime": "2026-05-27T10:30:00Z",
+            "costTime": 1800,
+            "progress": 45,
+        }]
+        result = _bambu_ns["convert_to_ha_format"](items)
+        rec = result["history"][0]
+        assert rec["status"] == "failed"
+        assert rec["progress"] == 45
+
+    def test_empty_items(self):
+        result = _bambu_ns["convert_to_ha_format"]([])
+        assert result == {"version": 3, "history": []}
+
+    def test_null_fields_are_none(self):
+        items = [{
+            "id": "min1",
+            "designTitle": "Minimal",
+            "status": 2,
+            "deviceId": "SN004",
+            "startTime": "2026-05-27T10:00:00Z",
+            "endTime": "2026-05-27T11:00:00Z",
+            "costTime": 3600,
+        }]
+        result = _bambu_ns["convert_to_ha_format"](items)
+        rec = result["history"][0]
+        assert rec["gcode_task_id"] is None
+        assert rec["prepare_time_minutes"] is None
+        assert rec["energy_kwh"] is None
+        assert rec["speed_profile"] is None
+        assert rec["total_layer_count"] is None
+        assert rec["cover_image_local"] is None
+        assert rec["snapshot_image_local"] is None
+        assert rec["chamber_temp_final"] is None
+        assert rec["full_print_info_path"] is None
