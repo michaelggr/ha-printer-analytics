@@ -155,6 +155,18 @@ bed_temp: sensor.p2s_xxx_bed_temperature
 
 ## 更新日志
 
+### v5.18.0 (2026-06-02)
+
+- **功能**：Bambu Cloud 自动同步 — 手机号+验证码登录，一键同步云端打印历史到本地
+- **功能**：后台每12小时自动拉取 Bambu Cloud 数据，防止拓竹服务器90天数据过期丢失
+- **功能**：登录过期检测，按钮下方显示"登录已过期"提示
+- **功能**：完整40字段数据转换（从 Bambu Cloud API 格式转为 HA v3 格式）
+- **功能**：同步时自动下载封面图到本地
+- **功能**：增量同步策略 — 基于 Bambu item.id 去重，复用 `async_import_history` 合并逻辑
+- **新增**：`bambu_cloud.py` 模块 — Bambu Cloud API 调用、数据转换、Token 持久化
+- **新增**：5个 WebSocket 命令 — `bambu_send_code`/`bambu_login`/`bambu_sync`/`bambu_status`/`bambu_logout`
+- **新增**：23个单元测试覆盖 Bambu 数据转换纯函数
+
 ### v5.17.1 (2026-06-02)
 
 - **修复**：打印详情点不开 — 新增 `_findRecordById` 优先从 WS 数据查找记录
