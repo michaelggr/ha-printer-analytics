@@ -2548,7 +2548,7 @@ class PrinterAnalyticsCard extends HTMLElement {
               <div class="header-title">${title}</div>
             </div>
           </div>
-        <div class="header-badge">v5.17.1</div>
+        <div class="header-badge">v5.18.0</div>
         </div>
       `;
 
