@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 import logging
@@ -429,28 +429,36 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
             async def _bambu_scheduled_sync(_now):
                 from .bambu_cloud import load_bambu_token, check_token, save_bambu_token
+                now_str = _now.strftime("%Y-%m-%d %H:%M:%S") if _now else "unknown"
+                LOGGER.info("[Bambu定时] 定时同步触发, 当前时间=%s", now_str)
                 auth = await load_bambu_token(hass)
                 if not auth or not auth.get("token"):
+                    LOGGER.info("[Bambu定时] 未登录，跳过同步")
                     return
                 valid = await check_token(auth["token"])
                 if not valid:
                     auth["token"] = ""
                     await save_bambu_token(hass, auth)
-                    LOGGER.info("Bambu Cloud token 过期，已标记")
+                    LOGGER.warning("[Bambu定时] Token 已过期，已标记")
                     return
                 for eid, coord in hass.data.get(DOMAIN, {}).items():
                     if isinstance(coord, PrinterAnalyticsCoordinator):
                         try:
                             result = await coord.async_bambu_sync()
-                            LOGGER.info("定时同步完成: %s", result)
+                            LOGGER.info("[Bambu定时] 定时同步完成: %s", result)
                         except Exception as err:
-                            LOGGER.warning("定时同步失败: %s", err)
+                            LOGGER.warning("[Bambu定时] 定时同步失败: %s", err, exc_info=True)
 
             unsub = async_track_time_interval(
                 hass, _bambu_scheduled_sync, timedelta(hours=BAMBU_SYNC_INTERVAL_HOURS)
             )
             entry.async_on_unload(unsub)
-            LOGGER.info("Bambu Cloud 定时同步已注册（每 %d 小时）", BAMBU_SYNC_INTERVAL_HOURS)
+            from datetime import datetime as _dt, timezone as _tz, timedelta as _td
+            _next_run = _dt.now(_tz(_td(hours=8))) + _td(hours=BAMBU_SYNC_INTERVAL_HOURS)
+            LOGGER.info(
+                "[Bambu定时] 定时同步已注册（每 %d 小时），预计下次执行: %s",
+                BAMBU_SYNC_INTERVAL_HOURS, _next_run.strftime("%Y-%m-%d %H:%M:%S"),
+            )
         except Exception as err:
             LOGGER.warning("Bambu Cloud 定时同步注册跳过: %s", err)
 
