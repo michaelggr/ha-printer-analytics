@@ -2553,7 +2553,7 @@ class PrinterAnalyticsCard extends HTMLElement {
               <div class="header-title">${title}</div>
             </div>
           </div>
-        <div class="header-badge">v5.19.0</div>
+        <div class="header-badge">v5.19.1</div>
         </div>
       `;
 
@@ -3072,7 +3072,7 @@ class PrinterAnalyticsCard extends HTMLElement {
         </div>
       </div>
     `;
-    document.body.appendChild(overlay);
+    this.shadowRoot.appendChild(overlay);
     this._bambuLoginModal = overlay;
 
     const phoneInput = overlay.querySelector('#bambu-phone');
