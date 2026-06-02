@@ -1,5 +1,5 @@
 /**
- * 打印机分析卡片 - v5.17.1
+ * 打印机分析卡片 - v5.18.0
  * 版本: 5.17.0 (2026-05-31) - 统计分析改用后端数据、极端值后端计算
  *
  * 设计特点:
@@ -55,6 +55,7 @@ class PrinterAnalyticsCard extends HTMLElement {
     this._bambuStatus = { logged_in: false, phone: '', last_sync: null, last_sync_count: 0 };
     this._bambuSyncing = false;
     this._bambuLoginModal = null;
+    this._bambuStatusChecked = false;
   }
 
   setConfig(config) {
@@ -67,6 +68,10 @@ class PrinterAnalyticsCard extends HTMLElement {
   set hass(hass) {
     this._hass = hass;
     if (hass && this.config) {
+      if (!this._bambuStatusChecked) {
+        this._bambuStatusChecked = true;
+        this._checkBambuStatus();
+      }
       if (this._renderDebounce) {
         clearTimeout(this._renderDebounce);
       }
@@ -2548,7 +2553,7 @@ class PrinterAnalyticsCard extends HTMLElement {
               <div class="header-title">${title}</div>
             </div>
           </div>
-        <div class="header-badge">v5.18.0</div>
+        <div class="header-badge">v5.19.0</div>
         </div>
       `;
 
@@ -3023,8 +3028,9 @@ class PrinterAnalyticsCard extends HTMLElement {
   }
 
   async _checkBambuStatus() {
+    if (!this._hass) return;
     try {
-      const result = await this.hass.callWS({ type: 'printer_analytics/bambu_status' });
+      const result = await this._hass.callWS({ type: 'printer_analytics/bambu_status' });
       this._bambuStatus = result;
       this.requestUpdate();
     } catch (e) {
@@ -3102,7 +3108,7 @@ class PrinterAnalyticsCard extends HTMLElement {
       sendCodeBtn.disabled = true;
       sendCodeBtn.textContent = '发送中...';
       try {
-        const result = await this.hass.callWS({ type: 'printer_analytics/bambu_send_code', phone });
+        const result = await this._hass.callWS({ type: 'printer_analytics/bambu_send_code', phone });
         if (result.success) {
           startCountdown();
         } else {
@@ -3126,7 +3132,7 @@ class PrinterAnalyticsCard extends HTMLElement {
       submitBtn.disabled = true;
       submitBtn.textContent = '登录中...';
       try {
-        const result = await this.hass.callWS({ type: 'printer_analytics/bambu_login', phone, code });
+        const result = await this._hass.callWS({ type: 'printer_analytics/bambu_login', phone, code });
         if (result.success) {
           this._bambuStatus = { logged_in: true, phone, last_sync: null, last_sync_count: 0 };
           this._closeBambuLoginModal();
@@ -3159,8 +3165,22 @@ class PrinterAnalyticsCard extends HTMLElement {
     this._bambuSyncing = true;
     this.requestUpdate();
     try {
-      const entryId = this.config?.entry_id || '';
-      const result = await this.hass.callWS({ type: 'printer_analytics/bambu_sync', entry_id: entryId });
+      const entryIds = this._getAllEntryIds();
+      let entryId = '';
+      if (entryIds.length > 0) {
+        entryId = entryIds[0].entryId;
+      } else {
+        const printers = this._getPrintersConfig();
+        const firstPrinter = printers.find(p => p.entities.print_history);
+        if (firstPrinter) {
+          entryId = firstPrinter.entities.print_history;
+        }
+      }
+      if (!entryId) {
+        alert('没有可用的打印机配置，请刷新页面后重试');
+        return;
+      }
+      const result = await this._hass.callWS({ type: 'printer_analytics/bambu_sync', entry_id: entryId });
       if (result.success) {
         this._bambuStatus.last_sync = Date.now() / 1000;
         this._bambuStatus.last_sync_count = result.added + result.merged;
