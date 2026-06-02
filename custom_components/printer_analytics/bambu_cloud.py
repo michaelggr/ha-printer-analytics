@@ -101,7 +101,7 @@ async def send_code(account: str) -> dict:
                     return {"success": False, "error": "请求过于频繁，请稍后重试"}
                 if resp.status == 418:
                     return {"success": False, "error": "需要人机验证，请稍后重试"}
-                data = await resp.json()
+                data = await resp.json(content_type=None)
                 status_code = data.get("statusCode")
                 if status_code is not None and status_code not in (0, 200):
                     LOGGER.warning("[Bambu API] 发送验证码失败: statusCode=%s, message=%s", status_code, data.get("message"))
@@ -126,7 +126,7 @@ async def login_with_code(account: str, code: str) -> dict:
         async with aiohttp.ClientSession() as session:
             async with session.post(url, json=body, headers=_REQUEST_HEADERS) as resp:
                 LOGGER.info("[Bambu API] 登录响应: status=%d", resp.status)
-                data = await resp.json()
+                data = await resp.json(content_type=None)
                 token = data.get("accessToken")
                 if token:
                     LOGGER.info("[Bambu API] 登录成功, token=%s...", str(token)[:8])
@@ -175,7 +175,7 @@ async def _fetch_page(token: str, base_url: str, offset: int = 0) -> tuple[list 
                 if resp.status != 200:
                     LOGGER.warning("[Bambu API] 分页拉取失败: base=%s, offset=%d, status=%d", base_url, offset, resp.status)
                     return [], 0
-                data = await resp.json()
+                data = await resp.json(content_type=None)
                 hits = data.get("hits") or data.get("tasks") or []
                 total = data.get("total") or data.get("count") or 0
                 LOGGER.debug("[Bambu API] 分页拉取成功: base=%s, offset=%d, hits=%d, total=%d", base_url, offset, len(hits), total)
