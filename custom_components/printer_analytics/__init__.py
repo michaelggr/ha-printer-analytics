@@ -903,7 +903,10 @@ def _register_websocket_commands(hass: HomeAssistant) -> None:
     @websocket_api.async_response
     async def ws_bambu_send_code(hass: HomeAssistant, connection, msg):
         from .bambu_cloud import send_code
-        result = await send_code(msg["phone"])
+        phone = msg["phone"]
+        LOGGER.info("[Bambu WS] 收到发送验证码请求: phone=%s", phone[:3] + "***")
+        result = await send_code(phone)
+        LOGGER.info("[Bambu WS] 发送验证码结果: success=%s", result.get("success"))
         connection.send_result(msg["id"], result)
 
     websocket_api.async_register_command(hass, ws_bambu_send_code)
@@ -916,16 +919,21 @@ def _register_websocket_commands(hass: HomeAssistant) -> None:
     @websocket_api.async_response
     async def ws_bambu_login(hass: HomeAssistant, connection, msg):
         from .bambu_cloud import login_with_code, save_bambu_token
-        result = await login_with_code(msg["phone"], msg["code"])
+        phone = msg["phone"]
+        LOGGER.info("[Bambu WS] 收到登录请求: phone=%s", phone[:3] + "***")
+        result = await login_with_code(phone, msg["code"])
         if result.get("success") and result.get("token"):
             auth_data = {
-                "phone": msg["phone"],
+                "phone": phone,
                 "token": result["token"],
                 "saved_at": time.time(),
                 "last_sync": None,
                 "last_sync_count": 0,
             }
             await save_bambu_token(hass, auth_data)
+            LOGGER.info("[Bambu WS] 登录成功，Token 已保存")
+        else:
+            LOGGER.warning("[Bambu WS] 登录失败: %s", result.get("error"))
         connection.send_result(msg["id"], result)
 
     websocket_api.async_register_command(hass, ws_bambu_login)
@@ -937,15 +945,18 @@ def _register_websocket_commands(hass: HomeAssistant) -> None:
     @websocket_api.async_response
     async def ws_bambu_sync(hass: HomeAssistant, connection, msg):
         entry_id = msg["entry_id"]
+        LOGGER.info("[Bambu WS] 收到同步请求: entry_id=%s", entry_id)
         coordinator = hass.data.get(DOMAIN, {}).get(entry_id)
         if not coordinator or not isinstance(coordinator, PrinterAnalyticsCoordinator):
+            LOGGER.warning("[Bambu WS] Coordinator 未找到: entry_id=%s", entry_id)
             connection.send_error(msg["id"], "not_found", f"Coordinator not found for {entry_id}")
             return
         try:
             result = await coordinator.async_bambu_sync()
+            LOGGER.info("[Bambu WS] 同步请求完成: success=%s", result.get("success"))
             connection.send_result(msg["id"], result)
         except Exception as err:
-            LOGGER.error("Bambu Cloud 同步失败: %s", err, exc_info=True)
+            LOGGER.error("[Bambu WS] 同步失败: %s", err, exc_info=True)
             connection.send_error(msg["id"], "sync_failed", str(err))
 
     websocket_api.async_register_command(hass, ws_bambu_sync)
@@ -961,6 +972,7 @@ def _register_websocket_commands(hass: HomeAssistant) -> None:
             connection.send_result(msg["id"], {"logged_in": False, "phone": "", "last_sync": None, "last_sync_count": 0})
             return
         valid = await check_token(auth["token"])
+        LOGGER.info("[Bambu WS] 状态查询: logged_in=%s, phone=%s", valid, auth.get("phone", ""))
         connection.send_result(msg["id"], {
             "logged_in": valid,
             "phone": auth.get("phone", ""),
@@ -976,6 +988,7 @@ def _register_websocket_commands(hass: HomeAssistant) -> None:
     @websocket_api.async_response
     async def ws_bambu_logout(hass: HomeAssistant, connection, msg):
         from .bambu_cloud import delete_bambu_token
+        LOGGER.info("[Bambu WS] 收到登出请求")
         await delete_bambu_token(hass)
         connection.send_result(msg["id"], {"success": True})
 

@@ -92,9 +92,11 @@ async def send_code(account: str) -> dict:
     url = f"{base}/v1/user-service/user/sendsmscode" if phone else f"{base}/v1/user-service/user/sendemail/code"
     body = {"phone": account, "type": "codeLogin"} if phone else {"email": account, "type": "codeLogin"}
 
+    LOGGER.info("[Bambu API] 发送验证码: account=%s, is_phone=%s, base=%s", account[:3] + "***", phone, base)
     try:
         async with aiohttp.ClientSession() as session:
             async with session.post(url, json=body, headers=_REQUEST_HEADERS) as resp:
+                LOGGER.info("[Bambu API] 发送验证码响应: status=%d", resp.status)
                 if resp.status == 429:
                     return {"success": False, "error": "请求过于频繁，请稍后重试"}
                 if resp.status == 418:
@@ -102,11 +104,15 @@ async def send_code(account: str) -> dict:
                 data = await resp.json()
                 status_code = data.get("statusCode")
                 if status_code is not None and status_code not in (0, 200):
+                    LOGGER.warning("[Bambu API] 发送验证码失败: statusCode=%s, message=%s", status_code, data.get("message"))
                     return {"success": False, "error": data.get("message") or data.get("error") or "发送验证码失败"}
                 if data.get("error"):
+                    LOGGER.warning("[Bambu API] 发送验证码失败: error=%s", data.get("error"))
                     return {"success": False, "error": str(data.get("message") or data.get("error") or "发送验证码失败")}
+                LOGGER.info("[Bambu API] 验证码发送成功")
                 return {"success": True}
     except Exception as err:
+        LOGGER.error("[Bambu API] 发送验证码网络异常: %s", err, exc_info=True)
         return {"success": False, "error": f"网络错误: {err}"}
 
 
@@ -115,31 +121,41 @@ async def login_with_code(account: str, code: str) -> dict:
     url = f"{base}/v1/user-service/user/login"
     body = {"account": account, "code": code}
 
+    LOGGER.info("[Bambu API] 登录请求: account=%s, base=%s", account[:3] + "***", base)
     try:
         async with aiohttp.ClientSession() as session:
             async with session.post(url, json=body, headers=_REQUEST_HEADERS) as resp:
+                LOGGER.info("[Bambu API] 登录响应: status=%d", resp.status)
                 data = await resp.json()
                 token = data.get("accessToken")
                 if token:
+                    LOGGER.info("[Bambu API] 登录成功, token=%s...", str(token)[:8])
                     return {"success": True, "token": str(token)}
+                LOGGER.warning("[Bambu API] 登录失败: message=%s", data.get("message") or data.get("error"))
                 return {"success": False, "error": str(data.get("message") or data.get("error") or "登录失败")}
     except Exception as err:
+        LOGGER.error("[Bambu API] 登录网络异常: %s", err, exc_info=True)
         return {"success": False, "error": f"网络错误: {err}"}
 
 
 async def check_token(token: str) -> bool:
+    LOGGER.info("[Bambu API] 检查 Token 有效性...")
     for base in [API_CN, API_GLOBAL]:
         url = f"{base}/v1/user-service/my/tasks?limit=1&offset=0"
         headers = {**_REQUEST_HEADERS, "Authorization": f"Bearer {token}"}
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(url, headers=headers) as resp:
+                    LOGGER.info("[Bambu API] Token 检查响应: base=%s, status=%d", base, resp.status)
                     if resp.status == 200:
                         return True
                     if resp.status == 401:
+                        LOGGER.warning("[Bambu API] Token 已过期 (401)")
                         return False
-        except Exception:
+        except Exception as err:
+            LOGGER.warning("[Bambu API] Token 检查异常 (base=%s): %s", base, err)
             continue
+    LOGGER.warning("[Bambu API] Token 检查: 所有 API 端点均不可达")
     return False
 
 
@@ -154,14 +170,18 @@ async def _fetch_page(token: str, base_url: str, offset: int = 0) -> tuple[list 
         async with aiohttp.ClientSession() as session:
             async with session.get(url, headers=headers) as resp:
                 if resp.status == 401:
+                    LOGGER.warning("[Bambu API] 分页拉取 401 未授权: base=%s, offset=%d", base_url, offset)
                     return None, -1
                 if resp.status != 200:
+                    LOGGER.warning("[Bambu API] 分页拉取失败: base=%s, offset=%d, status=%d", base_url, offset, resp.status)
                     return [], 0
                 data = await resp.json()
                 hits = data.get("hits") or data.get("tasks") or []
                 total = data.get("total") or data.get("count") or 0
+                LOGGER.debug("[Bambu API] 分页拉取成功: base=%s, offset=%d, hits=%d, total=%d", base_url, offset, len(hits), total)
                 return hits, total
-    except Exception:
+    except Exception as err:
+        LOGGER.warning("[Bambu API] 分页拉取异常: base=%s, offset=%d, error=%s", base_url, offset, err)
         return [], 0
 
 
@@ -169,23 +189,30 @@ async def fetch_all_history(token: str) -> list[dict]:
     all_items: list[dict] = []
 
     for base_url in [API_CN, API_GLOBAL]:
+        LOGGER.info("[Bambu API] 尝试从 %s 拉取历史...", base_url)
         items, total = await _fetch_page(token, base_url, 0)
         if items is None:
+            LOGGER.warning("[Bambu API] 首页拉取返回 401，Token 无效")
             return []
         if not items:
+            LOGGER.info("[Bambu API] %s 无数据，尝试下一个端点", base_url)
             continue
 
         all_items.extend(items)
+        LOGGER.info("[Bambu API] 首页拉取成功: %d 条, 总计 %d 条, 继续分页...", len(items), total)
         offset = PAGE_SIZE
         retry = 0
 
         while offset < total:
             page_items, page_total = await _fetch_page(token, base_url, offset)
             if page_items is None:
+                LOGGER.warning("[Bambu API] 分页拉取 401，中断")
                 return []
             if not page_items:
                 retry += 1
+                LOGGER.warning("[Bambu API] 分页拉取空结果: offset=%d, retry=%d/3", offset, retry)
                 if retry >= 3:
+                    LOGGER.warning("[Bambu API] 分页拉取连续3次空结果，停止")
                     break
                 continue
             retry = 0
@@ -193,6 +220,7 @@ async def fetch_all_history(token: str) -> list[dict]:
             offset += PAGE_SIZE
 
         if all_items:
+            LOGGER.info("[Bambu API] 从 %s 共拉取 %d 条记录", base_url, len(all_items))
             break
 
     return all_items
@@ -389,60 +417,72 @@ def _parse_task_name(task_name: str) -> tuple[str, str]:
 
 
 def convert_to_ha_format(items: list[dict]) -> dict:
+    LOGGER.info("[Bambu转换] 开始转换 %d 条记录", len(items))
     ha_records = []
-    for item in items:
-        fil_type, fil_color = _extract_filament_info(item)
-        total_weight, total_length = _extract_weight_and_length(item)
-        colors_used = _extract_colors_used(item)
-        types_used = _extract_types_used(item)
-        color_usage = _extract_color_usage(item)
-        cost_seconds = float(item.get("costTime") or 0)
-        duration_hours = round(cost_seconds / 3600, 2)
-        task_name = item.get("designTitle") or item.get("title") or ""
-        name_model, name_config = _parse_task_name(task_name)
-        total_colors = len(colors_used)
+    error_count = 0
+    for idx, item in enumerate(items):
+        try:
+            fil_type, fil_color = _extract_filament_info(item)
+            total_weight, total_length = _extract_weight_and_length(item)
+            colors_used = _extract_colors_used(item)
+            types_used = _extract_types_used(item)
+            color_usage = _extract_color_usage(item)
+            cost_seconds = float(item.get("costTime") or 0)
+            duration_hours = round(cost_seconds / 3600, 2)
+            task_name = item.get("designTitle") or item.get("title") or ""
+            name_model, name_config = _parse_task_name(task_name)
+            total_colors = len(colors_used)
 
-        ha_records.append({
-            "id": str(item.get("id", "")),
-            "task_name": task_name,
-            "config_name": task_name,
-            "task_name_model": name_model,
-            "task_name_config": name_config,
-            "design_id": item.get("designId", ""),
-            "gcode_task_id": None,
-            "status": _parse_status(item.get("status", 0)),
-            "printer_serial": str(item.get("deviceId", "")),
-            "start_time": _parse_time(item.get("startTime")),
-            "end_time": _parse_time(item.get("endTime")),
-            "duration_hours": duration_hours,
-            "prepare_time_minutes": None,
-            "filament_type": fil_type,
-            "filament_color": fil_color,
-            "total_weight": total_weight,
-            "total_length": total_length,
-            "colors_used": colors_used,
-            "types_used": types_used,
-            "total_colors": total_colors,
-            "multi_color": total_colors > 1,
-            "over_500g": total_weight > 500,
-            "color_usage": color_usage,
-            "color_changes_count": None,
-            "multi_color_summary": None,
-            "energy_kwh": None,
-            "nozzle_type": _extract_nozzle_type(item),
-            "nozzle_size": _extract_nozzle_size(item),
-            "print_bed_type": item.get("bedType", ""),
-            "speed_profile": None,
-            "slice_mode": item.get("mode", ""),
-            "ams_used": item.get("useAms", False),
-            "total_layer_count": None,
-            "progress": 100 if item.get("status") == 2 else (int(item.get("progress") or 0)),
-            "cover_image_url": item.get("cover", ""),
-            "cover_image_local": None,
-            "snapshot_image_local": None,
-            "chamber_temp_final": None,
-            "chamber_temp_last5min": None,
-            "full_print_info_path": None,
-        })
+            ha_records.append({
+                "id": str(item.get("id", "")),
+                "task_name": task_name,
+                "config_name": task_name,
+                "task_name_model": name_model,
+                "task_name_config": name_config,
+                "design_id": item.get("designId", ""),
+                "gcode_task_id": None,
+                "status": _parse_status(item.get("status", 0)),
+                "printer_serial": str(item.get("deviceId", "")),
+                "start_time": _parse_time(item.get("startTime")),
+                "end_time": _parse_time(item.get("endTime")),
+                "duration_hours": duration_hours,
+                "prepare_time_minutes": None,
+                "filament_type": fil_type,
+                "filament_color": fil_color,
+                "total_weight": total_weight,
+                "total_length": total_length,
+                "colors_used": colors_used,
+                "types_used": types_used,
+                "total_colors": total_colors,
+                "multi_color": total_colors > 1,
+                "over_500g": total_weight > 500,
+                "color_usage": color_usage,
+                "color_changes_count": None,
+                "multi_color_summary": None,
+                "energy_kwh": None,
+                "nozzle_type": _extract_nozzle_type(item),
+                "nozzle_size": _extract_nozzle_size(item),
+                "print_bed_type": item.get("bedType", ""),
+                "speed_profile": None,
+                "slice_mode": item.get("mode", ""),
+                "ams_used": item.get("useAms", False),
+                "total_layer_count": None,
+                "progress": 100 if item.get("status") == 2 else (int(item.get("progress") or 0)),
+                "cover_image_url": item.get("cover", ""),
+                "cover_image_local": None,
+                "snapshot_image_local": None,
+                "chamber_temp_final": None,
+                "chamber_temp_last5min": None,
+                "full_print_info_path": None,
+            })
+        except Exception as err:
+            error_count += 1
+            item_id = item.get("id", "unknown")
+            LOGGER.error("[Bambu转换] 第 %d 条记录转换失败 (id=%s): %s", idx, item_id, err, exc_info=True)
+
+    if error_count > 0:
+        LOGGER.warning("[Bambu转换] 转换完成: 成功=%d, 失败=%d / 总计=%d", len(ha_records), error_count, len(items))
+    else:
+        LOGGER.info("[Bambu转换] 转换完成: %d 条记录全部成功", len(ha_records))
 
     return {"version": 3, "history": ha_records}

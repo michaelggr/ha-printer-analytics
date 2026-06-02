@@ -1,4 +1,4 @@
-"""Printer Analytics Coordinator - 主协调器"""
+﻿"""Printer Analytics Coordinator - 主协调器"""
 from __future__ import annotations
 
 import asyncio
@@ -1569,40 +1569,101 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
             fetch_all_history, convert_to_ha_format, check_token,
         )
 
+        LOGGER.info("[Bambu同步] ===== 开始 Bambu Cloud 同步流程 =====")
+
+        # 步骤1: 加载本地 Token
         auth = await load_bambu_token(self.hass)
         if not auth or not auth.get("token"):
+            LOGGER.warning("[Bambu同步] 未找到本地 Token，请先登录")
             return {"success": False, "error": "未登录 Bambu Cloud"}
 
+        phone = auth.get("phone", "")
+        token_preview = auth["token"][:8] + "..." if len(auth["token"]) > 8 else "***"
+        LOGGER.info("[Bambu同步] 步骤1: Token 已加载, 手机号=%s, token=%s", phone, token_preview)
+
+        # 步骤2: 验证 Token 有效性
         token = auth["token"]
-        valid = await check_token(token)
+        try:
+            valid = await check_token(token)
+        except Exception as err:
+            LOGGER.error("[Bambu同步] 步骤2: Token 验证异常: %s", err, exc_info=True)
+            return {"success": False, "error": f"Token验证异常: {err}"}
+
         if not valid:
+            LOGGER.warning("[Bambu同步] 步骤2: Token 已过期，清除本地 Token")
             auth["token"] = ""
             await save_bambu_token(self.hass, auth)
             return {"success": False, "error": "登录已过期，请重新登录"}
 
-        items = await fetch_all_history(token)
+        LOGGER.info("[Bambu同步] 步骤2: Token 验证通过")
+
+        # 步骤3: 拉取 Bambu Cloud 历史记录
+        LOGGER.info("[Bambu同步] 步骤3: 开始拉取云端历史记录...")
+        try:
+            items = await fetch_all_history(token)
+        except Exception as err:
+            LOGGER.error("[Bambu同步] 步骤3: 拉取云端历史异常: %s", err, exc_info=True)
+            return {"success": False, "error": f"拉取云端历史异常: {err}"}
+
         if not items:
+            LOGGER.info("[Bambu同步] 步骤3: 云端无历史记录")
             return {"success": True, "added": 0, "merged": 0, "total": 0, "message": "Bambu Cloud 无新记录"}
 
-        ha_data = convert_to_ha_format(items)
+        LOGGER.info("[Bambu同步] 步骤3: 拉取到 %d 条云端记录", len(items))
+
+        # 步骤4: 转换为 HA 格式
+        LOGGER.info("[Bambu同步] 步骤4: 开始转换数据格式...")
+        try:
+            ha_data = convert_to_ha_format(items)
+        except Exception as err:
+            LOGGER.error("[Bambu同步] 步骤4: 数据转换异常: %s", err, exc_info=True)
+            return {"success": False, "error": f"数据转换异常: {err}"}
+
+        ha_count = len(ha_data.get("history", []))
+        LOGGER.info("[Bambu同步] 步骤4: 转换完成, %d 条 HA 格式记录", ha_count)
+
+        # 步骤5: 导入到本地
         json_str = json.dumps(ha_data, ensure_ascii=False)
+        LOGGER.info("[Bambu同步] 步骤5: 开始导入到本地 (JSON 大小: %d 字节)...", len(json_str))
+        try:
+            import_result = await self.async_import_history(json_str)
+        except Exception as err:
+            LOGGER.error("[Bambu同步] 步骤5: 导入异常: %s", err, exc_info=True)
+            return {"success": False, "error": f"导入异常: {err}"}
 
-        import_result = await self.async_import_history(json_str)
+        added = import_result.get("added", 0)
+        merged = import_result.get("merged", 0)
+        dup = import_result.get("duplicate_skipped", 0)
+        other = import_result.get("other_serial", 0)
+        LOGGER.info(
+            "[Bambu同步] 步骤5: 导入完成 — 新增=%d, 合并=%d, 重复跳过=%d, 其他序列号=%d",
+            added, merged, dup, other,
+        )
 
+        # 步骤6: 更新同步时间戳
         auth["last_sync"] = time.time()
-        auth["last_sync_count"] = import_result.get("added", 0) + import_result.get("merged", 0)
+        auth["last_sync_count"] = added + merged
         await save_bambu_token(self.hass, auth)
+        LOGGER.info("[Bambu同步] 步骤6: 同步时间戳已更新, last_sync_count=%d", auth["last_sync_count"])
 
-        # 异步下载新增记录的封面图
-        if import_result.get("added", 0) > 0 and self.image_manager:
+        # 步骤7: 异步下载新增记录的封面图
+        if added > 0 and self.image_manager:
+            LOGGER.info("[Bambu同步] 步骤7: 启动封面图异步下载 (新增 %d 条)", added)
             self.hass.async_create_task(self._download_synced_covers())
+        else:
+            LOGGER.info("[Bambu同步] 步骤7: 无需下载封面图 (added=%d)", added)
+
+        LOGGER.info(
+            "[Bambu同步] ===== 同步完成: 云端=%d, 新增=%d, 合并=%d, 重复=%d =====",
+            len(items), added, merged, dup,
+        )
 
         return {
             "success": True,
-            "added": import_result.get("added", 0),
-            "merged": import_result.get("merged", 0),
-            "duplicate_skipped": import_result.get("duplicate_skipped", 0),
-            "other_serial": import_result.get("other_serial", 0),
+            "added": added,
+            "merged": merged,
+            "duplicate_skipped": dup,
+            "other_serial": other,
             "total": len(items),
         }
 
