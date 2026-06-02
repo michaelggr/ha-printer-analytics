@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 打印机分析卡片 - v5.18.0
  * 版本: 5.17.0 (2026-05-31) - 统计分析改用后端数据、极端值后端计算
  *
@@ -2553,7 +2553,7 @@ class PrinterAnalyticsCard extends HTMLElement {
               <div class="header-title">${title}</div>
             </div>
           </div>
-        <div class="header-badge">v5.19.1</div>
+        <div class="header-badge">v5.19.2</div>
         </div>
       `;
 
@@ -3032,7 +3032,8 @@ class PrinterAnalyticsCard extends HTMLElement {
     try {
       const result = await this._hass.callWS({ type: 'printer_analytics/bambu_status' });
       this._bambuStatus = result;
-      this.requestUpdate();
+      this._lastRenderedData = null;
+      this.updateData();
     } catch (e) {
       console.warn('[Bambu] 状态检查失败:', e);
     }
@@ -3163,7 +3164,8 @@ class PrinterAnalyticsCard extends HTMLElement {
   async _doBambuSync() {
     if (this._bambuSyncing) return;
     this._bambuSyncing = true;
-    this.requestUpdate();
+    this._lastRenderedData = null;
+    this.updateData();
     try {
       const entryIds = this._getAllEntryIds();
       let entryId = '';
@@ -3201,7 +3203,8 @@ class PrinterAnalyticsCard extends HTMLElement {
       alert('❌ 同步失败：' + (e.message || e));
     } finally {
       this._bambuSyncing = false;
-      this.requestUpdate();
+      this._lastRenderedData = null;
+      this.updateData();
     }
   }
 
@@ -3578,6 +3581,8 @@ class PrinterAnalyticsCard extends HTMLElement {
         _selectedPrinter: this._selectedPrinter,
         _activeTab: this._activeTab,
         _cameraViewPrinter: this._cameraViewPrinter,
+        bambuLoggedIn: this._bambuStatus?.logged_in ? 1 : 0,
+        bambuSyncing: this._bambuSyncing ? 1 : 0,
         totalPrints: this._getState(e.total_prints || this.config.total_prints),
         successRate: this._getState(e.success_rate || this.config.success_rate),
         avgDuration: this._getState(e.average_duration || this.config.average_duration),
@@ -3601,7 +3606,7 @@ class PrinterAnalyticsCard extends HTMLElement {
   _isDataEqual(data1, data2) {
     if (!data1 || !data2) return false;
 
-    const keys = ['_selectedPrinter', '_activeTab', '_cameraViewPrinter', 'totalPrints', 'successRate', 'avgDuration', 'totalDuration', 'totalEnergy',
+    const keys = ['_selectedPrinter', '_activeTab', '_cameraViewPrinter', 'bambuLoggedIn', 'bambuSyncing', 'totalPrints', 'successRate', 'avgDuration', 'totalDuration', 'totalEnergy',
                   'printStatus', 'currentTask', 'printProgress', 'currentWeight', 'historyLength'];
 
     for (const key of keys) {
