@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 打印机分析卡片 - v5.18.0
  * 版本: 5.17.0 (2026-05-31) - 统计分析改用后端数据、极端值后端计算
  *
@@ -56,7 +56,7 @@ class PrinterAnalyticsCard extends HTMLElement {
     this._bambuSyncing = false;
     this._bambuLoginModal = null;
     this._bambuStatusChecked = false;
-    this._monitorLayout = 0; // 0=原始, 1=紧凑V1, 2=紧凑V2, 3=紧凑V3
+    this._monitorLayout = 2; // V2 紧凑布局
   }
 
   setConfig(config) {
@@ -346,6 +346,25 @@ class PrinterAnalyticsCard extends HTMLElement {
   /**
    * 停止 image 类型摄像头的自动刷新
    */
+  // 初始化摄像头流（ha-camera-stream 组件 + image 自动刷新）
+  _initCameraStream() {
+    const cameraStreamEl = this.shadowRoot.querySelector('ha-camera-stream');
+    if (cameraStreamEl) {
+      const hass = this._hass || this.hass;
+      const printers = this._getPrintersConfig();
+      const currentPrinter = printers.find(p => p.printer_name === this._cameraViewPrinter);
+      if (currentPrinter && hass) {
+        const cameraEntity = this._discoverCameraEntity(currentPrinter.entities);
+        if (cameraEntity) {
+          cameraStreamEl.hass = hass;
+          cameraStreamEl.stateObj = hass.states[cameraEntity];
+          cameraStreamEl.entityId = cameraEntity;
+        }
+      }
+    }
+    this._startImageRefresh();
+  }
+
   _stopImageRefresh() {
     if (this._imageRefreshTimer) {
       clearInterval(this._imageRefreshTimer);
@@ -851,6 +870,53 @@ class PrinterAnalyticsCard extends HTMLElement {
           border-radius: 50%;
           flex-shrink: 0;
         }
+        /* 摄像头按钮：文字按钮 + 激活态 */
+        .camera-btn {
+          font-size: 10px !important;
+          padding: 2px 8px !important;
+          gap: 3px;
+          transition: all 0.2s ease;
+        }
+        .camera-btn:hover {
+          border-color: var(--primary) !important;
+          color: var(--primary-light);
+          background: rgba(99, 102, 241, 0.08);
+        }
+        .camera-btn.active {
+          background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+          color: #fff;
+          border-color: transparent;
+          box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+        }
+
+        /* 摄像头视图过渡动画 */
+        .camera-view-wrapper {
+          max-height: 0;
+          opacity: 0;
+          overflow: hidden;
+          transition: max-height 0.4s cubic-bezier(.4,0,.2,1), opacity 0.3s ease;
+        }
+        .camera-view-wrapper.open {
+          max-height: 400px;
+          opacity: 1;
+        }
+        .camera-view-wrapper .camera-view {
+          border-radius: 8px;
+          overflow: hidden;
+          position: relative;
+          background: #000;
+        }
+        /* 信息行过渡动画 */
+        .info-row-wrapper {
+          max-height: 60px;
+          opacity: 1;
+          overflow: hidden;
+          transition: max-height 0.3s cubic-bezier(.4,0,.2,1), opacity 0.2s ease;
+        }
+        .info-row-wrapper.hidden {
+          max-height: 0;
+          opacity: 0;
+        }
 
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(8px); }
@@ -1282,6 +1348,23 @@ class PrinterAnalyticsCard extends HTMLElement {
         @keyframes pulse {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.7; }
+        }
+
+        @keyframes marquee {
+          0%, 8% { transform: translateX(0); }
+          92%, 100% { transform: translateX(-50%); }
+        }
+
+        .task-name-marquee {
+          overflow: hidden;
+          position: relative;
+          -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+          mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+        }
+        .task-name-marquee span {
+          display: inline-block;
+          white-space: nowrap;
+          animation: marquee 10s linear infinite;
         }
 
         .realtime-grid {
@@ -2689,54 +2772,70 @@ class PrinterAnalyticsCard extends HTMLElement {
       btn.addEventListener('click', (e) => {
         const target = e.target.closest('.monitor-switch-btn');
         if (!target) return;
+        // 摄像头按钮单独处理，不走打印机切换逻辑
+        if (target.classList.contains('camera-btn')) return;
         this._selectedPrinter = target.dataset.printer;
         this._cameraViewPrinter = null;  // 切换打印机时关闭摄像头视图
         this.updateData();
       });
     });
 
-    // 摄像头按钮事件：打开摄像头视图
+    // 摄像头按钮事件：切换摄像头视图（带过渡动画）
     const cameraBtns = this.shadowRoot.querySelectorAll('.camera-btn');
     cameraBtns.forEach(btn => {
       btn.addEventListener('click', (e) => {
         const target = e.target.closest('.camera-btn');
         if (!target) return;
         const printerName = target.dataset.printer;
-        this._cameraViewPrinter = printerName;
+        const isClosing = this._cameraViewPrinter === printerName;
+
+        if (isClosing) {
+          this._cameraViewPrinter = null;
+        } else {
+          this._cameraViewPrinter = printerName;
+        }
         this._stopImageRefresh();
-        this.updateData();
+
+        // 直接操作 CSS 类实现过渡动画，不重建 DOM
+        const cameraWrapper = this.shadowRoot.querySelector('.camera-view-wrapper');
+        const infoWrapper = this.shadowRoot.querySelector('.info-row-wrapper');
+        const cameraBtnEl = this.shadowRoot.querySelector('.camera-btn');
+
+        if (isClosing) {
+          // 关闭：摄像头收起，信息行展开
+          cameraWrapper?.classList.remove('open');
+          infoWrapper?.classList.remove('hidden');
+          cameraBtnEl?.classList.remove('active');
+        } else {
+          // 打开：摄像头展开，信息行收起
+          cameraWrapper?.classList.add('open');
+          infoWrapper?.classList.add('hidden');
+          cameraBtnEl?.classList.add('active');
+          // 初始化摄像头流
+          this._initCameraStream();
+        }
       });
     });
 
-    // 摄像头关闭按钮事件
+    // 摄像头关闭按钮事件（带过渡动画）
     const cameraCloseBtns = this.shadowRoot.querySelectorAll('.camera-close-btn');
     cameraCloseBtns.forEach(btn => {
       btn.addEventListener('click', () => {
         this._cameraViewPrinter = null;
         this._stopImageRefresh();
-        this.updateData();
+        // 直接操作 CSS 类，不重建 DOM
+        const cameraWrapper = this.shadowRoot.querySelector('.camera-view-wrapper');
+        const infoWrapper = this.shadowRoot.querySelector('.info-row-wrapper');
+        const cameraBtnEl = this.shadowRoot.querySelector('.camera-btn');
+        cameraWrapper?.classList.remove('open');
+        infoWrapper?.classList.remove('hidden');
+        cameraBtnEl?.classList.remove('active');
       });
     });
 
     // 摄像头视图渲染后：初始化 ha-camera-stream 组件和 image 自动刷新
     if (this._cameraViewPrinter) {
-      const cameraStreamEl = this.shadowRoot.querySelector('ha-camera-stream');
-      if (cameraStreamEl) {
-        // 动态设置 ha-camera-stream 的必要属性
-        const hass = this._hass || this.hass;
-        const printers = this._getPrintersConfig();
-        const currentPrinter = printers.find(p => p.printer_name === this._cameraViewPrinter);
-        if (currentPrinter && hass) {
-          const cameraEntity = this._discoverCameraEntity(currentPrinter.entities);
-          if (cameraEntity) {
-            cameraStreamEl.hass = hass;
-            cameraStreamEl.stateObj = hass.states[cameraEntity];
-            cameraStreamEl.entityId = cameraEntity;
-          }
-        }
-      }
-      // image 类型：启动自动刷新
-      this._startImageRefresh();
+      this._initCameraStream();
     }
 
     this._bindHistoryEvents();
@@ -4481,7 +4580,7 @@ class PrinterAnalyticsCard extends HTMLElement {
       const materialTag = record.filament_type
         ? `<span style="color:var(--primary);font-weight:500;">${this._escapeHtml(record.filament_type)}</span>` : '';
       const extraContent = extraFn ? extraFn(record) : '';
-      const recordId = record.id || '';
+      const recordId = record.id || `${record.end_time || ''}_${record._printer_serial || record.printer_serial || ''}_${record.task_name || ''}`;
       const colorsUsed = record.colors_used || [];
       const topColorBar = colorsUsed.length > 0 ? `<div class="record-color-bar">${colorsUsed.map(color => `<div class="record-color-bar-segment" style="background:${this._sanitizeColor(color)}"></div>`).join('')}</div>` : '';
       return `<div class="stat-card stat-card-clickable" data-record-id="${this._escapeHtml(recordId)}" style="padding:14px;text-align:left;cursor:pointer;position:relative;overflow:hidden;">
@@ -4596,7 +4695,8 @@ class PrinterAnalyticsCard extends HTMLElement {
       const taskNameColor = isFailed ? 'color:var(--danger);font-weight:600;' : '';
       // 顶部颜色条
       const recentColorBar = colorsUsed.length > 0 ? `<div class="record-color-bar">${colorsUsed.map(color => `<div class="record-color-bar-segment" style="background:${this._sanitizeColor(color)}"></div>`).join('')}</div>` : '';
-      html += `<div class="recent-print-item" data-record-id="${this._escapeHtml(item.id || '')}" style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surface-card);border-radius:8px;border:1px solid var(--border);flex-wrap:wrap;cursor:pointer;transition:background 0.15s;position:relative;overflow:hidden;">
+      const itemId = item.id || `${item.end_time || ''}_${item._printer_serial || item.printer_serial || ''}_${item.task_name || ''}`;
+      html += `<div class="recent-print-item" data-record-id="${this._escapeHtml(itemId)}" style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surface-card);border-radius:8px;border:1px solid var(--border);flex-wrap:wrap;cursor:pointer;transition:background 0.15s;position:relative;overflow:hidden;">
         ${recentColorBar}
         <div style="flex:1;min-width:100px;font-size:12px;${taskNameColor}">${taskNameHtml}</div>
         ${dur ? `<span style="font-size:11px;color:var(--text-secondary);white-space:nowrap;">⏱${dur}</span>` : ''}
@@ -5118,119 +5218,9 @@ class PrinterAnalyticsCard extends HTMLElement {
         cameraImgSrc,
       };
 
-      // 布局切换按钮（调试用，后续删除）
-      const layoutSwitchHtml = `<div style="display:flex;gap:4px;margin-bottom:6px;">
-        <button onclick="this.getRootNode().host._monitorLayout=0;this.getRootNode().host._lastRenderedData=null;this.getRootNode().host.updateData();" style="font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid var(--border-color);background:${this._monitorLayout===0?'var(--primary)':'var(--surface-card)'};color:${this._monitorLayout===0?'#fff':'var(--text-primary)'};cursor:pointer;">原始</button>
-        <button onclick="this.getRootNode().host._monitorLayout=1;this.getRootNode().host._lastRenderedData=null;this.getRootNode().host.updateData();" style="font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid var(--border-color);background:${this._monitorLayout===1?'var(--primary)':'var(--surface-card)'};color:${this._monitorLayout===1?'#fff':'var(--text-primary)'};cursor:pointer;">V1</button>
-        <button onclick="this.getRootNode().host._monitorLayout=2;this.getRootNode().host._lastRenderedData=null;this.getRootNode().host.updateData();" style="font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid var(--border-color);background:${this._monitorLayout===2?'var(--primary)':'var(--surface-card)'};color:${this._monitorLayout===2?'#fff':'var(--text-primary)'};cursor:pointer;">V2</button>
-        <button onclick="this.getRootNode().host._monitorLayout=3;this.getRootNode().host._lastRenderedData=null;this.getRootNode().host.updateData();" style="font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid var(--border-color);background:${this._monitorLayout===3?'var(--primary)':'var(--surface-card)'};color:${this._monitorLayout===3?'#fff':'var(--text-primary)'};cursor:pointer;">V3</button>
-      </div>`;
-
-      html += layoutSwitchHtml;
-
-      if (this._monitorLayout === 1) {
-        html += this._renderMonitorV1(layoutData);
-      } else if (this._monitorLayout === 2) {
-        html += this._renderMonitorV2(layoutData);
-      } else if (this._monitorLayout === 3) {
-        html += this._renderMonitorV3(layoutData);
-      } else {
-        html += this._renderMonitorOriginal(layoutData);
-      }
+      html += this._renderMonitorV2(layoutData);
     }
     return html;
-  }
-
-  // ====== 监控面板布局：原始版 ======
-  _renderMonitorOriginal(d) {
-    return `<div class="realtime-panel" style="margin-bottom:12px;">
-      <div class="realtime-header">
-        <div class="realtime-title">🖥️ ${this._escapeHtml(d.printerName)}</div>
-        <div style="display:flex;align-items:center;gap:6px;">
-          ${d.printers.length > 1 ? d.printers.map(p => {
-            const isActive = p.printer_name === d.printerName;
-            const pProgress = this._getState(p.entities.print_progress) || '0';
-            const pPrinting = parseFloat(pProgress) > 0 && parseFloat(pProgress) < 100;
-            return `<button class="monitor-switch-btn ${isActive ? 'active' : ''}" data-printer="${this._escapeHtml(p.printer_name)}" title="${this._escapeHtml(p.printer_name)}">
-              <span class="monitor-switch-dot" style="background:${pPrinting ? 'var(--success)' : 'var(--text-muted)'}"></span>
-              ${this._escapeHtml(p.printer_name)}
-            </button>`;
-          }).join('') : ''}
-          ${d.cameraEntity ? `<button class="camera-btn" data-action="toggle-camera" data-printer="${this._escapeHtml(d.printerName)}" title="摄像头" style="background:var(--card-bg);border:1px solid var(--border-color);color:var(--text-primary);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:13px;">📷</button>` : ''}
-          <div class="status-badge ${d.statusClass}">${d.statusText}</div>
-        </div>
-      </div>
-      ${d.isCameraView ? this._renderCameraView(d) : `<div class="realtime-grid">
-        <div class="realtime-item">
-          <div class="realtime-label">📋 当前任务</div>
-          <div class="realtime-value">${d.taskNameHtml}</div>
-        </div>
-        <div class="realtime-item">
-          <div class="realtime-label">📊 打印进度</div>
-          <div class="realtime-value" style="display:flex;justify-content:space-between;align-items:center;">
-            <span>${d.printProgress}%</span>
-            ${d.endDisplay ? `<span style="font-size:11px;color:var(--primary-light);font-weight:600;">⏰ ${d.endDisplay}</span>` : ''}
-          </div>
-          <div class="progress-track" style="margin-top:4px;">
-            <div class="progress-fill" style="width:${d.printProgress}%"></div>
-          </div>
-        </div>
-        ${d.currentWeight && d.currentWeight !== 'N/A' ? `<div class="realtime-item">
-          <div class="realtime-label">⚖️ 当前耗材</div>
-          <div class="realtime-value">${d.currentWeight}<small style="font-size:11px;color:var(--text-muted);">g</small>${d.filamentType ? `<div style="font-size:11px;font-weight:600;color:${d.filamentColor || 'var(--primary-light)'};">${this._escapeHtml(d.filamentType)}</div>` : ''}</div>
-        </div>` : ''}
-        ${d.chamberTemp && d.chamberTemp !== 'N/A' ? `<div class="realtime-item">
-          <div class="realtime-label">💨 腔体</div>
-          <div class="realtime-value">${d.chamberTemp}<small style="font-size:11px;color:var(--text-muted);font-weight:500;">°C</small></div>
-        </div>` : ''}
-        ${d.speedProfile && d.speedProfile !== 'N/A' ? `<div class="realtime-item">
-          <div class="realtime-label">⚡ 速度</div>
-          <div class="realtime-value">${this._escapeHtml(d.speedProfile)}</div>
-        </div>` : ''}
-      </div>
-      ${d.amsHtml}`}
-    </div>`;
-  }
-
-  // ====== 监控面板布局：V1 横向信息条 ======
-  // 一行显示所有核心信息，进度条内嵌，AMS 色块横排
-  _renderMonitorV1(d) {
-    const esc = this._escapeHtml.bind(this);
-    return `<div class="realtime-panel" style="margin-bottom:12px;padding:12px 16px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;">
-        <div style="display:flex;align-items:center;gap:6px;">
-          ${d.printers.length > 1 ? d.printers.map(p => {
-            const isActive = p.printer_name === d.printerName;
-            const pProgress = this._getState(p.entities.print_progress) || '0';
-            const pPrinting = parseFloat(pProgress) > 0 && parseFloat(pProgress) < 100;
-            return `<button class="monitor-switch-btn ${isActive ? 'active' : ''}" data-printer="${esc(p.printer_name)}" style="font-size:11px;padding:2px 8px;">
-              <span class="monitor-switch-dot" style="background:${pPrinting ? 'var(--success)' : 'var(--text-muted)'}"></span>${esc(p.printer_name)}</button>`;
-          }).join('') : `<span style="font-size:13px;font-weight:700;">🖥️ ${esc(d.printerName)}</span>`}
-        </div>
-        <div style="display:flex;align-items:center;gap:6px;">
-          ${d.cameraEntity ? `<button class="camera-btn" data-action="toggle-camera" data-printer="${esc(d.printerName)}" style="background:var(--card-bg);border:1px solid var(--border-color);color:var(--text-primary);border-radius:4px;padding:2px 6px;cursor:pointer;font-size:11px;">📷</button>` : ''}
-          <div class="status-badge ${d.statusClass}" style="padding:2px 10px;font-size:11px;">${d.statusText}</div>
-        </div>
-      </div>
-      ${d.isCameraView ? this._renderCameraView(d) : `
-      <!-- 进度条 + 任务名 -->
-      <div style="margin-bottom:6px;">
-        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px;">
-          <span style="font-size:12px;font-weight:600;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60%;">${d.taskNameHtml}</span>
-          <span style="font-size:12px;color:var(--text-primary);font-weight:700;">${d.printProgress}%${d.endDisplay ? ` <span style="font-size:10px;color:var(--primary-light);font-weight:600;">⏰${d.endDisplay}</span>` : ''}</span>
-        </div>
-        <div class="progress-track" style="height:6px;">
-          <div class="progress-fill" style="width:${d.printProgress}%"></div>
-        </div>
-      </div>
-      <!-- 横向信息条 -->
-      <div style="display:flex;align-items:center;gap:12px;font-size:11px;color:var(--text-secondary);flex-wrap:wrap;">
-        ${d.currentWeight && d.currentWeight !== 'N/A' ? `<span>⚖️ ${d.currentWeight}g${d.filamentType ? ` <span style="color:${d.filamentColor || 'var(--primary-light)'};font-weight:600;">${esc(d.filamentType)}</span>` : ''}</span>` : ''}
-        ${d.chamberTemp && d.chamberTemp !== 'N/A' ? `<span>💨 ${d.chamberTemp}°C</span>` : ''}
-        ${d.speedProfile && d.speedProfile !== 'N/A' ? `<span>⚡ ${esc(d.speedProfile)}</span>` : ''}
-      </div>
-      ${d.amsHtml}`}
-    </div>`;
   }
 
   // ====== 监控面板布局：V2 双行紧凑 ========
@@ -5251,7 +5241,10 @@ class PrinterAnalyticsCard extends HTMLElement {
           }).join('') : `<span style="font-size:12px;font-weight:700;">🖥️ ${esc(d.printerName)}</span>`}
         </div>
         <div class="status-badge ${d.statusClass}" style="padding:1px 8px;font-size:10px;flex-shrink:0;">${d.statusText}</div>
-        ${d.cameraEntity ? `<button class="camera-btn" data-action="toggle-camera" data-printer="${esc(d.printerName)}" style="background:var(--card-bg);border:1px solid var(--border-color);color:var(--text-primary);border-radius:4px;padding:1px 5px;cursor:pointer;font-size:10px;flex-shrink:0;">📷</button>` : ''}
+        ${d.cameraEntity ? (() => {
+          const isCamActive = this._cameraViewPrinter === d.printerName;
+          return `<button class="camera-btn monitor-switch-btn ${isCamActive ? 'active' : ''}" data-action="toggle-camera" data-printer="${esc(d.printerName)}" style="cursor:pointer;flex-shrink:0;">📷 摄像头</button>`;
+        })() : ''}
         <!-- 进度条 -->
         <div style="flex:1;display:flex;align-items:center;gap:6px;">
           <div class="progress-track" style="flex:1;height:8px;">
@@ -5261,53 +5254,20 @@ class PrinterAnalyticsCard extends HTMLElement {
           ${d.endDisplay ? `<span style="font-size:10px;color:var(--primary-light);font-weight:600;flex-shrink:0;">⏰${d.endDisplay}</span>` : ''}
         </div>
       </div>
-      ${d.isCameraView ? this._renderCameraView(d) : `
-      <!-- 第二行：任务名+数值+AMS -->
-      <div style="display:flex;align-items:center;gap:10px;font-size:11px;flex-wrap:wrap;">
-        <span style="font-weight:600;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:40%;">${d.taskNameHtml}</span>
-        ${d.currentWeight && d.currentWeight !== 'N/A' ? `<span style="color:var(--text-secondary);">⚖️${d.currentWeight}g${d.filamentType ? ` <span style="color:${d.filamentColor || 'var(--primary-light)'};font-weight:600;">${esc(d.filamentType)}</span>` : ''}</span>` : ''}
-        ${d.chamberTemp && d.chamberTemp !== 'N/A' ? `<span style="color:var(--text-secondary);">💨${d.chamberTemp}°C</span>` : ''}
-        ${d.speedProfile && d.speedProfile !== 'N/A' ? `<span style="color:var(--text-secondary);">⚡${esc(d.speedProfile)}</span>` : ''}
-        ${d.amsHtml ? `<span style="display:inline-flex;align-items:center;gap:3px;">${d.isExternalSpool ? '🧵' : '🎨'}${this._extractAmsColorDots(d)}</span>` : ''}
-      </div>`}
-    </div>`;
-  }
-
-  // ====== 监控面板布局：V3 极简信息条 ========
-  // 一行搞定：状态点+打印机名+进度条+数值+AMS色点
-  _renderMonitorV3(d) {
-    const esc = this._escapeHtml.bind(this);
-    const statusDot = d.statusClass === 'printing' ? 'var(--success)' : d.statusClass === 'finish' ? '#4ade80' : 'var(--text-muted)';
-    const pulseStyle = d.statusClass === 'printing' ? 'animation:pulse 2s infinite;' : '';
-    return `<div style="background:linear-gradient(135deg,rgba(30,41,59,0.9),rgba(15,23,42,0.95));border-radius:8px;padding:8px 12px;margin-bottom:12px;">
-      <div style="display:flex;align-items:center;gap:8px;">
-        <!-- 状态点+打印机名 -->
-        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${statusDot};flex-shrink:0;${pulseStyle}"></span>
-        ${d.printers.length > 1 ? d.printers.map(p => {
-          const isActive = p.printer_name === d.printerName;
-          return `<button class="monitor-switch-btn ${isActive ? 'active' : ''}" data-printer="${esc(p.printer_name)}" style="font-size:10px;padding:1px 5px;">${esc(p.printer_name)}</button>`;
-        }).join('') : `<span style="font-size:11px;font-weight:700;color:var(--text-primary);">${esc(d.printerName)}</span>`}
-        ${d.cameraEntity ? `<button class="camera-btn" data-action="toggle-camera" data-printer="${esc(d.printerName)}" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:10px;padding:0;">📷</button>` : ''}
-        <!-- 进度条 -->
-        <div style="flex:1;display:flex;align-items:center;gap:4px;">
-          <div class="progress-track" style="flex:1;height:5px;">
-            <div class="progress-fill" style="width:${d.printProgress}%"></div>
-          </div>
-          <span style="font-size:11px;font-weight:700;color:var(--text-primary);min-width:32px;text-align:right;">${d.printProgress}%</span>
-        </div>
-        <!-- 关键数值 -->
-        <div style="display:flex;align-items:center;gap:8px;font-size:10px;color:var(--text-secondary);flex-shrink:0;">
-          ${d.endDisplay ? `<span style="color:var(--primary-light);font-weight:600;">⏰${d.endDisplay}</span>` : ''}
-          ${d.currentWeight && d.currentWeight !== 'N/A' ? `<span>⚖️${d.currentWeight}g</span>` : ''}
-          ${d.filamentType ? `<span style="color:${d.filamentColor || 'var(--primary-light)'};font-weight:600;">${esc(d.filamentType)}</span>` : ''}
-          ${d.chamberTemp && d.chamberTemp !== 'N/A' ? `<span>💨${d.chamberTemp}°</span>` : ''}
-          ${d.speedProfile && d.speedProfile !== 'N/A' ? `<span>⚡${esc(d.speedProfile)}</span>` : ''}
-          ${d.amsHtml ? `<span style="display:inline-flex;align-items:center;gap:2px;">🎨${this._extractAmsColorDots(d)}</span>` : ''}
+      <!-- 摄像头视图（过渡动画） -->
+      <div class="camera-view-wrapper ${d.isCameraView ? 'open' : ''}">
+        ${d.cameraEntity ? this._renderCameraView(d) : ''}
+      </div>
+      <!-- 第二行：任务名+数值+AMS（过渡动画） -->
+      <div class="info-row-wrapper ${d.isCameraView ? 'hidden' : ''}">
+        <div style="display:flex;align-items:center;gap:10px;font-size:11px;flex-wrap:wrap;">
+          ${window.innerWidth < 600 ? `<span class="task-name-marquee" style="font-weight:600;color:var(--text-primary);max-width:40%;"><span>${d.taskNameHtml}　　${d.taskNameHtml}　　</span></span>` : `<span style="font-weight:600;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:40%;">${d.taskNameHtml}</span>`}
+          ${d.currentWeight && d.currentWeight !== 'N/A' ? `<span style="color:var(--text-secondary);">⚖️${d.currentWeight}g${d.filamentType ? ` <span style="color:${d.filamentColor || 'var(--primary-light)'};font-weight:600;">${esc(d.filamentType)}</span>` : ''}</span>` : ''}
+          ${d.chamberTemp && d.chamberTemp !== 'N/A' ? `<span style="color:var(--text-secondary);">💨${d.chamberTemp}°C</span>` : ''}
+          ${d.speedProfile && d.speedProfile !== 'N/A' ? `<span style="color:var(--text-secondary);">⚡${esc(d.speedProfile)}</span>` : ''}
+          ${d.amsHtml ? `<span style="display:inline-flex;align-items:center;gap:3px;">${d.isExternalSpool ? '🧵' : '🎨'}${this._extractAmsColorDots(d)}</span>` : ''}
         </div>
       </div>
-      ${d.isCameraView ? this._renderCameraView(d) : ''}
-      <!-- 任务名第二行（仅在打印中或已完成时显示） -->
-      ${!d.isCameraView && d.taskNameHtml && d.statusClass !== 'idle' ? `<div style="font-size:10px;color:var(--text-secondary);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${d.taskNameHtml}</div>` : ''}
     </div>`;
   }
 
@@ -5354,7 +5314,7 @@ class PrinterAnalyticsCard extends HTMLElement {
 
   // 摄像头视图（共享）
   _renderCameraView(d) {
-    return `<div class="camera-view" style="border-radius:8px;overflow:hidden;position:relative;background:#000;">
+    return `<div class="camera-view">
       ${d.cameraEntity.startsWith('camera.') ? `<ha-camera-stream data-camera-entity="${d.cameraEntity}" style="width:100%;display:block;"></ha-camera-stream>` : `<img class="camera-live-img" src="${d.cameraImgSrc}" style="width:100%;display:block;object-fit:contain;" alt="实时画面" /><div style="position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,0.6);color:#fff;font-size:11px;padding:2px 8px;border-radius:4px;">🔄 自动刷新</div>`}
       <button class="camera-close-btn" data-action="close-camera" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:14px;z-index:10;">✕</button>
     </div>`;
@@ -5745,7 +5705,7 @@ class PrinterAnalyticsCard extends HTMLElement {
     const weight = item.total_weight ? `${item.total_weight.toFixed(1)}g` : '-';
     const energy = item.energy_kwh ? `${item.energy_kwh.toFixed(2)}kWh` : '';
     const colorsUsed = item.colors_used || [];
-    const recordId = item.id || `record_${index}`;
+    const recordId = item.id || `${item.end_time || ''}_${item._printer_serial || item.printer_serial || ''}_${item.task_name || ''}`;
     const showCheckbox = options.showCheckbox || false;
     const showPrinterTag = options.showPrinterTag || false;
     const printerName = item._printer_name || '';
@@ -5804,6 +5764,11 @@ class PrinterAnalyticsCard extends HTMLElement {
         r._printer_name = p.printer_name;
         r._printer_entity = p.entities.print_history;
         r._printer_serial = serial || r.printer_serial || '';
+        // 生成唯一 ID：end_time + printer_serial + task_name 哈希
+        if (!r.id) {
+          const key = `${r.end_time || ''}_${r._printer_serial || ''}_${r.task_name || ''}`;
+          r.id = key;
+        }
       });
       allRecords.push(...records);
     }

@@ -1,4 +1,24 @@
-﻿# 打印分析卡片 - 修改记录
+﻿﻿# 打印分析卡片 - 修改记录
+
+## v5.20.0 (2026-06-04)
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 功能 | V2 紧凑布局设为默认监控面板，移除 V1/V3/原始版代码和切换按钮 | pa-v5.11.js |
+| 功能 | 多 AMS 支持：从 AMS1（4托盘）扩展到 AMS1~4（16托盘），多 AMS 时显示编号分隔 | pa-v5.11.js |
+| 功能 | 摄像头按钮改为文字按钮「📷 摄像头」，打开时按钮亮起（渐变蓝紫色 active 状态） | pa-v5.11.js |
+| 功能 | 摄像头视图打开/关闭过渡动画（max-height + opacity 平滑切换，0.4秒展开/收起） | pa-v5.11.js |
+| 功能 | 任务名手机端跑马灯：CSS 动画 + 两端渐隐遮罩 + 起止暂停缓冲 | pa-v5.11.js |
+| 功能 | 摄像头按钮 toggle 行为：再次点击同一打印机可关闭摄像头视图 | pa-v5.11.js |
+| 修复 | 摄像头按钮点击事件与打印机切换按钮冲突：camera-btn 排除 monitor-switch-btn 事件处理 | pa-v5.11.js |
+| 修复 | 统计分析页打印记录点击无法弹出详情：统一 recordId 生成逻辑（end_time+printer_serial+task_name 组合键） | pa-v5.11.js |
+| 修复 | 统计分析页无限刷新循环：_checkBambuStatus 不再强制清缓存和调 updateData | pa-v5.11.js |
+| 修复 | Bambu Cloud API 返回非 JSON Content-Type：3处 resp.json() 改为 resp.json(content_type=None) | bambu_cloud.py |
+| 修复 | check_token 网络异常时不清除 Token，返回三态（valid/expired/unknown） | bambu_cloud.py |
+| 优化 | 摄像头按钮样式与打印机切换按钮一致（同等大小+背景） | pa-v5.11.js |
+| 优化 | 提取 _initCameraStream 方法，复用摄像头流初始化逻辑 | pa-v5.11.js |
+
+---
 
 ## v5.17.1 (2026-06-02)
 
