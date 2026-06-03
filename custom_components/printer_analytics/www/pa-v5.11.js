@@ -56,6 +56,7 @@ class PrinterAnalyticsCard extends HTMLElement {
     this._bambuSyncing = false;
     this._bambuLoginModal = null;
     this._bambuStatusChecked = false;
+    this._monitorLayout = 0; // 0=原始, 1=紧凑V1, 2=紧凑V2, 3=紧凑V3
   }
 
   setConfig(config) {
@@ -296,7 +297,10 @@ class PrinterAnalyticsCard extends HTMLElement {
     // 搜索匹配的实体
     const discovered = {};
     const targetSuffixes = ['end_time', 'remaining_time', 'start_time', 'active_tray', 'current_print',
-      'ams_1_tray_1', 'ams_1_tray_2', 'ams_1_tray_3', 'ams_1_tray_4'];
+      'ams_1_tray_1', 'ams_1_tray_2', 'ams_1_tray_3', 'ams_1_tray_4',
+      'ams_2_tray_1', 'ams_2_tray_2', 'ams_2_tray_3', 'ams_2_tray_4',
+      'ams_3_tray_1', 'ams_3_tray_2', 'ams_3_tray_3', 'ams_3_tray_4',
+      'ams_4_tray_1', 'ams_4_tray_2', 'ams_4_tray_3', 'ams_4_tray_4'];
     const allEntityIds = Object.keys(hass.states);
 
     for (const suffix of targetSuffixes) {
@@ -5010,12 +5014,20 @@ class PrinterAnalyticsCard extends HTMLElement {
           </div>
         </div>`;
       } else {
-        // AMS 模式
-        const trayKeys = ['ams_1_tray_1', 'ams_1_tray_2', 'ams_1_tray_3', 'ams_1_tray_4'];
-        const trays = trayKeys.map((k, i) => ({ num: i + 1, entity: e[k] || discoveredEntities[k] })).filter(t => t.entity);
-        if (trays.length > 0) {
+        // AMS 模式 — 支持多 AMS（1~4）
+        const amsUnits = [1, 2, 3, 4];
+        const allAmsTrays = []; // { ams, num, entity }
+        for (const ams of amsUnits) {
+          for (const tray of [1, 2, 3, 4]) {
+            const key = `ams_${ams}_tray_${tray}`;
+            const entity = e[key] || discoveredEntities[key];
+            if (entity) allAmsTrays.push({ ams, num: tray, entity });
+          }
+        }
+        if (allAmsTrays.length > 0) {
+          // 查找活跃托盘
           if (activeTray) {
-            for (const tray of trays) {
+            for (const tray of allAmsTrays) {
               const trayData = this._getAttr(tray.entity);
               const trayName = trayData.name || '';
               const matchByIndex = activeTray.includes(`tray_${tray.num}`);
@@ -5033,23 +5045,37 @@ class PrinterAnalyticsCard extends HTMLElement {
           if (!activeTrayColor && filamentColor) {
             activeTrayColor = filamentColor;
           }
+          // 按 AMS 分组渲染
+          const hasMultipleAms = new Set(allAmsTrays.map(t => t.ams)).size > 1;
           amsHtml = `<div style="margin-top:8px;">
             <div style="font-size:11px;font-weight:700;color:var(--text-primary);margin-bottom:6px;display:flex;align-items:center;gap:5px;">
               <span>🎨</span> AMS${activeTrayName ? `<span style="font-size:10px;color:var(--primary-light);margin-left:6px;">→ ${this._escapeHtml(activeTrayName)}</span>` : ''}${activeTrayColor ? `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${activeTrayColor};border:1px solid rgba(255,255,255,0.3);vertical-align:middle;margin-left:3px;"></span>` : ''}
-            </div>
-            <div class="ams-grid">`;
-          trays.forEach(tray => {
-            const trayData = this._getAttr(tray.entity);
-            const trayName = trayData.name || `托盘${tray.num}`;
-            const trayColor = trayData.color || '#cccccc';
-            const isActive = activeTray && (activeTray.includes(`tray_${tray.num}`) || (trayName && (activeTray === trayName || activeTray.includes(trayName))));
-            amsHtml += `<div class="ams-tray ${isActive ? 'active' : ''}">
-              <div class="ams-tray-number">托盘 ${tray.num}</div>
-              <div class="ams-tray-color" style="background:${trayColor}"></div>
-              <div class="ams-tray-name">${this._escapeHtml(trayName)}</div>
             </div>`;
-          });
-          amsHtml += '</div></div>';
+          // 按 AMS 单元分组
+          const amsGroups = {};
+          for (const t of allAmsTrays) {
+            if (!amsGroups[t.ams]) amsGroups[t.ams] = [];
+            amsGroups[t.ams].push(t);
+          }
+          for (const [amsNum, trays] of Object.entries(amsGroups)) {
+            if (hasMultipleAms) {
+              amsHtml += `<div style="font-size:10px;color:var(--text-muted);margin:4px 0 2px;">AMS ${amsNum}</div>`;
+            }
+            amsHtml += `<div class="ams-grid">`;
+            trays.forEach(tray => {
+              const trayData = this._getAttr(tray.entity);
+              const trayName = trayData.name || `托盘${tray.num}`;
+              const trayColor = trayData.color || '#cccccc';
+              const isActive = activeTray && (activeTray.includes(`tray_${tray.num}`) || (trayName && (activeTray === trayName || activeTray.includes(trayName))));
+              amsHtml += `<div class="ams-tray ${isActive ? 'active' : ''}">
+                <div class="ams-tray-number">托盘 ${tray.num}</div>
+                <div class="ams-tray-color" style="background:${trayColor}"></div>
+                <div class="ams-tray-name">${this._escapeHtml(trayName)}</div>
+              </div>`;
+            });
+            amsHtml += '</div>';
+          }
+          amsHtml += '</div>';
         }
       }
 
@@ -5071,58 +5097,267 @@ class PrinterAnalyticsCard extends HTMLElement {
         }
       }
 
-      html += `<div class="realtime-panel" style="margin-bottom:12px;">
-        <div class="realtime-header">
-          <div class="realtime-title">🖥️ ${this._escapeHtml(printerToDisplay.printer_name)}</div>
-          <div style="display:flex;align-items:center;gap:6px;">
-            ${printers.length > 1 ? printers.map(p => {
-              const isActive = p.printer_name === printerToDisplay.printer_name;
-              const pProgress = this._getState(p.entities.print_progress) || '0';
-              const pPrinting = parseFloat(pProgress) > 0 && parseFloat(pProgress) < 100;
-              return `<button class="monitor-switch-btn ${isActive ? 'active' : ''}" data-printer="${this._escapeHtml(p.printer_name)}" title="${this._escapeHtml(p.printer_name)}">
-                <span class="monitor-switch-dot" style="background:${pPrinting ? 'var(--success)' : 'var(--text-muted)'}"></span>
-                ${this._escapeHtml(p.printer_name)}
-              </button>`;
-            }).join('') : ''}
-            ${cameraEntity ? `<button class="camera-btn" data-action="toggle-camera" data-printer="${this._escapeHtml(printerToDisplay.printer_name)}" title="摄像头" style="background:var(--card-bg);border:1px solid var(--border-color);color:var(--text-primary);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:13px;">📷</button>` : ''}
-            <div class="status-badge ${statusClass}">${statusText}</div>
-          </div>
-        </div>
-        ${isCameraView ? `<div class="camera-view" style="border-radius:8px;overflow:hidden;position:relative;background:#000;">
-          ${cameraEntity.startsWith('camera.') ? `<ha-camera-stream data-camera-entity="${cameraEntity}" style="width:100%;display:block;"></ha-camera-stream>` : `<img class="camera-live-img" src="${cameraImgSrc}" style="width:100%;display:block;object-fit:contain;" alt="实时画面" /><div style="position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,0.6);color:#fff;font-size:11px;padding:2px 8px;border-radius:4px;">🔄 自动刷新</div>`}
-          <button class="camera-close-btn" data-action="close-camera" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:14px;z-index:10;">✕</button>
-        </div>` : `<div class="realtime-grid">
-          <div class="realtime-item">
-            <div class="realtime-label">📋 当前任务</div>
-            <div class="realtime-value">${taskNameHtml}</div>
-          </div>
-          <div class="realtime-item">
-            <div class="realtime-label">📊 打印进度</div>
-            <div class="realtime-value" style="display:flex;justify-content:space-between;align-items:center;">
-              <span>${printProgress}%</span>
-              ${endDisplay ? `<span style="font-size:11px;color:var(--primary-light);font-weight:600;">⏰ ${endDisplay}</span>` : ''}
-            </div>
-            <div class="progress-track" style="margin-top:4px;">
-              <div class="progress-fill" style="width:${printProgress}%"></div>
-            </div>
-          </div>
-          ${currentWeight && currentWeight !== 'N/A' ? `<div class="realtime-item">
-            <div class="realtime-label">⚖️ 当前耗材</div>
-            <div class="realtime-value">${currentWeight}<small style="font-size:11px;color:var(--text-muted);">g</small>${filamentType ? `<div style="font-size:11px;font-weight:600;color:${filamentColor || 'var(--primary-light)'};">${this._escapeHtml(filamentType)}</div>` : ''}</div>
-          </div>` : ''}
-          ${chamberTemp && chamberTemp !== 'N/A' ? `<div class="realtime-item">
-            <div class="realtime-label">💨 腔体</div>
-            <div class="realtime-value">${chamberTemp}<small style="font-size:11px;color:var(--text-muted);font-weight:500;">°C</small></div>
-          </div>` : ''}
-          ${speedProfile && speedProfile !== 'N/A' ? `<div class="realtime-item">
-            <div class="realtime-label">⚡ 速度</div>
-            <div class="realtime-value">${this._escapeHtml(speedProfile)}</div>
-          </div>` : ''}
-        </div>
-        ${amsHtml}`}
+      // 根据布局版本选择渲染方式
+      const layoutData = {
+        printerName: printerToDisplay.printer_name,
+        printers,
+        statusClass,
+        statusText,
+        taskNameHtml,
+        printProgress,
+        endDisplay,
+        currentWeight,
+        filamentType,
+        filamentColor,
+        chamberTemp,
+        speedProfile,
+        amsHtml,
+        isExternalSpool,
+        cameraEntity,
+        isCameraView,
+        cameraImgSrc,
+      };
+
+      // 布局切换按钮（调试用，后续删除）
+      const layoutSwitchHtml = `<div style="display:flex;gap:4px;margin-bottom:6px;">
+        <button onclick="this.getRootNode().host._monitorLayout=0;this.getRootNode().host._lastRenderedData=null;this.getRootNode().host.updateData();" style="font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid var(--border-color);background:${this._monitorLayout===0?'var(--primary)':'var(--surface-card)'};color:${this._monitorLayout===0?'#fff':'var(--text-primary)'};cursor:pointer;">原始</button>
+        <button onclick="this.getRootNode().host._monitorLayout=1;this.getRootNode().host._lastRenderedData=null;this.getRootNode().host.updateData();" style="font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid var(--border-color);background:${this._monitorLayout===1?'var(--primary)':'var(--surface-card)'};color:${this._monitorLayout===1?'#fff':'var(--text-primary)'};cursor:pointer;">V1</button>
+        <button onclick="this.getRootNode().host._monitorLayout=2;this.getRootNode().host._lastRenderedData=null;this.getRootNode().host.updateData();" style="font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid var(--border-color);background:${this._monitorLayout===2?'var(--primary)':'var(--surface-card)'};color:${this._monitorLayout===2?'#fff':'var(--text-primary)'};cursor:pointer;">V2</button>
+        <button onclick="this.getRootNode().host._monitorLayout=3;this.getRootNode().host._lastRenderedData=null;this.getRootNode().host.updateData();" style="font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid var(--border-color);background:${this._monitorLayout===3?'var(--primary)':'var(--surface-card)'};color:${this._monitorLayout===3?'#fff':'var(--text-primary)'};cursor:pointer;">V3</button>
       </div>`;
+
+      html += layoutSwitchHtml;
+
+      if (this._monitorLayout === 1) {
+        html += this._renderMonitorV1(layoutData);
+      } else if (this._monitorLayout === 2) {
+        html += this._renderMonitorV2(layoutData);
+      } else if (this._monitorLayout === 3) {
+        html += this._renderMonitorV3(layoutData);
+      } else {
+        html += this._renderMonitorOriginal(layoutData);
+      }
     }
     return html;
+  }
+
+  // ====== 监控面板布局：原始版 ======
+  _renderMonitorOriginal(d) {
+    return `<div class="realtime-panel" style="margin-bottom:12px;">
+      <div class="realtime-header">
+        <div class="realtime-title">🖥️ ${this._escapeHtml(d.printerName)}</div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          ${d.printers.length > 1 ? d.printers.map(p => {
+            const isActive = p.printer_name === d.printerName;
+            const pProgress = this._getState(p.entities.print_progress) || '0';
+            const pPrinting = parseFloat(pProgress) > 0 && parseFloat(pProgress) < 100;
+            return `<button class="monitor-switch-btn ${isActive ? 'active' : ''}" data-printer="${this._escapeHtml(p.printer_name)}" title="${this._escapeHtml(p.printer_name)}">
+              <span class="monitor-switch-dot" style="background:${pPrinting ? 'var(--success)' : 'var(--text-muted)'}"></span>
+              ${this._escapeHtml(p.printer_name)}
+            </button>`;
+          }).join('') : ''}
+          ${d.cameraEntity ? `<button class="camera-btn" data-action="toggle-camera" data-printer="${this._escapeHtml(d.printerName)}" title="摄像头" style="background:var(--card-bg);border:1px solid var(--border-color);color:var(--text-primary);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:13px;">📷</button>` : ''}
+          <div class="status-badge ${d.statusClass}">${d.statusText}</div>
+        </div>
+      </div>
+      ${d.isCameraView ? this._renderCameraView(d) : `<div class="realtime-grid">
+        <div class="realtime-item">
+          <div class="realtime-label">📋 当前任务</div>
+          <div class="realtime-value">${d.taskNameHtml}</div>
+        </div>
+        <div class="realtime-item">
+          <div class="realtime-label">📊 打印进度</div>
+          <div class="realtime-value" style="display:flex;justify-content:space-between;align-items:center;">
+            <span>${d.printProgress}%</span>
+            ${d.endDisplay ? `<span style="font-size:11px;color:var(--primary-light);font-weight:600;">⏰ ${d.endDisplay}</span>` : ''}
+          </div>
+          <div class="progress-track" style="margin-top:4px;">
+            <div class="progress-fill" style="width:${d.printProgress}%"></div>
+          </div>
+        </div>
+        ${d.currentWeight && d.currentWeight !== 'N/A' ? `<div class="realtime-item">
+          <div class="realtime-label">⚖️ 当前耗材</div>
+          <div class="realtime-value">${d.currentWeight}<small style="font-size:11px;color:var(--text-muted);">g</small>${d.filamentType ? `<div style="font-size:11px;font-weight:600;color:${d.filamentColor || 'var(--primary-light)'};">${this._escapeHtml(d.filamentType)}</div>` : ''}</div>
+        </div>` : ''}
+        ${d.chamberTemp && d.chamberTemp !== 'N/A' ? `<div class="realtime-item">
+          <div class="realtime-label">💨 腔体</div>
+          <div class="realtime-value">${d.chamberTemp}<small style="font-size:11px;color:var(--text-muted);font-weight:500;">°C</small></div>
+        </div>` : ''}
+        ${d.speedProfile && d.speedProfile !== 'N/A' ? `<div class="realtime-item">
+          <div class="realtime-label">⚡ 速度</div>
+          <div class="realtime-value">${this._escapeHtml(d.speedProfile)}</div>
+        </div>` : ''}
+      </div>
+      ${d.amsHtml}`}
+    </div>`;
+  }
+
+  // ====== 监控面板布局：V1 横向信息条 ======
+  // 一行显示所有核心信息，进度条内嵌，AMS 色块横排
+  _renderMonitorV1(d) {
+    const esc = this._escapeHtml.bind(this);
+    return `<div class="realtime-panel" style="margin-bottom:12px;padding:12px 16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          ${d.printers.length > 1 ? d.printers.map(p => {
+            const isActive = p.printer_name === d.printerName;
+            const pProgress = this._getState(p.entities.print_progress) || '0';
+            const pPrinting = parseFloat(pProgress) > 0 && parseFloat(pProgress) < 100;
+            return `<button class="monitor-switch-btn ${isActive ? 'active' : ''}" data-printer="${esc(p.printer_name)}" style="font-size:11px;padding:2px 8px;">
+              <span class="monitor-switch-dot" style="background:${pPrinting ? 'var(--success)' : 'var(--text-muted)'}"></span>${esc(p.printer_name)}</button>`;
+          }).join('') : `<span style="font-size:13px;font-weight:700;">🖥️ ${esc(d.printerName)}</span>`}
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          ${d.cameraEntity ? `<button class="camera-btn" data-action="toggle-camera" data-printer="${esc(d.printerName)}" style="background:var(--card-bg);border:1px solid var(--border-color);color:var(--text-primary);border-radius:4px;padding:2px 6px;cursor:pointer;font-size:11px;">📷</button>` : ''}
+          <div class="status-badge ${d.statusClass}" style="padding:2px 10px;font-size:11px;">${d.statusText}</div>
+        </div>
+      </div>
+      ${d.isCameraView ? this._renderCameraView(d) : `
+      <!-- 进度条 + 任务名 -->
+      <div style="margin-bottom:6px;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px;">
+          <span style="font-size:12px;font-weight:600;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60%;">${d.taskNameHtml}</span>
+          <span style="font-size:12px;color:var(--text-primary);font-weight:700;">${d.printProgress}%${d.endDisplay ? ` <span style="font-size:10px;color:var(--primary-light);font-weight:600;">⏰${d.endDisplay}</span>` : ''}</span>
+        </div>
+        <div class="progress-track" style="height:6px;">
+          <div class="progress-fill" style="width:${d.printProgress}%"></div>
+        </div>
+      </div>
+      <!-- 横向信息条 -->
+      <div style="display:flex;align-items:center;gap:12px;font-size:11px;color:var(--text-secondary);flex-wrap:wrap;">
+        ${d.currentWeight && d.currentWeight !== 'N/A' ? `<span>⚖️ ${d.currentWeight}g${d.filamentType ? ` <span style="color:${d.filamentColor || 'var(--primary-light)'};font-weight:600;">${esc(d.filamentType)}</span>` : ''}</span>` : ''}
+        ${d.chamberTemp && d.chamberTemp !== 'N/A' ? `<span>💨 ${d.chamberTemp}°C</span>` : ''}
+        ${d.speedProfile && d.speedProfile !== 'N/A' ? `<span>⚡ ${esc(d.speedProfile)}</span>` : ''}
+      </div>
+      ${d.amsHtml}`}
+    </div>`;
+  }
+
+  // ====== 监控面板布局：V2 双行紧凑 ========
+  // 第一行：打印机名+状态+进度条+关键数值
+  // 第二行：任务名+AMS色块
+  _renderMonitorV2(d) {
+    const esc = this._escapeHtml.bind(this);
+    return `<div class="realtime-panel" style="margin-bottom:12px;padding:10px 14px;">
+      <!-- 第一行：打印机切换+状态+进度 -->
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
+          ${d.printers.length > 1 ? d.printers.map(p => {
+            const isActive = p.printer_name === d.printerName;
+            const pProgress = this._getState(p.entities.print_progress) || '0';
+            const pPrinting = parseFloat(pProgress) > 0 && parseFloat(pProgress) < 100;
+            return `<button class="monitor-switch-btn ${isActive ? 'active' : ''}" data-printer="${esc(p.printer_name)}" style="font-size:10px;padding:1px 6px;">
+              <span class="monitor-switch-dot" style="background:${pPrinting ? 'var(--success)' : 'var(--text-muted)'}"></span>${esc(p.printer_name)}</button>`;
+          }).join('') : `<span style="font-size:12px;font-weight:700;">🖥️ ${esc(d.printerName)}</span>`}
+        </div>
+        <div class="status-badge ${d.statusClass}" style="padding:1px 8px;font-size:10px;flex-shrink:0;">${d.statusText}</div>
+        ${d.cameraEntity ? `<button class="camera-btn" data-action="toggle-camera" data-printer="${esc(d.printerName)}" style="background:var(--card-bg);border:1px solid var(--border-color);color:var(--text-primary);border-radius:4px;padding:1px 5px;cursor:pointer;font-size:10px;flex-shrink:0;">📷</button>` : ''}
+        <!-- 进度条 -->
+        <div style="flex:1;display:flex;align-items:center;gap:6px;">
+          <div class="progress-track" style="flex:1;height:8px;">
+            <div class="progress-fill" style="width:${d.printProgress}%"></div>
+          </div>
+          <span style="font-size:13px;font-weight:800;color:var(--text-primary);flex-shrink:0;">${d.printProgress}%</span>
+          ${d.endDisplay ? `<span style="font-size:10px;color:var(--primary-light);font-weight:600;flex-shrink:0;">⏰${d.endDisplay}</span>` : ''}
+        </div>
+      </div>
+      ${d.isCameraView ? this._renderCameraView(d) : `
+      <!-- 第二行：任务名+数值+AMS -->
+      <div style="display:flex;align-items:center;gap:10px;font-size:11px;flex-wrap:wrap;">
+        <span style="font-weight:600;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:40%;">${d.taskNameHtml}</span>
+        ${d.currentWeight && d.currentWeight !== 'N/A' ? `<span style="color:var(--text-secondary);">⚖️${d.currentWeight}g${d.filamentType ? ` <span style="color:${d.filamentColor || 'var(--primary-light)'};font-weight:600;">${esc(d.filamentType)}</span>` : ''}</span>` : ''}
+        ${d.chamberTemp && d.chamberTemp !== 'N/A' ? `<span style="color:var(--text-secondary);">💨${d.chamberTemp}°C</span>` : ''}
+        ${d.speedProfile && d.speedProfile !== 'N/A' ? `<span style="color:var(--text-secondary);">⚡${esc(d.speedProfile)}</span>` : ''}
+        ${d.amsHtml ? `<span style="display:inline-flex;align-items:center;gap:3px;">${d.isExternalSpool ? '🧵' : '🎨'}${this._extractAmsColorDots(d)}</span>` : ''}
+      </div>`}
+    </div>`;
+  }
+
+  // ====== 监控面板布局：V3 极简信息条 ========
+  // 一行搞定：状态点+打印机名+进度条+数值+AMS色点
+  _renderMonitorV3(d) {
+    const esc = this._escapeHtml.bind(this);
+    const statusDot = d.statusClass === 'printing' ? 'var(--success)' : d.statusClass === 'finish' ? '#4ade80' : 'var(--text-muted)';
+    const pulseStyle = d.statusClass === 'printing' ? 'animation:pulse 2s infinite;' : '';
+    return `<div style="background:linear-gradient(135deg,rgba(30,41,59,0.9),rgba(15,23,42,0.95));border-radius:8px;padding:8px 12px;margin-bottom:12px;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <!-- 状态点+打印机名 -->
+        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${statusDot};flex-shrink:0;${pulseStyle}"></span>
+        ${d.printers.length > 1 ? d.printers.map(p => {
+          const isActive = p.printer_name === d.printerName;
+          return `<button class="monitor-switch-btn ${isActive ? 'active' : ''}" data-printer="${esc(p.printer_name)}" style="font-size:10px;padding:1px 5px;">${esc(p.printer_name)}</button>`;
+        }).join('') : `<span style="font-size:11px;font-weight:700;color:var(--text-primary);">${esc(d.printerName)}</span>`}
+        ${d.cameraEntity ? `<button class="camera-btn" data-action="toggle-camera" data-printer="${esc(d.printerName)}" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:10px;padding:0;">📷</button>` : ''}
+        <!-- 进度条 -->
+        <div style="flex:1;display:flex;align-items:center;gap:4px;">
+          <div class="progress-track" style="flex:1;height:5px;">
+            <div class="progress-fill" style="width:${d.printProgress}%"></div>
+          </div>
+          <span style="font-size:11px;font-weight:700;color:var(--text-primary);min-width:32px;text-align:right;">${d.printProgress}%</span>
+        </div>
+        <!-- 关键数值 -->
+        <div style="display:flex;align-items:center;gap:8px;font-size:10px;color:var(--text-secondary);flex-shrink:0;">
+          ${d.endDisplay ? `<span style="color:var(--primary-light);font-weight:600;">⏰${d.endDisplay}</span>` : ''}
+          ${d.currentWeight && d.currentWeight !== 'N/A' ? `<span>⚖️${d.currentWeight}g</span>` : ''}
+          ${d.filamentType ? `<span style="color:${d.filamentColor || 'var(--primary-light)'};font-weight:600;">${esc(d.filamentType)}</span>` : ''}
+          ${d.chamberTemp && d.chamberTemp !== 'N/A' ? `<span>💨${d.chamberTemp}°</span>` : ''}
+          ${d.speedProfile && d.speedProfile !== 'N/A' ? `<span>⚡${esc(d.speedProfile)}</span>` : ''}
+          ${d.amsHtml ? `<span style="display:inline-flex;align-items:center;gap:2px;">🎨${this._extractAmsColorDots(d)}</span>` : ''}
+        </div>
+      </div>
+      ${d.isCameraView ? this._renderCameraView(d) : ''}
+      <!-- 任务名第二行（仅在打印中或已完成时显示） -->
+      ${!d.isCameraView && d.taskNameHtml && d.statusClass !== 'idle' ? `<div style="font-size:10px;color:var(--text-secondary);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${d.taskNameHtml}</div>` : ''}
+    </div>`;
+  }
+
+  // 从 AMS 实体中提取色块圆点（支持多 AMS，用于紧凑布局）
+  _extractAmsColorDots(d) {
+    const printers = this._getPrintersConfig();
+    const printerToDisplay = printers.find(p => p.printer_name === d.printerName) || printers[0];
+    if (!printerToDisplay) return '';
+    const e = printerToDisplay.entities;
+    const hass = this._hass || this.hass;
+    const discoveredEntities = this._discoverPrinterEntities(e, hass);
+    const activeTray = this._getState(e.active_tray || discoveredEntities.active_tray);
+    // 遍历所有 AMS（1~4）的托盘（1~4）
+    const amsUnits = [1, 2, 3, 4];
+    let dots = '';
+    for (const ams of amsUnits) {
+      let hasTray = false;
+      let amsDots = '';
+      for (const tray of [1, 2, 3, 4]) {
+        const key = `ams_${ams}_tray_${tray}`;
+        const entity = e[key] || discoveredEntities[key];
+        if (!entity) continue;
+        hasTray = true;
+        const trayData = this._getAttr(entity);
+        const color = trayData?.color || '#cccccc';
+        const name = trayData?.name || '';
+        const isActive = activeTray && (activeTray.includes(`tray_${tray}`) || (name && (activeTray === name || activeTray.includes(name))));
+        amsDots += `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${color};border:${isActive ? '2px solid var(--primary)' : '1px solid rgba(255,255,255,0.2)'};vertical-align:middle;" title="${this._escapeHtml(name || '托盘'+tray)}"></span>`;
+      }
+      if (hasTray) {
+        // 多个 AMS 时加编号分隔
+        if (amsUnits.filter(a => {
+          for (const t of [1,2,3,4]) { if (e[`ams_${a}_tray_${t}`] || discoveredEntities[`ams_${a}_tray_${t}`]) return true; }
+          return false;
+        }).length > 1) {
+          dots += `<span style="font-size:9px;color:var(--text-muted);margin:0 2px;">${ams}</span>${amsDots}`;
+        } else {
+          dots += amsDots;
+        }
+      }
+    }
+    return dots;
+  }
+
+  // 摄像头视图（共享）
+  _renderCameraView(d) {
+    return `<div class="camera-view" style="border-radius:8px;overflow:hidden;position:relative;background:#000;">
+      ${d.cameraEntity.startsWith('camera.') ? `<ha-camera-stream data-camera-entity="${d.cameraEntity}" style="width:100%;display:block;"></ha-camera-stream>` : `<img class="camera-live-img" src="${d.cameraImgSrc}" style="width:100%;display:block;object-fit:contain;" alt="实时画面" /><div style="position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,0.6);color:#fff;font-size:11px;padding:2px 8px;border-radius:4px;">🔄 自动刷新</div>`}
+      <button class="camera-close-btn" data-action="close-camera" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:14px;z-index:10;">✕</button>
+    </div>`;
   }
 
   _renderLifetimeStats() {
