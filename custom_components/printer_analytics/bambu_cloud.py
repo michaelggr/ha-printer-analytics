@@ -138,7 +138,14 @@ async def login_with_code(account: str, code: str) -> dict:
         return {"success": False, "error": f"网络错误: {err}"}
 
 
-async def check_token(token: str) -> bool:
+async def check_token(token: str) -> str:
+    """检查 Token 有效性
+
+    返回值:
+        "valid"   — Token 有效
+        "expired" — Token 已过期（401）
+        "unknown" — 网络异常，无法判断
+    """
     LOGGER.info("[Bambu API] 检查 Token 有效性...")
     for base in [API_CN, API_GLOBAL]:
         url = f"{base}/v1/user-service/my/tasks?limit=1&offset=0"
@@ -148,15 +155,15 @@ async def check_token(token: str) -> bool:
                 async with session.get(url, headers=headers) as resp:
                     LOGGER.info("[Bambu API] Token 检查响应: base=%s, status=%d", base, resp.status)
                     if resp.status == 200:
-                        return True
+                        return "valid"
                     if resp.status == 401:
                         LOGGER.warning("[Bambu API] Token 已过期 (401)")
-                        return False
+                        return "expired"
         except Exception as err:
             LOGGER.warning("[Bambu API] Token 检查异常 (base=%s): %s", base, err)
             continue
-    LOGGER.warning("[Bambu API] Token 检查: 所有 API 端点均不可达")
-    return False
+    LOGGER.warning("[Bambu API] Token 检查: 所有 API 端点均不可达，无法判断有效性")
+    return "unknown"
 
 
 # ---------------------------------------------------------------------------

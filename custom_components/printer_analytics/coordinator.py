@@ -1,4 +1,4 @@
-﻿"""Printer Analytics Coordinator - 主协调器"""
+"""Printer Analytics Coordinator - 主协调器"""
 from __future__ import annotations
 
 import asyncio
@@ -1584,17 +1584,25 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         # 步骤2: 验证 Token 有效性
         token = auth["token"]
         try:
-            valid = await check_token(token)
+            check_result = await check_token(token)
         except Exception as err:
             LOGGER.error("[Bambu同步] 步骤2: Token 验证异常: %s", err, exc_info=True)
             return {"success": False, "error": f"Token验证异常: {err}"}
 
-        if not valid:
+        if check_result == "expired":
             LOGGER.warning("[Bambu同步] 步骤2: Token 已过期，清除本地 Token")
             auth["token"] = ""
+            auth["token_valid"] = False
             await save_bambu_token(self.hass, auth)
             return {"success": False, "error": "登录已过期，请重新登录"}
 
+        if check_result == "unknown":
+            LOGGER.warning("[Bambu同步] 步骤2: 网络异常无法验证 Token，跳过本次同步")
+            return {"success": False, "error": "网络异常，无法验证登录状态，请稍后重试"}
+
+        # check_result == "valid"
+        auth["last_token_check"] = time.time()
+        auth["token_valid"] = True
         LOGGER.info("[Bambu同步] 步骤2: Token 验证通过")
 
         # 步骤3: 拉取 Bambu Cloud 历史记录
@@ -1643,6 +1651,8 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         # 步骤6: 更新同步时间戳
         auth["last_sync"] = time.time()
         auth["last_sync_count"] = added + merged
+        auth["last_token_check"] = time.time()
+        auth["token_valid"] = True
         await save_bambu_token(self.hass, auth)
         LOGGER.info("[Bambu同步] 步骤6: 同步时间戳已更新, last_sync_count=%d", auth["last_sync_count"])
 

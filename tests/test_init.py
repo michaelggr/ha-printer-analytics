@@ -1,4 +1,4 @@
-﻿"""
+"""
 单元测试 - __init__.py 中的纯函数
 覆盖: _sanitize_record, _match_status, _calculate_history_stats,
       _extract_available_colors, _apply_filters, _process_history_request

@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 import logging
@@ -435,19 +435,34 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 if not auth or not auth.get("token"):
                     LOGGER.info("[Bambu定时] 未登录，跳过同步")
                     return
-                valid = await check_token(auth["token"])
-                if not valid:
+                result = await check_token(auth["token"])
+                if result == "expired":
                     auth["token"] = ""
+                    auth["token_valid"] = False
                     await save_bambu_token(hass, auth)
                     LOGGER.warning("[Bambu定时] Token 已过期，已标记")
                     return
-                for eid, coord in hass.data.get(DOMAIN, {}).items():
-                    if isinstance(coord, PrinterAnalyticsCoordinator):
-                        try:
-                            result = await coord.async_bambu_sync()
-                            LOGGER.info("[Bambu定时] 定时同步完成: %s", result)
-                        except Exception as err:
-                            LOGGER.warning("[Bambu定时] 定时同步失败: %s", err, exc_info=True)
+                if result == "unknown":
+                    LOGGER.warning("[Bambu定时] 网络异常无法验证 Token，跳过本次同步（不清除 Token）")
+                    return
+                # result == "valid"
+                auth["last_token_check"] = time.time()
+                auth["token_valid"] = True
+                await save_bambu_token(hass, auth)
+                # 只取第一个 coordinator 执行同步（数据会按 printer_serial 分发到各文件）
+                coord = None
+                for eid, c in hass.data.get(DOMAIN, {}).items():
+                    if isinstance(c, PrinterAnalyticsCoordinator):
+                        coord = c
+                        break
+                if not coord:
+                    LOGGER.warning("[Bambu定时] 未找到 Coordinator，跳过同步")
+                    return
+                try:
+                    sync_result = await coord.async_bambu_sync()
+                    LOGGER.info("[Bambu定时] 定时同步完成: %s", sync_result)
+                except Exception as err:
+                    LOGGER.warning("[Bambu定时] 定时同步失败: %s", err, exc_info=True)
 
             unsub = async_track_time_interval(
                 hass, _bambu_scheduled_sync, timedelta(hours=BAMBU_SYNC_INTERVAL_HOURS)
@@ -937,6 +952,8 @@ def _register_websocket_commands(hass: HomeAssistant) -> None:
                 "saved_at": time.time(),
                 "last_sync": None,
                 "last_sync_count": 0,
+                "token_valid": True,
+                "last_token_check": time.time(),
             }
             await save_bambu_token(hass, auth_data)
             LOGGER.info("[Bambu WS] 登录成功，Token 已保存")
@@ -974,15 +991,31 @@ def _register_websocket_commands(hass: HomeAssistant) -> None:
     })
     @websocket_api.async_response
     async def ws_bambu_status(hass: HomeAssistant, connection, msg):
-        from .bambu_cloud import load_bambu_token, check_token
+        from .bambu_cloud import load_bambu_token, check_token, save_bambu_token
         auth = await load_bambu_token(hass)
         if not auth or not auth.get("token"):
             connection.send_result(msg["id"], {"logged_in": False, "phone": "", "last_sync": None, "last_sync_count": 0})
             return
-        valid = await check_token(auth["token"])
-        LOGGER.info("[Bambu WS] 状态查询: logged_in=%s, phone=%s", valid, auth.get("phone", ""))
+        # 仅当距上次验证超过 30 分钟时才重新验证，避免频繁网络请求
+        last_check = auth.get("last_token_check", 0)
+        token_valid = auth.get("token_valid", True)
+        now = time.time()
+        if now - last_check > 1800:  # 30 分钟
+            result = await check_token(auth["token"])
+            token_valid = result == "valid"
+            auth["last_token_check"] = now
+            if result == "expired":
+                token_valid = False
+                auth["token"] = ""
+                await save_bambu_token(hass, auth)
+            elif result == "valid":
+                auth["token_valid"] = True
+                await save_bambu_token(hass, auth)
+            LOGGER.info("[Bambu WS] 状态查询(重新验证): result=%s, logged_in=%s", result, token_valid)
+        else:
+            LOGGER.info("[Bambu WS] 状态查询(缓存): logged_in=%s", token_valid)
         connection.send_result(msg["id"], {
-            "logged_in": valid,
+            "logged_in": token_valid,
             "phone": auth.get("phone", ""),
             "last_sync": auth.get("last_sync"),
             "last_sync_count": auth.get("last_sync_count", 0),
