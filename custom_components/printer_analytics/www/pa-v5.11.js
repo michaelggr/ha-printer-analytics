@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 打印机分析卡片 - v5.18.0
  * 版本: 5.17.0 (2026-05-31) - 统计分析改用后端数据、极端值后端计算
  *
@@ -3032,8 +3032,8 @@ class PrinterAnalyticsCard extends HTMLElement {
     try {
       const result = await this._hass.callWS({ type: 'printer_analytics/bambu_status' });
       this._bambuStatus = result;
-      this._lastRenderedData = null;
-      this.updateData();
+      // 不清 _lastRenderedData，不直接调 updateData
+      // bambuStatus 变化会在下次 updateData 时通过 _generateDataSnapshot 自然检测到
     } catch (e) {
       console.warn('[Bambu] 状态检查失败:', e);
     }
@@ -3192,7 +3192,7 @@ class PrinterAnalyticsCard extends HTMLElement {
         if (result.duplicate_skipped > 0) lines.push('跳过 ' + result.duplicate_skipped + ' 条');
         const msg = lines.length > 0 ? '✅ 同步完成：' + lines.join('，') : '✅ 同步完成，无新记录';
         alert(msg);
-        this._loadWSHistory();
+        this._loadHistoryViaWS();
       } else {
         alert('❌ 同步失败：' + result.error);
         if (result.error && result.error.includes('过期')) {
