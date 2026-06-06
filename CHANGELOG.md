@@ -1,4 +1,40 @@
-﻿﻿# 打印分析卡片 - 修改记录
+﻿﻿﻿# 打印分析卡片 - 修改记录
+
+## v5.23.0 (2026-06-07)
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 修复 | Cloud 同步后不补封面图：触发条件从 `added > 0` 改为 `added > 0 or merged > 0`（合并的记录也需要补图） | coordinator.py#1836 |
+| 修复 | `_download_synced_covers` 改用 `full_scan=True` 全量扫描补图（之前只处理内存50条） | coordinator.py#1859 |
+| 功能 | `backfill_cover_images` 新增 `full_scan` 参数，支持从文件读取全量记录批量下载封面图 | image_manager.py#527 |
+| 功能 | 新增 `_load_all_records` / `_save_all_records` 辅助方法，支持全量记录的文件读写 | image_manager.py#596 |
+| 修复 | `full_scan` 模式禁止 HA 实体回退（实体只返回当前打印封面，导致历史记录全部相同） | image_manager.py#592 |
+| 修复 | 跳过 `/api/image_proxy/` 内部 URL（无法 HTTP 下载，之前回退到实体获取错误封面） | image_manager.py#589 |
+| 修复 | 新增批量重复检测：同一图片被超过3条记录使用时自动视为默认图并删除 | image_manager.py#598 |
+| 修复 | `backfill_cover_images` 手动服务调用改为 `full_scan=True` 全量模式 | __init__.py#547 |
+| 修复 | **Cloud 同步合并时强制覆盖** `cover_image_url`/`task_name`/`design_id` 等字段（本地捕获的 HA 内部 URL 和配置名不再阻止 Cloud 真实数据写入） | coordinator.py#1810,1899 |
+
+## v5.22.0 (2026-06-07)
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 修复 | 封面图全部显示相同占位图：Bambu Cloud 默认占位图哈希加入检测集合，阻止保存 | image_manager.py#30 |
+| 修复 | `detect_placeholder_images` 自动删除占位图文件（之前只检测不删除） | image_manager.py#40 |
+| 修复 | `_clean_invalid_cover_refs` 全量清理指向不存在文件的 cover_image_local 引用 | coordinator.py#305 |
+| 修复 | `backfill_cover_images` 优先用 CDN URL HTTP 下载（之前优先用 HA 实体，导致历史记录都用当前封面） | image_manager.py#537 |
+| 修复 | `_download_cover_image` 新增 `prefer_http` 参数，跳过 HA 实体直接 HTTP 下载 | image_manager.py#227 |
+| 优化 | `async_import_history` 导入后自动全量去重 | coordinator.py#1660 |
+
+## v5.21.0 (2026-06-07)
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 修复 | 重复记录去重失效：`_dedup_history_records` 改为从文件读取全量数据（原来只读内存缓存50条） | coordinator.py#476 |
+| 修复 | `_dedup_history_records` 中 `_extract_year_from_end_time` 返回 int 但代码调用 `.isdigit()` 导致 AttributeError | coordinator.py#537 |
+| 修复 | `_is_duplicate_record` 时区比较：双候选 UTC 比较，支持无时区旧格式与 UTC ISO 格式的匹配 | coordinator.py#1400 |
+| 修复 | `_parse_time` 丢失时区信息：返回 UTC ISO 格式替代 `%Y-%m-%d %H:%M` | bambu_cloud.py#271 |
+| 功能 | 新增 WS 命令 `printer_analytics/dedup_history` 手动触发去重 | __init__.py#1038 |
+| 优化 | 去重逻辑移至 `_load_history` 中独立执行，带异常保护 | coordinator.py#288 |
 
 ## v5.20.0 (2026-06-04)
 

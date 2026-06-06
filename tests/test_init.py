@@ -1098,7 +1098,7 @@ class TestIsDuplicateRecord:
 
     @staticmethod
     def _is_duplicate(existing, record):
-        """复制 coordinator._is_duplicate_record 的核心逻辑"""
+        """复制 coordinator._is_duplicate_record 的核心逻辑（统一转 UTC，双候选比较）"""
         serial = record.get("printer_serial") or record.get("deviceId") or ""
         ex_serial = existing.get("printer_serial") or existing.get("deviceId") or ""
         if serial != ex_serial or not serial:
@@ -1108,19 +1108,33 @@ class TestIsDuplicateRecord:
         if not end_time_str or not ex_end_str:
             return False
         try:
-            from datetime import datetime
-            def _parse(t):
+            from datetime import datetime, timezone
+            from zoneinfo import ZoneInfo
+            # 模拟 HA 服务器的本地时区（Asia/Shanghai = UTC+8）
+            local_tz = ZoneInfo("Asia/Shanghai")
+
+            def _to_utc_candidates(t):
+                """解析时间字符串，返回可能的 UTC datetime 列表"""
                 t = t.replace("Z", "+00:00")
-                if "T" in t:
-                    return datetime.fromisoformat(t)
-                return datetime.fromisoformat(t.replace(" ", "T"))
-            dt1 = _parse(end_time_str)
-            dt2 = _parse(ex_end_str)
-            if dt1.tzinfo:
-                dt1 = dt1.replace(tzinfo=None)
-            if dt2.tzinfo:
-                dt2 = dt2.replace(tzinfo=None)
-            return abs((dt1 - dt2).total_seconds()) <= 120
+                if "T" not in t:
+                    t = t.replace(" ", "T")
+                dt = datetime.fromisoformat(t)
+                if dt.tzinfo is not None:
+                    return [dt.astimezone(timezone.utc)]
+                # 无时区：尝试 UTC 和本地时区两种解释
+                as_utc = dt.replace(tzinfo=timezone.utc)
+                as_local = dt.replace(tzinfo=local_tz).astimezone(timezone.utc)
+                if as_utc == as_local:
+                    return [as_utc]
+                return [as_utc, as_local]
+
+            candidates1 = _to_utc_candidates(end_time_str)
+            candidates2 = _to_utc_candidates(ex_end_str)
+            for dt1 in candidates1:
+                for dt2 in candidates2:
+                    if abs((dt1 - dt2).total_seconds()) <= 120:
+                        return True
+            return False
         except Exception:
             return False
 
@@ -1161,9 +1175,47 @@ class TestIsDuplicateRecord:
         assert self._is_duplicate(existing, record) is False
 
     def test_iso_format_with_timezone(self):
-        """ISO 格式带时区也能正确比较"""
+        """ISO 格式带时区也能正确比较（同一时区）"""
         existing = {"printer_serial": "S1", "end_time": "2026-01-01T12:00:00+08:00"}
         record = {"printer_serial": "S1", "end_time": "2026-01-01T12:01:00+08:00"}
+        assert self._is_duplicate(existing, record) is True
+
+    def test_utc_vs_beijing_time(self):
+        """UTC 时间与北京时间（同一时刻）应匹配"""
+        # UTC 04:00 = 北京时间 12:00
+        existing = {"printer_serial": "S1", "end_time": "2026-01-01T04:00:00+00:00"}
+        record = {"printer_serial": "S1", "end_time": "2026-01-01T12:00:00+08:00"}
+        assert self._is_duplicate(existing, record) is True
+
+    def test_local_capture_vs_cloud_sync(self):
+        """本地捕获（UTC ISO）vs Cloud 同步旧格式（无时区）应匹配
+
+        实际 bug 场景：本地记录 end_time='2026-06-04T18:40:03+00:00'，
+        Cloud 同步记录 end_time='2026-06-04 18:40'（无时区，实际是 UTC）。
+        双候选逻辑：无时区的 18:40 尝试作为 UTC → 与本地 UTC 18:40 匹配。
+        """
+        existing = {"printer_serial": "S1", "end_time": "2026-06-04T18:40:03+00:00"}
+        record = {"printer_serial": "S1", "end_time": "2026-06-04 18:40"}
+        # 双候选：18:40 作为 UTC → 匹配本地 UTC 18:40
+        assert self._is_duplicate(existing, record) is True
+
+    def test_cloud_utc_iso_vs_local_utc_iso(self):
+        """Cloud 返回 UTC ISO 格式（修复后 _parse_time 的输出）与本地 UTC ISO 应匹配"""
+        existing = {"printer_serial": "S1", "end_time": "2026-06-04T18:40:03.627760+00:00"}
+        record = {"printer_serial": "S1", "end_time": "2026-06-04T18:40:03+00:00"}
+        assert self._is_duplicate(existing, record) is True
+
+    def test_cloud_beijing_iso_vs_local_utc_iso(self):
+        """Cloud 返回北京时间 ISO 与本地 UTC ISO 应匹配（同一时刻）"""
+        # UTC 18:40 = 北京时间次日 02:40
+        existing = {"printer_serial": "S1", "end_time": "2026-06-04T18:40:03+00:00"}
+        record = {"printer_serial": "S1", "end_time": "2026-06-05T02:40:03+08:00"}
+        assert self._is_duplicate(existing, record) is True
+
+    def test_naive_time_same_moment(self):
+        """两个无时区时间（同一本地时刻）应匹配"""
+        existing = {"printer_serial": "S1", "end_time": "2026-01-01 12:00"}
+        record = {"printer_serial": "S1", "end_time": "2026-01-01 12:01"}
         assert self._is_duplicate(existing, record) is True
 
 
@@ -1369,11 +1421,28 @@ class TestBambuParseStatus:
 
 
 class TestBambuParseTime:
-    """时间格式转换测试"""
+    """时间格式转换测试（_parse_time 统一转为 UTC ISO 格式）"""
 
     def test_iso_z(self):
+        """UTC Z 后缀 → UTC ISO 格式"""
         result = _bambu_ns["_parse_time"]("2026-05-27T14:30:00Z")
-        assert "2026-05-27" in result
+        assert result == "2026-05-27T14:30:00+00:00"
+
+    def test_iso_utc_offset(self):
+        """UTC +00:00 后缀 → UTC ISO 格式"""
+        result = _bambu_ns["_parse_time"]("2026-05-27T14:30:00+00:00")
+        assert result == "2026-05-27T14:30:00+00:00"
+
+    def test_beijing_time_converted_to_utc(self):
+        """北京时间 ISO → 转为 UTC ISO（保留时区信息）"""
+        # 北京时间 14:30 = UTC 06:30
+        result = _bambu_ns["_parse_time"]("2026-05-27T14:30:00+08:00")
+        assert result == "2026-05-27T06:30:00+00:00"
+
+    def test_naive_time_preserved(self):
+        """无时区的时间保持原值（不转换）"""
+        result = _bambu_ns["_parse_time"]("2026-05-27T14:30:00")
+        assert result == "2026-05-27T14:30:00+00:00"
 
     def test_none(self):
         assert _bambu_ns["_parse_time"](None) == ""

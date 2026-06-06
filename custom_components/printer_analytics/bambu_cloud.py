@@ -102,6 +102,10 @@ async def send_code(account: str) -> dict:
                 if resp.status == 418:
                     return {"success": False, "error": "需要人机验证，请稍后重试"}
                 data = await resp.json(content_type=None)
+                if not isinstance(data, dict):
+                    # 验证码已发送成功（HTTP 200），但响应体非标准格式
+                    LOGGER.info("[Bambu API] 验证码发送成功 (非标准响应)")
+                    return {"success": True}
                 status_code = data.get("statusCode")
                 if status_code is not None and status_code not in (0, 200):
                     LOGGER.warning("[Bambu API] 发送验证码失败: statusCode=%s, message=%s", status_code, data.get("message"))
@@ -127,6 +131,8 @@ async def login_with_code(account: str, code: str) -> dict:
             async with session.post(url, json=body, headers=_REQUEST_HEADERS) as resp:
                 LOGGER.info("[Bambu API] 登录响应: status=%d", resp.status)
                 data = await resp.json(content_type=None)
+                if not isinstance(data, dict):
+                    return {"success": False, "error": "登录响应格式异常"}
                 token = data.get("accessToken")
                 if token:
                     LOGGER.info("[Bambu API] 登录成功, token=%s...", str(token)[:8])
@@ -269,14 +275,23 @@ def _parse_color(color_str: str | None) -> str:
 
 
 def _parse_time(iso_str: str | None) -> str:
+    """解析 ISO 时间字符串，统一转为 UTC ISO 格式（保留时区信息）
+
+    解决问题：原实现转为 %Y-%m-%d %H:%M 格式会丢失时区信息，
+    导致 Cloud 同步记录与本地捕获记录（UTC ISO）无法正确去重。
+    """
     if not iso_str:
         return ""
     try:
-        from datetime import datetime
+        from datetime import datetime, timezone
         dt = datetime.fromisoformat(iso_str.replace("Z", "+00:00"))
-        return dt.strftime("%Y-%m-%d %H:%M")
+        # 有时区信息：转为 UTC
+        if dt.tzinfo is not None:
+            dt = dt.astimezone(timezone.utc)
+        # 返回 UTC ISO 格式（秒级精度，+00:00 标记时区）
+        return dt.strftime("%Y-%m-%dT%H:%M:%S+00:00")
     except (ValueError, TypeError):
-        return iso_str[:16] if len(iso_str) >= 16 else iso_str
+        return iso_str[:19] if len(iso_str) >= 19 else iso_str
 
 
 def _parse_status(status_code: int) -> str:

@@ -27,6 +27,7 @@ class ImageManager:
     _PLACEHOLDER_IMAGE_HASHES: set[str] = {
         "5a52bcafb0656745b398b5a811640c90",
         "c1aad0332d82134d188d487939f7e978",
+        "2cd67ef2c163fa3cb59ac22fbee5d738",  # Bambu Cloud 默认占位图 (512x512 PNG, 4530B)
     }
 
     def __init__(self, coordinator: "PrinterAnalyticsCoordinator") -> None:
@@ -36,12 +37,13 @@ class ImageManager:
         self._entity_map = coordinator._entity_map
         self.printer_name = coordinator.printer_name
 
-    def detect_placeholder_images(self) -> None:
-        """扫描已有封面图，自动检测占位图"""
+    def detect_placeholder_images(self) -> int:
+        """扫描已有封面图，自动检测并删除占位图，返回清理数量"""
         if not os.path.isdir(self._images_dir):
-            return
+            return 0
 
         hash_counts: dict[str, int] = {}
+        hash_to_files: dict[str, list[str]] = {}
         for fname in os.listdir(self._images_dir):
             if not fname.lower().endswith((".jpg", ".jpeg", ".png")):
                 continue
@@ -52,13 +54,27 @@ class ImageManager:
                 with open(fpath, "rb") as f:
                     h = hashlib.md5(f.read()).hexdigest()
                 hash_counts[h] = hash_counts.get(h, 0) + 1
+                hash_to_files.setdefault(h, []).append(fname)
             except OSError:
                 pass
 
+        cleaned = 0
         for h, count in hash_counts.items():
-            if count >= 3:
+            if count >= 3 or h in self._PLACEHOLDER_IMAGE_HASHES:
                 self._PLACEHOLDER_IMAGE_HASHES.add(h)
                 LOGGER.info("Detected placeholder image hash %s (%d identical files)", h[:12], count)
+                # 删除占位图文件
+                for fname in hash_to_files.get(h, []):
+                    fpath = os.path.join(self._images_dir, fname)
+                    try:
+                        os.remove(fpath)
+                        cleaned += 1
+                    except OSError:
+                        pass
+
+        if cleaned > 0:
+            LOGGER.info("Cleaned %d placeholder image files", cleaned)
+        return cleaned
 
     @classmethod
     def _is_placeholder_image(cls, content: bytes) -> bool:
@@ -208,37 +224,59 @@ class ImageManager:
             LOGGER.error("Failed to download cover from cloud: %s", err)
             return None
 
-    async def _download_cover_image(self, image_url: str, task_name: str, end_time: str) -> str | None:
-        """下载封面图片"""
-        try:
-            cover_entity = self._entity_map.get("cover_image")
-            if not cover_entity:
-                prefix = self.printer_name.lower()
-                image_entities = list(self.hass.states.async_entity_ids("image"))
-                for eid in image_entities:
-                    if eid.startswith(f"image.{prefix}_") and eid.endswith("_cover_image"):
-                        cover_entity = eid
-                        break
+    async def _download_cover_image(self, image_url: str, task_name: str, end_time: str, prefer_http: bool = False) -> str | None:
+        """下载封面图片
 
+        prefer_http: 为 True 时跳过 HA 实体获取，直接用 HTTP 下载
+                     （用于 backfill 历史记录，避免用当前打印的封面）
+        """
+        try:
             content = None
-            if cover_entity:
-                try:
-                    from homeassistant.components.image import async_get_image as async_get_cover_image
-                    img = await async_get_cover_image(self.hass, cover_entity)
-                    content = img.content
-                    LOGGER.debug("Cover obtained via image API (%d bytes)", len(content))
-                except Exception as img_err:
-                    LOGGER.debug("image async_get_image failed: %s, trying HTTP", img_err)
+
+            # 优先 HTTP 下载（历史记录场景）
+            if prefer_http and image_url:
+                content = await self._download_image_via_http(image_url)
+                if not content or len(content) < IMAGE_MIN_SIZE_BYTES or self._is_placeholder_image(content):
                     content = None
 
+            # 从 HA 实体获取（当前打印场景）
+            if not content and not prefer_http:
+                cover_entity = self._entity_map.get("cover_image")
+                if not cover_entity:
+                    prefix = self.printer_name.lower()
+                    image_entities = list(self.hass.states.async_entity_ids("image"))
+                    for eid in image_entities:
+                        if eid.startswith(f"image.{prefix}_") and eid.endswith("_cover_image"):
+                            cover_entity = eid
+                            break
+
+                if cover_entity:
+                    try:
+                        from homeassistant.components.image import async_get_image as async_get_cover_image
+                        img = await async_get_cover_image(self.hass, cover_entity)
+                        content = img.content
+                        LOGGER.debug("Cover obtained via image API (%d bytes)", len(content))
+                    except Exception as img_err:
+                        LOGGER.debug("image async_get_image failed: %s, trying HTTP", img_err)
+                        content = None
+
+            # HTTP 下载回退
             if not content:
                 download_url = image_url
-                if cover_entity:
-                    state = self.hass.states.get(cover_entity)
-                    if state:
-                        entity_picture = state.attributes.get("entity_picture", "")
-                        if entity_picture:
-                            download_url = entity_picture
+                if not prefer_http:
+                    cover_entity = self._entity_map.get("cover_image") or ""
+                    if not cover_entity:
+                        prefix = self.printer_name.lower()
+                        for eid in self.hass.states.async_entity_ids("image"):
+                            if eid.startswith(f"image.{prefix}_") and eid.endswith("_cover_image"):
+                                cover_entity = eid
+                                break
+                    if cover_entity:
+                        state = self.hass.states.get(cover_entity)
+                        if state:
+                            entity_picture = state.attributes.get("entity_picture", "")
+                            if entity_picture:
+                                download_url = entity_picture
                 content = await self._download_image_via_http(download_url)
                 if not content:
                     return None
@@ -486,12 +524,32 @@ class ImageManager:
         except OSError:
             pass
 
-    async def backfill_cover_images(self) -> int:
-        """补全缺失的封面图"""
+    async def backfill_cover_images(self, full_scan: bool = False) -> int:
+        """补全缺失的封面图
+
+        full_scan=True 时直接从文件读取全量数据（用于 Cloud 同步后批量补图），
+        默认 False 只处理内存缓存中的记录。
+
+        full_scan 模式下：
+        - 不使用 HA 实体回退（实体只返回当前打印的封面，历史记录用会全部相同）
+        - 增加批量重复检测：同一张图片被用于超过 3 条记录时视为可疑默认图
+        """
         updated = 0
         cleaned = 0
 
-        for record in self.coordinator.history:
+        # 全量模式：从文件读取所有记录
+        if full_scan:
+            records = self._load_all_records()
+            save_after = True
+        else:
+            records = self.coordinator.history
+            save_after = False
+
+        # 批量重复检测：记录每张下载图片的 MD5，超过阈值视为默认图
+        batch_md5_counts: dict[str, int] = {}
+        BATCH_DUPLICATE_THRESHOLD = 3  # 同一图片超过此数量视为可疑
+
+        for record in records:
             existing = record.get("cover_image_local")
             if existing:
                 local_file = os.path.join(
@@ -518,21 +576,129 @@ class ImageManager:
             end_time = record.get("end_time", "")
             start_time = record.get("start_time", "")
 
-            local_path = await self._download_cover_from_cloud(task_name or "unknown", end_time or "", start_time or "")
+            # 下载优先级：
+            # 1. CDN/OSS URL 直接 HTTP 下载
+            # 2. Bambu Cloud API 按任务名查找
+            # 3. 原始 URL HTTP 下载（非 /api/ 开头的内部地址）
+            # full_scan 模式不使用实体回退（避免所有历史记录都用当前打印封面）
+            local_path = None
+            if cover_url and ("bblmw.cn" in cover_url or "bbl-prod-model" in cover_url):
+                local_path = await self._download_cover_image(cover_url, task_name or "unknown", end_time or "", prefer_http=True)
             if not local_path:
-                local_path = await self._download_cover_image(cover_url, task_name or "unknown", end_time or "")
-            if not local_path:
+                local_path = await self._download_cover_from_cloud(task_name or "unknown", end_time or "", start_time or "")
+            if not local_path and cover_url and not cover_url.startswith("/api/"):
+                # 跳过 HA 内部代理 URL（/api/image_proxy/...），这些无法直接 HTTP 下载
+                local_path = await self._download_cover_image(cover_url, task_name or "unknown", end_time or "", prefer_http=True)
+            if not local_path and not full_scan:
+                # 仅非全量模式才回退到实体获取
                 local_path = await self._try_get_cover_from_entity(task_name or "unknown", end_time or "")
 
             if local_path:
-                record["cover_image_local"] = local_path
-                updated += 1
+                # 全量模式下检测批量重复
+                if full_scan:
+                    try:
+                        full_path = os.path.join(self.hass.config.path("www"), local_path.lstrip("/"))
+                        with open(full_path, "rb") as f:
+                            img_md5 = hashlib.md5(f.read()).hexdigest()
+                        count = batch_md5_counts.get(img_md5, 0) + 1
+                        batch_md5_counts[img_md5] = count
+                        if count > BATCH_DUPLICATE_THRESHOLD:
+                            # 超过阈值：删除刚下载的可疑图片，视为默认图
+                            os.remove(full_path)
+                            LOGGER.warning(
+                                "Batch dup: md5=%s used %dx (>%d), treating as default image: %s",
+                                img_md5[:12], count, BATCH_DUPLICATE_THRESHOLD,
+                                task_name[:30],
+                            )
+                            local_path = None
+                    except OSError:
+                        pass
+
+                if local_path:
+                    record["cover_image_local"] = local_path
+                    updated += 1
+
+        if batch_md5_counts:
+            dup_info = {k: v for k, v in batch_md5_counts.items() if v > BATCH_DUPLICATE_THRESHOLD}
+            if dup_info:
+                LOGGER.warning("Batch dup detection: %d image(s) used >%d times as covers",
+                               len(dup_info), BATCH_DUPLICATE_THRESHOLD)
 
         if updated > 0 or cleaned > 0:
-            self.hass.async_create_task(self.coordinator._save_history())
-            LOGGER.info("Backfilled %d, cleaned %d covers", updated, cleaned)
+            if full_scan and save_after:
+                # 全量模式：直接保存到文件（records 是从文件读取的引用）
+                self._save_all_records(records)
+            else:
+                self.hass.async_create_task(self.coordinator._save_history())
+            LOGGER.info("Backfilled %d, cleaned %d covers (full_scan=%s)", updated, cleaned, full_scan)
 
         return updated
+
+    def _load_all_records(self) -> list[dict]:
+        """从年份文件读取全量历史记录（供 full_scan 模式使用）"""
+        import json as _json
+        import os as _os
+
+        if not self.coordinator or not self.coordinator.storage:
+            return []
+
+        history_dir = self.coordinator.storage._history_dir
+        if not _os.path.isdir(history_dir):
+            return []
+
+        storage_key = self.coordinator.storage._storage_key
+        all_records: list[dict] = []
+
+        for f in sorted(_os.listdir(history_dir)):
+            if f.startswith(f"{storage_key}_") and f.endswith(".json") and not f.endswith("_stats.json"):
+                file_path = _os.path.join(history_dir, f)
+                try:
+                    with open(file_path, "r", encoding="utf-8") as fh:
+                        data = _json.load(fh)
+                    records = data.get("history", []) if isinstance(data, dict) else data
+                    all_records.extend(records)
+                except Exception as err:
+                    LOGGER.warning("_load_all_records: 读取文件失败 %s: %s", f, err)
+
+        LOGGER.info("_load_all_records: 从文件读取 %d 条记录", len(all_records))
+        return all_records
+
+    def _save_all_records(self, records: list[dict]) -> None:
+        """将全量记录按年份分组写回文件（供 full_scan 模式使用）"""
+        import json as _json
+        import os as _os
+
+        if not self.coordinator or not self.coordinator.storage:
+            return
+
+        history_dir = self.coordinator.storage._history_dir
+        storage_key = self.coordinator.storage._storage_key
+
+        # 按年份分组
+        records_by_year: dict[int, list[dict]] = {}
+        for record in records:
+            year = self.coordinator.storage._extract_year_from_end_time(record.get("end_time", ""))
+            if year not in records_by_year:
+                records_by_year[year] = []
+            records_by_year[year].append(record)
+
+        saved = 0
+        for year, year_records in records_by_year.items():
+            file_path = _os.path.join(history_dir, f"{storage_key}_{year}.json")
+            try:
+                with open(file_path, "w", encoding="utf-8") as fh:
+                    _json.dump({"history": year_records}, fh, ensure_ascii=False, indent=2)
+                saved += len(year_records)
+            except Exception as err:
+                LOGGER.error("_save_all_records: 写入失败 %s: %s", file_path, err)
+
+        # 更新内存缓存（只保留最近50条）
+        records.sort(key=lambda x: x.get("end_time", ""))
+        self.coordinator.history = records[-50:] if len(records) > 50 else records
+        self.coordinator._total_records = len(records)
+
+        LOGGER.info("_save_all_records: 写入 %d 个年份文件, 共 %d 条记录 (缓存 %d)",
+                     len(records_by_year), saved, len(self.coordinator.history))
 
     async def backfill_snapshots(self) -> int:
         """补全缺失的快照"""

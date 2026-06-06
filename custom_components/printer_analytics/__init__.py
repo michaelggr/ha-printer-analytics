@@ -546,9 +546,10 @@ def _register_services(hass: HomeAssistant) -> None:
 
     async def _handle_backfill_cover_images(call: ServiceCall) -> None:
         coordinator = _get_coordinator_from_call(hass, call)
-        if coordinator:
-            count = await coordinator.backfill_cover_images()
-            LOGGER.info("Backfilled %d cover images for %s", count, coordinator.printer_name)
+        if coordinator and coordinator.image_manager:
+            # 手动触发时使用 full_scan 全量补图
+            count = await coordinator.image_manager.backfill_cover_images(full_scan=True)
+            LOGGER.info("Backfilled %d cover images (full_scan) for %s", count, coordinator.printer_name)
 
     async def _handle_backfill_snapshots(call: ServiceCall) -> None:
         coordinator = _get_coordinator_from_call(hass, call)
@@ -1034,3 +1035,28 @@ def _register_websocket_commands(hass: HomeAssistant) -> None:
         connection.send_result(msg["id"], {"success": True})
 
     websocket_api.async_register_command(hass, ws_bambu_logout)
+
+    # 手动触发去重
+    @websocket_api.websocket_command({
+        vol.Required("type"): "printer_analytics/dedup_history",
+        vol.Required("entry_id"): str,
+    })
+    @websocket_api.async_response
+    async def ws_dedup_history(hass: HomeAssistant, connection, msg):
+        """手动触发历史记录去重（全量，直接读写文件）"""
+        entry_id = msg["entry_id"]
+        coordinator = hass.data.get(DOMAIN, {}).get(entry_id)
+        if not coordinator or not isinstance(coordinator, PrinterAnalyticsCoordinator):
+            connection.send_error(msg["id"], "not_found", f"Coordinator not found for {entry_id}")
+            return
+
+        # 在 executor 中执行去重（涉及文件 I/O）
+        deduped = await hass.async_add_executor_job(coordinator._dedup_history_records)
+        if deduped > 0:
+            if coordinator.statistics:
+                coordinator.statistics.invalidate_cache()
+            coordinator.async_set_updated_data(coordinator._calculate_statistics())
+
+        connection.send_result(msg["id"], {"deduped": deduped, "remaining": coordinator._total_records, "cached": len(coordinator.history)})
+
+    websocket_api.async_register_command(hass, ws_dedup_history)

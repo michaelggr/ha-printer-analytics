@@ -156,7 +156,10 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
             self.history = []
 
         try:
-            await self.hass.async_add_executor_job(self.image_manager.detect_placeholder_images)
+            cleaned = await self.hass.async_add_executor_job(self.image_manager.detect_placeholder_images)
+            # 清理历史记录中指向已删除占位图的 cover_image_local
+            if cleaned and cleaned > 0:
+                await self._clean_invalid_cover_refs()
         except Exception as err:
             LOGGER.warning("Placeholder image detection failed: %s", err)
 
@@ -284,6 +287,13 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         LOGGER.debug("_load_history: 迁移结果=%s, 当前记录数=%d", migrated, len(self.history))
         if migrated:
             await self._save_history()
+        # 去重：全量读取文件去重（涉及文件 I/O，在 executor 中执行）
+        try:
+            deduped = await self.hass.async_add_executor_job(self._dedup_history_records)
+            if deduped > 0:
+                LOGGER.info("_load_history: 去重合并 %d 条记录", deduped)
+        except Exception as err:
+            LOGGER.warning("_load_history: 去重失败: %s", err)
         if self.statistics:
             self.statistics.invalidate_cache()
 
@@ -291,6 +301,58 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         """保存历史数据"""
         if self.storage:
             await self.storage.save_history()
+
+    async def _clean_invalid_cover_refs(self) -> None:
+        """清理历史记录中指向不存在文件的 cover_image_local 引用（全量，直接读写文件）"""
+        import os as _os
+        import json as _json
+
+        if not self.storage:
+            return
+
+        history_dir = self.storage._history_dir
+        if not _os.path.isdir(history_dir):
+            return
+
+        www_dir = self.hass.config.path("www")
+        total_cleaned = 0
+
+        for f in sorted(_os.listdir(history_dir)):
+            if not f.startswith(f"{self.storage._storage_key}_") or not f.endswith(".json") or f.endswith("_stats.json"):
+                continue
+            file_path = _os.path.join(history_dir, f)
+            try:
+                with open(file_path, "r", encoding="utf-8") as fh:
+                    data = _json.load(fh)
+                records = data.get("history", []) if isinstance(data, dict) else data
+            except Exception:
+                continue
+
+            cleaned = 0
+            for r in records:
+                cover = r.get("cover_image_local")
+                if not cover:
+                    continue
+                local_file = _os.path.join(www_dir, cover.lstrip("/"))
+                if not _os.path.isfile(local_file):
+                    r["cover_image_local"] = None
+                    cleaned += 1
+
+            if cleaned > 0:
+                with open(file_path, "w", encoding="utf-8") as fh:
+                    _json.dump(data, fh, ensure_ascii=False, indent=2)
+                total_cleaned += cleaned
+
+        # 同步清理内存缓存
+        for r in self.history:
+            cover = r.get("cover_image_local")
+            if cover:
+                local_file = _os.path.join(www_dir, cover.lstrip("/"))
+                if not _os.path.isfile(local_file):
+                    r["cover_image_local"] = None
+
+        if total_cleaned > 0:
+            LOGGER.info("Cleaned %d invalid cover_image_local refs (across all files)", total_cleaned)
 
     async def _fix_duration_hours(self) -> None:
         """修复duration_hours"""
@@ -466,7 +528,87 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
 
         if migrated > 0:
             LOGGER.info("Migrated %d history records to new format", migrated)
+
         return migrated > 0
+
+    def _dedup_history_records(self) -> int:
+        """扫描并合并重复的历史记录（全量，直接读写文件），返回合并数量
+
+        由于 load_history 只加载最近50条到内存缓存，去重需要读取全量数据。
+        因此直接从年份文件读取全量记录，去重后写回文件，再更新内存缓存。
+        """
+        if not self.storage:
+            return 0
+
+        import json as _json
+
+        # 从文件读取全量数据
+        history_dir = self.storage._history_dir
+        if not os.path.isdir(history_dir):
+            return 0
+
+        all_records: list[dict] = []
+        year_files: list[str] = []
+
+        for f in sorted(os.listdir(history_dir)):
+            if f.startswith(f"{self.storage._storage_key}_") and f.endswith(".json") and not f.endswith("_stats.json"):
+                file_path = os.path.join(history_dir, f)
+                try:
+                    with open(file_path, "r", encoding="utf-8") as fh:
+                        data = _json.load(fh)
+                    records = data.get("history", []) if isinstance(data, dict) else data
+                    all_records.extend(records)
+                    year_files.append(f)
+                except Exception as err:
+                    LOGGER.warning("Dedup: 读取文件失败 %s: %s", f, err)
+
+        if not all_records:
+            return 0
+
+        LOGGER.info("Dedup: 从 %d 个文件读取 %d 条记录", len(year_files), len(all_records))
+
+        # 去重
+        merged_count = 0
+        seen: list[dict] = []
+
+        for record in all_records:
+            found_dup = None
+            for existing in seen:
+                if self._is_duplicate_record(existing, record):
+                    found_dup = existing
+                    break
+            if found_dup:
+                # 合并：用后到的记录填充先到的空字段
+                self._merge_record(found_dup, record)
+                merged_count += 1
+                LOGGER.info("Dedup: merged id=%s into id=%s", str(record.get("id", ""))[:15], str(found_dup.get("id", ""))[:15])
+            else:
+                seen.append(record)
+
+        if merged_count > 0:
+            # 按年份分组写回文件
+            records_by_year: dict[int, list[dict]] = {}
+            for record in seen:
+                year = self.storage._extract_year_from_end_time(record.get("end_time", ""))
+                if year not in records_by_year:
+                    records_by_year[year] = []
+                records_by_year[year].append(record)
+
+            for year, records in records_by_year.items():
+                file_path = os.path.join(history_dir, f"{self.storage._storage_key}_{year}.json")
+                with open(file_path, "w", encoding="utf-8") as fh:
+                    _json.dump({"history": records}, fh, ensure_ascii=False, indent=2)
+
+            # 更新内存缓存（只保留最近50条）
+            seen.sort(key=lambda x: x.get("end_time", ""))
+            self.history = seen[-50:] if len(seen) > 50 else seen
+            self._total_records = len(seen)
+
+            LOGGER.info("Dedup: merged %d duplicates, %d remaining (cached %d)", merged_count, len(seen), len(self.history))
+        else:
+            LOGGER.info("Dedup: no duplicates found in %d records", len(all_records))
+
+        return merged_count
 
     async def _discover_entities(self) -> None:
         """发现实体"""
@@ -1347,7 +1489,18 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
 
     @staticmethod
     def _is_duplicate_record(existing: dict, record: dict) -> bool:
-        """判断两条记录是否重复（序列号+结束时间±2分钟）"""
+        """判断两条记录是否重复（序列号+结束时间±2分钟）
+
+        统一将时间转为 UTC 后比较，正确处理：
+        - 有时区标记的 ISO 时间（如 2026-06-04T18:40:03+00:00）
+        - 无时区标记的旧格式（如 2026-06-04 18:40），尝试 UTC 和本地时区两种解释
+        - 北京时间 ISO（如 2026-06-05T02:40:03+08:00）
+
+        无时区时间的歧义处理：
+        旧版 _parse_time 将 Cloud 时间转为 %Y-%m-%d %H:%M 格式，丢失了时区信息。
+        这些时间可能是 UTC（Cloud API 返回 UTC）也可能是本地时间，
+        因此对无时区时间尝试两种解释，任一匹配即视为重复。
+        """
         serial = record.get("printer_serial") or record.get("deviceId") or ""
         ex_serial = existing.get("printer_serial") or existing.get("deviceId") or ""
         if serial != ex_serial or not serial:
@@ -1358,23 +1511,39 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         if not end_time_str or not ex_end_str:
             return False
 
-        # 简单时间比较（避免依赖 _normalize_to_utc 的实例方法）
         try:
             from datetime import datetime, timezone
-            def _parse(t):
+            from homeassistant.util import dt as dt_util
+
+            def _to_utc_candidates(t: str) -> list[datetime]:
+                """解析时间字符串，返回可能的 UTC datetime 列表
+
+                有时区：唯一确定的 UTC 时间
+                无时区：尝试 UTC 和本地时区两种解释（兼容旧数据）
+                """
                 t = t.replace("Z", "+00:00")
-                if "T" in t:
-                    return datetime.fromisoformat(t)
-                return datetime.fromisoformat(t.replace(" ", "T"))
-            dt1 = _parse(end_time_str)
-            dt2 = _parse(ex_end_str)
-            # 统一到无时区比较
-            if dt1.tzinfo:
-                dt1 = dt1.replace(tzinfo=None)
-            if dt2.tzinfo:
-                dt2 = dt2.replace(tzinfo=None)
-            return abs((dt1 - dt2).total_seconds()) <= 120
-        except Exception:
+                if "T" not in t:
+                    t = t.replace(" ", "T")
+                dt = datetime.fromisoformat(t)
+                if dt.tzinfo is not None:
+                    return [dt.astimezone(timezone.utc)]
+                # 无时区：可能是 UTC 也可能是本地时间，返回两种候选
+                as_utc = dt.replace(tzinfo=timezone.utc)
+                as_local = dt.replace(tzinfo=dt_util.DEFAULT_TIME_ZONE).astimezone(timezone.utc)
+                if as_utc == as_local:
+                    return [as_utc]
+                return [as_utc, as_local]
+
+            candidates1 = _to_utc_candidates(end_time_str)
+            candidates2 = _to_utc_candidates(ex_end_str)
+            # 任一组合在 ±2 分钟内即视为重复
+            for dt1 in candidates1:
+                for dt2 in candidates2:
+                    if abs((dt1 - dt2).total_seconds()) <= 120:
+                        return True
+            return False
+        except Exception as err:
+            LOGGER.warning("_is_duplicate_record error: %s, t1=%s, t2=%s", err, end_time_str[:30], ex_end_str[:30])
             return False
 
     def _merge_record(self, existing: dict, incoming: dict, overwrite_fields: set | None = None) -> bool:
@@ -1531,6 +1700,13 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
 
         if added > 0 or merged > 0:
             self._migrate_history_records()
+            # 全量去重：导入可能与不在内存缓存中的旧记录重复
+            try:
+                deduped = await self.hass.async_add_executor_job(self._dedup_history_records)
+                if deduped > 0:
+                    LOGGER.info("Import: 去重合并 %d 条记录", deduped)
+            except Exception as err:
+                LOGGER.warning("Import: 去重失败: %s", err)
             if self.statistics:
                 self.statistics.invalidate_cache()
             await self._save_history()
@@ -1630,11 +1806,17 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         ha_count = len(ha_data.get("history", []))
         LOGGER.info("[Bambu同步] 步骤4: 转换完成, %d 条 HA 格式记录", ha_count)
 
-        # 步骤5: 导入到本地
+        # 步骤5: 导入到本地（Cloud 数据优先覆盖封面、模型名等关键字段）
+        _CLOUD_OVERWRITE_FIELDS = {
+            "cover_image_url", "task_name", "config_name",
+            "task_name_model", "task_name_config", "design_id",
+        }
         json_str = json.dumps(ha_data, ensure_ascii=False)
         LOGGER.info("[Bambu同步] 步骤5: 开始导入到本地 (JSON 大小: %d 字节)...", len(json_str))
         try:
-            import_result = await self.async_import_history(json_str)
+            import_result = await self.async_import_history(
+                json_str, overwrite_fields=_CLOUD_OVERWRITE_FIELDS
+            )
         except Exception as err:
             LOGGER.error("[Bambu同步] 步骤5: 导入异常: %s", err, exc_info=True)
             return {"success": False, "error": f"导入异常: {err}"}
@@ -1656,9 +1838,9 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
         await save_bambu_token(self.hass, auth)
         LOGGER.info("[Bambu同步] 步骤6: 同步时间戳已更新, last_sync_count=%d", auth["last_sync_count"])
 
-        # 步骤7: 异步下载新增记录的封面图
-        if added > 0 and self.image_manager:
-            LOGGER.info("[Bambu同步] 步骤7: 启动封面图异步下载 (新增 %d 条)", added)
+        # 步骤7: 异步下载新增/合并记录的封面图（全量扫描补图）
+        if (added > 0 or merged > 0) and self.image_manager:
+            LOGGER.info("[Bambu同步] 步骤7: 启动封面图全量补图 (新增=%d, 合并=%d)", added, merged)
             self.hass.async_create_task(self._download_synced_covers())
         else:
             LOGGER.info("[Bambu同步] 步骤7: 无需下载封面图 (added=%d)", added)
@@ -1680,7 +1862,7 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
     async def _download_synced_covers(self) -> None:
         """异步下载同步新增记录的封面图"""
         try:
-            count = await self.backfill_cover_images()
+            count = await self.image_manager.backfill_cover_images(full_scan=True)
             LOGGER.info("同步后下载了 %d 张封面图", count)
         except Exception as err:
             LOGGER.warning("同步后下载封面图失败: %s", err)
@@ -1710,13 +1892,17 @@ class PrinterAnalyticsCoordinator(DataUpdateCoordinator[PrinterStats]):
                 except Exception:
                     continue
 
-            # 合并新记录
+            # 合并新记录（Cloud 数据优先覆盖封面、模型名等关键字段）
+            _CLOUD_OVERWRITE_FIELDS = {
+                "cover_image_url", "task_name", "config_name",
+                "task_name_model", "task_name_config", "design_id",
+            }
             for rec in records:
                 # 查找重复
                 is_dup = False
                 for ex in existing_records:
                     if self._is_duplicate_record(ex, rec):
-                        if self._merge_record(ex, rec):
+                        if self._merge_record(ex, rec, overwrite_fields=_CLOUD_OVERWRITE_FIELDS):
                             total += 1
                         is_dup = True
                         break
