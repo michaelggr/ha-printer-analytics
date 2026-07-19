@@ -301,6 +301,77 @@ class PrintTracker:
 
         return ""
 
+    async def _auto_verify_model_name(self, cp: dict) -> None:
+        """打印结束后自动验证并纠正模型名
+
+        核心逻辑：从 HA 的 task_name 传感器历史中查找打印开始时距离最近的
+        非参数描述名称，如果与当前记录的模型名不一致，自动纠正。
+        这解决了延迟模型名查找逻辑中使用上一个打印旧 task_id 的缺陷。
+
+        匹配策略：打印开始时，打印机先更新模型名再更新配置名，
+        所以在 start_time 前后60秒内，取距离 start_time 最近的非配置名称。
+        """
+        task_entity = self._entity_map.get("task_name", "")
+        if not task_entity or not cp.get("start_time"):
+            return
+
+        current_model = cp.get("task_name_model", "")
+        start_dt = self.coordinator._normalize_to_utc(cp["start_time"])
+        if not start_dt:
+            return
+
+        try:
+            # 查询打印开始前后1分钟内的 task_name 状态变化
+            query_start = start_dt - timedelta(minutes=1)
+            query_end = start_dt + timedelta(minutes=1)
+
+            # 使用 HA recorder API 查询历史状态
+            task_states = await get_instance(self.hass).async_add_executor_job(
+                get_significant_states,
+                self.hass,
+                query_start,
+                query_end,
+                [task_entity],
+                None,
+                True,
+                False,
+            )
+
+            state_list = task_states.get(task_entity, [])
+            if not state_list:
+                LOGGER.debug("_auto_verify_model_name: 未查到 task_name 历史状态")
+                return
+
+            # 找距离 start_time 最近的非参数描述名称
+            best_model = None
+            best_diff = float('inf')
+            for state in state_list:
+                candidate = self._extract_real_task_name(state.state or "")
+                if not candidate or self._is_param_description(candidate):
+                    continue
+                state_time = dt_util.parse_datetime(state.last_changed)
+                if not state_time:
+                    continue
+                diff = abs((state_time - start_dt).total_seconds())
+                if diff < best_diff:
+                    best_diff = diff
+                    best_model = candidate
+
+            if not best_model:
+                LOGGER.debug("_auto_verify_model_name: 未从历史中找到有效模型名")
+                return
+
+            if best_model != current_model:
+                LOGGER.info("_auto_verify_model_name: 自动纠正模型名 '%s' → '%s'",
+                            current_model, best_model)
+                cp["task_name_model"] = best_model
+                cp["task_name"] = best_model
+            else:
+                LOGGER.debug("_auto_verify_model_name: 模型名验证通过: '%s'", current_model)
+
+        except Exception as e:
+            LOGGER.warning("_auto_verify_model_name: 验证失败（不影响记录保存）: %s", e)
+
     def _extract_model_from_gcode(self, config_name: str = "") -> str:
         """从 gcode_file_downloaded 实体提取项目名
 
@@ -1026,13 +1097,28 @@ class PrintTracker:
             else:
                 # gcode 中无项目名（cloud_file 场景），尝试从历史记录查找模型名
                 # ⚠️ 使用 current_print 中存储的 gcode_task_id，不从传感器重新读取
+                # ⚠️ 重要：必须验证 task_id 是否与传感器匹配，避免使用上一个打印的模型名
                 history_model = self._find_model_name_by_stored_task_id()
                 if history_model and history_model != current_model:
-                    if not self.coordinator._locked_task_name or self.coordinator._locked_task_name == current_model:
-                        self.coordinator.current_print["task_name_model"] = history_model
-                        self.coordinator.current_print["task_name"] = history_model
-                        self.coordinator._lock_task_name(history_model)
-                    LOGGER.info("延迟从历史记录查找到模型名: %s", history_model)
+                    # 验证：检查 current_print 中的 task_id 是否与传感器中的一致
+                    # 如果不一致，说明当前存储的 task_id 可能是上一个打印的，不能信任历史模型名
+                    task_id_valid = True
+                    if gcode_entity:
+                        gcode_value = self.coordinator.get_entity_state(gcode_entity, "") or ""
+                        if gcode_value and gcode_value not in INVALID_ENTITY_STATES:
+                            sensor_task_id = extract_task_id_from_gcode_filename(gcode_value)
+                            if sensor_task_id and str(sensor_task_id) != str(current_task_id):
+                                task_id_valid = False
+                                LOGGER.warning("_cache_delayed_fields: 从历史记录找到模型名 '%s'，"
+                                               "但 gcode_task_id (%s) 与传感器 (%s) 不匹配，跳过",
+                                               history_model, current_task_id, sensor_task_id)
+                    
+                    if task_id_valid:
+                        if not self.coordinator._locked_task_name or self.coordinator._locked_task_name == current_model:
+                            self.coordinator.current_print["task_name_model"] = history_model
+                            self.coordinator.current_print["task_name"] = history_model
+                            self.coordinator._lock_task_name(history_model)
+                        LOGGER.info("延迟从历史记录查找到模型名: %s", history_model)
 
         # 延迟补充/更新 gcode_task_id（打印开始时 gcode 可能还没更新）
         # ⚠️ 允许覆盖：on_print_start 时 gcode 可能还没更新，存入了上一个打印的 task_id
@@ -1596,6 +1682,12 @@ class PrintTracker:
 
         task_name = cp.get("task_name") or ""
         config_name = cp.get("config_name") or ""
+        task_name_model = cp.get("task_name_model") or ""
+
+        # 自动验证：打印结束后从 HA 历史中查找正确模型名
+        if task_name_model and end_status == PRINT_STATUS_FINISH and duration_hours > 0:
+            await self._auto_verify_model_name(cp)
+
         # 拼接模型名 + 配置名（如 "宜家洞洞板适配...三重钩 + 5mm版"）
         if config_name and config_name != task_name:
             task_name = f"{task_name} + {config_name}"
