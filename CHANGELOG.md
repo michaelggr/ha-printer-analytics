@@ -1,4 +1,11 @@
-﻿﻿﻿# 打印分析卡片 - 修改记录
+﻿﻿﻿﻿﻿﻿# 打印分析卡片 - 修改记录
+
+## 新集成：crcgas v2.1.0 (2026-10-27)
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 功能 | 新增华润燃气集成（来源 github.com/C3H3-AI/ha-crcgas v2.1.0）：抓取微信小程序 wmp-svc.crcgas.com 账单/用气量/阶梯气价，48 个传感器，支持能源面板历史注入；需在配置流程中填入抓包获取的 refresh-token、bo-token、wxCode | custom_components/crcgas/ |
+| 功能 | 新增华润燃气统计卡片前端资源（年度对比、阶梯进度） | www/community/crcgas-card/ |
 
 ## v5.24.0 (2026-07-11)
 

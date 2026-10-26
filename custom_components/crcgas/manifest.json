@@ -1,0 +1,17 @@
+{
+  "domain": "crcgas",
+  "name": "CRC GAS 华润燃气",
+  "codeowners": [
+    "@C3H3-AI"
+  ],
+  "config_flow": true,
+  "dependencies": [
+    "recorder"
+  ],
+  "documentation": "https://github.com/C3H3-AI/ha-crcgas",
+  "integration_type": "device",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/C3H3-AI/ha-crcgas/issues",
+  "requirements": [],
+  "version": "2.1.0"
+}
