@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -113,7 +112,12 @@ class UtilityTrackerDBStatusSensor(_BaseSensor):
 
 
 class UtilityTrackerElectricityMonthSensor(_BaseSensor):
-    """本月电费合计(所有户号)"""
+    """本月电费合计(所有户号)
+
+    数据由 coordinator._async_update_data 在每次同步后查询并放入 coordinator.data,
+    本 sensor 仅从 coordinator.data 读取 (CoordinatorEntity 默认 should_poll=False,
+    不能依赖 async_update 被调用)。
+    """
 
     _attr_name = "Electricity This Month"
     _attr_icon = "mdi:flash"
@@ -123,24 +127,14 @@ class UtilityTrackerElectricityMonthSensor(_BaseSensor):
     def __init__(self, coordinator, entry):
         super().__init__(coordinator, entry)
         self._attr_unique_id = f"{entry.entry_id}_elec_month"
-        self._value: float | None = None
 
     @property
     def native_value(self):
-        return self._value
-
-    async def async_update(self):
-        now = datetime.now()
-        try:
-            self._value = await self.coordinator.db.async_sum_month_charge(
-                "electricity", now.year, now.month
-            )
-        except Exception as e:
-            _LOGGER.warning("查电费月合计失败: %s", e)
+        return (self.coordinator.data or {}).get("electricity_this_month")
 
 
 class UtilityTrackerGasMonthSensor(_BaseSensor):
-    """本月燃气费"""
+    """本月燃气费 (同 ElectricityMonthSensor, 从 coordinator.data 读取)"""
 
     _attr_name = "Gas This Month"
     _attr_icon = "mdi:fire"
@@ -150,17 +144,7 @@ class UtilityTrackerGasMonthSensor(_BaseSensor):
     def __init__(self, coordinator, entry):
         super().__init__(coordinator, entry)
         self._attr_unique_id = f"{entry.entry_id}_gas_month"
-        self._value: float | None = None
 
     @property
     def native_value(self):
-        return self._value
-
-    async def async_update(self):
-        now = datetime.now()
-        try:
-            self._value = await self.coordinator.db.async_sum_month_charge(
-                "gas", now.year, now.month
-            )
-        except Exception as e:
-            _LOGGER.warning("查燃气费月合计失败: %s", e)
+        return (self.coordinator.data or {}).get("gas_this_month")

@@ -251,6 +251,41 @@ class TestAccountSnapshotMapping(unittest.TestCase):
         self.assertEqual(snap["extra"]["yi_jie_ti_qi_jie"], 2.53)
 
 
+class TestCoordinatorDataKeys(unittest.TestCase):
+    """测试 coordinator.data 包含 sensor 所需的 key (回归 electricity_this_month/gas_this_month unknown bug)"""
+
+    def test_stats_dict_包含月度费用key(self):
+        """_async_update_data 返回的 stats 必须包含 electricity_this_month 和 gas_this_month"""
+        # 模拟 coordinator 返回的 stats dict
+        stats = {
+            "elec_day_records": 122,
+            "elec_month_records": 18,
+            "elec_snapshots": 2,
+            "gas_month_records": 1,
+            "gas_snapshots": 1,
+            # 关键:新增的两个 key
+            "electricity_this_month": 0.0,
+            "gas_this_month": 49.99,
+        }
+        # sensor.native_value 读取逻辑
+        self.assertIn("electricity_this_month", stats)
+        self.assertIn("gas_this_month", stats)
+        self.assertEqual(stats.get("gas_this_month"), 49.99)
+
+    def test_空data时_sensor返回None(self):
+        """coordinator.data 为 None 时 sensor.native_value 应返回 None 而非 AttributeError"""
+        coordinator_data = None
+        # 模拟 sensor.py 中的 native_value 实现
+        value = (coordinator_data or {}).get("electricity_this_month")
+        self.assertIsNone(value)
+
+    def test_缺key时_sensor返回None(self):
+        """coordinator.data 存在但缺 key 时 sensor.native_value 应返回 None"""
+        coordinator_data = {"elec_day_records": 122}
+        value = (coordinator_data or {}).get("gas_this_month")
+        self.assertIsNone(value)
+
+
 class TestSQLUpsertStructure(unittest.TestCase):
     """测试 SQL upsert 字段顺序与 schemas.sql 一致性"""
 

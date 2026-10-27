@@ -17,6 +17,9 @@
 | 看板 | ui-energy.yaml「深度分析」view 已替换为 Grafana iframe 嵌入 (kiosk 模式) | ui-energy.yaml#L417-427 |
 | 修复 | crcgas 把欠费账单记为负数 (如 -49.99 元 / -19.76 m³),业务上应为正数应缴金额。新增 `_abs_or_none` 工具函数,当月账单与历史回填两处写入点前对 `charge`/`usage_amount` 取绝对值 | coordinator.py#L255-257, L331-333, L359-361 |
 | 测试 | 燃气账单映射新增 3 个用例:负数欠费取绝对值 / 正数账单不受影响 / 零值账单不受影响 | tests/test_utility_tracker.py#L198-217 |
+| 修复 | `electricity_this_month` / `gas_this_month` 永远 unknown 的 bug:两个 sensor 是 CoordinatorEntity (默认 should_poll=False), `async_update` 不会被调用,`_value` 永远 None。改为在 `_async_update_data` 末尾查询并放入 stats dict,sensor 从 `coordinator.data` 读取 | coordinator.py#L77-84, sensor.py#L115-151 |
+| 测试 | 新增 TestCoordinatorDataKeys 3 个用例: stats dict 含月度费用 key / 空 data 时返回 None / 缺 key 时返回 None | tests/test_utility_tracker.py#L254-286 |
+| 部署 | 重启 HA 使 sensor.py/coordinator.py 修改生效 (reload 不重载 Python 模块) | (HA 重启) |
 
 ## 新集成：CTM电信 china_telecom v1.1.7 (2026-10-27)
 

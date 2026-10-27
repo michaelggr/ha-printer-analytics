@@ -73,6 +73,15 @@ class UtilityTrackerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self.total_records = await self.db.async_count_records()
             self.last_sync = datetime.now()
             self.last_error = None
+
+            # 同步完成后查当月费用合计,放入 stats 供 sensor 从 coordinator.data 读取
+            now = datetime.now()
+            stats["electricity_this_month"] = await self.db.async_sum_month_charge(
+                UTILITY_TYPE_ELECTRICITY, now.year, now.month
+            )
+            stats["gas_this_month"] = await self.db.async_sum_month_charge(
+                UTILITY_TYPE_GAS, now.year, now.month
+            )
         except Exception as e:
             self.last_error = str(e)
             _LOGGER.exception("Utility Tracker 同步失败")
