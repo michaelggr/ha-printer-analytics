@@ -1,4 +1,15 @@
-﻿﻿﻿﻿﻿﻿# 打印分析卡片 - 修改记录
+﻿﻿﻿﻿﻿﻿﻿# 打印分析卡片 - 修改记录
+
+## 新集成：国家电网 state_grid v0.10.0 (2026-10-27)
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 功能 | 新增国家电网集成（来源 github.com/stevenjoezhang/hass-state-grid）：网上国网 App API 接入，支持余额/日用电/月账单/年累计等 18 个传感器，支持两个绑定户号 | custom_components/state_grid/ |
+| 修复 | gmssl 依赖 vendored 到 `_vendor/gmssl/`（HAOS 容器无法 pip install gmssl），crypto.py 添加 import fallback | custom_components/state_grid/crypto.py |
+| 修复 | manifest.json 移除 gmssl 依赖，只保留 cryptography | custom_components/state_grid/manifest.json |
+| 修复 | `__init__.py` 首次 refresh 失败不阻塞 setup（try/except 包裹 coordinator.async_config_entry_first_refresh） | custom_components/state_grid/__init__.py |
+| 修复 | `sensor.py` 支持 coordinator 空数据时从 config_entry 预创建实体（避免 setup 后无实体） | custom_components/state_grid/sensor.py |
+| 功能 | 新增 Lovelace「国家电网」视图：两个户号各显示余额/本月/昨日/上月/本年 + 7 天用电趋势图 | ui-lovelace.yaml |
 
 ## 新集成：crcgas v2.1.0 (2026-10-27)
 
