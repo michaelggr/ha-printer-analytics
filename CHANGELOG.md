@@ -11,6 +11,10 @@
 | 修复 | `sensor.py` 支持 coordinator 空数据时从 config_entry 预创建实体（避免 setup 后无实体） | custom_components/state_grid/sensor.py |
 | 功能 | 新增 Lovelace「国家电网」视图：两个户号各显示余额/本月/昨日/上月/本年 + 7 天用电趋势图 | ui-lovelace.yaml |
 | 优化 | 「国家电网」视图布局重构：原 3 列 entity 卡片数字被截断，改为 2 列大字号 tile 卡片（8 项/户号），并新增两户号 7 天用电对比图 | ui-lovelace.yaml |
+| 功能 | 首页新增「国家电网」导航按钮 + 「用电概览」卡片（两户号余额、昨日用电，点击行跳转详情页） | ui-lovelace.yaml |
+| 修复 | 7 天用电图原用 HA 状态历史，刷新间隔 12h 导致阶梯失真、刚接入时无历史；改为 apexcharts-card 直读 API `daily_history` 真实日数据 | ui-lovelace.yaml |
+| 修复 | `daily_history` 末尾含 API 返回的未来日期空值（当月 1 号~月末），直接取末 7 条会得到空数据；data_generator 增加 null/空串/NaN 过滤 | ui-lovelace.yaml |
+| 优化 | 户号标题显示 `latest_date`（数据截至日），避免 T+1 延迟被误读为"昨日" | ui-lovelace.yaml |
 
 ## 新集成：crcgas v2.1.0 (2026-10-27)
 
