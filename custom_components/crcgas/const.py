@@ -31,6 +31,8 @@ CONF_CONS_NO = "cons_no"
 CONF_CONS_NAME = "cons_name"
 CONF_CONS_ADDR = "cons_addr"
 CONF_MOBILE = "mobile"
+# 多户列表：每项 {cons_no, cons_name, cons_addr, org_name, mobile, gas_nature}
+CONF_CONS_LIST = "cons_list"
 
 # 自定义配置
 CONF_SCAN_INTERVAL = "scan_interval"

@@ -19,6 +19,7 @@ from .const import (
     CONF_AREA,
     CONF_BO_TOKEN,
     CONF_CONS_ADDR,
+    CONF_CONS_LIST,
     CONF_CONS_NAME,
     CONF_CONS_NO,
     CONF_MOBILE,
@@ -110,21 +111,38 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 try:
                     result = await self._validate_and_get_cons(refresh_token, bo_token, wx_code)
                     if result.get("success"):
-                        cons_info = result["cons_info"]
+                        cons_list = result["cons_list"]
+                        first = cons_list[0]
                         final_data = {
                             CONF_REFRESH_TOKEN: refresh_token,
                             CONF_BO_TOKEN: bo_token,
                             CONF_WX_CODE: wx_code,
-                            CONF_CONS_NO: cons_info.get("consNo", ""),
-                            CONF_CONS_NAME: cons_info.get("consName", ""),
-                            CONF_CONS_ADDR: cons_info.get("consAddr", ""),
-                            CONF_MOBILE: cons_info.get("mobile", ""),
-                            CONF_AREA: cons_info.get("area", ""),
+                            CONF_CONS_NO: first.get("consNo", ""),
+                            CONF_CONS_NAME: first.get("consName", ""),
+                            CONF_CONS_ADDR: first.get("consAddr", ""),
+                            CONF_MOBILE: first.get("mobile", ""),
+                            CONF_AREA: first.get("area", ""),
+                            # 多户列表：sensor.py 据此为每户生成完整传感器
+                            CONF_CONS_LIST: [
+                                {
+                                    "cons_no": c.get("consNo", ""),
+                                    "cons_name": c.get("consName", ""),
+                                    "cons_addr": c.get("consAddr", ""),
+                                    "org_name": c.get("orgName", ""),
+                                    "mobile": c.get("mobile", ""),
+                                    "gas_nature": c.get("gasNature", ""),
+                                }
+                                for c in cons_list
+                                if c.get("consNo")
+                            ],
                             CONF_SCAN_INTERVAL: int(interval_val),
                             CONF_SCAN_INTERVAL_UNIT: interval_unit,
                         }
+                        title_suffix = first.get("consNo", "未知户号")
+                        if len(cons_list) > 1:
+                            title_suffix += f" 等{len(cons_list)}户"
                         return self.async_create_entry(
-                            title=f"华润燃气 ({cons_info.get('consNo', '未知户号')})",
+                            title=f"华润燃气 ({title_suffix})",
                             data=final_data,
                         )
                     else:
@@ -169,16 +187,29 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 try:
                     result = await self._validate_and_get_cons(refresh_token, bo_token, wx_code)
                     if result.get("success"):
-                        cons_info = result["cons_info"]
+                        cons_list = result["cons_list"]
+                        first = cons_list[0]
                         final_data = {
                             CONF_REFRESH_TOKEN: refresh_token,
                             CONF_BO_TOKEN: bo_token,
                             CONF_WX_CODE: wx_code,
-                            CONF_CONS_NO: cons_info.get("consNo", ""),
-                            CONF_CONS_NAME: cons_info.get("consName", ""),
-                            CONF_CONS_ADDR: cons_info.get("consAddr", ""),
-                            CONF_MOBILE: cons_info.get("mobile", ""),
-                            CONF_AREA: cons_info.get("area", ""),
+                            CONF_CONS_NO: first.get("consNo", ""),
+                            CONF_CONS_NAME: first.get("consName", ""),
+                            CONF_CONS_ADDR: first.get("consAddr", ""),
+                            CONF_MOBILE: first.get("mobile", ""),
+                            CONF_AREA: first.get("area", ""),
+                            CONF_CONS_LIST: [
+                                {
+                                    "cons_no": c.get("consNo", ""),
+                                    "cons_name": c.get("consName", ""),
+                                    "cons_addr": c.get("consAddr", ""),
+                                    "org_name": c.get("orgName", ""),
+                                    "mobile": c.get("mobile", ""),
+                                    "gas_nature": c.get("gasNature", ""),
+                                }
+                                for c in cons_list
+                                if c.get("consNo")
+                            ],
                             CONF_SCAN_INTERVAL: int(interval_val),
                             CONF_SCAN_INTERVAL_UNIT: interval_unit,
                         }
@@ -265,7 +296,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 if data.get("success") and data.get("statusCode") == "200":
                     cons_list = data.get("dataResult", [])
                     if isinstance(cons_list, list) and cons_list:
-                        return {"success": True, "cons_info": cons_list[0]}
+                        # 返回完整多户列表，由调用方决定取哪些
+                        return {"success": True, "cons_list": cons_list}
                     else:
                         _LOGGER.info(f"无绑定户号: {data}")
                         return {"success": False, "error": "no_binding"}

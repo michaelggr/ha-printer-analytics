@@ -28,6 +28,7 @@ from homeassistant.components.sensor.const import SensorStateClass as _SSC
 from .api import HuarunGasApi, SessionTimeoutError
 from .const import (
     CONF_BO_TOKEN,
+    CONF_CONS_LIST,
     CONF_CONS_NO,
     CONF_REFRESH_TOKEN,
     CONF_SCAN_INTERVAL,
@@ -103,13 +104,21 @@ _DEVICE_CLASS_MAP = {
 
 
 class HuarunGasSensor(BaseSensor):
-    """华润燃气传感器基类"""
+    """华润燃气传感器基类（多户版：支持 cons_info，缺省时退化为单户兼容）"""
 
-    def __init__(self, coordinator: DataUpdateCoordinator, sensor_type: str):
+    def __init__(self, coordinator: DataUpdateCoordinator, sensor_type: str, cons_info: Dict[str, Any] = None):
         self.coordinator = coordinator
         self.sensor_type = sensor_type
-        self._attr_unique_id = f"{DOMAIN}_{sensor_type}"
-        self._attr_name = SENSOR_TYPES[sensor_type]["name"]
+        self._cons_info = cons_info or {}
+        self._cons_no = self._cons_info.get("cons_no", "")
+        # 多户：unique_id 带户号后缀；未提供 cons_info 时保持旧格式，兼容现有实体
+        if self._cons_no:
+            self._attr_unique_id = f"{DOMAIN}_{self._cons_no}_{sensor_type}"
+        else:
+            self._attr_unique_id = f"{DOMAIN}_{sensor_type}"
+        base_name = SENSOR_TYPES[sensor_type]["name"]
+        cons_label = self._cons_info.get("cons_name") or self._cons_no
+        self._attr_name = f"{base_name} {cons_label}".strip() if cons_label else base_name
         self._attr_icon = SENSOR_TYPES[sensor_type].get("icon")
         self._attr_native_unit_of_measurement = SENSOR_TYPES[sensor_type].get("unit")
         self._attr_state_class = _STATE_CLASS_MAP.get(sensor_type)
@@ -118,6 +127,14 @@ class HuarunGasSensor(BaseSensor):
 
     @property
     def device_info(self) -> Dict[str, Any]:
+        if self._cons_no:
+            cons_addr = self._cons_info.get("cons_addr", "")
+            return {
+                "identifiers": {(DOMAIN, self.coordinator.config_entry.entry_id, self._cons_no)},
+                "name": f"华润燃气 {self._cons_no}",
+                "manufacturer": "华润燃气",
+                "model": cons_addr or None,
+            }
         return {
             "identifiers": {(DOMAIN, self.coordinator.config_entry.entry_id)},
             "name": "华润燃气",
@@ -369,21 +386,34 @@ class HuarunGasSensor(BaseSensor):
 
 
 class HuarunGasMeterHistorySensor(BaseSensor):
-    """燃气累计用量传感器 — 用于能源面板显示完整历史数据"""
+    """燃气累计用量传感器 — 多户版（cons_info 缺省时退化为旧格式）"""
 
-    def __init__(self, coordinator, entry_id):
+    def __init__(self, coordinator, entry_id, cons_info=None):
         self._coordinator = coordinator
         self._entry_id = entry_id
-        self._attr_unique_id = f"{DOMAIN}_{entry_id}_gas_meter_history"
-        self._attr_name = "燃气累计用量"
+        self._cons_info = cons_info or {}
+        self._cons_no = self._cons_info.get("cons_no", "")
+        if self._cons_no:
+            self._attr_unique_id = f"{DOMAIN}_{self._cons_no}_gas_meter_history"
+        else:
+            self._attr_unique_id = f"{DOMAIN}_{entry_id}_gas_meter_history"
+        cons_label = self._cons_info.get("cons_name") or self._cons_no
+        self._attr_name = f"燃气累计用量 {cons_label}".strip() if cons_label else "燃气累计用量"
         self._attr_icon = "mdi:counter"
-        self._attr_native_unit_of_measurement = "m\u00b3"
+        self._attr_native_unit_of_measurement = "m³"
         self._attr_state_class = _SSC.TOTAL_INCREASING
         self._attr_device_class = "gas"
         self._last_good_value = None
 
     @property
     def device_info(self):
+        if self._cons_no:
+            return {
+                "identifiers": {(DOMAIN, self._entry_id, self._cons_no)},
+                "name": f"华润燃气 {self._cons_no}",
+                "manufacturer": "华润燃气",
+                "model": self._cons_info.get("cons_addr") or None,
+            }
         return {
             "identifiers": {(DOMAIN, self._entry_id)},
             "name": "华润燃气",
