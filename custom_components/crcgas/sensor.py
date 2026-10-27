@@ -764,7 +764,14 @@ async def async_setup_entry(
 
     """设置传感器"""
 
-    cons_no = config_entry.data.get(CONF_CONS_NO, "")
+    # 兼容两种字段名：config_flow 写入 cons_no，历史条目可能是驼峰 consNo
+    cons_no = (
+        config_entry.data.get(CONF_CONS_NO)
+        or config_entry.data.get("consNo")
+        or ""
+    )
+    if not cons_no:
+        _LOGGER.error("未找到户号(cons_no/consNo)，依赖户号的接口将全部失败")
 
 
 
@@ -928,21 +935,7 @@ async def async_setup_entry(
 
         total_api_calls = 6
 
-
-
-        # 检查token是否即将过期
-
-        if api.is_token_expiring_soon(threshold_seconds=int(TOKEN_EXPIRE_THRESHOLD.total_seconds())):
-
-            _LOGGER.warning(f"Token即将过期，强制刷新...")
-
-            try:
-
-                await api.async_refresh_token()
-
-            except Exception as e:
-
-                _LOGGER.error(f"强制刷新Token失败: {e}")
+        # 注：Token 刷新已在 __init__.py 的 async_setup_entry 中完成
 
 
 
@@ -1053,9 +1046,12 @@ async def async_setup_entry(
 
                     elif rule_code == "0203":
 
+                        # API 用 999999999399 表示第三阶梯"不限量"，不能当真实读数展示
+                        _s3_limit = _safe_float(prc_detail.get("levGq", 0))
+                        _s3_unlimited = _s3_limit >= 999999999
                         result["gas_price_step3"] = _safe_float(prc_detail.get("catPrc", 0))
-                        result["step3_remain"] = _safe_float(lev_gq_remain) if lev_gq_remain else 0
-                        result["step3_gas_limit"] = _safe_float(prc_detail.get("levGq", 0))
+                        result["step3_remain"] = 0 if _s3_unlimited else (_safe_float(lev_gq_remain) if lev_gq_remain else 0)
+                        result["step3_gas_limit"] = 0 if _s3_unlimited else _s3_limit
                         result["step3_gas_sum"] = _safe_float(lev_gq_sum) if lev_gq_sum else 0
 
                 if bills:
@@ -1074,6 +1070,15 @@ async def async_setup_entry(
                     result["revbl_amount"] = float(last_bill.get("revblAmt", 0) or 0)
                     result["penalty_date"] = last_bill.get("penaltyDate", "未知")
                     result["bill_month"] = last_bill.get("billYm", "未知")
+
+                    # 华润账单接口的 catPrc(单价) 恒为空，用 账单金额/用气量 反推一档气价
+                    if not any(result.get(k) for k in ("gas_price_step1", "gas_price_step2", "gas_price_step3")):
+                        _ga = float(last_bill.get("gasAmt", 0) or 0)
+                        _ba = float(last_bill.get("billAmt", 0) or 0)
+                        if _ga > 0 and _ba > 0:
+                            _unit_price = round(_ba / _ga, 3)
+                            result["gas_price_step1"] = _unit_price
+                            _LOGGER.info("气价兜底(账单金额/用气量): %.3f 元/m³", _unit_price)
 
                     # 保存新账单到历史存储（自动更新统计）
                     try:

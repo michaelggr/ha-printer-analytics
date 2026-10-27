@@ -53,7 +53,12 @@ class FetchHistoryButton(ButtonEntity):
         # 延迟获取 api 和 cons_no（等待 sensor.py 初始化完成）
         hass_domain = self.hass.data.get(DOMAIN, {})
         self._api = hass_domain.get(f"{self.config_entry.entry_id}_api")
-        self._cons_no = hass_domain.get(f"{self.config_entry.entry_id}_cons_no") or self.config_entry.data.get("cons_no", "")
+        # 户号兼容两种字段名：cons_no（config_flow）与 consNo（历史条目）
+        self._cons_no = (
+            hass_domain.get(f"{self.config_entry.entry_id}_cons_no")
+            or self.config_entry.data.get("cons_no")
+            or self.config_entry.data.get("consNo", "")
+        )
 
         if not self._api:
             _LOGGER.warning(f"按钮 {self.unique_id} 初始化时 api 未就绪，将在工作第一次触发时获取")

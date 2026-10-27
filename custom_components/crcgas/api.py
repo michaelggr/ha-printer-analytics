@@ -100,15 +100,14 @@ class HuarunGasApi:
         status_code = data.get("statusCode", "")
         data_result = data.get("dataResult")
 
+        # 仅明确的会话超时才判定为超时
+        # COMMON_ERROR + 长数字串是 wxCode 已消耗，不是会话超时
         if "会话超时" in msg:
             return True
         if "SESSION_TIMEOUT" in str(status_code).upper():
             return True
         if "系统繁忙" in msg:
             return True
-        if isinstance(data_result, str):
-            if data_result.isdigit() and len(data_result) > 10:
-                return True
         return False
 
     def _get_headers(self) -> dict:
@@ -155,12 +154,13 @@ class HuarunGasApi:
                 timeout=aiohttp.ClientTimeout(total=30),
                 **kwargs,
             ) as response:
+                text = await response.text()
+
                 if response.status != 200:
-                    text = await response.text()
                     _LOGGER.error(f"HTTP {response.status}: {text[:200]}")
                     raise Exception(f"HTTP {response.status}: {text[:100]}")
 
-                data = await response.json()
+                data = json.loads(text)
 
                 # 检测华润API的"假成功"错误响应
                 if self._is_session_timeout(data):
@@ -213,8 +213,7 @@ class HuarunGasApi:
                 result = data.get("dataResult", {})
                 
                 if not isinstance(result, dict):
-                    _LOGGER.warning(f"Token刷新返回非字典: type={type(result).__name__}, val={str(result)[:100]}")
-                    return {}
+                    raise Exception(f"Token刷新返回非字典: type={type(result).__name__}, val={str(result)[:100]}, statusCode={data.get('statusCode')}, msg={data.get('msg')}")
 
                 new_refresh_token = result.get("refresh-token") or result.get("refreshToken")
                 new_bo_token = result.get("bo-token") or result.get("boToken")
@@ -228,7 +227,7 @@ class HuarunGasApi:
                         self.wx_code = new_wx_code
 
                     if self._on_token_refresh:
-                        await self._on_token_refresh(new_refresh_token, new_bo_token)
+                        await self._on_token_refresh(new_refresh_token, new_bo_token, new_wx_code)
 
                     _LOGGER.info("Token刷新成功!")
                     return {"refresh-token": new_refresh_token, "bo-token": new_bo_token}
