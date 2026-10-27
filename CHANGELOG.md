@@ -11,7 +11,10 @@
 | 功能 | crcgas 历史 JSON 账单自动回填到 MariaDB (兼容负数退款) | coordinator.py `_backfill_gas_history` |
 | 看板 | 新增能源账单 dashboard `ui-energy.yaml`,含 4 个 view (概览/电费/燃气费/深度分析),已注册到 configuration.yaml | ui-energy.yaml, configuration.yaml#L77-82 |
 | 测试 | 21 个单元测试,覆盖 `_safe_float` / `bill_month_to_date` / SGCC daily_history 映射 / crcgas 账单映射 / SQL 字段一致性 | tests/test_utility_tracker.py |
-| 待办 | 用户需装 MariaDB Add-on 创建数据库 utility_bills + 用户 ha_utility,再装 Grafana Add-on 做 17 个深度分析面板,iframe 嵌入 ui-energy.yaml 的"深度分析" view | (用户操作) |
+| 部署 | MariaDB Add-on (core_mariadb v3.0.1) 已安装配置: databases=[homeassistant, utility_bills], 用户 ha_utility (密码 ha_utility_pwd_2026), 自动建表 2 张 | (HA Add-on) |
+| 部署 | Utility Tracker 集成已通过 UI 配置连接 MariaDB,首同步写入 141 条记录 (电费日数据 122 条 + 月数据 18 条 + 燃气月数据 1 条) | config_entries |
+| 部署 | Grafana Add-on (a0d7b954_grafana v13.2.4) 已安装, 配置 MySQL 数据源连 core-mariadb:3306/utility_bills, 创建「能源账单监控」看板 (10 面板: 本月电费/燃气费/本年总费用 + 电费月度趋势/日用量/峰谷平 + 燃气月度费用/用量 + 电气对比) | (HA Add-on) |
+| 看板 | ui-energy.yaml「深度分析」view 已替换为 Grafana iframe 嵌入 (kiosk 模式) | ui-energy.yaml#L417-427 |
 
 ## 新集成：CTM电信 china_telecom v1.1.7 (2026-10-27)
 
