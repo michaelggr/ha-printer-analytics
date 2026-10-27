@@ -21,6 +21,7 @@
 | 测试 | 新增 TestCoordinatorDataKeys 3 个用例: stats dict 含月度费用 key / 空 data 时返回 None / 缺 key 时返回 None | tests/test_utility_tracker.py#L254-286 |
 | 部署 | 重启 HA 使 sensor.py/coordinator.py 修改生效 (reload 不重载 Python 模块) | (HA 重启) |
 | 看板 | 电费 view 顶部 2 张「应交」卡片(永远 unknown, 户号无欠费 API 不返回)替换为「本月用电」卡片 | ui-energy.yaml#L211-244 |
+| 看板 | 概览/电费 view 中所有户号数字标识 (7061/0065) 替换为对应小区地址: 7061=东方佳园14-1-401, 0065=东方新天地2-4-1201 (各 11 处显示名,entity_id 不动) | ui-energy.yaml |
 
 ## 新集成：CTM电信 china_telecom v1.1.7 (2026-10-27)
 
