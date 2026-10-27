@@ -1,4 +1,19 @@
-﻿﻿﻿﻿﻿﻿﻿﻿# 打印分析卡片 - 修改记录
+﻿﻿﻿﻿﻿﻿﻿﻿﻿# 打印分析卡片 - 修改记录
+
+## crcgas 华润燃气 v2.0.0 (2026-10-28) - 多户化重构
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 功能 | 完整多户化重构: config_flow 通过 `_validate_and_get_cons` 获取账号下全部户号列表存入 `cons_list`,async_setup_entry 按 cons_list 循环,每户独立 DataUpdateCoordinator + 全套 51 个传感器 + 2 个按钮 | sensor.py, button.py, config_flow.py, const.py |
+| 功能 | sensor.py 拆分为 3 个模块级工厂函数: `_async_update_data_impl` / `_fix_statis_sum_impl` / `_async_initial_setup_impl`,通过 `functools.partial` 绑定每户参数 (cons_no, storage_entry_id, is_primary),避免 for 循环内 re-indent 800 行 + 闭包变量捕获陷阱 | sensor.py#L800, L1393, L1455 |
+| 兼容 | 实体 unique_id 策略: 主户保持旧格式 `crcgas_{sensor_type}` 保护历史数据,副户带户号后缀 `crcgas_{cons_no}_{sensor_type}`;HuarunGasSensor 接受可选 cons_info=None 退化旧格式 | sensor.py#L110-122 |
+| 隔离 | 历史存储键隔离: 主户 `crcgas_history_{entry_id}` (兼容已有数据),副户 `crcgas_history_{entry_id}_{cons_no}`;统计注入 ID 隔离: 主户 `crcgas:monthly_gas_usage`,副户 `crcgas:monthly_gas_usage_{cons_no}` | sensor.py `_import_history_statistics`, `_import_meter_history_to_entity` |
+| 隔离 | coordinator 按户号隔离: `hass.data[DOMAIN][f"{entry_id}_coordinator_{cons_no}"]`,主户同时注册 legacy key `{entry_id}_coordinator` 保证旧服务调用兼容 | sensor.py#L1571, __init__.py |
+| 功能 | button.py 重写为多户版,每户一对按钮 (抓取历史+刷新数据),按钮 device_info 按户隔离;FetchHistoryButton 调服务时传 `{"cons_no": ...}`,RefreshDataButton 按户号查 coordinator | button.py |
+| 功能 | `crcgas.fetch_history` 服务支持 `cons_no` 参数,缺省时循环所有户;`_fix_statis_sum_impl` 的 sensor_ids 改为参数传入 | sensor.py |
+| 部署 | 实际接入 2 户: 主户 1040395237 (*淑萱 东方新天地) 51 实体,副户 1021540961 (*福欣 东方佳园) 51 实体,共 102 实体 + 4 按钮 | (HA 部署) |
+| 部署 | 副户能源面板传感器 `sensor.hua_run_ran_qi_1021540961_neng_yuan_yi_biao_pan_ran_qi_fu_xin` 已通过 WebSocket `energy/save_prefs` 加入 HA 能源面板 energy_sources | (HA 部署) |
+| 重构 | `async_unload_entry` 增加清理多户 coordinator keys (循环 cons_list pop 每户的 `{entry_id}_coordinator_{cons_no}`) | __init__.py |
 
 ## 新集成：Utility Tracker v0.1.0 (2026-10-27)
 

@@ -93,4 +93,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.data[DOMAIN].pop(entry.entry_id, None)
         hass.data[DOMAIN].pop(f"{entry.entry_id}_coordinator", None)
         hass.data[DOMAIN].pop(f"{entry.entry_id}_api", None)
+        hass.data[DOMAIN].pop(f"{entry.entry_id}_cons_no", None)
+        # 清理多户 coordinator keys
+        cons_list = entry.data.get("cons_list") or []
+        for item in cons_list:
+            cn = item.get("cons_no") or item.get("consNo") or ""
+            if cn:
+                hass.data[DOMAIN].pop(f"{entry.entry_id}_coordinator_{cn}", None)
     return unload_ok
