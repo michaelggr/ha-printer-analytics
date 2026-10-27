@@ -20,6 +20,8 @@
 | 修复 | `electricity_this_month` / `gas_this_month` 永远 unknown 的 bug:两个 sensor 是 CoordinatorEntity (默认 should_poll=False), `async_update` 不会被调用,`_value` 永远 None。改为在 `_async_update_data` 末尾查询并放入 stats dict,sensor 从 `coordinator.data` 读取 | coordinator.py#L77-84, sensor.py#L115-151 |
 | 测试 | 新增 TestCoordinatorDataKeys 3 个用例: stats dict 含月度费用 key / 空 data 时返回 None / 缺 key 时返回 None | tests/test_utility_tracker.py#L254-286 |
 | 部署 | 重启 HA 使 sensor.py/coordinator.py 修改生效 (reload 不重载 Python 模块) | (HA 重启) |
+| 看板 | 电费 view 顶部 2 张「应交」卡片(永远 unknown, 户号无欠费 API 不返回)替换为「本月用电」卡片 | ui-energy.yaml#L211-244 |
+| 优化 | 电费 view 顶部「应交」卡片(amount_due 永远 unknown,无欠费户号不返回)替换为「本月用电」(current_month_usage),数据有效且更实用 | ui-energy.yaml#L218, L230, L242 |
 
 ## 新集成：CTM电信 china_telecom v1.1.7 (2026-10-27)
 
