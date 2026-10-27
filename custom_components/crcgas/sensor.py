@@ -45,6 +45,24 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 
+def _short_addr(addr: str) -> str:
+    """截短地址为「小区+门牌」格式
+
+    示例: "湖北省武汉市长江新区阳逻街道东方新天地*栋*单元1201" → "东方新天地1201"
+    找不到行政前缀时返回原地址
+    """
+    if not addr:
+        return ""
+    # 去掉 "街道/镇/乡/路/大道" 等行政前缀（取最后一个出现位置之后的内容）
+    for sep in ("街道", "镇", "乡", "大道", "路"):
+        idx = addr.rfind(sep)
+        if idx >= 0:
+            addr = addr[idx + len(sep):]
+            break
+    # 去掉 "*栋*单元" 这种分隔符
+    return addr.replace("*栋*单元", "").replace("*栋", "").replace("*单元", "").strip()
+
+
 def _safe_float(value, default=0):
     """安全转换数字为float，去除千分位逗号"""
     if value is None or value == "":
@@ -129,7 +147,7 @@ class HuarunGasSensor(BaseSensor):
     @property
     def device_info(self) -> Dict[str, Any]:
         cons_addr = self._cons_info.get("cons_addr", "")
-        cons_label = self._cons_info.get("cons_name") or self._cons_no
+        cons_label = _short_addr(cons_addr) or self._cons_no
         if self._cons_no and not self._legacy_id:
             return {
                 "identifiers": {(DOMAIN, self.coordinator.config_entry.entry_id, self._cons_no)},
@@ -414,7 +432,7 @@ class HuarunGasMeterHistorySensor(BaseSensor):
     @property
     def device_info(self):
         cons_addr = self._cons_info.get("cons_addr", "")
-        cons_label = self._cons_info.get("cons_name") or self._cons_no
+        cons_label = _short_addr(cons_addr) or self._cons_no
         if self._cons_no and not self._legacy_id:
             return {
                 "identifiers": {(DOMAIN, self._entry_id, self._cons_no)},

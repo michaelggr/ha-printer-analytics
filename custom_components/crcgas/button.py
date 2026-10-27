@@ -14,6 +14,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
 
 from .const import CONF_CONS_LIST, CONF_CONS_NO, DOMAIN
+from .sensor import _short_addr
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -103,7 +104,7 @@ class FetchHistoryButton(ButtonEntity):
     @property
     def device_info(self) -> DeviceInfo:
         cons_addr = self._cons_info.get("cons_addr") or "燃气抄表"
-        cons_label = self._cons_info.get("cons_name") or self._cons_no
+        cons_label = _short_addr(self._cons_info.get("cons_addr") or "") or self._cons_no
         if self._cons_no and not self._legacy_id:
             return {
                 "identifiers": {(DOMAIN, self.config_entry.entry_id, self._cons_no)},
@@ -157,7 +158,7 @@ class RefreshDataButton(ButtonEntity):
     @property
     def device_info(self) -> DeviceInfo:
         cons_addr = self._cons_info.get("cons_addr") or "燃气抄表"
-        cons_label = self._cons_info.get("cons_name") or self._cons_no
+        cons_label = _short_addr(self._cons_info.get("cons_addr") or "") or self._cons_no
         if self._cons_no and not self._legacy_id:
             return {
                 "identifiers": {(DOMAIN, self.config_entry.entry_id, self._cons_no)},

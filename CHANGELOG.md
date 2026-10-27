@@ -15,6 +15,7 @@
 | 部署 | 副户能源面板传感器 `sensor.hua_run_ran_qi_1021540961_neng_yuan_yi_biao_pan_ran_qi_fu_xin` 已通过 WebSocket `energy/save_prefs` 加入 HA 能源面板 energy_sources | (HA 部署) |
 | 重构 | `async_unload_entry` 增加清理多户 coordinator keys (循环 cons_list pop 每户的 `{entry_id}_coordinator_{cons_no}`) | __init__.py |
 | 优化 | 主户设备/实体显示名带户名后缀 ("华润燃气 *淑萱 燃气账户余额"),与副户 ("华润燃气 *福欣") 区分。通过 `_legacy_id=True` 标记保持主户旧 unique_id/identifiers 不动,只改显示名;entity name 不再追加户名,依赖 HA 自动拼接 device 名 (避免 "X X" 重复) | sensor.py, button.py |
+| 优化 | device name 改用地址而非户主名 (户主名带 * 掩码不直观)。新增 `_short_addr()` 工具函数: 去掉 "省/市/区/街道" 等行政前缀 + 去掉 "*栋*单元" 分隔符,得到「小区+门牌」格式。效果: 主户 "华润燃气 东方新天地1201",副户 "华润燃气 东方佳园401" | sensor.py `_short_addr`, button.py |
 
 ## 新集成：Utility Tracker v0.1.0 (2026-10-27)
 
