@@ -14,6 +14,7 @@
 | 部署 | 实际接入 2 户: 主户 1040395237 (*淑萱 东方新天地) 51 实体,副户 1021540961 (*福欣 东方佳园) 51 实体,共 102 实体 + 4 按钮 | (HA 部署) |
 | 部署 | 副户能源面板传感器 `sensor.hua_run_ran_qi_1021540961_neng_yuan_yi_biao_pan_ran_qi_fu_xin` 已通过 WebSocket `energy/save_prefs` 加入 HA 能源面板 energy_sources | (HA 部署) |
 | 重构 | `async_unload_entry` 增加清理多户 coordinator keys (循环 cons_list pop 每户的 `{entry_id}_coordinator_{cons_no}`) | __init__.py |
+| 优化 | 主户设备/实体显示名带户名后缀 ("华润燃气 *淑萱 燃气账户余额"),与副户 ("华润燃气 *福欣") 区分。通过 `_legacy_id=True` 标记保持主户旧 unique_id/identifiers 不动,只改显示名;entity name 不再追加户名,依赖 HA 自动拼接 device 名 (避免 "X X" 重复) | sensor.py, button.py |
 
 ## 新集成：Utility Tracker v0.1.0 (2026-10-27)
 

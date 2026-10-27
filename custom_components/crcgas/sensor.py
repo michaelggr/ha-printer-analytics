@@ -112,14 +112,14 @@ class HuarunGasSensor(BaseSensor):
         self.sensor_type = sensor_type
         self._cons_info = cons_info or {}
         self._cons_no = self._cons_info.get("cons_no", "")
-        # 多户：unique_id 带户号后缀；未提供 cons_info 时保持旧格式，兼容现有实体
-        if self._cons_no:
+        # _legacy_id=True 时保持旧 unique_id（主户历史数据保护）
+        self._legacy_id = self._cons_info.get("_legacy_id", False)
+        if self._cons_no and not self._legacy_id:
             self._attr_unique_id = f"{DOMAIN}_{self._cons_no}_{sensor_type}"
         else:
             self._attr_unique_id = f"{DOMAIN}_{sensor_type}"
-        base_name = SENSOR_TYPES[sensor_type]["name"]
-        cons_label = self._cons_info.get("cons_name") or self._cons_no
-        self._attr_name = f"{base_name} {cons_label}".strip() if cons_label else base_name
+        # 实体名不再追加户名（device 名已带户名，HA 自动拼接成 "华润燃气 X 燃气账户余额"）
+        self._attr_name = SENSOR_TYPES[sensor_type]["name"]
         self._attr_icon = SENSOR_TYPES[sensor_type].get("icon")
         self._attr_native_unit_of_measurement = SENSOR_TYPES[sensor_type].get("unit")
         self._attr_state_class = _STATE_CLASS_MAP.get(sensor_type)
@@ -128,18 +128,21 @@ class HuarunGasSensor(BaseSensor):
 
     @property
     def device_info(self) -> Dict[str, Any]:
-        if self._cons_no:
-            cons_addr = self._cons_info.get("cons_addr", "")
+        cons_addr = self._cons_info.get("cons_addr", "")
+        cons_label = self._cons_info.get("cons_name") or self._cons_no
+        if self._cons_no and not self._legacy_id:
             return {
                 "identifiers": {(DOMAIN, self.coordinator.config_entry.entry_id, self._cons_no)},
-                "name": f"华润燃气 {self._cons_no}",
+                "name": f"华润燃气 {cons_label}",
                 "manufacturer": "华润燃气",
                 "model": cons_addr or None,
             }
+        # 主户（或 legacy）：保持旧 identifiers 兼容，但 name/model 仍带户名便于区分
         return {
             "identifiers": {(DOMAIN, self.coordinator.config_entry.entry_id)},
-            "name": "华润燃气",
+            "name": f"华润燃气 {cons_label}" if cons_label else "华润燃气",
             "manufacturer": "华润燃气",
+            "model": cons_addr or None,
         }
 
     @property
@@ -394,12 +397,14 @@ class HuarunGasMeterHistorySensor(BaseSensor):
         self._entry_id = entry_id
         self._cons_info = cons_info or {}
         self._cons_no = self._cons_info.get("cons_no", "")
-        if self._cons_no:
+        # _legacy_id=True 时保持旧 unique_id（主户历史数据保护）
+        self._legacy_id = self._cons_info.get("_legacy_id", False)
+        if self._cons_no and not self._legacy_id:
             self._attr_unique_id = f"{DOMAIN}_{self._cons_no}_gas_meter_history"
         else:
             self._attr_unique_id = f"{DOMAIN}_{entry_id}_gas_meter_history"
-        cons_label = self._cons_info.get("cons_name") or self._cons_no
-        self._attr_name = f"燃气累计用量 {cons_label}".strip() if cons_label else "燃气累计用量"
+        # 实体名不再追加户名（device 名已带户名，HA 自动拼接）
+        self._attr_name = "燃气累计用量"
         self._attr_icon = "mdi:counter"
         self._attr_native_unit_of_measurement = "m³"
         self._attr_state_class = _SSC.TOTAL_INCREASING
@@ -408,17 +413,20 @@ class HuarunGasMeterHistorySensor(BaseSensor):
 
     @property
     def device_info(self):
-        if self._cons_no:
+        cons_addr = self._cons_info.get("cons_addr", "")
+        cons_label = self._cons_info.get("cons_name") or self._cons_no
+        if self._cons_no and not self._legacy_id:
             return {
                 "identifiers": {(DOMAIN, self._entry_id, self._cons_no)},
-                "name": f"华润燃气 {self._cons_no}",
+                "name": f"华润燃气 {cons_label}",
                 "manufacturer": "华润燃气",
-                "model": self._cons_info.get("cons_addr") or None,
+                "model": cons_addr or None,
             }
         return {
             "identifiers": {(DOMAIN, self._entry_id)},
-            "name": "华润燃气",
+            "name": f"华润燃气 {cons_label}" if cons_label else "华润燃气",
             "manufacturer": "华润燃气",
+            "model": cons_addr or None,
         }
 
     @property
@@ -1649,8 +1657,8 @@ async def async_setup_entry(
     for cons_info in cons_list:
         cons_no = cons_info["cons_no"]
         is_primary = (cons_no == primary_cons_no)
-        # 主户保留旧实体ID/名称（cons_info=None），保护历史数据
-        effective_cons_info = None if is_primary else cons_info
+        # 主户保留旧 unique_id/identifiers（_legacy_id 标记），但显示名带户名便于区分
+        effective_cons_info = ({**cons_info, "_legacy_id": True} if is_primary else cons_info)
         # 主户保留旧存储key，副户按户号独立存储
         storage_eid = config_entry.entry_id if is_primary else f"{config_entry.entry_id}_{cons_no}"
 

@@ -1,4 +1,4 @@
-﻿"""华润燃气 按钮平台（多户版）
+"""华润燃气 按钮平台（多户版）
 
 提供按钮实体用于手动触发操作：
 1. 抓取所有历史记录（每户一个）
@@ -55,8 +55,8 @@ async def async_setup_entry(
     buttons = []
     for cons_info in cons_list:
         is_primary = (cons_info["cons_no"] == primary_cons_no)
-        # 主户保留旧实体ID（cons_info=None），副户带户号后缀
-        effective = None if is_primary else cons_info
+        # 主户保留旧 unique_id（_legacy_id 标记），但显示名带户名便于区分
+        effective = ({**cons_info, "_legacy_id": True} if is_primary else cons_info)
         buttons.append(FetchHistoryButton(hass, config_entry, effective))
         buttons.append(RefreshDataButton(hass, config_entry, effective))
 
@@ -75,15 +75,15 @@ class FetchHistoryButton(ButtonEntity):
         self.config_entry = config_entry
         self._cons_info = cons_info or {}
         self._cons_no = self._cons_info.get("cons_no", "")
+        # _legacy_id=True 时保持旧 unique_id（主户历史数据保护），但显示名仍带户名
+        self._legacy_id = self._cons_info.get("_legacy_id", False)
         self._api: Optional[Any] = None
 
-        if self._cons_no:
-            # 副户：unique_id 带户号后缀
-            cons_label = self._cons_info.get("cons_name") or self._cons_no
-            self._attr_name = f"抓取历史记录 {cons_label}"
+        # 实体名不再追加户名（device 名已带户名，HA 自动拼接）
+        if self._cons_no and not self._legacy_id:
+            self._attr_name = "抓取历史记录"
             self._attr_unique_id = f"{config_entry.entry_id}_{self._cons_no}_fetch_history"
         else:
-            # 主户：保持旧格式
             self._attr_name = "抓取历史记录"
             self._attr_unique_id = f"{config_entry.entry_id}_fetch_history"
 
@@ -102,18 +102,20 @@ class FetchHistoryButton(ButtonEntity):
 
     @property
     def device_info(self) -> DeviceInfo:
-        if self._cons_no:
+        cons_addr = self._cons_info.get("cons_addr") or "燃气抄表"
+        cons_label = self._cons_info.get("cons_name") or self._cons_no
+        if self._cons_no and not self._legacy_id:
             return {
                 "identifiers": {(DOMAIN, self.config_entry.entry_id, self._cons_no)},
-                "name": f"华润燃气 {self._cons_no}",
+                "name": f"华润燃气 {cons_label}",
                 "manufacturer": "华润燃气",
-                "model": self._cons_info.get("cons_addr") or "燃气抄表",
+                "model": cons_addr,
             }
         return {
             "identifiers": {(DOMAIN, self.config_entry.entry_id)},
-            "name": "华润燃气",
+            "name": f"华润燃气 {cons_label}" if cons_label else "华润燃气",
             "manufacturer": "华润燃气",
-            "model": "燃气抄表",
+            "model": cons_addr,
         }
 
     async def async_press(self) -> None:
@@ -143,10 +145,10 @@ class RefreshDataButton(ButtonEntity):
         self.config_entry = config_entry
         self._cons_info = cons_info or {}
         self._cons_no = self._cons_info.get("cons_no", "")
+        self._legacy_id = self._cons_info.get("_legacy_id", False)
 
-        if self._cons_no:
-            cons_label = self._cons_info.get("cons_name") or self._cons_no
-            self._attr_name = f"刷新数据 {cons_label}"
+        if self._cons_no and not self._legacy_id:
+            self._attr_name = "刷新数据"
             self._attr_unique_id = f"{config_entry.entry_id}_{self._cons_no}_refresh_data"
         else:
             self._attr_name = "刷新数据"
@@ -154,18 +156,20 @@ class RefreshDataButton(ButtonEntity):
 
     @property
     def device_info(self) -> DeviceInfo:
-        if self._cons_no:
+        cons_addr = self._cons_info.get("cons_addr") or "燃气抄表"
+        cons_label = self._cons_info.get("cons_name") or self._cons_no
+        if self._cons_no and not self._legacy_id:
             return {
                 "identifiers": {(DOMAIN, self.config_entry.entry_id, self._cons_no)},
-                "name": f"华润燃气 {self._cons_no}",
+                "name": f"华润燃气 {cons_label}",
                 "manufacturer": "华润燃气",
-                "model": self._cons_info.get("cons_addr") or "燃气抄表",
+                "model": cons_addr,
             }
         return {
             "identifiers": {(DOMAIN, self.config_entry.entry_id)},
-            "name": "华润燃气",
+            "name": f"华润燃气 {cons_label}" if cons_label else "华润燃气",
             "manufacturer": "华润燃气",
-            "model": "燃气抄表",
+            "model": cons_addr,
         }
 
     async def async_press(self) -> None:
