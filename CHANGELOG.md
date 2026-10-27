@@ -10,6 +10,7 @@
 | 修复 | `__init__.py` 首次 refresh 失败不阻塞 setup（try/except 包裹 coordinator.async_config_entry_first_refresh） | custom_components/state_grid/__init__.py |
 | 修复 | `sensor.py` 支持 coordinator 空数据时从 config_entry 预创建实体（避免 setup 后无实体） | custom_components/state_grid/sensor.py |
 | 功能 | 新增 Lovelace「国家电网」视图：两个户号各显示余额/本月/昨日/上月/本年 + 7 天用电趋势图 | ui-lovelace.yaml |
+| 优化 | 「国家电网」视图布局重构：原 3 列 entity 卡片数字被截断，改为 2 列大字号 tile 卡片（8 项/户号），并新增两户号 7 天用电对比图 | ui-lovelace.yaml |
 
 ## 新集成：crcgas v2.1.0 (2026-10-27)
 
