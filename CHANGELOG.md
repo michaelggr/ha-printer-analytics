@@ -1,5 +1,28 @@
 ﻿﻿﻿﻿﻿﻿﻿# 打印分析卡片 - 修改记录
 
+## 新集成：CTM电信 china_telecom v1.1.7 (2026-10-27)
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 功能 | 新增中国电信话费/流量/语音监控集成（来源 github.com/hlhk2017/ChinaTelecomMonitor-Homeassistant-Integration），共 18 个传感器：账户余额、本月消费、流量总量/已用/剩余/超量、通用与专用流量、流量使用率、通话总量/已用/剩余/使用率、积分、更新时间 | custom_components/china_telecom/ |
+| 配置 | configuration.yaml 新增 `china_telecom` 导入段（手机号 + 服务密码），并注册 CTM 卡片资源 `/china_telecom/ctm-telecom-card.js` | configuration.yaml |
+| 修复 | 电信 2026 风控升级后登录返回 3006「设备未信任」，需通过 telecom.nufe.ccwu.cc 短信授权获取 DeviceId 并写入集成选项 | (集成选项) |
+| 说明 | 首次登录 token 位于 `responseData.data.loginSuccessResult.token`，非 `data.token` | telecom_class.py |
+
+## 清理老家用电残留 (2026-10-27)
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 清理 | 删除 24 个老家/废弃 utility_meter 条目（小黑奴/大黑奴/豆浆机/烤箱/洗衣机周期计量）及 8 个老家空调计量，仅保留新家设备 | utility_meter.yaml |
+| 清理 | 删除 templates.yaml 中 70 个引用已删实体的残留模板块（含 *-corrected、*-fixed 等重复定义），文件从 2076 行缩至 1495 行 | templates.yaml |
+| 修复 | home_*_total_v2 只统计新家设备（电脑/NAS/取暖器/小打印机），电费换算 0.6 元/kWh | templates.yaml |
+| 修复 | 今日总用电/历史累计/本周用电改为引用 home_daily_total_v2、li_shi_zong_gong_hao_2、home_weekly_total_v2 | ui-lovelace.yaml |
+| 修复 | 今日/本月/本年电费卡片改用 home_daily/monthly/yearly_cost_v2 | ui-lovelace.yaml |
+| 修复 | 打印机累计用电引用修正（integration 传感器重名产生的 xiao_da_yin_ji_lei_ji_yong_dian 实体） | utility_meter.yaml |
+| 修复 | sensor.yaml 删除已消失的大打印机(台电) integration，燃气标签误命名条目改为「取暖器累计用电」并补 unique_id | sensor.yaml |
+| 修复 | 修复 templates.yaml 中 34 处 UTF-8 损坏字符（卫生间/元/亮灯等），消除模板渲染报错 | templates.yaml |
+| 修复 | 通过 WS 实体注册表删除 143 个失效模板/计量实体，重启后无残留 | (实体注册表) |
+
 ## 新集成：国家电网 state_grid v0.10.0 (2026-10-27)
 
 | 类型 | 内容 | 涉及文件 |

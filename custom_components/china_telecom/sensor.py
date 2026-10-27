@@ -1,4 +1,4 @@
-import logging
+﻿import logging
 import time
 
 from datetime import datetime, timedelta
@@ -40,7 +40,16 @@ async def async_setup_entry(hass, entry, async_add_entities):
         device_id = entry.data[CONF_DEVICE_ID]
 
     coordinator = ChinaTelecomDataUpdateCoordinator(hass, entry, phonenum, password)
-    await coordinator.async_config_entry_first_refresh()
+    try:
+        await coordinator.async_config_entry_first_refresh()
+    except Exception:
+        # 电信风控（如 3006 设备未信任）会导致首次刷新失败；
+        # 此处不中断平台加载，先创建实体（显示为不可用），后续按间隔重试登录
+        _LOGGER.warning(
+            "China Telecom 首次数据刷新失败，实体将以不可用状态创建: %s",
+            phonenum[:3] + "****" + phonenum[7:],
+            exc_info=True,
+        )
 
     masked_phonenum = f"{phonenum[:3]}****{phonenum[7:]}"
 
