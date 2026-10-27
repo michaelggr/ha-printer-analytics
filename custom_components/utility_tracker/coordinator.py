@@ -1,4 +1,4 @@
-﻿"""Utility Tracker 数据聚合协调器
+"""Utility Tracker 数据聚合协调器
 
 定时从 state_grid (电费) 和 crcgas (燃气费) 实体抓取数据,写入 MariaDB。
 """
@@ -252,8 +252,9 @@ class UtilityTrackerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     "account_id": account_id,
                     "granularity": GRANULARITY_MONTH,
                     "period_date": period_date,
-                    "usage_amount": _state_float(ben_qi_yong_qi_state),
-                    "charge": _state_float(bill_amount_state),
+                    # crcgas 把欠费账单记为负数,业务上应转为正数入库
+                    "usage_amount": _abs_or_none(_state_float(ben_qi_yong_qi_state)),
+                    "charge": _abs_or_none(_state_float(bill_amount_state)),
                     "tier1_usage": _state_float(tier1_state),
                     "tier2_usage": _state_float(tier2_state),
                     "tier3_usage": _state_float(tier3_state),
@@ -327,8 +328,9 @@ class UtilityTrackerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     "account_id": account_id,
                     "granularity": GRANULARITY_MONTH,
                     "period_date": period_date,
-                    "usage_amount": _safe_float(bill.get("gasAmt")),
-                    "charge": _safe_float(bill.get("billAmt")),
+                    # crcgas 把欠费账单记为负数,业务上应转为正数入库
+                    "usage_amount": _abs_or_none(_safe_float(bill.get("gasAmt"))),
+                    "charge": _abs_or_none(_safe_float(bill.get("billAmt"))),
                     "extra": {
                         "applicationNo": bill.get("applicationNo"),
                         "penaltyAmt": bill.get("penaltyAmt"),
@@ -352,6 +354,11 @@ def _safe_float(value: Any) -> float | None:
         return float(value)
     except (ValueError, TypeError):
         return None
+
+
+def _abs_or_none(value: float | None) -> float | None:
+    """对 float 取绝对值, None 透传 (crcgas 把欠费账单记为负数,业务上应为正数)"""
+    return abs(value) if value is not None else None
 
 
 def _state_float(state: State | None) -> float | None:

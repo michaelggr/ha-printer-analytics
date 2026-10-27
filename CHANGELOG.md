@@ -15,6 +15,8 @@
 | 部署 | Utility Tracker 集成已通过 UI 配置连接 MariaDB,首同步写入 141 条记录 (电费日数据 122 条 + 月数据 18 条 + 燃气月数据 1 条) | config_entries |
 | 部署 | Grafana Add-on (a0d7b954_grafana v13.2.4) 已安装, 配置 MySQL 数据源连 core-mariadb:3306/utility_bills, 创建「能源账单监控」看板 (10 面板: 本月电费/燃气费/本年总费用 + 电费月度趋势/日用量/峰谷平 + 燃气月度费用/用量 + 电气对比) | (HA Add-on) |
 | 看板 | ui-energy.yaml「深度分析」view 已替换为 Grafana iframe 嵌入 (kiosk 模式) | ui-energy.yaml#L417-427 |
+| 修复 | crcgas 把欠费账单记为负数 (如 -49.99 元 / -19.76 m³),业务上应为正数应缴金额。新增 `_abs_or_none` 工具函数,当月账单与历史回填两处写入点前对 `charge`/`usage_amount` 取绝对值 | coordinator.py#L255-257, L331-333, L359-361 |
+| 测试 | 燃气账单映射新增 3 个用例:负数欠费取绝对值 / 正数账单不受影响 / 零值账单不受影响 | tests/test_utility_tracker.py#L198-217 |
 
 ## 新集成：CTM电信 china_telecom v1.1.7 (2026-10-27)
 

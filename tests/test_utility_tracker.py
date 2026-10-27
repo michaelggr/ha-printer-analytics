@@ -195,13 +195,26 @@ class TestGasBillMapping(unittest.TestCase):
         self.assertEqual(record["usage_amount"], 1.0)
         self.assertEqual(record["extra"]["applicationNo"], "0126101915558343")
 
-    def test_负数账单_退款(self):
-        """退款账单(负数)也要正确入库"""
+    def test_负数账单_欠费取绝对值(self):
+        """crcgas 把欠费账单记为负数,入库时应取绝对值转为正数"""
         bill = {"billYm": "2026-10", "billAmt": -49.99, "gasAmt": -19.76}
         period_date = bill_month_to_date(bill.get("billYm"))
         self.assertEqual(period_date, "2026-10-01")
-        self.assertEqual(_safe_float(bill.get("billAmt")), -49.99)
-        self.assertEqual(_safe_float(bill.get("gasAmt")), -19.76)
+        # 模拟 coordinator 中的 _abs_or_none 包装
+        self.assertEqual(abs(_safe_float(bill.get("billAmt"))), 49.99)
+        self.assertEqual(abs(_safe_float(bill.get("gasAmt"))), 19.76)
+
+    def test_正数账单_不受影响(self):
+        """正常账单(正数)经过 abs 后值不变"""
+        bill = {"billYm": "2026-10", "billAmt": 2.53, "gasAmt": 1.0}
+        self.assertEqual(abs(_safe_float(bill.get("billAmt"))), 2.53)
+        self.assertEqual(abs(_safe_float(bill.get("gasAmt"))), 1.0)
+
+    def test_零值账单_不受影响(self):
+        """零值账单(0)经过 abs 后仍为 0"""
+        bill = {"billYm": "2026-10", "billAmt": 0.0, "gasAmt": 0.0}
+        self.assertEqual(abs(_safe_float(bill.get("billAmt"))), 0.0)
+        self.assertEqual(abs(_safe_float(bill.get("gasAmt"))), 0.0)
 
 
 class TestAccountSnapshotMapping(unittest.TestCase):
