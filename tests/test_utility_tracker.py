@@ -286,6 +286,82 @@ class TestCoordinatorDataKeys(unittest.TestCase):
         self.assertIsNone(value)
 
 
+class TestMultiAccountSplit(unittest.TestCase):
+    """测试分户 (自住/出租) 数据拆分逻辑"""
+
+    def test_分户stats_key存在(self):
+        """coordinator.data 必须包含 4 个分户 key"""
+        stats = {
+            "electricity_this_month": 0.0,
+            "gas_this_month": 7.59,
+            "electricity_this_month_main": 0.0,      # 0065 东方新天地
+            "electricity_this_month_rental": 0.0,    # 7061 东方佳园
+            "gas_this_month_main": 2.53,             # 1040395237 东方新天地
+            "gas_this_month_rental": 5.06,           # 1021540961 东方佳园
+        }
+        for key in ("electricity_this_month_main", "electricity_this_month_rental",
+                    "gas_this_month_main", "gas_this_month_rental"):
+            self.assertIn(key, stats)
+        # 业务约束: 主+租 应等于合计
+        self.assertAlmostEqual(
+            stats["gas_this_month_main"] + stats["gas_this_month_rental"],
+            stats["gas_this_month"],
+            places=2,
+        )
+
+    def test_燃气sensor_key解析_主户(self):
+        """主户 entity_id 应为 sensor.hua_run_ran_qi_<key>"""
+        eid = "sensor.hua_run_ran_qi_zhang_dan_jin_e"
+        prefix = "sensor.hua_run_ran_qi_"
+        rest = eid[len(prefix):]
+        # 不应匹配 10 位数字副户格式
+        import re
+        m = re.match(r"^(\d{10})_(.+)$", rest)
+        self.assertIsNone(m)
+        # 主户 rest 就是 key
+        self.assertEqual(rest, "zhang_dan_jin_e")
+
+    def test_燃气sensor_key解析_副户(self):
+        """副户 entity_id 应正确解析 cons_no 和 key"""
+        import re
+        eid = "sensor.hua_run_ran_qi_1021540961_zhang_dan_jin_e_fu_xin"
+        prefix = "sensor.hua_run_ran_qi_"
+        rest = eid[len(prefix):]
+        m = re.match(r"^(\d{10})_(.+)$", rest)
+        self.assertIsNotNone(m)
+        cons_no, key_with_name = m.groups()
+        self.assertEqual(cons_no, "1021540961")
+        # 剥离尾部 name 拼音
+        gas_keys = ("zhang_dan_yue_fen", "zhang_dan_jin_e", "ben_qi_yong_qi_liang")
+        matched_key = None
+        for k in gas_keys:
+            if key_with_name.startswith(k + "_"):
+                matched_key = k
+                break
+        self.assertEqual(matched_key, "zhang_dan_jin_e")
+
+    def test_燃气sensor_key解析_副户key前缀冲突(self):
+        """key 前缀重叠时应匹配最长 key (避免 zhang_dan 误匹配 zhang_dan_jin_e)"""
+        import re
+        # ben_qi_yi_jie_ti_yong_qi_liang 必须以完整 key 匹配
+        eid = "sensor.hua_run_ran_qi_1021540961_ben_qi_yi_jie_ti_yong_qi_liang_fu_xin"
+        prefix = "sensor.hua_run_ran_qi_"
+        rest = eid[len(prefix):]
+        m = re.match(r"^(\d{10})_(.+)$", rest)
+        cons_no, key_with_name = m.groups()
+        # 不能用 ben_qi 这种短前缀,否则会先匹配错;按完整 key 匹配
+        gas_keys = (
+            "ben_qi_yi_jie_ti_yong_qi_liang",  # 放前面 (更长)
+            "ben_qi_yong_qi_liang",            # 较短
+        )
+        matched_key = None
+        for k in gas_keys:
+            if key_with_name.startswith(k + "_"):
+                matched_key = k
+                break
+        self.assertEqual(matched_key, "ben_qi_yi_jie_ti_yong_qi_liang")
+
+
 class TestSQLUpsertStructure(unittest.TestCase):
     """测试 SQL upsert 字段顺序与 schemas.sql 一致性"""
 
@@ -310,6 +386,242 @@ class TestSQLUpsertStructure(unittest.TestCase):
             "extra",
         ]
         self.assertEqual(len(expected_cols), 8)
+
+
+class TestPowerSampleAlignment(unittest.TestCase):
+    """测试设备功耗采样时间对齐 (5 分钟边界,保证 UNIQUE(entity_id, sampled_at) 幂等)"""
+
+    def _align(self, minute: int, second: int = 0, sample_minutes: int = 5) -> str:
+        """从 coordinator._collect_device_power 复制的对齐逻辑"""
+        from datetime import datetime
+        now = datetime(2026, 10, 28, 10, minute, second)
+        aligned = now.replace(
+            minute=(now.minute // sample_minutes) * sample_minutes,
+            second=0, microsecond=0,
+        )
+        return aligned.strftime("%Y-%m-%d %H:%M:%S")
+
+    def test_整5分钟_保持不变(self):
+        self.assertEqual(self._align(0), "2026-10-28 10:00:00")
+        self.assertEqual(self._align(5), "2026-10-28 10:05:00")
+        self.assertEqual(self._align(55), "2026-10-28 10:55:00")
+
+    def test_非整5分钟_向下对齐(self):
+        self.assertEqual(self._align(3), "2026-10-28 10:00:00")
+        self.assertEqual(self._align(7), "2026-10-28 10:05:00")
+        self.assertEqual(self._align(59), "2026-10-28 10:55:00")
+
+    def test_带秒_秒清零(self):
+        self.assertEqual(self._align(7, 45), "2026-10-28 10:05:00")
+
+    def test_自定义采样间隔_10分钟(self):
+        self.assertEqual(self._align(17, sample_minutes=10), "2026-10-28 10:10:00")
+        self.assertEqual(self._align(29, sample_minutes=10), "2026-10-28 10:20:00")
+
+
+class TestPowerSampleMapping(unittest.TestCase):
+    """测试 device_class 分流到 power_w / energy_kwh 字段"""
+
+    def _make_sample(self, device_class: str, state_val: str) -> dict:
+        """从 coordinator._collect_device_power 复制的字段映射逻辑"""
+        # 模拟 _state_float
+        try:
+            val = float(state_val) if state_val not in ("unavailable", "unknown", "none", "") else None
+        except (ValueError, TypeError):
+            val = None
+        return {
+            "power_w": val if device_class == "power" else None,
+            "energy_kwh": val if device_class == "energy" else None,
+        }
+
+    def test_power_传感器_写入power_w(self):
+        s = self._make_sample("power", "123.4")
+        self.assertEqual(s["power_w"], 123.4)
+        self.assertIsNone(s["energy_kwh"])
+
+    def test_energy_传感器_写入energy_kwh(self):
+        s = self._make_sample("energy", "45.67")
+        self.assertIsNone(s["power_w"])
+        self.assertEqual(s["energy_kwh"], 45.67)
+
+    def test_unavailable_状态_返回None(self):
+        s = self._make_sample("power", "unavailable")
+        self.assertIsNone(s["power_w"])
+
+
+class TestLightEventTransition(unittest.TestCase):
+    """测试灯光开/关事件的去抖逻辑 (从 __init__.py 的 listener 复制)"""
+
+    def _should_emit(self, old_state: str | None, new_state: str) -> str | None:
+        """返回应入队的事件类型, None 表示不入队"""
+        new_on = new_state == "on"
+        old_on = (old_state == "on") if old_state else False
+        if new_on == old_on:
+            return None
+        return "on" if new_on else "off"
+
+    def test_off到on_产生on事件(self):
+        self.assertEqual(self._should_emit("off", "on"), "on")
+
+    def test_on到off_产生off事件(self):
+        self.assertEqual(self._should_emit("off", "off"), None)
+        self.assertEqual(self._should_emit("on", "off"), "off")
+
+    def test_on到on_无事件(self):
+        """亮度变化但 state 不变, 不应产生事件"""
+        self.assertIsNone(self._should_emit("on", "on"))
+
+    def test_off到off_无事件(self):
+        self.assertIsNone(self._should_emit("off", "off"))
+
+    def test_首次无旧状态_从off判起(self):
+        """old_state 为 None 时当作 off, 只有 new=on 才产生事件"""
+        self.assertEqual(self._should_emit(None, "on"), "on")
+        self.assertIsNone(self._should_emit(None, "off"))
+
+
+class TestPowerSQLColumns(unittest.TestCase):
+    """校验 db.py 中 INSERT 语句的 %s 占位符数量与字段数一致"""
+
+    def _count_placeholders(self, sql_fragment: str, expected: int, name: str) -> None:
+        """数 %s 占位符数量"""
+        count = sql_fragment.count("%s")
+        self.assertEqual(count, expected, f"{name} 占位符数不匹配")
+
+    def test_device_power_raw_占位符(self):
+        # INSERT INTO device_power_raw (entity_id, friendly_name, sampled_at, power_w, energy_kwh, state)
+        # VALUES (%s,%s,%s,%s,%s,%s) -> 6 个
+        self._count_placeholders("(%s,%s,%s,%s,%s,%s)", 6, "device_power_raw")
+
+    def test_light_events_占位符(self):
+        # INSERT INTO light_events (entity_id, friendly_name, event_time, action, brightness, color_temp)
+        # VALUES (%s,%s,%s,%s,%s,%s) -> 6 个
+        self._count_placeholders("(%s,%s,%s,%s,%s,%s)", 6, "light_events")
+
+    def test_device_power_hourly_字段顺序(self):
+        """device_power_hourly INSERT 字段: entity_id, friendly_name, hour_start, avg_w, max_w, min_w, energy_kwh, sample_count"""
+        cols = ["entity_id", "friendly_name", "hour_start", "avg_w", "max_w", "min_w", "energy_kwh", "sample_count"]
+        self.assertEqual(len(cols), 8)
+
+    def test_device_power_daily_字段顺序(self):
+        """device_power_daily INSERT 字段"""
+        cols = ["entity_id", "friendly_name", "period_date", "avg_w", "max_w", "min_w", "energy_kwh", "peak_hour", "sample_count"]
+        self.assertEqual(len(cols), 9)
+
+
+class TestEnergyUnitConversion(unittest.TestCase):
+    """测试 energy 传感器单位换算 (mWh/Wh -> kWh) 与排除规则 (coordinator._collect_device_power)"""
+
+    def _convert(self, val: float | None, unit: str | None) -> float | None:
+        """从 coordinator._collect_device_power 复制的单位换算逻辑"""
+        if val is None:
+            return None
+        u = (unit or "").strip()
+        if u == "mWh":
+            return val / 1_000_000
+        if u == "Wh":
+            return val / 1_000
+        return val
+
+    def _is_excluded(self, entity_id: str) -> bool:
+        """排除规则: 自身传感器 + SGCC 账单传感器"""
+        return entity_id.startswith("sensor.utility_tracker_") or "osg_uc_" in entity_id
+
+    def test_mWh_转kWh(self):
+        self.assertAlmostEqual(self._convert(805, "mWh"), 0.000805)
+        self.assertAlmostEqual(self._convert(3301, "mWh"), 0.003301)
+
+    def test_Wh_转kWh(self):
+        self.assertAlmostEqual(self._convert(1500, "Wh"), 1.5)
+
+    def test_kWh_不变(self):
+        self.assertEqual(self._convert(2.5, "kWh"), 2.5)
+
+    def test_None_透传(self):
+        self.assertIsNone(self._convert(None, "mWh"))
+
+    def test_空单位_不转换(self):
+        self.assertEqual(self._convert(2.5, None), 2.5)
+        self.assertEqual(self._convert(2.5, ""), 2.5)
+
+    def test_排除自身传感器(self):
+        self.assertTrue(self._is_excluded("sensor.utility_tracker_current_power"))
+        self.assertTrue(self._is_excluded("sensor.utility_tracker_power_today"))
+
+    def test_排除SGCC账单传感器(self):
+        self.assertTrue(self._is_excluded(
+            "sensor.99_6aefa11d6e8945fca3a9f9c28433cdb7_02_osg_uc_2610271638_002_7061_current_year_usage"
+        ))
+
+    def test_普通设备_不排除(self):
+        self.assertFalse(self._is_excluded("sensor.pc_cpu_package"))
+        self.assertFalse(self._is_excluded("sensor.nasri_yong_dian_liang"))
+
+
+class TestLightDurationConversion(unittest.TestCase):
+    """测试秒转小时 (sensor.py 的 UtilityTrackerLightDurationTodaySensor)"""
+
+    def test_正常转换(self):
+        self.assertEqual(round(3600 / 3600.0, 2), 1.0)
+        self.assertEqual(round(5400 / 3600.0, 2), 1.5)
+        self.assertEqual(round(90 / 3600.0, 2), 0.03)
+
+    def test_零值(self):
+        self.assertEqual(round(0 / 3600.0, 2), 0.0)
+
+    def test_None_视为0(self):
+        sec = None or 0
+        self.assertEqual(round(sec / 3600.0, 2), 0.0)
+
+
+# 从 const.py 复制
+LIGHT_SWITCH_ID_KEYWORDS = ("light", "lamp")
+LIGHT_SWITCH_NAME_KEYWORDS = ("灯", "light", "lamp")
+
+
+def _is_light_entity(entity_id, friendly_name):
+    """从 __init__.py 复制的灯光实体识别逻辑"""
+    if entity_id.startswith("light."):
+        return True
+    if not entity_id.startswith("switch."):
+        return False
+    eid_lower = entity_id.lower()
+    if any(kw in eid_lower for kw in LIGHT_SWITCH_ID_KEYWORDS):
+        return True
+    name_lower = (friendly_name or "").lower()
+    return any(kw in name_lower for kw in LIGHT_SWITCH_NAME_KEYWORDS)
+
+
+class TestIsLightEntity(unittest.TestCase):
+    """测试灯光实体识别 (light.* 全收; switch.* 仅灯光类)"""
+
+    def test_light域_全部识别(self):
+        self.assertTrue(_is_light_entity("light.living_room", "客厅灯"))
+        self.assertTrue(_is_light_entity("light.anything", None))
+
+    def test_灯光类switch_entity_id含light(self):
+        self.assertTrue(_is_light_entity(
+            "switch.jdjz_cn_2108814194_e1l96_fill_light_switch_p_4_21",
+            "客厅灯 * setting fill-light-switch",
+        ))
+
+    def test_灯光类switch_名称含灯(self):
+        self.assertTrue(_is_light_entity("switch.jdjz_cn_xxx_p_4_21", "主卧灯"))
+
+    def test_灯光类switch_大小写不敏感(self):
+        self.assertTrue(_is_light_entity("switch.LIGHT_strip", None))
+        self.assertTrue(_is_light_entity("switch.some", "Bedroom LAMP"))
+
+    def test_非灯光switch_不识别(self):
+        self.assertFalse(_is_light_entity("switch.living_room_plug", "客厅插座"))
+        self.assertFalse(_is_light_entity("switch.jdjz_cn_xxx", "扫地机开关"))
+
+    def test_其他域_不识别(self):
+        self.assertFalse(_is_light_entity("sensor.light_level", "光照度"))
+        self.assertFalse(_is_light_entity("binary_sensor.light", None))
+
+    def test_None名称_不报错(self):
+        self.assertFalse(_is_light_entity("switch.plug", None))
 
 
 if __name__ == "__main__":

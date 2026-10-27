@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿# 打印分析卡片 - 修改记录
+# 打印分析卡片 - 修改记录
 
 ## crcgas 华润燃气 v2.0.0 (2026-10-28) - 多户化重构
 
@@ -16,6 +16,27 @@
 | 重构 | `async_unload_entry` 增加清理多户 coordinator keys (循环 cons_list pop 每户的 `{entry_id}_coordinator_{cons_no}`) | __init__.py |
 | 优化 | 主户设备/实体显示名带户名后缀 ("华润燃气 *淑萱 燃气账户余额"),与副户 ("华润燃气 *福欣") 区分。通过 `_legacy_id=True` 标记保持主户旧 unique_id/identifiers 不动,只改显示名;entity name 不再追加户名,依赖 HA 自动拼接 device 名 (避免 "X X" 重复) | sensor.py, button.py |
 | 优化 | device name 改用地址而非户主名 (户主名带 * 掩码不直观)。新增 `_short_addr()` 工具函数: 去掉 "省/市/区/街道" 等行政前缀 + 去掉 "*栋*单元" 分隔符,得到「小区+门牌」格式。效果: 主户 "华润燃气 东方新天地1201",副户 "华润燃气 东方佳园401" | sensor.py `_short_addr`, button.py |
+
+## Utility Tracker v0.2.0 (2026-10-28) - 设备功耗 + 灯光统计
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 功能 | 新增单设备功耗采集: 自动扫描 HA 中所有 device_class=power/energy 的 sensor,按 5 分钟对齐采样写入 `device_power_raw`,聚合到 `device_power_hourly` (avg/max/min/energy) 与 `device_power_daily` (含 peak_hour) | coordinator.py `_collect_device_power`, db.py, schemas.sql |
+| 功能 | 分层采样保留策略: 原始 5 分钟数据保留 30 天自动清理,小时/日聚合永久保留;采样时间对齐 5 分钟边界保证 UNIQUE 幂等 | coordinator.py, db.py `async_cleanup_power_raw` |
+| 功能 | 新增灯光统计: `async_track_state_change_event(MATCH_ALL)` 监听全部实体,回调内过滤 light.* 且只在 on/off 切换时入队 (忽略亮度/色温变化),coordinator 每 5 分钟批量落库 `light_events`,LEAD 窗口函数配对 on/off 聚合 `light_daily` (次数/时长/首末次/平均亮度) | __init__.py `_light_state_changed`, db.py `async_aggregate_light_daily` |
+| 功能 | 双频协调器: update_interval = min(账单同步 1h, 功耗采样 5min),电费/燃气按 `last_utility_sync` 节流,crcgas 启动慢返回空户时不更新节流时间戳下周期重试 | coordinator.py `_async_update_data` |
+| 功能 | 新增 4 个 sensor: current_power (W, 每实体取 10 分钟内最新采样求和) / power_today (kWh) / light_today_count / light_today_duration (h) | sensor.py, db.py `async_current_total_power` / `async_sum_power_today` / `async_sum_light_today` |
+| 功能 | 新增服务 `utility_tracker.purge_device_data`: 清空 5 张设备/灯光表 (不影响电费燃气账单) | services.yaml, __init__.py, db.py `async_purge_device_data` |
+| 配置 | config_flow 新增 4 项: enable_device_power / enable_light_stats (默认开) / power_sample_minutes (1-60, 默认 5) / raw_retention_days (1-365, 默认 30) | config_flow.py, const.py |
+| 修复 | 传感器反馈回路: 集成自身的 current_power/power_today sensor (dc=power/energy) 被自己采样导致数值指数增长 (power_today 曾达 3211 kWh),采样时排除 `sensor.utility_tracker_*` 与 `osg_uc_*` (SGCC 账单已在 utility_records 跟踪) | coordinator.py `_collect_device_power` |
+| 修复 | 单位换算: mWh/Wh 单位的 energy 传感器 (如 nasri 805mWh) 未换算直接当 kWh 存,补 mWh→/1e6、Wh→/1e3 换算 | coordinator.py `_collect_device_power` |
+| 修复 | 时区不一致: HA 容器 datetime.now() 返回 UTC 而 MariaDB 会话 NOW()/CURDATE() 用 +8,导致 10 分钟窗口查询错位 (current_power=0) 且日聚合边界早 8 小时。统一为: Python 写入侧用 `dt_util.now().replace(tzinfo=None)` 本地 naive 时间,DB 连接后 `SET time_zone` 为 HA 默认时区偏移 | coordinator.py, __init__.py, db.py `_connect_sync` |
+| 修复 | `async_aggregate_light_daily` SQL 有 2 个 %s 但只传 1 个参数,导致 setup_retry "not enough arguments for format string" | db.py |
+| 修复 | 灯光 listener 改用显式实体列表订阅 (与 printer_analytics 同款已验证写法),MATCH_ALL 方式不可靠;`_is_light_entity` 识别逻辑移到 const.py 复用为 `is_light_entity`;coordinator 每轮检测灯光实体增减,变化时自动重建订阅 (解决集成加载早于灯实体注册导致的漏订阅) | __init__.py, coordinator.py `_collect_light_stats`, const.py |
+| 功能 | 灯光统计支持 switch 域灯具: 米家/京造等灯以 switch 形式存在 (如 `switch.*_fill_light_*`),entity_id 含 light/lamp 或名称含 灯/light/lamp 的 switch 纳入统计,共识别 120 个灯光实体 | const.py `is_light_entity`, __init__.py |
+| 测试 | 新增 TestIsLightEntity 7 个用例: light 域全收 / 灯光类 switch / 大小写 / 非灯 switch / 其他域 / None 名称 | tests/test_utility_tracker.py |
+| 看板 | ui-energy.yaml 新增 2 个 view: 「设备功耗」(当前总功率/今日用电/24h 曲线/auto-entities 单设备列表) 与「灯光」(今日次数/时长/当前亮灯/全部灯光),共 6 个 view | ui-energy.yaml |
+| 测试 | 单元测试 45→57 个: 采样对齐 / dc 分流 / on-off 去抖 / SQL 占位符计数 / 时长换算 / mWh-Wh 换算与排除规则 | tests/test_utility_tracker.py |
 
 ## 新集成：Utility Tracker v0.1.0 (2026-10-27)
 

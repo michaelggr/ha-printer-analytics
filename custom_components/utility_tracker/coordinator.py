@@ -7,25 +7,37 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 from datetime import date, datetime, timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.util import dt as dt_util
 
 from .const import (
+    CONF_ENABLE_DEVICE_POWER,
     CONF_ENABLE_ELECTRICITY,
     CONF_ENABLE_GAS,
+    CONF_ENABLE_LIGHT_STATS,
+    CONF_POWER_SAMPLE_MINUTES,
+    CONF_RAW_RETENTION_DAYS,
     CONF_SYNC_INTERVAL_HOURS,
+    DEFAULT_POWER_SAMPLE_MINUTES,
+    DEFAULT_RAW_RETENTION_DAYS,
     DEFAULT_SYNC_INTERVAL_HOURS,
     DOMAIN,
     GRANULARITY_DAY,
     GRANULARITY_MONTH,
+    LIGHT_ACTION_OFF,
+    LIGHT_ACTION_ON,
+    POWER_DEVICE_CLASSES,
     SOURCE_CRCGAS,
     SOURCE_STATE_GRID,
     UTILITY_TYPE_ELECTRICITY,
     UTILITY_TYPE_GAS,
+    is_light_entity,
 )
 from .db import UtilityDB
 
@@ -40,54 +52,251 @@ class UtilityTrackerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.db = db
         self.enable_electricity = entry.data.get(CONF_ENABLE_ELECTRICITY, True)
         self.enable_gas = entry.data.get(CONF_ENABLE_GAS, True)
+        self.enable_device_power = entry.data.get(CONF_ENABLE_DEVICE_POWER, True)
+        self.enable_light_stats = entry.data.get(CONF_ENABLE_LIGHT_STATS, True)
         hours = int(entry.data.get(CONF_SYNC_INTERVAL_HOURS, DEFAULT_SYNC_INTERVAL_HOURS))
+        self.sync_interval = timedelta(hours=max(1, min(hours, 24)))
+        self.power_sample_minutes = max(1, int(entry.data.get(
+            CONF_POWER_SAMPLE_MINUTES, DEFAULT_POWER_SAMPLE_MINUTES
+        )))
+        self.raw_retention_days = max(1, int(entry.data.get(
+            CONF_RAW_RETENTION_DAYS, DEFAULT_RAW_RETENTION_DAYS
+        )))
 
         self.last_sync: datetime | None = None
+        self.last_utility_sync: datetime | None = None
         self.last_error: str | None = None
+        self.last_gas_discovery: dict | None = None
         self.total_records: int = 0
+        # 灯光事件队列: 由 state listener 填充,coordinator 定期批量写库
+        self.light_event_queue: list[dict] = []
 
         super().__init__(
             hass,
             _LOGGER,
             name=DOMAIN,
-            update_interval=timedelta(hours=max(1, min(hours, 24))),
+            # 采集周期 = min(账单同步周期, 功耗采样周期), 保证 5 分钟采样能跑
+            update_interval=min(
+                self.sync_interval, timedelta(minutes=self.power_sample_minutes)
+            ),
         )
 
+    def queue_light_event(self, event: dict) -> None:
+        """由 __init__.py 的 state listener 调用,灯光开关事件入队"""
+        self.light_event_queue.append(event)
+
     async def _async_update_data(self) -> dict[str, Any]:
-        """主更新入口"""
-        stats = {
+        """主更新入口
+
+        每次调用(默认 5 分钟): 设备功耗采样 + 灯光事件落库 + 聚合
+        按 sync_interval(默认 1 小时): 电费/燃气账单同步
+        """
+        stats: dict[str, Any] = {
             "elec_day_records": 0,
             "elec_month_records": 0,
             "elec_snapshots": 0,
             "gas_month_records": 0,
             "gas_snapshots": 0,
+            "power_samples": 0,
+            "light_events": 0,
         }
         try:
-            if self.enable_electricity:
-                elec_stats = await self._collect_electricity()
-                stats.update(elec_stats)
-            if self.enable_gas:
-                gas_stats = await self._collect_gas()
-                stats.update(gas_stats)
+            # HA 容器运行在 UTC,需显式转成本地时区;
+            # 去掉 tzinfo 存 naive datetime,供 DB 写入与 MariaDB NOW()/CURDATE() 对齐
+            now = dt_util.now().replace(tzinfo=None)
 
-            self.total_records = await self.db.async_count_records()
-            self.last_sync = datetime.now()
-            self.last_error = None
+            # ---- 一次性清理: 分户改造前的脏数据 (v1) ----
+            # 背景: 旧版 _collect_gas 用 biao_hao.state ("未知") 作 account_id, 且
+            # _backfill_gas_history 错把副户历史 JSON 写到主户 account_id 下
+            cleanup_flag = self.hass.config.path(
+                ".storage", "utility_tracker_cleanup_v1.done"
+            )
+            if not os.path.exists(cleanup_flag):
+                try:
+                    # 1) 删 gas 中所有不在已知 account_id 集合内的脏记录
+                    n1 = await self.db.async_delete_unknown_gas_accounts(
+                        known=("1040395237", "1021540961")
+                    )
+                    # 2) 删主户所有 gas 月记录 (可能混入副户历史, 由 _collect_gas 重建)
+                    n2 = await self.db.async_delete_utility_records(
+                        UTILITY_TYPE_GAS, "1040395237", granularity=GRANULARITY_MONTH
+                    )
+                    with open(cleanup_flag, "w", encoding="utf-8") as f:
+                        f.write(datetime.now().isoformat())
+                    _LOGGER.warning(
+                        "分户脏数据清理完成: 删未知 account_id %d 条, 主户月记录 %d 条",
+                        n1, n2,
+                    )
+                    # 强制立刻重跑 _collect_gas 重建
+                    self.last_utility_sync = None
+                except Exception as e:
+                    _LOGGER.warning("脏数据清理失败: %s", e)
 
-            # 同步完成后查当月费用合计,放入 stats 供 sensor 从 coordinator.data 读取
-            now = datetime.now()
+            # ---- 高频任务: 设备功耗 + 灯光 ----
+            if self.enable_device_power:
+                stats["power_samples"] = await self._collect_device_power(now)
+            if self.enable_light_stats:
+                stats["light_events"] = await self._collect_light_stats(now)
+
+            # ---- 低频任务: 电费/燃气 (按 sync_interval 节流) ----
+            utility_due = (
+                self.last_utility_sync is None
+                or (now - self.last_utility_sync) >= self.sync_interval
+            )
+            if utility_due:
+                utility_ok = True
+                if self.enable_electricity:
+                    stats.update(await self._collect_electricity())
+                if self.enable_gas:
+                    gas_stats = await self._collect_gas()
+                    stats.update(gas_stats)
+                    # crcgas 启动慢时 _discover_gas_accounts 返回空,
+                    # 不要更新 last_utility_sync, 下个周期重试
+                    if not self.last_gas_discovery:
+                        utility_ok = False
+                        _LOGGER.info("燃气户为空, 5 分钟后重试")
+                if utility_ok:
+                    self.last_utility_sync = now
+
+            # 月度账单统计 (轻量 SQL SUM, 每次刷新都跑, 避免 sensor unknown)
+            # 合计 (向后兼容)
             stats["electricity_this_month"] = await self.db.async_sum_month_charge(
                 UTILITY_TYPE_ELECTRICITY, now.year, now.month
             )
             stats["gas_this_month"] = await self.db.async_sum_month_charge(
                 UTILITY_TYPE_GAS, now.year, now.month
             )
+            # 分户: 自住 (东方新天地) vs 出租 (东方佳园)
+            # 电: state_grid account_suffix 为 "0065"(主)/"7061"(租)
+            # 气: crcgas cons_no 为 "1040395237"(主)/"1021540961"(租)
+            stats["electricity_this_month_main"] = await self.db.async_sum_month_charge(
+                UTILITY_TYPE_ELECTRICITY, now.year, now.month, account_id="0065"
+            )
+            stats["electricity_this_month_rental"] = await self.db.async_sum_month_charge(
+                UTILITY_TYPE_ELECTRICITY, now.year, now.month, account_id="7061"
+            )
+            stats["gas_this_month_main"] = await self.db.async_sum_month_charge(
+                UTILITY_TYPE_GAS, now.year, now.month, account_id="1040395237"
+            )
+            stats["gas_this_month_rental"] = await self.db.async_sum_month_charge(
+                UTILITY_TYPE_GAS, now.year, now.month, account_id="1021540961"
+            )
+
+            # ---- 汇总指标 (供 sensor 读) ----
+            self.total_records = await self.db.async_count_records()
+            if self.enable_device_power:
+                stats["power_current_w"] = await self.db.async_current_total_power()
+                stats["power_today_kwh"] = await self.db.async_sum_power_today()
+            if self.enable_light_stats:
+                on_count, on_sec = await self.db.async_sum_light_today()
+                stats["light_today_count"] = on_count
+                stats["light_today_seconds"] = on_sec
+
+            self.last_sync = now
+            self.last_error = None
         except Exception as e:
             self.last_error = str(e)
             _LOGGER.exception("Utility Tracker 同步失败")
             raise
 
         return stats
+
+    # =====================================================================
+    # 设备功耗 (5 分钟采样 + 聚合)
+    # =====================================================================
+
+    async def _collect_device_power(self, now: datetime) -> int:
+        """扫描所有 device_class=power/energy 的 sensor, 写原始采样 + 触发聚合"""
+        # 采样时间对齐到 5 分钟边界,保证 UNIQUE(entity_id, sampled_at) 幂等
+        aligned = now.replace(
+            minute=(now.minute // self.power_sample_minutes) * self.power_sample_minutes,
+            second=0, microsecond=0,
+        )
+        sampled_at = aligned.strftime("%Y-%m-%d %H:%M:%S")
+
+        samples: list[dict] = []
+        for state in self.hass.states.async_all("sensor"):
+            dc = state.attributes.get("device_class")
+            if dc not in POWER_DEVICE_CLASSES:
+                continue
+            # 排除自身传感器(避免反馈回路)和 SGCC 账单传感器(已在 utility_records 跟踪)
+            eid = state.entity_id
+            if eid.startswith("sensor.utility_tracker_") or "osg_uc_" in eid:
+                continue
+            # 跳过不可用状态,但保留 state 字符串便于排查
+            val = _state_float(state)
+            # 单位换算: mWh/Wh -> kWh (energy 传感器)
+            if dc == "energy" and val is not None:
+                unit = (state.attributes.get("unit_of_measurement") or "").strip()
+                if unit == "mWh":
+                    val = val / 1_000_000
+                elif unit == "Wh":
+                    val = val / 1_000
+            sample = {
+                "entity_id": eid,
+                "friendly_name": state.attributes.get("friendly_name"),
+                "sampled_at": sampled_at,
+                "power_w": val if dc == "power" else None,
+                "energy_kwh": val if dc == "energy" else None,
+                "state": state.state,
+            }
+            samples.append(sample)
+
+        if samples:
+            await self.db.async_insert_device_power_raw(samples)
+
+        # 聚合上一个完整小时 (避免聚合还在进行中的当前小时)
+        prev_hour = aligned - timedelta(hours=1)
+        hour_start = prev_hour.replace(minute=0, second=0, microsecond=0)
+        hour_end = hour_start + timedelta(hours=1)
+        await self.db.async_aggregate_power_hourly(
+            hour_start.strftime("%Y-%m-%d %H:%M:%S"),
+            hour_end.strftime("%Y-%m-%d %H:%M:%S"),
+        )
+
+        # 聚合昨天 (今天可能还没结束,等明天再聚合)
+        yesterday = (aligned - timedelta(days=1)).date().isoformat()
+        await self.db.async_aggregate_power_daily(yesterday)
+
+        # 清理过期原始数据
+        await self.db.async_cleanup_power_raw(self.raw_retention_days)
+
+        return len(samples)
+
+    # =====================================================================
+    # 灯光统计 (事件队列落库 + 日聚合)
+    # =====================================================================
+
+    async def _collect_light_stats(self, now: datetime) -> int:
+        """把队列中的灯光事件批量写库,并聚合昨天的日数据"""
+        # 队列落库 (原子地取出并清空)
+        events = self.light_event_queue[:]
+        self.light_event_queue.clear()
+        if events:
+            await self.db.async_insert_light_events(events)
+            _LOGGER.info("灯光事件落库: %d 条", len(events))
+
+        # 聚合昨天
+        yesterday = (now - timedelta(days=1)).date().isoformat()
+        await self.db.async_aggregate_light_daily(yesterday)
+        # 今天的也聚一次 (允许覆盖,数据当天实时可见)
+        today = now.date().isoformat()
+        await self.db.async_aggregate_light_daily(today)
+
+        # 检测新增/移除的灯光实体,有变化则重建 state 订阅
+        store = self.hass.data.get(DOMAIN, {}).get(self.entry.entry_id, {})
+        rebuild = store.get("rebuild_light_sub")
+        if rebuild:
+            current_ids = {
+                s.entity_id
+                for s in self.hass.states.async_all()
+                if is_light_entity(s.entity_id, s.attributes.get("friendly_name"))
+            }
+            if current_ids != store.get("light_entity_ids", set()):
+                _LOGGER.info("灯光实体变化, 重建订阅")
+                rebuild()
+
+        return len(events)
 
     # =====================================================================
     # 电费 (state_grid)
@@ -213,86 +422,120 @@ class UtilityTrackerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     # 燃气费 (crcgas)
     # =====================================================================
 
-    async def _collect_gas(self) -> dict[str, int]:
-        """从 crcgas 实体抓数据写库"""
-        # 通过 entity_id 前缀过滤,简单可靠
-        crcgas_entities = [
-            s for s in self.hass.states.async_all()
-            if s.entity_id.startswith("sensor.hua_run_ran_qi_")
-               or s.entity_id.startswith("button.hua_run_ran_qi_")
-        ]
+    # 燃气 sensor key 白名单 (与 crcgas 集成一致)
+    _GAS_SENSOR_KEYS = (
+        "zhang_dan_yue_fen", "zhang_dan_jin_e", "ben_qi_yong_qi_liang",
+        "ben_qi_biao_du_shu", "ben_qi_chao_biao_shi_jian",
+        "ben_qi_yi_jie_ti_yong_qi_liang", "ben_qi_er_jie_ti_yong_qi_liang",
+        "ben_qi_san_jie_ti_yong_qi_liang",
+        "ran_qi_zhang_hu_yu_e", "qian_fei_jin_e",
+        "lei_ji_ran_qi_fei_yong", "nian_du_yue_jun_yong_qi_liang",
+        "yi_jie_ti_qi_jie", "er_jie_ti_qi_jie", "san_jie_ti_qi_jie", "wei_yue_jin",
+    )
+    # 主户户号 (crcgas 主户 entity_id 不带 cons_no 中缀)
+    _GAS_MAIN_CONS_NO = "1040395237"  # 东方新天地 *淑萱
 
-        if not crcgas_entities:
+    def _discover_gas_accounts(self) -> dict[str, dict[str, str]]:
+        """扫描所有 hua_run_ran_qi sensor,按户号分组
+
+        返回: {cons_no: {sensor_key: entity_id}}
+        - 主户 (1040395237): entity_id = sensor.hua_run_ran_qi_<key>
+        - 副户 (1021540961 等): entity_id = sensor.hua_run_ran_qi_<cons_no>_<key>_<name_pinyin>
+        """
+        accounts: dict[str, dict[str, str]] = {}
+        prefix = "sensor.hua_run_ran_qi_"
+        all_states = list(self.hass.states.async_all())
+        gas_states = [s for s in all_states if s.entity_id.startswith(prefix)]
+        # 调试信息暴露到 self
+        self.last_gas_discovery = {
+            "_total_states": len(all_states),
+            "_gas_states": len(gas_states),
+            "_sample_eids": [s.entity_id for s in gas_states[:3]],
+        }
+        for state in gas_states:
+            eid = state.entity_id
+            rest = eid[len(prefix):]
+            # 副户格式: <10位数字cons_no>_<key>_<name_pinyin>
+            m = re.match(r"^(\d{10})_(.+)$", rest)
+            if m:
+                cons_no, key_with_name = m.groups()
+                # 剥离尾部 name 拼音, 逐一匹配已知 key
+                for key in self._GAS_SENSOR_KEYS:
+                    if key_with_name.startswith(key + "_"):
+                        accounts.setdefault(cons_no, {})[key] = eid
+                        break
+            else:
+                # 主户: rest 即为 key
+                if rest in self._GAS_SENSOR_KEYS:
+                    accounts.setdefault(self._GAS_MAIN_CONS_NO, {})[rest] = eid
+        # 把最终 accounts 合并进调试信息
+        for k, v in accounts.items():
+            self.last_gas_discovery[k] = list(v.keys())
+        return accounts
+
+    async def _collect_gas(self) -> dict[str, int]:
+        """从 crcgas 实体抓数据写库 (多户版)"""
+        accounts = self._discover_gas_accounts()
+        _LOGGER.info("燃气户发现: %s", self.last_gas_discovery)
+        if not accounts:
             _LOGGER.warning("未找到 crcgas 实体,跳过燃气同步")
             return {"gas_month_records": 0, "gas_snapshots": 0}
-
-        # 找户号(用 config_entry.title 里的户号或 friendly_name 里的)
-        # 简化:用主户号 1040395237 作为 account_id
-        # 实际从 sensor.hua_run_ran_qi_biao_hao 读
-        biao_hao_state = self.hass.states.get("sensor.hua_run_ran_qi_biao_hao")
-        account_id = (biao_hao_state.state if biao_hao_state else "default").strip() or "default"
-
-        # 工具函数:取某个实体的状态值
-        def _get(entity_id_suffix: str) -> State | None:
-            full_id = f"sensor.hua_run_ran_qi_{entity_id_suffix}"
-            return self.hass.states.get(full_id)
 
         month_records: list[dict] = []
         snapshots: list[dict] = []
         today = date.today().isoformat()
 
-        # ---- 月记录:本期账单 ----
-        bill_month_state = _get("zhang_dan_yue_fen")  # "2026-10"
-        bill_amount_state = _get("zhang_dan_jin_e")
-        ben_qi_yong_qi_state = _get("ben_qi_yong_qi_liang")
-        ben_qi_biao_du_state = _get("ben_qi_biao_du_shu")
-        ben_qi_chao_biao_state = _get("ben_qi_chao_biao_shi_jian")
-        tier1_state = _get("ben_qi_yi_jie_ti_yong_qi_liang")
-        tier2_state = _get("ben_qi_er_jie_ti_yong_qi_liang")
-        tier3_state = _get("ben_qi_san_jie_ti_yong_qi_liang")
+        for account_id, sensor_map in accounts.items():
+            # 工具函数:取该户某个 key 的实体状态
+            def _get(key: str, _map=sensor_map) -> State | None:
+                eid = _map.get(key)
+                return self.hass.states.get(eid) if eid else None
 
-        if bill_month_state and bill_month_state.state:
-            bill_month = bill_month_state.state.strip()  # "2026-10"
-            try:
-                year, month = bill_month.split("-", 1)
-                period_date = f"{year}-{month.zfill(2)}-01"
-                month_records.append({
-                    "utility_type": UTILITY_TYPE_GAS,
-                    "account_id": account_id,
-                    "granularity": GRANULARITY_MONTH,
-                    "period_date": period_date,
-                    # crcgas 把欠费账单记为负数,业务上应转为正数入库
-                    "usage_amount": _abs_or_none(_state_float(ben_qi_yong_qi_state)),
-                    "charge": _abs_or_none(_state_float(bill_amount_state)),
-                    "tier1_usage": _state_float(tier1_state),
-                    "tier2_usage": _state_float(tier2_state),
-                    "tier3_usage": _state_float(tier3_state),
-                    "meter_reading": _state_float(ben_qi_biao_du_state),
-                    "meter_date": (ben_qi_chao_biao_state.state if ben_qi_chao_biao_state else None),
-                })
-            except (ValueError, AttributeError) as e:
-                _LOGGER.warning("燃气账单月份解析失败: %s, err=%s", bill_month, e)
+            # ---- 月记录:本期账单 ----
+            bill_month_state = _get("zhang_dan_yue_fen")
+            if bill_month_state and bill_month_state.state:
+                bill_month = bill_month_state.state.strip()  # "2026-10"
+                try:
+                    year, month = bill_month.split("-", 1)
+                    period_date = f"{year}-{month.zfill(2)}-01"
+                    month_records.append({
+                        "utility_type": UTILITY_TYPE_GAS,
+                        "account_id": account_id,
+                        "granularity": GRANULARITY_MONTH,
+                        "period_date": period_date,
+                        # crcgas 把欠费账单记为负数,业务上应转为正数入库
+                        "usage_amount": _abs_or_none(_state_float(_get("ben_qi_yong_qi_liang"))),
+                        "charge": _abs_or_none(_state_float(_get("zhang_dan_jin_e"))),
+                        "tier1_usage": _state_float(_get("ben_qi_yi_jie_ti_yong_qi_liang")),
+                        "tier2_usage": _state_float(_get("ben_qi_er_jie_ti_yong_qi_liang")),
+                        "tier3_usage": _state_float(_get("ben_qi_san_jie_ti_yong_qi_liang")),
+                        "meter_reading": _state_float(_get("ben_qi_biao_du_shu")),
+                        "meter_date": (lambda s: s.state if s else None)(_get("ben_qi_chao_biao_shi_jian")),
+                    })
+                except (ValueError, AttributeError) as e:
+                    _LOGGER.warning("燃气账单月份解析失败: 户=%s, val=%s, err=%s",
+                                    account_id, bill_month, e)
 
-        # ---- 历史账单回填(从 crcgas history_storage 的 JSON) ----
-        backfilled = await self._backfill_gas_history(account_id)
-        month_records.extend(backfilled)
+            # ---- 历史账单回填 (每户各自读自己的 JSON) ----
+            backfilled = await self._backfill_gas_history(account_id)
+            month_records.extend(backfilled)
 
-        # ---- 当日快照 ----
-        snapshots.append({
-            "utility_type": UTILITY_TYPE_GAS,
-            "account_id": account_id,
-            "snapshot_date": today,
-            "balance": _state_float(_get("ran_qi_zhang_hu_yu_e")),
-            "amount_due": _state_float(_get("qian_fei_jin_e")),
-            "year_total_charge": _state_float(_get("lei_ji_ran_qi_fei_yong")),
-            "year_total_usage": _state_float(_get("nian_du_yue_jun_yong_qi_liang")),
-            "extra": {
-                "yi_jie_ti_qi_jie": _state_float(_get("yi_jie_ti_qi_jie")),
-                "er_jie_ti_qi_jie": _state_float(_get("er_jie_ti_qi_jie")),
-                "san_jie_ti_qi_jie": _state_float(_get("san_jie_ti_qi_jie")),
-                "wei_yue_jin": _state_float(_get("wei_yue_jin")),
-            },
-        })
+            # ---- 当日快照 ----
+            snapshots.append({
+                "utility_type": UTILITY_TYPE_GAS,
+                "account_id": account_id,
+                "snapshot_date": today,
+                "balance": _state_float(_get("ran_qi_zhang_hu_yu_e")),
+                "amount_due": _state_float(_get("qian_fei_jin_e")),
+                "year_total_charge": _state_float(_get("lei_ji_ran_qi_fei_yong")),
+                "year_total_usage": _state_float(_get("nian_du_yue_jun_yong_qi_liang")),
+                "extra": {
+                    "yi_jie_ti_qi_jie": _state_float(_get("yi_jie_ti_qi_jie")),
+                    "er_jie_ti_qi_jie": _state_float(_get("er_jie_ti_qi_jie")),
+                    "san_jie_ti_qi_jie": _state_float(_get("san_jie_ti_qi_jie")),
+                    "wei_yue_jin": _state_float(_get("wei_yue_jin")),
+                },
+            })
 
         if month_records:
             await self.db.async_upsert_records(month_records)
@@ -300,8 +543,8 @@ class UtilityTrackerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             await self.db.async_upsert_snapshots(snapshots)
 
         _LOGGER.info(
-            "燃气同步完成: 户号=%s, 月记录=%d, 快照=%d",
-            account_id, len(month_records), len(snapshots),
+            "燃气同步完成: %d 户, 月记录=%d, 快照=%d",
+            len(accounts), len(month_records), len(snapshots),
         )
         return {
             "gas_month_records": len(month_records),
@@ -309,9 +552,15 @@ class UtilityTrackerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         }
 
     async def _backfill_gas_history(self, account_id: str) -> list[dict]:
-        """从 crcgas 历史 JSON 回填历史账单"""
+        """从 crcgas 历史 JSON 回填历史账单
+
+        文件命名规则:
+        - 主户 (cons_no=_GAS_MAIN_CONS_NO): crcgas_history_<entry_id> (不带 cons_no 后缀)
+        - 副户: crcgas_history_<entry_id>_<cons_no>
+        """
         records: list[dict] = []
         storage_dir = self.hass.config.path(".storage")
+        is_main = (account_id == self._GAS_MAIN_CONS_NO)
         try:
             files = [f for f in os.listdir(storage_dir) if f.startswith("crcgas_history_")]
         except Exception as e:
@@ -319,6 +568,16 @@ class UtilityTrackerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return records
 
         for fname in files:
+            # 按户过滤文件: 文件名以 _<10位数字> 结尾的是副户
+            m = re.search(r"_(\d{10})$", fname)
+            if is_main:
+                # 主户: 跳过带 cons_no 后缀的副户文件
+                if m:
+                    continue
+            else:
+                # 副户: 只读匹配自己 cons_no 的文件
+                if not m or m.group(1) != account_id:
+                    continue
             fpath = os.path.join(storage_dir, fname)
             try:
                 with open(fpath, "r", encoding="utf-8") as f:

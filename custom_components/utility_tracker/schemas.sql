@@ -43,3 +43,86 @@ CREATE TABLE IF NOT EXISTS account_snapshots (
   UNIQUE KEY uniq_snapshot (utility_type, account_id, snapshot_date),
   KEY idx_type_date (utility_type, snapshot_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='账户余额快照';
+
+-- =====================================================================
+-- 设备功耗 (单设备功率/电量 sensor,5 分钟级原始 + 小时/日聚合)
+-- =====================================================================
+
+-- 表 3: 设备功耗原始采样 (5 分钟级,保留 30 天)
+CREATE TABLE IF NOT EXISTS device_power_raw (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  entity_id VARCHAR(128) NOT NULL COMMENT 'HA 实体 ID',
+  friendly_name VARCHAR(128) NULL COMMENT '实体友好名称',
+  sampled_at DATETIME NOT NULL COMMENT '采样时间(对齐 5 分钟)',
+  power_w DECIMAL(10,3) NULL COMMENT '功率(W), device_class=power',
+  energy_kwh DECIMAL(14,4) NULL COMMENT '累计电量(kWh), device_class=energy',
+  state VARCHAR(32) NULL COMMENT '原始状态字符串',
+  UNIQUE KEY uniq_sample (entity_id, sampled_at),
+  KEY idx_entity_time (entity_id, sampled_at),
+  KEY idx_time (sampled_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='设备功耗原始采样(5分钟)';
+
+-- 表 4: 设备功耗小时聚合 (永久保留)
+CREATE TABLE IF NOT EXISTS device_power_hourly (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  entity_id VARCHAR(128) NOT NULL,
+  friendly_name VARCHAR(128) NULL,
+  hour_start DATETIME NOT NULL COMMENT '小时起点',
+  avg_w DECIMAL(10,3) NULL COMMENT '平均功率(W)',
+  max_w DECIMAL(10,3) NULL,
+  min_w DECIMAL(10,3) NULL,
+  energy_kwh DECIMAL(14,4) NULL COMMENT '本小时耗电(kWh)',
+  sample_count INT NOT NULL DEFAULT 0 COMMENT '采样点数',
+  UNIQUE KEY uniq_hour (entity_id, hour_start),
+  KEY idx_entity_time (entity_id, hour_start)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='设备功耗小时聚合';
+
+-- 表 5: 设备功耗日聚合 (永久保留)
+CREATE TABLE IF NOT EXISTS device_power_daily (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  entity_id VARCHAR(128) NOT NULL,
+  friendly_name VARCHAR(128) NULL,
+  period_date DATE NOT NULL,
+  avg_w DECIMAL(10,3) NULL,
+  max_w DECIMAL(10,3) NULL,
+  min_w DECIMAL(10,3) NULL,
+  energy_kwh DECIMAL(14,4) NULL COMMENT '当日耗电(kWh)',
+  peak_hour TINYINT NULL COMMENT '功率最高的小时(0-23)',
+  sample_count INT NOT NULL DEFAULT 0,
+  UNIQUE KEY uniq_day (entity_id, period_date),
+  KEY idx_entity_date (entity_id, period_date),
+  KEY idx_date (period_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='设备功耗日聚合';
+
+-- =====================================================================
+-- 灯光统计 (开/关事件 + 每日亮灯时长)
+-- =====================================================================
+
+-- 表 6: 灯光开关事件
+CREATE TABLE IF NOT EXISTS light_events (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  entity_id VARCHAR(128) NOT NULL,
+  friendly_name VARCHAR(128) NULL,
+  event_time DATETIME NOT NULL COMMENT '事件时间',
+  action ENUM('on','off') NOT NULL COMMENT '动作',
+  brightness TINYINT NULL COMMENT '亮度 0-255 (开灯时)',
+  color_temp SMALLINT NULL COMMENT '色温 mired',
+  KEY idx_entity_time (entity_id, event_time),
+  KEY idx_time (event_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='灯光开关事件';
+
+-- 表 7: 灯光日聚合 (永久保留)
+CREATE TABLE IF NOT EXISTS light_daily (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  entity_id VARCHAR(128) NOT NULL,
+  friendly_name VARCHAR(128) NULL,
+  period_date DATE NOT NULL,
+  on_count INT NOT NULL DEFAULT 0 COMMENT '开灯次数',
+  on_duration_sec INT NOT NULL DEFAULT 0 COMMENT '亮灯时长(秒)',
+  first_on_time DATETIME NULL COMMENT '当日首次开灯',
+  last_off_time DATETIME NULL COMMENT '当日最后关灯',
+  avg_brightness DECIMAL(6,2) NULL COMMENT '平均亮度',
+  UNIQUE KEY uniq_day (entity_id, period_date),
+  KEY idx_entity_date (entity_id, period_date),
+  KEY idx_date (period_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='灯光日聚合';

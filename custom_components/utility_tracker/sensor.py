@@ -32,6 +32,15 @@ async def async_setup_entry(
         UtilityTrackerDBStatusSensor(coordinator, entry),
         UtilityTrackerElectricityMonthSensor(coordinator, entry),
         UtilityTrackerGasMonthSensor(coordinator, entry),
+        # 分户: 自住 (东方新天地) vs 出租 (东方佳园)
+        UtilityTrackerElecMonthMainSensor(coordinator, entry),
+        UtilityTrackerElecMonthRentalSensor(coordinator, entry),
+        UtilityTrackerGasMonthMainSensor(coordinator, entry),
+        UtilityTrackerGasMonthRentalSensor(coordinator, entry),
+        UtilityTrackerCurrentPowerSensor(coordinator, entry),
+        UtilityTrackerPowerTodaySensor(coordinator, entry),
+        UtilityTrackerLightCountTodaySensor(coordinator, entry),
+        UtilityTrackerLightDurationTodaySensor(coordinator, entry),
     ])
 
 
@@ -64,7 +73,14 @@ class UtilityTrackerLastSyncSensor(_BaseSensor):
 
     @property
     def native_value(self):
-        return self.coordinator.last_sync
+        ts = self.coordinator.last_sync
+        if ts is None:
+            return None
+        # HA TIMESTAMP device class 要求 timezone-aware datetime
+        if ts.tzinfo is None:
+            from homeassistant.util.dt import get_default_time_zone
+            return ts.replace(tzinfo=get_default_time_zone())
+        return ts
 
     @property
     def extra_state_attributes(self):
@@ -108,6 +124,7 @@ class UtilityTrackerDBStatusSensor(_BaseSensor):
         return {
             ATTR_LAST_ERROR: self.coordinator.last_error,
             ATTR_TOTAL_RECORDS: self.coordinator.total_records,
+            "gas_discovery": self.coordinator.last_gas_discovery,
         }
 
 
@@ -148,3 +165,145 @@ class UtilityTrackerGasMonthSensor(_BaseSensor):
     @property
     def native_value(self):
         return (self.coordinator.data or {}).get("gas_this_month")
+
+
+# =====================================================================
+# 分户月度传感器 (自住 vs 出租)
+# 电: 0065=自住(东方新天地), 7061=出租(东方佳园)
+# 气: 1040395237=自住(东方新天地), 1021540961=出租(东方佳园)
+# =====================================================================
+
+
+class _MonthCostBaseSensor(_BaseSensor):
+    """分户月度费用 sensor 基类"""
+
+    _attr_device_class = SensorDeviceClass.MONETARY
+    _attr_native_unit_of_measurement = "CNY"
+    _data_key: str = ""
+    _uid_suffix: str = ""
+
+    def __init__(self, coordinator, entry):
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_{self._uid_suffix}"
+
+    @property
+    def native_value(self):
+        return (self.coordinator.data or {}).get(self._data_key)
+
+
+class UtilityTrackerElecMonthMainSensor(_MonthCostBaseSensor):
+    """本月电费-自住 (东方新天地 0065)"""
+
+    _attr_name = "Electricity This Month Main"
+    _attr_icon = "mdi:flash"
+    _data_key = "electricity_this_month_main"
+    _uid_suffix = "elec_month_main"
+
+
+class UtilityTrackerElecMonthRentalSensor(_MonthCostBaseSensor):
+    """本月电费-出租 (东方佳园 7061)"""
+
+    _attr_name = "Electricity This Month Rental"
+    _attr_icon = "mdi:flash-outline"
+    _data_key = "electricity_this_month_rental"
+    _uid_suffix = "elec_month_rental"
+
+
+class UtilityTrackerGasMonthMainSensor(_MonthCostBaseSensor):
+    """本月燃气费-自住 (东方新天地 1040395237)"""
+
+    _attr_name = "Gas This Month Main"
+    _attr_icon = "mdi:fire"
+    _data_key = "gas_this_month_main"
+    _uid_suffix = "gas_month_main"
+
+
+class UtilityTrackerGasMonthRentalSensor(_MonthCostBaseSensor):
+    """本月燃气费-出租 (东方佳园 1021540961)"""
+
+    _attr_name = "Gas This Month Rental"
+    _attr_icon = "mdi:fire-circle"
+    _data_key = "gas_this_month_rental"
+    _uid_suffix = "gas_month_rental"
+
+
+# =====================================================================
+# 设备功耗 sensor
+# =====================================================================
+
+
+class UtilityTrackerCurrentPowerSensor(_BaseSensor):
+    """当前所有设备实时功率合计 (W)"""
+
+    _attr_name = "Current Power"
+    _attr_icon = "mdi:lightning-bolt-circle"
+    _attr_device_class = SensorDeviceClass.POWER
+    _attr_native_unit_of_measurement = "W"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, coordinator, entry):
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_current_power"
+
+    @property
+    def native_value(self):
+        return (self.coordinator.data or {}).get("power_current_w")
+
+
+class UtilityTrackerPowerTodaySensor(_BaseSensor):
+    """今日所有设备耗电合计 (kWh)"""
+
+    _attr_name = "Power Today"
+    _attr_icon = "mdi:counter"
+    _attr_device_class = SensorDeviceClass.ENERGY
+    _attr_native_unit_of_measurement = "kWh"
+    _attr_state_class = SensorStateClass.TOTAL
+
+    def __init__(self, coordinator, entry):
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_power_today"
+
+    @property
+    def native_value(self):
+        return (self.coordinator.data or {}).get("power_today_kwh")
+
+
+# =====================================================================
+# 灯光统计 sensor
+# =====================================================================
+
+
+class UtilityTrackerLightCountTodaySensor(_BaseSensor):
+    """今日开灯次数合计"""
+
+    _attr_name = "Light Count Today"
+    _attr_icon = "mdi:lightbulb-on"
+    _attr_state_class = SensorStateClass.TOTAL
+
+    def __init__(self, coordinator, entry):
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_light_count_today"
+
+    @property
+    def native_value(self):
+        return (self.coordinator.data or {}).get("light_today_count")
+
+
+class UtilityTrackerLightDurationTodaySensor(_BaseSensor):
+    """今日亮灯时长合计 (秒 -> 小时)"""
+
+    _attr_name = "Light Duration Today"
+    _attr_icon = "mdi:timer-outline"
+    _attr_device_class = SensorDeviceClass.DURATION
+    _attr_native_unit_of_measurement = "h"
+    _attr_state_class = SensorStateClass.TOTAL
+
+    def __init__(self, coordinator, entry):
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_light_duration_today"
+
+    @property
+    def native_value(self):
+        sec = (self.coordinator.data or {}).get("light_today_seconds") or 0
+        # 秒转小时,保留 2 位小数
+        return round(sec / 3600.0, 2)

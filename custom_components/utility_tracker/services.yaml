@@ -5,3 +5,8 @@ sync_now:
 backfill_history:
   description: 历史回填
   fields: {}
+
+purge_device_data:
+  name: 清空设备/灯光数据
+  description: 删除 device_power_raw/hourly/daily 与 light_events/light_daily 全部数据 (用于异常数据重置, 不影响电费/燃气账单数据)
+  fields: {}

@@ -12,18 +12,24 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.exceptions import HomeAssistantError
 
 from .const import (
+    CONF_ENABLE_DEVICE_POWER,
     CONF_ENABLE_ELECTRICITY,
     CONF_ENABLE_GAS,
+    CONF_ENABLE_LIGHT_STATS,
     CONF_MARIADB_DATABASE,
     CONF_MARIADB_HOST,
     CONF_MARIADB_PASSWORD,
     CONF_MARIADB_PORT,
     CONF_MARIADB_USER,
+    CONF_POWER_SAMPLE_MINUTES,
+    CONF_RAW_RETENTION_DAYS,
     CONF_SYNC_INTERVAL_HOURS,
     DEFAULT_MARIADB_DATABASE,
     DEFAULT_MARIADB_HOST,
     DEFAULT_MARIADB_PORT,
     DEFAULT_MARIADB_USER,
+    DEFAULT_POWER_SAMPLE_MINUTES,
+    DEFAULT_RAW_RETENTION_DAYS,
     DEFAULT_SYNC_INTERVAL_HOURS,
     DOMAIN,
 )
@@ -83,8 +89,16 @@ class UtilityTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             vol.Required(CONF_MARIADB_DATABASE, default=DEFAULT_MARIADB_DATABASE): str,
             vol.Required(CONF_ENABLE_ELECTRICITY, default=True): bool,
             vol.Required(CONF_ENABLE_GAS, default=True): bool,
+            vol.Required(CONF_ENABLE_DEVICE_POWER, default=True): bool,
+            vol.Required(CONF_ENABLE_LIGHT_STATS, default=True): bool,
             vol.Required(CONF_SYNC_INTERVAL_HOURS, default=DEFAULT_SYNC_INTERVAL_HOURS): vol.All(
                 vol.Coerce(int), vol.Range(min=1, max=24)
+            ),
+            vol.Required(CONF_POWER_SAMPLE_MINUTES, default=DEFAULT_POWER_SAMPLE_MINUTES): vol.All(
+                vol.Coerce(int), vol.Range(min=1, max=60)
+            ),
+            vol.Required(CONF_RAW_RETENTION_DAYS, default=DEFAULT_RAW_RETENTION_DAYS): vol.All(
+                vol.Coerce(int), vol.Range(min=1, max=365)
             ),
         })
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
