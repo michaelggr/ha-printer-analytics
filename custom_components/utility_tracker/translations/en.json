@@ -1,0 +1,27 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Utility Tracker Setup",
+        "description": "Connect to MariaDB and select data sources",
+        "data": {
+          "mariadb_host": "MariaDB host",
+          "mariadb_port": "Port",
+          "mariadb_user": "User",
+          "mariadb_password": "Password",
+          "mariadb_database": "Database",
+          "enable_electricity": "Collect electricity (state_grid)",
+          "enable_gas": "Collect gas (crcgas)",
+          "sync_interval_hours": "Sync interval (hours)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect to MariaDB",
+      "unknown": "Unknown error"
+    },
+    "abort": {
+      "already_configured": "Database already configured"
+    }
+  }
+}

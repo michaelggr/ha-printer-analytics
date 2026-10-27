@@ -1,0 +1,7 @@
+sync_now:
+  name: 立即同步
+  description: 立即从数据源(SGCC/华润燃气)抓取最新数据写入 MariaDB
+
+backfill_history:
+  description: 历史回填
+  fields: {}

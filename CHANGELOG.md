@@ -1,4 +1,17 @@
-﻿﻿﻿﻿﻿﻿﻿# 打印分析卡片 - 修改记录
+﻿﻿﻿﻿﻿﻿﻿﻿# 打印分析卡片 - 修改记录
+
+## 新集成：Utility Tracker v0.1.0 (2026-10-27)
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 功能 | 新增能源账单监控集成,统一从 state_grid (SGCC 电费) + crcgas (华润燃气) 抓数据,持久化到 MariaDB。数据库含 2 张表: `utility_records` (日/月用量费用, 含峰谷平尖/三阶梯) + `account_snapshots` (账户余额快照),通过 UNIQUE KEY 幂等 upsert | custom_components/utility_tracker/ |
+| 功能 | 配置文件流式 UI,支持 MariaDB 连接参数 + 数据源开关 + 同步间隔 (1-24h), 提交时调 `async_test_connection` 验证 | config_flow.py |
+| 功能 | 5 个统计实体: last_sync / total_records / db_status / electricity_this_month / gas_this_month | sensor.py |
+| 功能 | 服务: `utility_tracker.sync_now` 手动同步, `utility_tracker.backfill_history` 历史回填 | services.yaml, __init__.py |
+| 功能 | crcgas 历史 JSON 账单自动回填到 MariaDB (兼容负数退款) | coordinator.py `_backfill_gas_history` |
+| 看板 | 新增能源账单 dashboard `ui-energy.yaml`,含 4 个 view (概览/电费/燃气费/深度分析),已注册到 configuration.yaml | ui-energy.yaml, configuration.yaml#L77-82 |
+| 测试 | 21 个单元测试,覆盖 `_safe_float` / `bill_month_to_date` / SGCC daily_history 映射 / crcgas 账单映射 / SQL 字段一致性 | tests/test_utility_tracker.py |
+| 待办 | 用户需装 MariaDB Add-on 创建数据库 utility_bills + 用户 ha_utility,再装 Grafana Add-on 做 17 个深度分析面板,iframe 嵌入 ui-energy.yaml 的"深度分析" view | (用户操作) |
 
 ## 新集成：CTM电信 china_telecom v1.1.7 (2026-10-27)
 

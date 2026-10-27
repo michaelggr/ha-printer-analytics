@@ -1,0 +1,12 @@
+{
+  "domain": "utility_tracker",
+  "name": "Utility Tracker",
+  "codeowners": ["@michaelggr"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/michaelggr/ha-printer-analytics",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/michaelggr/ha-printer-analytics/issues",
+  "requirements": ["PyMySQL==1.1.1"],
+  "version": "0.1.0"
+}

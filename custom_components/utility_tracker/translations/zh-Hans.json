@@ -1,0 +1,27 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Utility Tracker 配置",
+        "description": "连接 MariaDB 并选择要采集的能源数据源",
+        "data": {
+          "mariadb_host": "MariaDB 主机",
+          "mariadb_port": "端口",
+          "mariadb_user": "用户名",
+          "mariadb_password": "密码",
+          "mariadb_database": "数据库名",
+          "enable_electricity": "采集电费 (state_grid)",
+          "enable_gas": "采集燃气费 (crcgas)",
+          "sync_interval_hours": "同步间隔(小时)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "无法连接 MariaDB,请检查主机/端口/账号/密码/数据库",
+      "unknown": "未知错误,请查看日志"
+    },
+    "abort": {
+      "already_configured": "该数据库已配置过"
+    }
+  }
+}
