@@ -1425,7 +1425,11 @@ async def async_setup_entry(
             cost_store = CRCGasHistoryStorage(hass, config_entry.entry_id)
             await cost_store.async_load()
             cost_history = cost_store.get_bill_history(limit=999)
-            historical_cost = sum(float(b.get("billAmt", 0) or 0) for b in cost_history)
+            # 只累加正向账单：冲正/退费单为负值，计入会让累计费用变负
+            historical_cost = sum(
+                amt for b in cost_history
+                if (amt := float(b.get("billAmt", 0) or 0)) > 0
+            )
             current_cost = float(result.get("estimated_gas_bill_amount", 0) or 0)
             result["total_gas_cost"] = round(historical_cost + current_cost, 2)
         except Exception:
