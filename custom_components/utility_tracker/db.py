@@ -1,4 +1,4 @@
-"""MariaDB 数据库写入层
+﻿"""MariaDB 数据库写入层
 
 用 PyMySQL (同步驱动),所有阻塞操作通过 hass.async_add_executor_job 包装。
 单连接 + 自动重连,不需要连接池 (写入频率低)。
@@ -408,6 +408,7 @@ class UtilityDB:
                     "device_power_raw", "device_power_hourly",
                     "device_power_daily", "light_events", "light_daily",
                     "light_duration_daily", "area_stay_daily",
+                    "area_stay_hourly",
                 ):
                     cur.execute(f"DELETE FROM {table}")
                     result[table] = cur.rowcount
@@ -630,6 +631,37 @@ class UtilityDB:
         )
         params = [
             (r["entity_id"], r["area_name"], r["period_date"], r["duration_sec"])
+            for r in rows
+        ]
+
+        def _exec():
+            conn = self._get_conn_sync()
+            with conn.cursor() as cur:
+                return cur.executemany(sql, params)
+        return await self.hass.async_add_executor_job(_exec)
+
+    async def async_upsert_area_stays_hourly(self, rows: list[dict[str, Any]]) -> int:
+        """把区域停留增量累加进小时桶 (同一天同一小时多次采样累加)
+
+        rows 元素: {entity_id, area_name, period_date, period_hour, duration_sec}
+        duration_sec 是「相对上次采样」的增量, 所以冲突时用 + 而不是覆盖
+        """
+        if not rows:
+            return 0
+
+        sql = (
+            "INSERT INTO area_stay_hourly "
+            "(entity_id, area_name, period_date, period_hour, duration_sec) "
+            "VALUES (%s,%s,%s,%s,%s) "
+            "ON DUPLICATE KEY UPDATE "
+            " area_name=VALUES(area_name), "
+            " duration_sec=duration_sec+VALUES(duration_sec)"
+        )
+        params = [
+            (
+                r["entity_id"], r["area_name"], r["period_date"],
+                r["period_hour"], r["duration_sec"],
+            )
             for r in rows
         ]
 

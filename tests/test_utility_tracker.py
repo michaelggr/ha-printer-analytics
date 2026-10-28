@@ -1,4 +1,4 @@
-"""Utility Tracker 单元测试
+﻿"""Utility Tracker 单元测试
 
 测试纯函数和工具逻辑,不依赖 HA 运行环境。
 """
@@ -698,6 +698,52 @@ class TestHoursStateToSeconds(unittest.TestCase):
     def test_负数_返回None(self):
         self.assertIsNone(_hours_state_to_seconds("-1"))
         self.assertIsNone(_hours_state_to_seconds(-0.5))
+
+
+def _diff_area_stay_seconds(current, last_sample, today):
+    """区域停留累计秒数的采样增量 (从 coordinator.py 复制)"""
+    deltas = {}
+    for entity_id, sec in current.items():
+        base = last_sample.get(entity_id)
+        if base is None or base[0] != today:
+            continue
+        delta = sec - base[1]
+        if delta > 0:
+            deltas[entity_id] = delta
+    return deltas
+
+
+class TestDiffAreaStaySeconds(unittest.TestCase):
+    """测试小时桶增量计算 (区域 × 小时 热力图的数据来源)"""
+
+    def test_首次采样_无基线_无增量(self):
+        # 首次运行只能建立基线, 不能凭空产生小时数据
+        self.assertEqual(_diff_area_stay_seconds({"sensor.a": 600}, {}, "2026-10-28"), {})
+
+    def test_正常增量_按差额计算(self):
+        current = {"sensor.a": 900, "sensor.b": 300}
+        last = {"sensor.a": ("2026-10-28", 600), "sensor.b": ("2026-10-28", 300)}
+        # a 增加 300 秒, b 没变化不计入
+        self.assertEqual(
+            _diff_area_stay_seconds(current, last, "2026-10-28"), {"sensor.a": 300}
+        )
+
+    def test_跨日_不产生增量(self):
+        # history_stats 每天归零, 基线日期不同就跳过, 避免负数或锁死
+        current = {"sensor.a": 120}
+        last = {"sensor.a": ("2026-10-27", 7200)}
+        self.assertEqual(_diff_area_stay_seconds(current, last, "2026-10-28"), {})
+
+    def test_累计值回退_不产生负增量(self):
+        # recorder 重启/统计重置导致读数变小, 不应写负值进小时桶
+        current = {"sensor.a": 60}
+        last = {"sensor.a": ("2026-10-28", 3600)}
+        self.assertEqual(_diff_area_stay_seconds(current, last, "2026-10-28"), {})
+
+    def test_部分实体缺失_只算存在的(self):
+        current = {"sensor.a": 700}
+        last = {"sensor.a": ("2026-10-28", 400), "sensor.b": ("2026-10-28", 100)}
+        self.assertEqual(_diff_area_stay_seconds(current, last, "2026-10-28"), {"sensor.a": 300})
 
 
 class TestAreaStayDurationEntities(unittest.TestCase):

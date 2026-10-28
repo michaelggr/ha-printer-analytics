@@ -1,4 +1,4 @@
-"""Utility Tracker 数据聚合协调器
+﻿"""Utility Tracker 数据聚合协调器
 
 定时从 state_grid (电费) 和 crcgas (燃气费) 实体抓取数据,写入 MariaDB。
 """
@@ -67,6 +67,33 @@ def hours_state_to_seconds(value: str | float | None) -> int | None:
     return int(round(hours * 3600))
 
 
+def diff_area_stay_seconds(
+    current: dict[str, int],
+    last_sample: dict[str, tuple[str, int]],
+    today: str,
+) -> dict[str, int]:
+    """计算各区域「本次累计秒数」相对「上次采样」的增量 (用于小时桶累加)
+
+    current:      {entity_id: 今日累计秒数}
+    last_sample:  {entity_id: (采样日期, 当时累计秒数)}
+    today:        本次采样日期 (YYYY-MM-DD)
+
+    以下情况不产生增量, 只更新基线:
+    - 首次采样, 没有基线
+    - 跨日: history_stats 每日归零, 基线日期与今天不同
+    - 累计值回退: recorder 重启或统计重置导致读数变小
+    """
+    deltas: dict[str, int] = {}
+    for entity_id, sec in current.items():
+        base = last_sample.get(entity_id)
+        if base is None or base[0] != today:
+            continue
+        delta = sec - base[1]
+        if delta > 0:
+            deltas[entity_id] = delta
+    return deltas
+
+
 class UtilityTrackerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     """数据聚合协调器"""
 
@@ -94,6 +121,9 @@ class UtilityTrackerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.total_records: int = 0
         # 灯光事件队列: 由 state listener 填充,coordinator 定期批量写库
         self.light_event_queue: list[dict] = []
+        # 区域停留上次采样基线: {entity_id: (采样日期, 今日累计秒数)}
+        # 用于把两次采样之间的差额归入当前小时桶 (area_stay_hourly)
+        self._last_area_stay_sec: dict[str, tuple[str, int]] = {}
 
         super().__init__(
             hass,
@@ -404,31 +434,64 @@ class UtilityTrackerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return len(rows)
 
     async def _collect_area_stays(self, now: datetime) -> int:
-        """把 12 个区域停留时长的今日快照写入 area_stay_daily
+        """把 12 个区域停留时长快照写入 area_stay_daily 与 area_stay_hourly
 
-        与灯光时长完全同一套机制: 每次采样覆盖写「今天」这一行,
-        当天最终值即最后一次采样值; history_stats 从 recorder 历史累计,
-        所以重启/漏采样都不会丢历史, 也不需要额外的累加定时器
+        日表: 每次采样覆盖写「今天」这一行, 当天最终值即最后一次采样值;
+        小时表: 用「本次累计 - 上次累计」的差额累加进当前小时桶,
+                供 Grafana 热力图按 区域 × 小时时段 展示;
+        history_stats 从 recorder 历史累计, 重启/漏采样都不会丢日维度历史,
+        小时维度只会缺失进程未运行期间的增量 (下次采样补不回来)
         """
         today = now.date().isoformat()
-        rows: list[dict[str, Any]] = []
-        for entity_id, area in AREA_STAY_DURATION_ENTITIES.items():
+
+        # 1) 先采集本次快照: 各区域「今日累计秒数」
+        current: dict[str, int] = {}
+        for entity_id in AREA_STAY_DURATION_ENTITIES:
             state = self.hass.states.get(entity_id)
             if state is None:
                 continue
             seconds = hours_state_to_seconds(state.state)
             if seconds is None:
                 continue
-            rows.append({
+            current[entity_id] = seconds
+
+        # 2) 增量必须基于「上次基线」计算, 算完才能刷新基线
+        deltas = diff_area_stay_seconds(current, self._last_area_stay_sec, today)
+        for entity_id, seconds in current.items():
+            self._last_area_stay_sec[entity_id] = (today, seconds)
+
+        if not current:
+            return 0
+
+        # 3) 日维度: 覆盖写
+        rows = [
+            {
                 "entity_id": entity_id,
-                "area_name": area,
+                "area_name": AREA_STAY_DURATION_ENTITIES[entity_id],
                 "period_date": today,
                 "duration_sec": seconds,
-            })
-        if not rows:
-            return 0
+            }
+            for entity_id, seconds in current.items()
+        ]
         await self.db.async_upsert_area_stays(rows)
-        _LOGGER.debug("区域停留时长入库: %d 条", len(rows))
+
+        # 4) 小时维度: 把差额累加进当前小时桶
+        hourly_rows = [
+            {
+                "entity_id": entity_id,
+                "area_name": AREA_STAY_DURATION_ENTITIES[entity_id],
+                "period_date": today,
+                "period_hour": now.hour,
+                "duration_sec": delta,
+            }
+            for entity_id, delta in deltas.items()
+        ]
+        if hourly_rows:
+            await self.db.async_upsert_area_stays_hourly(hourly_rows)
+
+        _LOGGER.debug(
+            "区域停留时长入库: 日 %d 条 / 小时增量 %d 条", len(rows), len(hourly_rows)
+        )
         return len(rows)
 
     # =====================================================================

@@ -165,3 +165,20 @@ CREATE TABLE IF NOT EXISTS area_stay_daily (
   KEY idx_area_date (area_name, period_date),
   KEY idx_date (period_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='区域每日停留时长(history_stats)';
+
+-- 表 10: 区域分时段停留时长 (热力图数据源)
+-- 数据来源: 与表 9 同一批 history_stats 实体, 每次采样把「今日累计秒数」
+-- 相对上次采样的增量, 累加进当前小时(0-23)的桶里;
+-- UNIQUE(entity_id, period_date, period_hour) 保证同小时多次采样是累加而非覆盖
+CREATE TABLE IF NOT EXISTS area_stay_hourly (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  entity_id VARCHAR(128) NOT NULL COMMENT 'history_stats 传感器实体 ID',
+  area_name VARCHAR(32) NOT NULL COMMENT '区域名',
+  period_date DATE NOT NULL,
+  period_hour TINYINT UNSIGNED NOT NULL COMMENT '小时时段 0-23',
+  duration_sec INT NOT NULL DEFAULT 0 COMMENT '该小时累计停留增量(秒)',
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uniq_entity_hour (entity_id, period_date, period_hour),
+  KEY idx_area_hour (area_name, period_hour),
+  KEY idx_date (period_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='区域分时段停留时长(小时粒度)';

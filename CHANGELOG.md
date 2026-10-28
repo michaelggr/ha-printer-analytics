@@ -1,4 +1,33 @@
-# 打印分析卡片 - 修改记录
+﻿# 打印分析卡片 - 修改记录
+
+## 区域停留热力图改为「小时时段 × 区域」(2026-10-28)
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 功能 | 新增 `area_stay_hourly` 表（`entity_id + period_date + period_hour` 唯一，`duration_sec` 为该小时累计增量） | schemas.sql#L169 |
+| 功能 | 新增 `async_upsert_area_stays_hourly`：冲突时 `duration_sec = duration_sec + VALUES(...)` 累加，同一小时多次采样不会覆盖 | db.py#L643 |
+| 功能 | 新增纯函数 `diff_area_stay_seconds`：按「本次累计 − 上次基线」算增量，首次采样/跨日/累计值回退时不产生增量 | coordinator.py#L70 |
+| 功能 | `_collect_area_stays` 同时写日表（覆盖）与小时表（增量累加），基线存 `self._last_area_stay_sec` | coordinator.py#L436 |
+| 看板 | 热力图面板（id 11）数据源由 `area_stay_daily` 改为 `area_stay_hourly`：X 轴固定今天 00:00~现在（panel time override `now/d`），Y 轴区域，颜色=该时段平均停留小时。标题改为「区域停留热力图 (小时时段 × 区域)」 | Grafana 看板 uid `a67f2s` |
+| 测试 | 新增 `TestDiffAreaStaySeconds` 5 个用例（首次采样/正常增量/跨日/累计回退/实体缺失），总计 87 个用例通过 | tests/test_utility_tracker.py |
+
+**热力图 SQL**
+
+```sql
+SELECT
+  TIMESTAMP(CURDATE(), MAKETIME(period_hour, 0, 0)) AS time,
+  area_name AS metric,
+  ROUND(SUM(duration_sec) / COUNT(DISTINCT period_date) / 3600, 2) AS value
+FROM area_stay_hourly
+WHERE period_date >= DATE($__timeFrom())
+  AND period_date <= DATE($__timeTo())
+GROUP BY period_hour, area_name
+ORDER BY period_hour ASC
+```
+
+**已知限制**：小时数据自本次上线起才开始积累（history_stats 只提供当日累计，历史时段分布无法回填）；HA 停机期间的小时增量无法补齐。
+
+**踩坑**：改 Python 代码后仅调用 `homeassistant.reload_config_entry` 不够——自定义集成模块不会重新导入，必须先 `POST /api/services/homeassistant/restart` 让新代码生效；否则 `async_ensure_schema` 仍执行旧 SQL，新表不会建，面板查询直接报 `Table doesn't exist`。
 
 ## Grafana 内网直连打通 + 区域停留热力图 (2026-10-28)
 
