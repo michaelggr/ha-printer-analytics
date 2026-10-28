@@ -716,6 +716,184 @@ views:
           {% endfor %}
           {% if not rows %}_暂无数据_{% endif %}
 
+      # ---------- 账单口径汇总 (电表读数, 与上方设备侧功率积分口径并列参考) ----------
+      - type: custom:mushroom-title-card
+        title: 账单口径汇总
+        icon: mdi:cash-multiple
+        alignment: left
+        subtitle: 电表读数 · 与上方设备侧功率积分口径并列参考
+      - type: grid
+        columns: 2
+        square: false
+        cards:
+          - type: custom:mushroom-entity-card
+            entity: sensor.zong_shi_shi_gong_lu_4
+            name: 总实时功率
+            icon: mdi:flash
+            icon_color: amber
+          - type: custom:mushroom-entity-card
+            entity: sensor.home_daily_total_v2
+            name: 今日总用电
+            icon: mdi:counter
+            icon_color: blue
+          - type: custom:mushroom-entity-card
+            entity: sensor.li_shi_zong_gong_hao_2
+            name: 历史累计
+            icon: mdi:history
+            icon_color: purple
+          - type: custom:mushroom-entity-card
+            entity: sensor.home_daily_cost_v2
+            name: 今日电费
+            icon: mdi:currency-cny
+            icon_color: green
+          - type: custom:mushroom-entity-card
+            entity: sensor.home_monthly_cost_v2
+            name: 本月电费
+            icon: mdi:currency-cny
+            icon_color: teal
+          - type: custom:mushroom-entity-card
+            entity: sensor.home_yearly_cost_v2
+            name: 本年电费
+            icon: mdi:currency-cny
+            icon_color: indigo
+
+      # ---------- 用电趋势 (今日 / 本周 / 本月 / 本年) ----------
+      - type: custom:mushroom-title-card
+        title: 用电趋势
+        icon: mdi:chart-timeline
+        alignment: left
+      - type: grid
+        columns: 2
+        square: false
+        cards:
+          - type: custom:mini-graph-card
+            entities:
+              - entity: sensor.home_daily_total_v2
+                name: 今日
+                color: '#26c6da'
+            line_width: 3
+            height: 140
+            show:
+              labels: true
+            lower_bound: 0
+          - type: custom:mini-graph-card
+            entities:
+              - entity: sensor.home_weekly_total_v2
+                name: 本周
+                color: '#42a5f5'
+            line_width: 3
+            height: 140
+            show:
+              labels: true
+            lower_bound: 0
+          - type: custom:mini-graph-card
+            entities:
+              - entity: sensor.home_monthly_total_v2
+                name: 本月
+                color: '#5c6bc0'
+            line_width: 3
+            height: 140
+            show:
+              labels: true
+            lower_bound: 0
+          - type: custom:mini-graph-card
+            entities:
+              - entity: sensor.home_yearly_total_v2
+                name: 本年
+                color: '#7e57c2'
+            line_width: 3
+            height: 140
+            show:
+              labels: true
+            group_by: month
+            lower_bound: 0
+
+      # ---------- 本周各设备用电 ----------
+      - type: custom:mushroom-title-card
+        title: 本周各设备用电
+        subtitle: 插座 / 开关 / 小家电
+        icon: mdi:devices
+        alignment: left
+      - type: custom:bar-card
+        direction: right
+        positions:
+          icon: inside
+          value: inside
+          name: outside
+        bar:
+          height: 28px
+          border_radius: 4
+        entity_row: true
+        entities:
+          - entity: sensor.dian_nao_dian_yuan_zhou_yong_dian_liang
+            name: 电脑电源
+            unit: kWh
+            color: '#42a5f5'
+            min: 0
+            max: 10
+          - entity: sensor.nas_int_weekly
+            name: NAS
+            unit: kWh
+            color: '#66bb6a'
+            min: 0
+            max: 20
+
+      # ---------- 各设备功耗详情 (多周期: 今日 / 七天 / 本月 / 累计) ----------
+      - type: custom:mushroom-title-card
+        title: 各设备功耗详情
+        subtitle: 插座 / 开关 / 小家电 · 今日 / 七天 / 本月 / 累计
+        icon: mdi:devices
+        alignment: left
+      - type: grid
+        columns: 2
+        square: false
+        cards:
+          - type: custom:mushroom-template-card
+            entity: sensor.zong_shi_shi_gong_lu_4
+            primary: 总功耗
+            secondary: "累计 {{ states('sensor.li_shi_zong_gong_hao_2') | float(0) | round(1) }} · 七天 {{ states('sensor.home_weekly_total_v2') | float(0) | round(1) }} kWh · 实时 {{ states('sensor.zong_shi_shi_gong_lu_4') }} W"
+            icon: mdi:flash
+            icon_color: amber
+            multiline_secondary: true
+            tap_action:
+              action: more-info
+          - type: custom:mushroom-template-card
+            entity: sensor.giot_cn_1162942256_v8icm_electric_power_p_4_2
+            primary: 电脑电源
+            secondary: "今日 {{ states('sensor.dian_nao_dian_yuan_ri_yong_dian_liang') | float(0) | round(1) }} · 七天 {{ states('sensor.dian_nao_dian_yuan_zhou_yong_dian_liang') | float(0) | round(1) }} · 本月 {{ states('sensor.dian_nao_dian_yuan_yue_yong_dian_liang') | float(0) | round(1) }} · 累计 {{ states('sensor.dian_nao_dian_yuan_lei_ji_yong_dian_total') | float(0) | round(1) }} kWh"
+            icon: mdi:desktop-tower
+            icon_color: blue
+            multiline_secondary: true
+            tap_action:
+              action: more-info
+          - type: custom:mushroom-template-card
+            entity: sensor.giot_cn_1163256502_v8icm_electric_power_p_4_2
+            primary: NAS
+            secondary: "今日 {{ states('sensor.nas_int_daily') | float(0) | round(2) }} · 本月 {{ states('sensor.nas_int_monthly') | float(0) | round(2) }} · 累计 {{ states('sensor.naslei_ji_yong_dian_total') | float(0) | round(2) }} kWh"
+            icon: mdi:nas
+            icon_color: green
+            multiline_secondary: true
+            tap_action:
+              action: more-info
+          - type: custom:mushroom-template-card
+            entity: sensor.giot_cn_1164778814_v8icm_electric_power_p_4_2
+            primary: 小打印机
+            secondary: "本月 {{ states('sensor.prt_int_monthly') | float(0) | round(2) }} · 累计 {{ states('sensor.xiao_da_yin_ji_lei_ji_yong_dian') | float(0) | round(2) }} kWh"
+            icon: mdi:printer
+            icon_color: orange
+            multiline_secondary: true
+            tap_action:
+              action: more-info
+          - type: custom:mushroom-template-card
+            entity: sensor.giot_cn_1162898415_v8icm_electric_power_p_4_2
+            primary: 取暖器
+            secondary: "功率 {{ states('sensor.giot_cn_1162898415_v8icm_electric_power_p_4_2') }} W"
+            icon: mdi:radiator
+            icon_color: red
+            multiline_secondary: true
+            tap_action:
+              action: more-info
+
   # ============================================================
   # View 6: 灯光统计（新家 · 按区域主灯）
   # ============================================================
