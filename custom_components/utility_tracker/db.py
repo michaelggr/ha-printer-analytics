@@ -350,8 +350,8 @@ class UtilityDB:
 
         energy_kwh 不再用「末值 - 初值」(MAX-MIN): 带电量统计的插座会周期性把
         累计值清零, 一旦清零落在本小时中间, MAX-MIN 会把这个小时的电量算成 0
-        甚至负数, 电量凭空丢失。改为逐样本累加增量 (见 sum_energy_deltas),
-        并取「本小时之前最后一条采样」作为基线, 保证跨小时边界的那段增量不丢。
+        甚至负数, 电量凭空丢失。改为「本小时末值 - 上一小时末值」的跨窗口口径,
+        由 sum_energy_deltas 识别计数器清零与低分辨率抖动 (见 const.py)。
         对没有可用电量计数器的设备 (见 POWER_INTEGRATION_ENTITIES),
         仍按 AVG(power_w) × 采样点数 × 采样间隔 折算成 kWh 兜底。
         """
@@ -397,20 +397,23 @@ class UtilityDB:
                 cur.execute(baseline_sql, (hour_start,))
                 baseline_rows = cur.fetchall()
 
-            # 基线 + 本小时读数拼成一条时间序列, 交给纯函数做重置识别累加
+            # 本小时读数序列 (时间升序) 与跨小时基线分开传给纯函数:
+            # 基线只作为参照点, 不参与「是否抖动」的单调性判定
+            ref_by_entity = {
+                row["entity_id"]: float(row["energy_kwh"]) for row in baseline_rows
+            }
             series: dict[str, list[float]] = {}
-            for row in baseline_rows:
-                series.setdefault(row["entity_id"], []).append(float(row["energy_kwh"]))
             for row in sample_rows:
                 series.setdefault(row["entity_id"], []).append(float(row["energy_kwh"]))
             energy_by_entity = {
-                eid: sum_energy_deltas(values) for eid, values in series.items()
+                eid: sum_energy_deltas(values, ref_by_entity.get(eid))
+                for eid, values in series.items()
             }
 
             rows = []
             for row in stats_rows:
                 eid = row["entity_id"]
-                if eid in energy_by_entity:
+                if energy_by_entity.get(eid) is not None:
                     energy = round(energy_by_entity[eid], 4)
                 elif eid in POWER_INTEGRATION_ENTITIES:
                     # 功率积分兜底: 无可用电量计数器 (如取暖器)
@@ -433,19 +436,20 @@ class UtilityDB:
         return await self.hass.async_add_executor_job(_exec)
 
     async def async_aggregate_power_daily(self, day: str) -> int:
-        """把 device_power_hourly 中某日数据聚合到 device_power_daily"""
-        sql = (
+        """把 device_power_hourly 中某日数据聚合到 device_power_daily
+
+        过滤口径与 async_sum_power_today 一致: 跳过日/周/月/年派生电量表
+        和显式排除实体, 否则同一台设备的 8 张镜像表会被一起累加, 日电量虚高数倍。
+        """
+        select_sql = (
+            "SELECT entity_id, friendly_name, hour_start, avg_w, max_w, min_w, "
+            "       energy_kwh, sample_count "
+            "FROM device_power_hourly WHERE DATE(hour_start)=%s"
+        )
+        insert_sql = (
             "INSERT INTO device_power_daily "
             "(entity_id, friendly_name, period_date, avg_w, max_w, min_w, energy_kwh, peak_hour, sample_count) "
-            "SELECT entity_id, MAX(friendly_name), %s, "
-            " AVG(avg_w), MAX(max_w), MIN(min_w), SUM(energy_kwh), "
-            " (SELECT HOUR(h2.hour_start) FROM device_power_hourly h2 "
-            "   WHERE h2.entity_id=h.entity_id AND DATE(h2.hour_start)=%s "
-            "   ORDER BY h2.avg_w DESC LIMIT 1) AS peak_hour, "
-            " SUM(sample_count) "
-            "FROM device_power_hourly h "
-            "WHERE DATE(hour_start)=%s "
-            "GROUP BY entity_id "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) "
             "ON DUPLICATE KEY UPDATE "
             " friendly_name=VALUES(friendly_name), avg_w=VALUES(avg_w), "
             " max_w=VALUES(max_w), min_w=VALUES(min_w), "
@@ -456,7 +460,42 @@ class UtilityDB:
         def _exec():
             conn = self._get_conn_sync()
             with conn.cursor() as cur:
-                return cur.execute(sql, (day, day, day))
+                cur.execute(select_sql, (day,))
+                rows = cur.fetchall()
+
+            # 按实体分组, 先剔掉派生电量表与显式排除实体
+            grouped: dict[str, list] = {}
+            for row in rows:
+                eid = row["entity_id"]
+                fname = row["friendly_name"]
+                if is_derived_energy_entity(eid, fname) or is_excluded_energy_entity(eid):
+                    continue
+                grouped.setdefault(eid, []).append(row)
+
+            out = []
+            for eid, items in grouped.items():
+                avgs = [float(r["avg_w"]) for r in items if r["avg_w"] is not None]
+                maxs = [float(r["max_w"]) for r in items if r["max_w"] is not None]
+                mins = [float(r["min_w"]) for r in items if r["min_w"] is not None]
+                energies = [float(r["energy_kwh"]) for r in items if r["energy_kwh"] is not None]
+                # 峰值时段取平均功率最大的那个整点
+                peak = max(
+                    (r for r in items if r["avg_w"] is not None),
+                    key=lambda r: float(r["avg_w"]), default=None,
+                )
+                out.append((
+                    eid, items[0]["friendly_name"], day,
+                    round(sum(avgs) / len(avgs), 2) if avgs else None,
+                    max(maxs) if maxs else None,
+                    min(mins) if mins else None,
+                    round(sum(energies), 4) if energies else None,
+                    peak["hour_start"].hour if peak else None,
+                    sum(int(r["sample_count"] or 0) for r in items),
+                ))
+            if not out:
+                return 0
+            with conn.cursor() as cur:
+                return cur.executemany(insert_sql, out)
         return await self.hass.async_add_executor_job(_exec)
 
     async def async_cleanup_power_raw(self, retention_days: int) -> int:

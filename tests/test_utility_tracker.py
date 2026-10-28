@@ -951,22 +951,39 @@ def _integrate_power_kwh(avg_w, sample_count, sample_minutes=5):
     return avg_w * sample_count * sample_minutes / 60 / 1000
 
 
-# 电量计数器重置容差, 与 const.py 保持一致
+# 电量读数抖动容差, 与 const.py 保持一致
 _ENERGY_RESET_TOLERANCE_KWH = 0.011
 
 
-def _sum_energy_deltas(values):
-    """逐样本增量累加 + 计数器重置识别 (从 const.py 复制)"""
-    if not values or len(values) < 2:
-        return 0.0
-    total = 0.0
-    for prev, cur in zip(values, values[1:]):
-        diff = cur - prev
-        if diff >= 0:
-            total += diff
-        elif diff < -_ENERGY_RESET_TOLERANCE_KWH:
-            total += max(cur, 0.0)
-    return total
+def _sum_energy_deltas(values, prev_reading=None):
+    """末值 - 基线 + 计数器清零/量化抖动识别 (从 const.py 复制)"""
+    if not values:
+        return None
+    ref = prev_reading if prev_reading is not None else values[0]
+
+    # 定位窗口内最后一次计数器清零 (跌幅超容差且跌到前值一半以下)
+    reset_idx = None
+    for i in range(1, len(values)):
+        prev_v, cur_v = values[i - 1], values[i]
+        if prev_v - cur_v > _ENERGY_RESET_TOLERANCE_KWH and cur_v < prev_v * 0.5:
+            reset_idx = i
+
+    if reset_idx is not None:
+        return max(values[reset_idx - 1] - ref, 0.0) + max(values[-1], 0.0)
+
+    if (
+        prev_reading is not None
+        and prev_reading - values[0] > _ENERGY_RESET_TOLERANCE_KWH
+        and values[0] < prev_reading * 0.5
+    ):
+        return max(values[-1], 0.0)
+
+    diff = values[-1] - ref
+    if len(values) == 1:
+        return max(diff, 0.0) if prev_reading is not None else 0.0
+    if all(b >= a for a, b in zip(values, values[1:])):
+        return max(diff, 0.0)
+    return diff if diff > _ENERGY_RESET_TOLERANCE_KWH else 0.0
 
 
 class TestPowerIntegrationFallback(unittest.TestCase):
@@ -1005,11 +1022,17 @@ class TestPowerIntegrationFallback(unittest.TestCase):
 
 
 class TestEnergyDeltaAccumulation(unittest.TestCase):
-    """测试电量计数器重置识别 + 逐样本增量累加"""
+    """测试电量计数器清零识别 + 低分辨率量化抖动过滤"""
 
     def test_正常递增_等于末值减初值(self):
-        # 无重置时, 增量累加应等价于 MAX-MIN
+        # 无重置时, 结算结果应等价于 MAX-MIN
         self.assertAlmostEqual(_sum_energy_deltas([1.0, 1.2, 1.5, 2.0]), 1.0, places=4)
+
+    def test_跨小时基线_正常递增(self):
+        # 基线 1.0 (上一小时末值) + 本小时 1.1 -> 1.3, 用电 0.3
+        self.assertAlmostEqual(
+            _sum_energy_deltas([1.1, 1.2, 1.3], 1.0), 0.3, places=4
+        )
 
     def test_中途重置_不丢失整小时电量(self):
         # 0.30 -> 0.60 后计数器被清零重新计数到 0.20
@@ -1017,29 +1040,61 @@ class TestEnergyDeltaAccumulation(unittest.TestCase):
         self.assertAlmostEqual(_sum_energy_deltas([0.30, 0.60, 0.20]), 0.50, places=4)
 
     def test_重置后立即有消耗_计入(self):
-        # 清零后下一采样已累计 0.05, 这段增量必须计入; 随后 0.05 -> 0.10 再加 0.05
+        # 首值是跨小时基线 5.00, 本窗口开始已重置: 清零前那段属于上一小时, 不计入;
+        # 只算重置后的 0.05 -> 0.10
         self.assertAlmostEqual(_sum_energy_deltas([5.00, 0.05, 0.10]), 0.10, places=4)
 
-    def test_精度抖动_不判定为重置(self):
-        # 0.01 kWh 分辨率插座在 0.01/0.00 之间抖动, 不应重复累计
-        self.assertAlmostEqual(_sum_energy_deltas([0.01, 0.00, 0.01]), 0.01, places=4)
+    def test_跨小时基线_窗口前已清零(self):
+        # 上一小时末值 3.20, 本小时首值 0.04 (设备已清零) -> 只计 0.08
+        self.assertAlmostEqual(_sum_energy_deltas([0.04, 0.08], 3.20), 0.08, places=4)
+
+    def test_基线落在抖动高位_不产生负电量(self):
+        # 上一小时末值恰好在 0.01 这个抖动高刻度, 本小时读数全为 0.00
+        # 单调判定会给出 0.00 - 0.01 = -0.01, 必须钳到 0 (耗电量不可能为负)
+        self.assertEqual(_sum_energy_deltas([0.00, 0.00, 0.00], 0.01), 0.0)
+        self.assertEqual(_sum_energy_deltas([0.00], 0.01), 0.0)
+
+    def test_精度抖动_不重复累计(self):
+        # 0.01 kWh 分辨率插座在 0.01/0.00 之间反复跳, 一个周期内应结算为 0;
+        # 若逐样本累加, 每次回升都会 +0.01, 一天可凭空多出 0.13 kWh
+        self.assertAlmostEqual(_sum_energy_deltas([0.01, 0.00, 0.01]), 0.0, places=4)
 
     def test_抖动后继续增长_累计正确(self):
+        # 起点 0.01, 抖动后真实涨到 0.03 -> 实际用电 0.02
         self.assertAlmostEqual(
-            _sum_energy_deltas([0.01, 0.00, 0.01, 0.02, 0.03]), 0.03, places=4
+            _sum_energy_deltas([0.01, 0.00, 0.01, 0.02, 0.03]), 0.02, places=4
         )
 
-    def test_单点或空序列_返回零(self):
-        self.assertEqual(_sum_energy_deltas([]), 0.0)
+    def test_高分辨率电表微小增长_不被容差吃掉(self):
+        # 5W 设备每小时仅增 0.0003 kWh, 远小于容差, 但读数单调 -> 必须全额计入
+        self.assertAlmostEqual(
+            _sum_energy_deltas([10.0001, 10.0002, 10.0003], 10.0), 0.0003, places=6
+        )
+
+    def test_空序列_返回None(self):
+        self.assertIsNone(_sum_energy_deltas([]))
+
+    def test_单点无基线_返回零(self):
         self.assertEqual(_sum_energy_deltas([1.5]), 0.0)
 
+    def test_单点有基线_按差值(self):
+        self.assertAlmostEqual(_sum_energy_deltas([1.5], 1.4), 0.1, places=4)
+
     def test_容差内回退_视为抖动(self):
-        # 回退 0.005 kWh, 小于 0.011 容差 -> 不算重置
+        # 回退 0.005 kWh, 小于容差 -> 不算清零
         self.assertAlmostEqual(_sum_energy_deltas([1.0, 0.995]), 0.0, places=4)
 
-    def test_超过容差的回退_判定重置并按新值计入(self):
-        # 回退 0.02 kWh, 超过 0.011 容差 -> 判定计数器清零, 按新读数计入
-        self.assertAlmostEqual(_sum_energy_deltas([1.0, 0.98]), 0.98, places=4)
+    def test_小幅回退_不误判为零点清零(self):
+        # 1.00 掉到 0.98 只是读数抖动, 若误判清零会凭空多出 0.98 kWh
+        self.assertAlmostEqual(_sum_energy_deltas([1.0, 0.98]), 0.0, places=4)
+
+    def test_真重置_按新周期计入(self):
+        # 4.90 -> 0.02 是设备真清零 (跨小时重置), 只计入清零后的 0.06
+        self.assertAlmostEqual(_sum_energy_deltas([4.90, 0.02, 0.06]), 0.06, places=4)
+
+    def test_全零序列_返回零(self):
+        # 0W 插座一天的真实读数 (功率恒 0, 电量恒 0)
+        self.assertEqual(_sum_energy_deltas([0, 0, 0, 0, 0, 0]), 0.0)
 
 
 if __name__ == "__main__":

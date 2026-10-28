@@ -68,37 +68,66 @@ def is_power_outlier(
     return (new_w - last_w) > jump_abs_w and new_w >= last_w * jump_ratio
 
 
-# 电量计数器重置容差 (kWh)
-# 带电量统计的插座/智能电表会周期性把累计值清零重新计数, 若直接用「末值-初值」
-# 会把这一个小时的电量算成 0 甚至负数; 改为逐样本累加增量后, 需要区分
-# 「真重置」和「显示精度抖动」(如 0.01 kWh 精度的插座在 0.01/0.00 之间抖动)。
-# 回退幅度 <= 该容差视为抖动忽略, 超过才判定为重置。
+# 电量读数抖动容差 (kWh)
+# 低分辨率设备 (如 0.01 kWh 的 yutai 插座) 会在相邻刻度间反复抖动, 必须与
+# 「真实增长」和「计数器清零」区分: 回退超过该容差判为清零, 回退/微增在该
+# 容差内且读数有回退时视为抖动归零。取 0.011 略大于一个 0.01 刻度。
 ENERGY_RESET_TOLERANCE_KWH = 0.011
 
 
-def sum_energy_deltas(values: list[float]) -> float:
-    """把按时间升序的累计电量读数序列折算成「本窗口耗电量」
+def sum_energy_deltas(
+    values: list[float], prev_reading: float | None = None
+) -> float | None:
+    """根据本窗口的累计电量读数序列推算耗电量 (kWh)
 
-    逐样本累加增量, 并对计数器重置做识别:
-    - 正常递增: 累加 (当前 - 上一个)
-    - 回退幅度 <= ENERGY_RESET_TOLERANCE_KWH: 视为显示精度抖动, 忽略该次回退
-    - 回退幅度超过容差: 判定计数器被清零, 按「重置后的读数」计入 (假设从 0 重新计数)
+    参数:
+        values:       本窗口内按时间升序的累计电量读数 (不含窗口外数据)
+        prev_reading: 上一窗口最后一条读数, 作为跨窗口基线; 为 None 时用序列首值
 
-    相比 MAX(末值)-MIN(初值), 这种方式不会因中途重置而丢失整小时电量。
+    规则:
+    1. 窗口内读数跌幅超过容差、且跌到前值一半以下 -> 计数器被清零
+       (只按跌幅判断会把低分辨率插座的量化抖动误判成清零, 凭空多记读数)
+       此时计入「清零前那段 + 清零后至窗口末的累计值」
+    2. 窗口开始前就已清零 (上一窗口末值远大于本窗口首值) -> 只计本窗口累计值
+    3. 读数全程单调不减 -> 末值减基线全额计入
+       (保护 0.0001 kWh 级高分辨率电表的微小真实增长, 如 5W 设备 0.0003/h)
+    4. 读数有回退 -> 属于低分辨率量化抖动, 容差内的差异一律归零
+       (否则 0W 插座每小时会凭空多记 0.01 kWh, 一天虚增 0.13 kWh)
+
+    返回 None 表示没有可用读数。
     """
-    if not values or len(values) < 2:
-        # 只有一个读数(或没有): 无法计算增量
-        return 0.0
-    total = 0.0
-    for prev, cur in zip(values, values[1:]):
-        diff = cur - prev
-        if diff >= 0:
-            total += diff
-        elif diff < -ENERGY_RESET_TOLERANCE_KWH:
-            # 计数器重置: 清零后已累计 cur, 这段增量不能丢
-            total += max(cur, 0.0)
-        # else: 量化抖动, 忽略
-    return total
+    if not values:
+        return None
+    ref = prev_reading if prev_reading is not None else values[0]
+
+    # 定位窗口内最后一次「计数器清零」的位置
+    reset_idx: int | None = None
+    for i in range(1, len(values)):
+        prev_v, cur_v = values[i - 1], values[i]
+        if prev_v - cur_v > ENERGY_RESET_TOLERANCE_KWH and cur_v < prev_v * 0.5:
+            reset_idx = i
+
+    if reset_idx is not None:
+        # 清零前那一段 (基线 -> 清零前读数) + 清零后至窗口末的累计值
+        return max(values[reset_idx - 1] - ref, 0.0) + max(values[-1], 0.0)
+
+    if (
+        prev_reading is not None
+        and prev_reading - values[0] > ENERGY_RESET_TOLERANCE_KWH
+        and values[0] < prev_reading * 0.5
+    ):
+        # 本窗口开始前就已清零: 清零前那段属于上一个窗口, 不计入
+        return max(values[-1], 0.0)
+
+    diff = values[-1] - ref
+    if len(values) == 1:
+        # 只有一个读数: 有基线时按差值, 无基线时无从推算
+        return max(diff, 0.0) if prev_reading is not None else 0.0
+    if all(b >= a for a, b in zip(values, values[1:])):
+        # 单调不减: 末值减基线全额计入 (基线可能恰好落在抖动高位, 差值不会为负)
+        return max(diff, 0.0)
+    # 存在回退: 量化抖动, 容差内归零
+    return diff if diff > ENERGY_RESET_TOLERANCE_KWH else 0.0
 
 
 # 派生电量计量关键词: 这类实体是「日/周/月/年用电量」的中间量,
