@@ -1,5 +1,22 @@
 ﻿# 打印分析卡片 - 修改记录
 
+## 自动化失效条目清理（2026-10-28）
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 修复 | 删除 8 条电视/音响虚拟事件自动化（id `1774512472146`、`1774515470812`、`1774516117948`、`1774516169921`、`1774516581044`、`1774517032087`、`1774517122303`、`1774517227701`），其 `button.*`/`media_player.*` 实体早已不存在 | automations.yaml |
+| 修复 | 删除大黑奴（P2S，已卖出）残留 3 处：`daheinu_exhaust_fan`（完成排气）、`ams_humidity_notification`（AMS 湿度通知）、`printer_completion_notification` 内的大黑奴播报分支 | automations.yaml |
+| 清理 | WebSocket `config/entity_registry/remove` 移除注册表 11 条失效 automation 实体：8 条电视/音响、`da_yin_da_hei_nu_da_yin_wan_cheng_pai_qi`、`da_yin_ams_1_shi_du_da_yu_50_tong_zhi`、`qu_yu_mei_ri_zhong_zhi_fang_wen_yu_ting_liu_v2`（7 个 counter 已删，触发源不存在） | (实体注册表) |
+| 验证 | `automations.yaml` 16 → 6 条；YAML 解析通过、34 个 Jinja 模板语法全部通过；`automation.reload` 后状态列表仅 6 个 automation 实体且全部 `on`，注册表同步剩 6 条 | (服务器) |
+
+## CTM电信卡片恢复显示（2026-10-28）
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 修复 | 集成故障期间卡片区块被整体注释隐藏（标注"暂时隐藏…相关实体全部 unavailable"），取消注释恢复：标题卡 + `custom:ctm-telecom-card` + 4 个指标 chips | ui-energy.yaml#L169-211 |
+| 说明 | 编辑后 yaml 文件被写入 UTF-8 BOM，已清除；yaml 模式仪表盘需重启 HA 才重新读取配置 | ui-energy.yaml |
+| 验证 | `energy-bills` → `overview` view 已含 `ctm-telecom-card`；设备 ID `88311b83…` 匹配，卡片 JS `/china_telecom/ctm-telecom-card.js` 返回 200（20486 字节）；18 实体全部可用 | (服务器) |
+
 ## CTM电信集成故障修复（2026-10-28）
 
 | 类型 | 内容 | 涉及文件 |
