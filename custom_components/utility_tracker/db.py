@@ -138,6 +138,35 @@ class UtilityDB:
             _LOGGER.info("数据库 schema 已确保 (%d 条语句)", len(statements))
         await self.hass.async_add_executor_job(_exec)
 
+    async def async_migrate_bill_no(self) -> None:
+        """v2 迁移: utility_records 加 bill_no 列并扩展唯一键
+
+        背景: 燃气同月可能有多张单据 (正常账单 + 退款负数单),
+        旧唯一键 (utility_type,account_id,granularity,period_date) 会互相覆盖。
+        幂等: 已存在 bill_no 列则跳过。
+        """
+        def _exec():
+            conn = self._get_conn_sync()
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT COUNT(*) AS c FROM information_schema.COLUMNS "
+                    "WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='utility_records' "
+                    "AND COLUMN_NAME='bill_no'"
+                )
+                row = cur.fetchone()
+                if row and int(row["c"]) > 0:
+                    return  # 已迁移
+                _LOGGER.warning("迁移 utility_records: 添加 bill_no 列并重建唯一键")
+                cur.execute(
+                    "ALTER TABLE utility_records "
+                    "ADD COLUMN bill_no VARCHAR(64) NOT NULL DEFAULT '' "
+                    "COMMENT '单据号' AFTER period_date, "
+                    "DROP INDEX uniq_record, "
+                    "ADD UNIQUE KEY uniq_record "
+                    "(utility_type, account_id, granularity, period_date, bill_no)"
+                )
+        await self.hass.async_add_executor_job(_exec)
+
     # ---------- 记录写入 ----------
 
     @staticmethod
@@ -159,10 +188,10 @@ class UtilityDB:
 
         sql = (
             "INSERT INTO utility_records "
-            "(utility_type, account_id, granularity, period_date, usage_amount, charge, "
+            "(utility_type, account_id, granularity, period_date, bill_no, usage_amount, charge, "
             " peak, flat, valley, tip, tier1_usage, tier2_usage, tier3_usage, "
             " meter_reading, meter_date, extra) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
             "ON DUPLICATE KEY UPDATE "
             " usage_amount=VALUES(usage_amount), charge=VALUES(charge), "
             " peak=VALUES(peak), flat=VALUES(flat), valley=VALUES(valley), tip=VALUES(tip), "
@@ -179,6 +208,8 @@ class UtilityDB:
                     r.get("account_id"),
                     r.get("granularity"),
                     r.get("period_date"),
+                    # bill_no 是唯一键的一部分, NOT NULL, 缺省落空串
+                    r.get("bill_no") or "",
                     r.get("usage_amount"),
                     r.get("charge"),
                     r.get("peak"),
@@ -542,16 +573,15 @@ class UtilityDB:
             acct_sql = " AND account_id=%s" if account_id else ""
             acct_params = (account_id,) if account_id else ()
             with conn.cursor() as cur:
-                # 月记录优先
+                # 月记录优先 (只要有月记录就返回其合计, 允许负数=退款净额)
                 cur.execute(
-                    "SELECT COALESCE(SUM(charge),0) AS s FROM utility_records "
+                    "SELECT COALESCE(SUM(charge),0) AS s, COUNT(*) AS c FROM utility_records "
                     "WHERE utility_type=%s AND granularity='month' AND period_date=%s" + acct_sql,
                     (utility_type, period_start) + acct_params,
                 )
                 row = cur.fetchone()
-                monthly = float(row["s"]) if row and row["s"] is not None else 0.0
-                if monthly > 0:
-                    return monthly
+                if row and int(row["c"]) > 0:
+                    return float(row["s"]) if row["s"] is not None else 0.0
                 # 没有月记录则汇总日记录
                 cur.execute(
                     "SELECT COALESCE(SUM(charge),0) AS s FROM utility_records "

@@ -1,4 +1,19 @@
-# 打印分析卡片 - 修改记录
+﻿# 打印分析卡片 - 修改记录
+
+## Utility Tracker v0.3.0 (2026-10-28) - 分户显示 + 退款单据
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 功能 | 分户统计: 新增 4 个 sensor (electricity/gas × this_month_main/rental),电费按 state_grid account_suffix 0065(自住东方新天地)/7061(出租东方佳园) 分,燃气按 crcgas cons_no 1040395237/1021540961 分; 统计 SQL 移到 utility_due 节流之外每轮刷新 | coordinator.py, sensor.py, db.py `async_sum_month_charge` 加 account_id 参数 |
+| 修复 | 燃气同月多单据互相覆盖: utility_records 加 `bill_no` 列 (燃气=applicationNo),UNIQUE KEY 扩展为 (utility_type,account_id,granularity,period_date,bill_no); 新增幂等迁移 `async_migrate_bill_no` 启动时自动 ALTER TABLE | schemas.sql, db.py, __init__.py |
+| 修复 | 退款负数业务修正: 用户确认 -49.99 是燃气公司退款而非欠费,移除 `_abs_or_none`,入库保留原始正负号,月度合计为净额 (主户 2026-10 = 2.53-49.99 = -47.46) | coordinator.py `_backfill_gas_history` |
+| 修复 | `async_sum_month_charge` 旧逻辑 `if monthly > 0` 导致负数净额错落到日记录分支,改为按行数判断 (有月记录即返回其合计) | db.py |
+| 修复 | crcgas 启动慢导致 `_discover_gas_accounts` 返回空: 新增 `last_gas_accounts` 调试属性,空户时不更新 `last_utility_sync` 下周期重试; `gas_discovery` 属性暴露 states 总数/燃气实体数/样本供排查 | coordinator.py, sensor.py |
+| 修复 | `_backfill_gas_history` 错把副户历史 JSON 写到主户 account_id 下: 按户过滤文件名 (主户跳过 `_<10位数字>$` 结尾文件,副户只读匹配自己 cons_no 的); 副户也开始回填历史 | coordinator.py |
+| 重构 | 移除 live 传感器写燃气月记录 (zhang_dan_jin_e 等无 applicationNo,会与历史回填同月单据重复计),月记录统一由历史 JSON 回填写入,live 传感器只供快照 | coordinator.py `_collect_gas` |
+| 数据 | 一次性清理 v2 (.storage 标记): 删未知 account_id 脏记录 + 两户全部旧 gas 月记录,按新规则重建 (total_records 141→161) | coordinator.py `_async_update_data` |
+| 测试 | TestGasBillMapping 更新: 退款保留负号 / 同月多单据按 bill_no 区分且净额 -47.46 / bill_no 缺失 auto- 序号兜底; 新增 TestMultiAccountSplit 4 用例; 总数 65 个 | tests/test_utility_tracker.py |
+| 看板 | ui-energy.yaml 概览/电费/燃气费页分户卡片 (自住 vs 出租分开显示,不加总) | ui-energy.yaml |
 
 ## crcgas 华润燃气 v2.0.0 (2026-10-28) - 多户化重构
 

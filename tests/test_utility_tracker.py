@@ -1,4 +1,4 @@
-"""Utility Tracker 单元测试
+﻿"""Utility Tracker 单元测试
 
 测试纯函数和工具逻辑,不依赖 HA 运行环境。
 """
@@ -195,26 +195,58 @@ class TestGasBillMapping(unittest.TestCase):
         self.assertEqual(record["usage_amount"], 1.0)
         self.assertEqual(record["extra"]["applicationNo"], "0126101915558343")
 
-    def test_负数账单_欠费取绝对值(self):
-        """crcgas 把欠费账单记为负数,入库时应取绝对值转为正数"""
-        bill = {"billYm": "2026-10", "billAmt": -49.99, "gasAmt": -19.76}
+    def test_负数账单_退款保留负号(self):
+        """crcgas 退款账单为负数 (燃气公司退钱给用户), 入库时保留原始符号"""
+        bill = {"billYm": "2026-10", "billAmt": -49.99, "gasAmt": -19.76,
+                "applicationNo": "REFUND001"}
         period_date = bill_month_to_date(bill.get("billYm"))
         self.assertEqual(period_date, "2026-10-01")
-        # 模拟 coordinator 中的 _abs_or_none 包装
-        self.assertEqual(abs(_safe_float(bill.get("billAmt"))), 49.99)
-        self.assertEqual(abs(_safe_float(bill.get("gasAmt"))), 19.76)
+        # 与 coordinator._backfill_gas_history 一致: 不取绝对值
+        self.assertEqual(_safe_float(bill.get("billAmt")), -49.99)
+        self.assertEqual(_safe_float(bill.get("gasAmt")), -19.76)
 
-    def test_正数账单_不受影响(self):
-        """正常账单(正数)经过 abs 后值不变"""
+    def test_正数账单_符号不变(self):
         bill = {"billYm": "2026-10", "billAmt": 2.53, "gasAmt": 1.0}
-        self.assertEqual(abs(_safe_float(bill.get("billAmt"))), 2.53)
-        self.assertEqual(abs(_safe_float(bill.get("gasAmt"))), 1.0)
+        self.assertEqual(_safe_float(bill.get("billAmt")), 2.53)
+        self.assertEqual(_safe_float(bill.get("gasAmt")), 1.0)
 
-    def test_零值账单_不受影响(self):
-        """零值账单(0)经过 abs 后仍为 0"""
-        bill = {"billYm": "2026-10", "billAmt": 0.0, "gasAmt": 0.0}
-        self.assertEqual(abs(_safe_float(bill.get("billAmt"))), 0.0)
-        self.assertEqual(abs(_safe_float(bill.get("gasAmt"))), 0.0)
+    def test_同月多单据_按bill_no区分(self):
+        """同月正常账单+退款单: period_date 相同但 bill_no 不同, 都入库且净额正确"""
+        bills = [
+            {"billYm": "2026-10", "billAmt": 2.53, "gasAmt": 1.0,
+             "applicationNo": "0126101915558343"},
+            {"billYm": "2026-10", "billAmt": -49.99, "gasAmt": -19.76,
+             "applicationNo": "REFUND20261001"},
+        ]
+        records = []
+        for bill in bills:
+            period_date = bill_month_to_date(bill.get("billYm"))
+            records.append({
+                "period_date": period_date,
+                "bill_no": bill.get("applicationNo") or f"auto-{period_date}-{len(records)}",
+                "charge": _safe_float(bill.get("billAmt")),
+            })
+        # 两张单据 period_date 相同, bill_no 不同 => 唯一键不冲突
+        self.assertEqual(records[0]["period_date"], records[1]["period_date"])
+        self.assertNotEqual(records[0]["bill_no"], records[1]["bill_no"])
+        # 月度净额 = 2.53 - 49.99 = -47.46
+        net = sum(r["charge"] for r in records)
+        self.assertAlmostEqual(net, -47.46, places=2)
+
+    def test_bill_no缺失_用序号兜底(self):
+        """applicationNo 缺失时生成 auto- 前缀兜底 bill_no, 保证唯一键不冲突"""
+        bills = [
+            {"billYm": "2026-10", "billAmt": 2.53},
+            {"billYm": "2026-10", "billAmt": -49.99},
+        ]
+        records = []
+        for bill in bills:
+            period_date = bill_month_to_date(bill.get("billYm"))
+            bill_no = bill.get("applicationNo") or f"auto-{period_date}-{len(records)}"
+            records.append(bill_no)
+        self.assertEqual(records[0], "auto-2026-10-01-0")
+        self.assertEqual(records[1], "auto-2026-10-01-1")
+        self.assertNotEqual(records[0], records[1])
 
 
 class TestAccountSnapshotMapping(unittest.TestCase):

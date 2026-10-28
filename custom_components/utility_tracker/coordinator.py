@@ -67,6 +67,7 @@ class UtilityTrackerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.last_utility_sync: datetime | None = None
         self.last_error: str | None = None
         self.last_gas_discovery: dict | None = None
+        self.last_gas_accounts: dict | None = None
         self.total_records: int = 0
         # 灯光事件队列: 由 state listener 填充,coordinator 定期批量写库
         self.light_event_queue: list[dict] = []
@@ -105,11 +106,11 @@ class UtilityTrackerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # 去掉 tzinfo 存 naive datetime,供 DB 写入与 MariaDB NOW()/CURDATE() 对齐
             now = dt_util.now().replace(tzinfo=None)
 
-            # ---- 一次性清理: 分户改造前的脏数据 (v1) ----
-            # 背景: 旧版 _collect_gas 用 biao_hao.state ("未知") 作 account_id, 且
-            # _backfill_gas_history 错把副户历史 JSON 写到主户 account_id 下
+            # ---- 一次性清理: 退款单据改造前的脏数据 (v2) ----
+            # 背景: 旧版把退款负数单取绝对值入库, 且同月多单据互相覆盖;
+            # v2 起保留原始正负号 + 按 applicationNo (bill_no) 区分单据, 需全量重建燃气月记录
             cleanup_flag = self.hass.config.path(
-                ".storage", "utility_tracker_cleanup_v1.done"
+                ".storage", "utility_tracker_cleanup_v2.done"
             )
             if not os.path.exists(cleanup_flag):
                 try:
@@ -117,15 +118,18 @@ class UtilityTrackerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     n1 = await self.db.async_delete_unknown_gas_accounts(
                         known=("1040395237", "1021540961")
                     )
-                    # 2) 删主户所有 gas 月记录 (可能混入副户历史, 由 _collect_gas 重建)
+                    # 2) 删两户所有 gas 月记录 (含旧 abs 值, 由历史回填按新规则重建)
                     n2 = await self.db.async_delete_utility_records(
                         UTILITY_TYPE_GAS, "1040395237", granularity=GRANULARITY_MONTH
+                    )
+                    n3 = await self.db.async_delete_utility_records(
+                        UTILITY_TYPE_GAS, "1021540961", granularity=GRANULARITY_MONTH
                     )
                     with open(cleanup_flag, "w", encoding="utf-8") as f:
                         f.write(datetime.now().isoformat())
                     _LOGGER.warning(
-                        "分户脏数据清理完成: 删未知 account_id %d 条, 主户月记录 %d 条",
-                        n1, n2,
+                        "燃气脏数据清理完成(v2): 未知户 %d 条, 主户月记录 %d 条, 副户月记录 %d 条",
+                        n1, n2, n3,
                     )
                     # 强制立刻重跑 _collect_gas 重建
                     self.last_utility_sync = None
@@ -152,7 +156,7 @@ class UtilityTrackerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     stats.update(gas_stats)
                     # crcgas 启动慢时 _discover_gas_accounts 返回空,
                     # 不要更新 last_utility_sync, 下个周期重试
-                    if not self.last_gas_discovery:
+                    if not self.last_gas_accounts:
                         utility_ok = False
                         _LOGGER.info("燃气户为空, 5 分钟后重试")
                 if utility_ok:
@@ -476,6 +480,7 @@ class UtilityTrackerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def _collect_gas(self) -> dict[str, int]:
         """从 crcgas 实体抓数据写库 (多户版)"""
         accounts = self._discover_gas_accounts()
+        self.last_gas_accounts = accounts  # 供重试逻辑判断空
         _LOGGER.info("燃气户发现: %s", self.last_gas_discovery)
         if not accounts:
             _LOGGER.warning("未找到 crcgas 实体,跳过燃气同步")
@@ -491,32 +496,10 @@ class UtilityTrackerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 eid = _map.get(key)
                 return self.hass.states.get(eid) if eid else None
 
-            # ---- 月记录:本期账单 ----
-            bill_month_state = _get("zhang_dan_yue_fen")
-            if bill_month_state and bill_month_state.state:
-                bill_month = bill_month_state.state.strip()  # "2026-10"
-                try:
-                    year, month = bill_month.split("-", 1)
-                    period_date = f"{year}-{month.zfill(2)}-01"
-                    month_records.append({
-                        "utility_type": UTILITY_TYPE_GAS,
-                        "account_id": account_id,
-                        "granularity": GRANULARITY_MONTH,
-                        "period_date": period_date,
-                        # crcgas 把欠费账单记为负数,业务上应转为正数入库
-                        "usage_amount": _abs_or_none(_state_float(_get("ben_qi_yong_qi_liang"))),
-                        "charge": _abs_or_none(_state_float(_get("zhang_dan_jin_e"))),
-                        "tier1_usage": _state_float(_get("ben_qi_yi_jie_ti_yong_qi_liang")),
-                        "tier2_usage": _state_float(_get("ben_qi_er_jie_ti_yong_qi_liang")),
-                        "tier3_usage": _state_float(_get("ben_qi_san_jie_ti_yong_qi_liang")),
-                        "meter_reading": _state_float(_get("ben_qi_biao_du_shu")),
-                        "meter_date": (lambda s: s.state if s else None)(_get("ben_qi_chao_biao_shi_jian")),
-                    })
-                except (ValueError, AttributeError) as e:
-                    _LOGGER.warning("燃气账单月份解析失败: 户=%s, val=%s, err=%s",
-                                    account_id, bill_month, e)
-
-            # ---- 历史账单回填 (每户各自读自己的 JSON) ----
+            # ---- 月记录: 全部由历史回填写入 ----
+            # 注意: 不再用 live 传感器 (zhang_dan_jin_e 等) 写月记录,
+            # 因为 live 账单没有 applicationNo, 会与历史回填的同月单据重复计数;
+            # crcgas 历史 JSON 已含当月账单, 是权威数据源
             backfilled = await self._backfill_gas_history(account_id)
             month_records.extend(backfilled)
 
@@ -591,14 +574,17 @@ class UtilityTrackerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 period_date = bill_month_to_date(bill.get("billYm"))
                 if not period_date:
                     continue
+                # 保留原始正负号: 负数 = 燃气公司退款, 参与月度净额合计
+                # bill_no 用 applicationNo 区分同月多单据; 缺失时用序号兜底保证唯一键不冲突
+                bill_no = bill.get("applicationNo") or f"auto-{period_date}-{len(records)}"
                 records.append({
                     "utility_type": UTILITY_TYPE_GAS,
                     "account_id": account_id,
                     "granularity": GRANULARITY_MONTH,
                     "period_date": period_date,
-                    # crcgas 把欠费账单记为负数,业务上应转为正数入库
-                    "usage_amount": _abs_or_none(_safe_float(bill.get("gasAmt"))),
-                    "charge": _abs_or_none(_safe_float(bill.get("billAmt"))),
+                    "bill_no": bill_no,
+                    "usage_amount": _safe_float(bill.get("gasAmt")),
+                    "charge": _safe_float(bill.get("billAmt")),
                     "extra": {
                         "applicationNo": bill.get("applicationNo"),
                         "penaltyAmt": bill.get("penaltyAmt"),
@@ -622,11 +608,6 @@ def _safe_float(value: Any) -> float | None:
         return float(value)
     except (ValueError, TypeError):
         return None
-
-
-def _abs_or_none(value: float | None) -> float | None:
-    """对 float 取绝对值, None 透传 (crcgas 把欠费账单记为负数,业务上应为正数)"""
-    return abs(value) if value is not None else None
 
 
 def _state_float(state: State | None) -> float | None:

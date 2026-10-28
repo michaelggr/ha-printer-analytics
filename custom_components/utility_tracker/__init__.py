@@ -50,6 +50,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # 建表
     try:
         await db.async_ensure_schema()
+        # v2 迁移: utility_records 加 bill_no (同月多单据, 如退款)
+        await db.async_migrate_bill_no()
     except Exception as e:
         _LOGGER.error("数据库 schema 初始化失败: %s", e)
         await db.async_close()
