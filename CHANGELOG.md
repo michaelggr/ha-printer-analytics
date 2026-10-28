@@ -1,5 +1,14 @@
 # 打印分析卡片 - 修改记录
 
+## 北阳台纳入停留统计（新家）(2026-10-28) - PIR 移动 + 10 分钟超时派生有人
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 功能 | 新增 trigger 型模板 `binary_sensor.bei_yang_tai_you_ren`：监听 PIR「有人移动」事件置为有人，每分钟刷新，超过传感器自带「自定义超时无人移动时间」（默认 10 分钟）无新移动转回无人 | templates.yaml#L573 |
+| 功能 | 新增 `sensor.bei_yang_tai_ting_liu_shi_chang` history_stats，状态取 `binary_sensor.bei_yang_tai_you_ren == on` | sensor.yaml#L234 |
+| 重构 | `sensor.longest_stay_area_today` 统计区域从 11 个增加到 12 个（新增北阳台） | templates.yaml#L633 |
+| 看板 | 区域活动视图新增北阳台卡片与 24h 趋势，说明改为「门口未纳入；北阳台 PIR 派生、时长偏保守」 | ui-lovelace.yaml#L1571 |
+
 ## 灯光统计重构入库（新家）(2026-10-28) - history_stats 每日时长写入 MariaDB
 
 | 类型 | 内容 | 涉及文件 |
