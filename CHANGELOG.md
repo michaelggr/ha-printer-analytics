@@ -1,4 +1,17 @@
-﻿# 打印分析卡片 - 修改记录
+# 打印分析卡片 - 修改记录
+
+## 老房自动化与统计数据清理 (2026-10-28)
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 重构 | 删除 8 条老房区域访问计数自动化（7 个 `region_visit_counter_*_v2` + `region_daily_reset_v2`），其触发源传感器已不存在，计数恒为 0 | automations.yaml |
+| 重构 | 删除 7 个老房区域访问计数模板传感器（Living Room/Bedroom/Kitchen/Dining/Bathroom/Hallway/Doorway Visits） | templates.yaml |
+| 重构 | 删除 `sensor.most_visited_area_today`（依赖已删除的 counter，输出恒为「暂无数据」） | templates.yaml |
+| 重构 | `counter.yaml` 清空为 `[]`（7 个老房区域 counter 全部移除） | counter.yaml |
+| 看板 | 区域活动视图汇总区去掉「访问最多」卡片，改为单列仅保留「停留最久」 | ui-lovelace.yaml#L1495 |
+| 清理 | 删除 37 个孤儿实体注册项：18 个老房自动化（11 个亮灯时长累计 + 7 个访问计数）、11 个 `input_number.light_*_daily_duration`、8 个老房模板传感器 | 实体注册表 |
+| 清理 | 删除 7 个 `counter.*_visits` 注册项与 14 个失效 YAML 平台实体（`sensor.light_*_daily_duration_hours`、`sensor.yang_tai_deng_liang_deng_shi_chang` 等） | 实体注册表 |
+| 清理 | 分批清除 169 个陈旧统计 ID（对应实体已不存在的老房灯光/空调/设备能耗/已移除米家设备）；保留 `crcgas:*` 外部统计 4 个、打印机 28 个（设备当前离线，实体暂未创建） | recorder 统计库 |
 
 ## Grafana 动态 ingress + CTM 卡片前端注册修复 (2026-10-28)
 
