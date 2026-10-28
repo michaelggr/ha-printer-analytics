@@ -624,10 +624,7 @@ class UtilityDB:
                     continue
                 if is_component_power_entity(row["entity_id"], row["friendly_name"]):
                     continue
-                total = round(float(row["total_kwh"] or 0), 3)
-                # 隐藏累计为 0 的设备 (从未产生能量记录, 通常是数据采集异常的功率实体)
-                if total <= 0:
-                    continue
+                # 注意: 不过滤 total=0 的设备, 新家部分设备尚未启用累计就是 0, 但需要展示
                 result.append({
                     "entity_id": row["entity_id"],
                     "name": row["friendly_name"] or row["entity_id"],
@@ -635,7 +632,7 @@ class UtilityDB:
                     "yesterday": round(float(row["yesterday_kwh"] or 0), 3),
                     "week": round(float(row["week_kwh"] or 0), 3),
                     "month": round(float(row["month_kwh"] or 0), 3),
-                    "total": total,
+                    "total": round(float(row["total_kwh"] or 0), 3),
                 })
             return result
         return await self.hass.async_add_executor_job(_q)

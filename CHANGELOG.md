@@ -8,7 +8,7 @@
 | 功能 | 新增 `sensor.utility_tracker_power_periods_by_device` 实体，devices 属性供面板表格使用 | sensor.py |
 | 修复 | 过滤组件级功率实体（PC CPU/GPU/IA Cores/新风空调压缩机），这些是历史遗留脏数据 | db.py |
 | 修复 | `ENERGY_DERIVED_KEYWORDS` 补全 `last_day/last_week/last_month/last_year/昨日/上周/上月/去年` 关键词，过滤 `ac_last_month_kwh` 等派生电量 | const.py |
-| 优化 | 隐藏累计为 0 的设备（从未产生能量记录的"功率参数 电功率"等实体），42 → 8，同设备只显示 energy 类一行 | db.py |
+| 优化 | 撤销"隐藏累计为 0"过滤——新家部分设备尚未启用, 需要在面板看到, 一旦启用耗电非 0 会自动出现在「今日耗电」列表 | db.py |
 | UI | 「各设备功耗详情」从 5 张分散 template-card 改为 1 张 markdown 表格 | ui-energy.yaml |
 
 
