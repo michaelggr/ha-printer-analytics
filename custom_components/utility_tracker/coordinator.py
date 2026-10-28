@@ -230,6 +230,12 @@ class UtilityTrackerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 stats["area_stay_today_seconds"] = (
                     await self.db.async_sum_area_stay_today()
                 )
+                stats["area_stay_week_seconds"] = (
+                    await self.db.async_sum_area_stay_week()
+                )
+                stats["area_stay_month_seconds"] = (
+                    await self.db.async_sum_area_stay_month()
+                )
 
             self.last_sync = now
             self.last_error = None

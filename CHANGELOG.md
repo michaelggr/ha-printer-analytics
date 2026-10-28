@@ -1,5 +1,14 @@
 # 打印分析卡片 - 修改记录
 
+## 区域停留周/月聚合 + 能源账单看板 (2026-10-28)
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 功能 | 新增 `async_sum_area_stay_week` (近 7 日含今日) / `async_sum_area_stay_month` (本月 1 日至今) / `async_fetch_area_stays_week` (按区域分组明细) | db.py |
+| 功能 | coordinator 新增 `area_stay_week_seconds` / `area_stay_month_seconds` 读库聚合 | coordinator.py |
+| 功能 | 新增 `sensor.utility_tracker_area_stay_duration_week` / `sensor.utility_tracker_area_stay_duration_month`（合计 h） | sensor.py |
+| 看板 | 能源账单看板新增 View 6「区域停留」(path: area-stay)：今日/近 7 日/本月汇总 + 12 区域今日停留 + 24h history-graph + 入库口径说明 | ui-energy.yaml#L885 |
+
 ## 区域停留时长统计入库（新家）(2026-10-28) - 复用灯光时长方案
 
 | 类型 | 内容 | 涉及文件 |

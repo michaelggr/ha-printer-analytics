@@ -42,6 +42,8 @@ async def async_setup_entry(
         UtilityTrackerLightCountTodaySensor(coordinator, entry),
         UtilityTrackerLightDurationTodaySensor(coordinator, entry),
         UtilityTrackerAreaStayTodaySensor(coordinator, entry),
+        UtilityTrackerAreaStayWeekSensor(coordinator, entry),
+        UtilityTrackerAreaStayMonthSensor(coordinator, entry),
     ])
 
 
@@ -327,4 +329,42 @@ class UtilityTrackerAreaStayTodaySensor(_BaseSensor):
     def native_value(self):
         sec = (self.coordinator.data or {}).get("area_stay_today_seconds") or 0
         # 12 个区域分别累计, 合计会大于 24h, 属正常现象
+        return round(sec / 3600.0, 2)
+
+
+class UtilityTrackerAreaStayWeekSensor(_BaseSensor):
+    """近 7 日 (含今日) 各区域停留时长合计 (秒 -> 小时)"""
+
+    _attr_name = "Area Stay Duration Week"
+    _attr_icon = "mdi:calendar-week"
+    _attr_device_class = SensorDeviceClass.DURATION
+    _attr_native_unit_of_measurement = "h"
+    _attr_state_class = SensorStateClass.TOTAL
+
+    def __init__(self, coordinator, entry):
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_area_stay_week"
+
+    @property
+    def native_value(self):
+        sec = (self.coordinator.data or {}).get("area_stay_week_seconds") or 0
+        return round(sec / 3600.0, 2)
+
+
+class UtilityTrackerAreaStayMonthSensor(_BaseSensor):
+    """本月 1 日至今 各区域停留时长合计 (秒 -> 小时)"""
+
+    _attr_name = "Area Stay Duration Month"
+    _attr_icon = "mdi:calendar-month"
+    _attr_device_class = SensorDeviceClass.DURATION
+    _attr_native_unit_of_measurement = "h"
+    _attr_state_class = SensorStateClass.TOTAL
+
+    def __init__(self, coordinator, entry):
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_area_stay_month"
+
+    @property
+    def native_value(self):
+        sec = (self.coordinator.data or {}).get("area_stay_month_seconds") or 0
         return round(sec / 3600.0, 2)

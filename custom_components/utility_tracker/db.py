@@ -638,6 +638,51 @@ class UtilityDB:
                 ]
         return await self.hass.async_add_executor_job(_q)
 
+    async def async_sum_area_stay_week(self) -> int:
+        """近 7 日 (含今日) 各区域停留秒数合计"""
+        def _q():
+            conn = self._get_conn_sync()
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT COALESCE(SUM(duration_sec),0) AS s "
+                    "FROM area_stay_daily "
+                    "WHERE period_date BETWEEN DATE_SUB(CURDATE(), INTERVAL 6 DAY) AND CURDATE()"
+                )
+                row = cur.fetchone()
+                return int(row["s"]) if row and row["s"] is not None else 0
+        return await self.hass.async_add_executor_job(_q)
+
+    async def async_sum_area_stay_month(self) -> int:
+        """本月 1 日至今 各区域停留秒数合计"""
+        def _q():
+            conn = self._get_conn_sync()
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT COALESCE(SUM(duration_sec),0) AS s "
+                    "FROM area_stay_daily "
+                    "WHERE period_date >= DATE_SUB(CURDATE(), INTERVAL DAY(CURDATE())-1 DAY)"
+                )
+                row = cur.fetchone()
+                return int(row["s"]) if row and row["s"] is not None else 0
+        return await self.hass.async_add_executor_job(_q)
+
+    async def async_fetch_area_stays_week(self) -> list[dict[str, Any]]:
+        """近 7 日各区域停留合计 (区域名/秒数), 供看板对比"""
+        def _q():
+            conn = self._get_conn_sync()
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT area_name, SUM(duration_sec) AS total_sec "
+                    "FROM area_stay_daily "
+                    "WHERE period_date BETWEEN DATE_SUB(CURDATE(), INTERVAL 6 DAY) AND CURDATE() "
+                    "GROUP BY area_name ORDER BY total_sec DESC"
+                )
+                return [
+                    {"area_name": r["area_name"], "duration_sec": int(r["total_sec"])}
+                    for r in cur.fetchall()
+                ]
+        return await self.hass.async_add_executor_job(_q)
+
     async def async_delete_utility_records(
         self, utility_type: str, account_id: str, granularity: str | None = None
     ) -> int:
