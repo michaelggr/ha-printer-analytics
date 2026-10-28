@@ -1,4 +1,11 @@
-﻿﻿﻿﻿## 打印分析卡片 - 修改记录
+# 打印分析卡片 - 修改记录
+
+## A1 Mini 重新添加后引用修复（2026-10-29）
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 修复 | 重新添加打印机后 bambu_lab 不再生成 `image.a1mini_..._camera`，炒面检测蓝图取图源失效。`printer_camera` 改为 `camera.da_yin_ji_kong_jian_a1mini_0300aa5a1600497_camera`（蓝图支持 camera 实体，走 `entity_picture` 的 camera_proxy 实时帧）；`camera_refresh_service` 从 `image.update`（仅支持 image 实体）改为 `homeassistant.update_entity` | automations.yaml#L269,L272 |
+| 验证 | camera_proxy 返回 HTTP 200 / image/jpeg / 170KB 实时帧；printer_analytics 集成 `current_print` 正常跟踪当前打印任务；自动化/看板/模板全量实体审计，除本条外仅 templates.yaml 残留大黑奴 `p2s_total_usage`（有 `float(0)` 兜底不报错） | (服务器) |
 
 ## 能源账单「设备功耗」各设备功耗详情表格化 + 设备过滤（2026-10-29）
 
