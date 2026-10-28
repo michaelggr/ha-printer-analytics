@@ -107,7 +107,27 @@ EXCLUDED_ENERGY_ENTITIES = frozenset({
     "sensor.bei_wo_xin_feng_kong_diao_total_energy_consumption",
     # 当前能源消耗: 非累计计数器, MAX-MIN 求增量无意义
     "sensor.bei_wo_xin_feng_kong_diao_current_energy_consumption",
+    # giot 系列「耗电量」单位错标为 mWh (数值实际是 Wh), 入库时被低估 1000 倍,
+    # 且与同名设备的「累计用电」重复, 统一以 helper 累计值为准
+    "sensor.giot_cn_1162942256_v8icm_power_consumption_p_4_1",  # 电脑电源
+    "sensor.giot_cn_1163256502_v8icm_power_consumption_p_4_1",  # NAS
+    "sensor.giot_cn_1164778814_v8icm_power_consumption_p_4_1",  # 小黑奴电源
+    # 取暖器: 无可用累计电量, 改由功率积分兜底 (见 POWER_INTEGRATION_ENTITIES)
+    "sensor.giot_cn_1162898415_v8icm_power_consumption_p_4_1",
 })
+
+
+# 需要由功率积分兜底计量的 power 实体
+# 对应设备的累计电量传感器不可用 (取暖器累计用电为 unknown, giot 耗电量恒为 0),
+# 聚合时按 energy_kwh = AVG(power_w) × 采样覆盖小时数 估算
+POWER_INTEGRATION_ENTITIES = frozenset({
+    "sensor.giot_cn_1162898415_v8icm_electric_power_p_4_2",
+})
+
+
+def is_power_integration_entity(entity_id: str) -> bool:
+    """该 power 实体需要用功率积分兜底计量电量"""
+    return entity_id in POWER_INTEGRATION_ENTITIES
 
 
 def is_excluded_power_entity(entity_id: str) -> bool:

@@ -902,6 +902,14 @@ EXCLUDED_POWER_ENTITIES = frozenset({
 EXCLUDED_ENERGY_ENTITIES = frozenset({
     "sensor.bei_wo_xin_feng_kong_diao_total_energy_consumption",
     "sensor.bei_wo_xin_feng_kong_diao_current_energy_consumption",
+    "sensor.giot_cn_1162942256_v8icm_power_consumption_p_4_1",
+    "sensor.giot_cn_1163256502_v8icm_power_consumption_p_4_1",
+    "sensor.giot_cn_1164778814_v8icm_power_consumption_p_4_1",
+    "sensor.giot_cn_1162898415_v8icm_power_consumption_p_4_1",
+})
+
+POWER_INTEGRATION_ENTITIES = frozenset({
+    "sensor.giot_cn_1162898415_v8icm_electric_power_p_4_2",
 })
 
 
@@ -932,6 +940,50 @@ class TestExcludedDeviceMeter(unittest.TestCase):
     def test_其他设备不受影响(self):
         self.assertFalse(_is_excluded_power_entity("sensor.giot_cn_1162942256_v8icm_electric_power_p_4_2"))
         self.assertFalse(_is_excluded_energy_entity("sensor.naslei_ji_yong_dian"))
+
+
+def _is_power_integration_entity(entity_id):
+    return entity_id in POWER_INTEGRATION_ENTITIES
+
+
+def _integrate_power_kwh(avg_w, sample_count, sample_minutes=5):
+    """功率积分兜底公式 (与 db.async_aggregate_power_hourly 的 SQL 等价)"""
+    return avg_w * sample_count * sample_minutes / 60 / 1000
+
+
+class TestPowerIntegrationFallback(unittest.TestCase):
+    """测试 giot 单位错误实体排除 + 取暖器功率积分兜底"""
+
+    def test_giot耗电量_因单位错误被排除(self):
+        # giot 标 mWh 实际是 Wh, 入库会低估 1000 倍, 且与 helper 累计重复
+        for dev in ("1162942256", "1163256502", "1164778814", "1162898415"):
+            eid = f"sensor.giot_cn_{dev}_v8icm_power_consumption_p_4_1"
+            self.assertTrue(_is_excluded_energy_entity(eid), eid)
+
+    def test_小黑奴真正的kwh实体_保留(self):
+        # 该实体单位就是 kWh, 且数值与 mWh 版相差 1000 倍, 是唯一正确来源
+        self.assertFalse(_is_excluded_energy_entity("sensor.giot_cn_1164778814_v8icm_power_consumption_kwh"))
+
+    def test_取暖器power实体_走积分兜底(self):
+        self.assertTrue(_is_power_integration_entity("sensor.giot_cn_1162898415_v8icm_electric_power_p_4_2"))
+
+    def test_其他power实体_不走积分(self):
+        # 这些设备都有可用的累计电量传感器, 再积分会重复计数
+        self.assertFalse(_is_power_integration_entity("sensor.giot_cn_1162942256_v8icm_electric_power_p_4_2"))
+        self.assertFalse(_is_power_integration_entity("sensor.giot_cn_1163256502_v8icm_electric_power_p_4_2"))
+
+    def test_积分公式_满一小时采样(self):
+        # 5 分钟间隔, 1 小时 12 个采样点, 100W 恒功率 -> 0.1 kWh
+        self.assertAlmostEqual(_integrate_power_kwh(100.0, 12, 5), 0.1, places=4)
+
+    def test_积分公式_零功率与不满采样(self):
+        self.assertEqual(_integrate_power_kwh(0.0, 12, 5), 0.0)
+        # 只采到 3 个点 (设备中途离线) -> 按实际覆盖时长折算, 不虚增
+        self.assertAlmostEqual(_integrate_power_kwh(100.0, 3, 5), 0.025, places=4)
+
+    def test_积分公式_与功率量级自洽(self):
+        # 取暖器典型 800W, 1 小时 -> 0.8 kWh
+        self.assertAlmostEqual(_integrate_power_kwh(800.0, 12, 5), 0.8, places=4)
 
 
 if __name__ == "__main__":

@@ -375,6 +375,7 @@ class UtilityTrackerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         await self.db.async_aggregate_power_hourly(
             hour_start.strftime("%Y-%m-%d %H:%M:%S"),
             hour_end.strftime("%Y-%m-%d %H:%M:%S"),
+            self.power_sample_minutes,
         )
 
         # 聚合昨天 (今天可能还没结束,等明天再聚合)

@@ -1,5 +1,14 @@
 # 打印分析卡片 - 修改记录
 
+## giot 耗电量单位纠正与功率积分兜底（2026-10-28）
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 修复 | giot 系列「耗电量」实体 `power_consumption_p_4_1` 单位错标为 mWh（数值实际是 Wh），入库被低估 1000 倍，且与同设备「累计用电」重复计量。加入 `EXCLUDED_ENERGY_ENTITIES`：电脑电源 `1162942256`、NAS `1163256502`、小黑奴电源 `1164778814`、取暖器 `1162898415` | const.py#L110-116 |
+| 功能 | 新增 `POWER_INTEGRATION_ENTITIES` 与 `is_power_integration_entity()`：取暖器无可用累计电量（累计用电 unknown、耗电量恒 0），聚合时改按 `AVG(power_w) × COUNT(*) × 采样间隔 / 60 / 1000` 估算 kWh | const.py#L113-124 |
+| 修复 | `async_aggregate_power_hourly` 新增 `sample_minutes` 参数，energy_kwh 改为 CASE：有累计电量时取「末值 - 初值」，否则对积分名单走功率积分兜底（顺带修掉原 `sum(avg_w)/60*5` 估算逻辑未真正生效的问题） | db.py#L345-386、coordinator.py#L378 |
+| 测试 | 新增 `TestPowerIntegrationFallback` 7 个用例（耗电量因单位错误被排除、真正 kwh 实体保留、取暖器走积分、其他 power 不走积分、满一小时采样、零功率与不满采样、量级自洽），该文件 105 个用例全部通过 | tests/test_utility_tracker.py |
+
 ## 能源看板电费口径改为最新用量估算（2026-10-28）
 
 | 类型 | 内容 | 涉及文件 |

@@ -17,6 +17,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
 from .const import (
+    POWER_INTEGRATION_ENTITIES,
     is_component_power_entity,
     is_derived_energy_entity,
     is_excluded_energy_entity,
@@ -341,18 +342,32 @@ class UtilityDB:
                 return cur.executemany(sql, rows)
         return await self.hass.async_add_executor_job(_exec)
 
-    async def async_aggregate_power_hourly(self, hour_start: str, hour_end: str) -> int:
+    async def async_aggregate_power_hourly(
+        self, hour_start: str, hour_end: str, sample_minutes: int = 5
+    ) -> int:
         """把 [hour_start, hour_end) 内的 raw 数据聚合到 device_power_hourly
 
-        energy_kwh 计算: 取该小时内 energy 传感器 (末值-初值),
-        没有 energy 传感器时用 sum(avg_w) / 60 * 5 / 1000 估算
+        energy_kwh 计算: 优先取该小时内 energy 传感器的「末值 - 初值」;
+        对没有可用累计电量传感器的设备 (见 POWER_INTEGRATION_ENTITIES),
+        按 AVG(power_w) × 采样点数 × 采样间隔 折算成 kWh 兜底
         """
+        # 需要功率积分的实体 ID 拼进 SQL (来自常量, 非用户输入)
+        integration_ids = "','".join(sorted(POWER_INTEGRATION_ENTITIES))
+        integration_case = (
+            f"WHEN entity_id IN ('{integration_ids}') "
+            "THEN AVG(power_w) * COUNT(*) * %s / 60 / 1000 "
+            if integration_ids
+            else "WHEN 1=0 THEN NULL "
+        )
         sql = (
             "INSERT INTO device_power_hourly "
             "(entity_id, friendly_name, hour_start, avg_w, max_w, min_w, energy_kwh, sample_count) "
             "SELECT entity_id, MAX(friendly_name), %s, "
             " AVG(power_w), MAX(power_w), MIN(power_w), "
-            " (MAX(energy_kwh) - MIN(energy_kwh)), COUNT(*) "
+            " CASE WHEN MAX(energy_kwh) IS NOT NULL "
+            "      THEN MAX(energy_kwh) - MIN(energy_kwh) "
+            + integration_case +
+            "      ELSE NULL END, COUNT(*) "
             "FROM device_power_raw "
             "WHERE sampled_at >= %s AND sampled_at < %s "
             "GROUP BY entity_id "
@@ -365,7 +380,9 @@ class UtilityDB:
         def _exec():
             conn = self._get_conn_sync()
             with conn.cursor() as cur:
-                return cur.execute(sql, (hour_start, hour_start, hour_end))
+                return cur.execute(
+                    sql, (hour_start, sample_minutes, hour_start, hour_end)
+                )
         return await self.hass.async_add_executor_job(_exec)
 
     async def async_aggregate_power_daily(self, day: str) -> int:
