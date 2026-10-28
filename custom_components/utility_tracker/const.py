@@ -67,6 +67,34 @@ def is_power_outlier(
         return False
     return (new_w - last_w) > jump_abs_w and new_w >= last_w * jump_ratio
 
+
+# 派生电量计量关键词: 这类实体是「日/周/月/年用电量」的中间量,
+# 与设备自身的累计电量计数器重复, 同时参与求和会把今日电量放大数倍
+ENERGY_DERIVED_KEYWORDS = (
+    "daily", "weekly", "monthly", "yearly", "today",
+    "日用电量", "周用电量", "月用电量", "年用电量", "今日耗电量",
+    "ri_yong_dian", "zhou_yong_dian", "yue_yong_dian", "nian_yong_dian",
+)
+
+# 组件级功率关键词: CPU/GPU/压缩机等部件功率与整机功率同时求和会重复计量
+POWER_COMPONENT_KEYWORDS = ("cpu", "gpu", "cores", "package", "compressor", "压缩机")
+
+
+def _match_keywords(entity_id: str, friendly_name: str | None, keywords: tuple[str, ...]) -> bool:
+    """实体 ID 或友好名称命中任一关键词即返回 True (小写不敏感)"""
+    text = f"{entity_id} {friendly_name or ''}".lower()
+    return any(kw.lower() in text for kw in keywords)
+
+
+def is_derived_energy_entity(entity_id: str, friendly_name: str | None) -> bool:
+    """判断是否为派生电量实体 (日/周/月/年用电量), True 表示应排除"""
+    return _match_keywords(entity_id, friendly_name, ENERGY_DERIVED_KEYWORDS)
+
+
+def is_component_power_entity(entity_id: str, friendly_name: str | None) -> bool:
+    """判断是否为组件级功率实体 (CPU/GPU/压缩机), True 表示应排除"""
+    return _match_keywords(entity_id, friendly_name, POWER_COMPONENT_KEYWORDS)
+
 # 灯光动作
 LIGHT_ACTION_ON = "on"
 LIGHT_ACTION_OFF = "off"

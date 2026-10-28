@@ -1,4 +1,4 @@
-﻿"""Utility Tracker 数据聚合协调器
+"""Utility Tracker 数据聚合协调器
 
 定时从 state_grid (电费) 和 crcgas (燃气费) 实体抓取数据,写入 MariaDB。
 """
@@ -40,6 +40,8 @@ from .const import (
     SOURCE_STATE_GRID,
     UTILITY_TYPE_ELECTRICITY,
     UTILITY_TYPE_GAS,
+    is_component_power_entity,
+    is_derived_energy_entity,
     is_light_entity,
     is_power_outlier,
 )
@@ -303,6 +305,13 @@ class UtilityTrackerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             eid = state.entity_id
             if eid.startswith("sensor.utility_tracker_") or "osg_uc_" in eid:
                 continue
+            fname = state.attributes.get("friendly_name")
+            # 组件级功率 (CPU/GPU/压缩机) 与整机功率重复, 派生电量 (日/周/月/年) 与累计计数器重复,
+            # 同时入库会让 current_power 与 power_today 成倍虚高, 采集阶段直接跳过
+            if dc == "power" and is_component_power_entity(eid, fname):
+                continue
+            if dc == "energy" and is_derived_energy_entity(eid, fname):
+                continue
             # 跳过不可用状态,但保留 state 字符串便于排查
             val = _state_float(state)
             # 单位换算: mWh/Wh -> kWh (energy 传感器)
@@ -314,7 +323,7 @@ class UtilityTrackerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     val = val / 1_000
             sample = {
                 "entity_id": eid,
-                "friendly_name": state.attributes.get("friendly_name"),
+                "friendly_name": fname,
                 "sampled_at": sampled_at,
                 "power_w": val if dc == "power" else None,
                 "energy_kwh": val if dc == "energy" else None,

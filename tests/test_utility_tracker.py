@@ -1,4 +1,4 @@
-﻿"""Utility Tracker 单元测试
+"""Utility Tracker 单元测试
 
 测试纯函数和工具逻辑,不依赖 HA 运行环境。
 """
@@ -830,6 +830,69 @@ class TestPowerOutlierFilter(unittest.TestCase):
     def test_正常波动_不判为异常(self):
         self.assertFalse(_is_power_outlier(363.0, 386.0))
         self.assertFalse(_is_power_outlier(1500.0, 2200.0))
+
+
+# ---- 重复计量过滤 (从 const.py 复制, 保持与生产逻辑一致) ----
+ENERGY_DERIVED_KEYWORDS = (
+    "daily", "weekly", "monthly", "yearly", "today",
+    "日用电量", "周用电量", "月用电量", "年用电量", "今日耗电量",
+    "ri_yong_dian", "zhou_yong_dian", "yue_yong_dian", "nian_yong_dian",
+)
+POWER_COMPONENT_KEYWORDS = ("cpu", "gpu", "cores", "package", "compressor", "压缩机")
+
+
+def _is_derived_energy_entity(entity_id, friendly_name):
+    """判断是否为派生电量实体 (日/周/月/年用电量)"""
+    text = f"{entity_id} {friendly_name or ''}".lower()
+    return any(kw.lower() in text for kw in ENERGY_DERIVED_KEYWORDS)
+
+
+def _is_component_power_entity(entity_id, friendly_name):
+    """判断是否为组件级功率实体 (CPU/GPU/压缩机)"""
+    text = f"{entity_id} {friendly_name or ''}".lower()
+    return any(kw.lower() in text for kw in POWER_COMPONENT_KEYWORDS)
+
+
+class TestDuplicateMeterFilter(unittest.TestCase):
+    """测试重复计量过滤: 派生电量与组件级功率不得参与求和"""
+
+    def test_日周月年用电量_判为派生(self):
+        self.assertTrue(_is_derived_energy_entity("sensor.dian_nao_dian_yuan_ri_yong_dian_liang", "电脑电源日用电量"))
+        self.assertTrue(_is_derived_energy_entity("sensor.dian_nao_dian_yuan_zhou_yong_dian_liang", None))
+        self.assertTrue(_is_derived_energy_entity("sensor.nas_yue_yong_dian_liang", None))
+        self.assertTrue(_is_derived_energy_entity("sensor.qu_nuan_qi_nian_yong_dian_liang", None))
+
+    def test_英文日周月年表_判为派生(self):
+        self.assertTrue(_is_derived_energy_entity("sensor.computer_daily_energy_v2", "computer_daily_energy_v2"))
+        self.assertTrue(_is_derived_energy_entity("sensor.nas_int_weekly", None))
+        self.assertTrue(_is_derived_energy_entity("sensor.prt_int_monthly", None))
+        self.assertTrue(_is_derived_energy_entity("sensor.heater_yearly_energy_v2", None))
+
+    def test_今日耗电量_判为派生(self):
+        # 每日归零的今日耗电量不是单调计数器, 无法用于 MAX-MIN 求增量
+        self.assertTrue(_is_derived_energy_entity("sensor.hai_xin_kong_diao_today_s_energy", "海信空调 今日耗电量"))
+
+    def test_权威累计计数器_不判为派生(self):
+        # 各设备的累计用电 / 耗电量是唯一权威来源, 必须保留
+        self.assertFalse(_is_derived_energy_entity("sensor.dian_nao_dian_yuan_lei_ji_yong_dian", "电脑电源累计用电"))
+        self.assertFalse(_is_derived_energy_entity("sensor.naslei_ji_yong_dian", "NAS累计用电"))
+        self.assertFalse(_is_derived_energy_entity("sensor.giot_cn_1162942256_v8icm_power_consumption_p_4_1", "电脑电源 功耗参数 耗电量"))
+        self.assertFalse(_is_derived_energy_entity("sensor.xiaomi_cn_2197292474_rrnh00_power_consumption_p_20_1", "客厅空调 功耗参数 耗电量"))
+
+    def test_cpu_gpu_组件功率_判为组件(self):
+        self.assertTrue(_is_component_power_entity("sensor.pc_cpu_package", "PC CPU Package"))
+        self.assertTrue(_is_component_power_entity("sensor.pc_cpu_ia_cores", "PC CPU IA Cores"))
+        self.assertTrue(_is_component_power_entity("sensor.pc_gpu", "PC GPU"))
+
+    def test_空调压缩机_判为组件(self):
+        # 压缩机功率已被整机「实时功率」覆盖, 重复累加会让空调整机负载凭空多出一份
+        self.assertTrue(_is_component_power_entity("sensor.bei_wo_xin_feng_kong_diao_compressor_power", "新风空调 压缩机功率"))
+        self.assertTrue(_is_component_power_entity("sensor.unknown_x", "某空调 压缩机功率"))
+
+    def test_整机与插座功率_不判为组件(self):
+        self.assertFalse(_is_component_power_entity("sensor.giot_cn_1162942256_v8icm_electric_power_p_4_2", "电脑电源 功耗参数 电功率"))
+        self.assertFalse(_is_component_power_entity("sensor.bei_wo_xin_feng_kong_diao_real_time_power", "新风空调 实时功率"))
+        self.assertFalse(_is_component_power_entity("sensor.yutai_cn_1207439875_fsov8m_electric_power_p_4_2", "次卧空调插座 功耗参数 电功率"))
 
 
 if __name__ == "__main__":

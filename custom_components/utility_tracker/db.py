@@ -1,4 +1,4 @@
-﻿"""MariaDB 数据库写入层
+"""MariaDB 数据库写入层
 
 用 PyMySQL (同步驱动),所有阻塞操作通过 hass.async_add_executor_job 包装。
 单连接 + 自动重连,不需要连接池 (写入频率低)。
@@ -15,6 +15,8 @@ from pymysql.cursors import DictCursor
 
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
+
+from .const import is_component_power_entity, is_derived_energy_entity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -416,26 +418,44 @@ class UtilityDB:
         return await self.hass.async_add_executor_job(_exec)
 
     async def async_sum_power_today(self) -> float:
-        """返回今日所有设备耗电合计 kWh (查 device_power_daily,没有则从 hourly 临时算)"""
+        """返回今日所有设备耗电合计 kWh (查 device_power_hourly)
+
+        按实体分组后过滤派生电量 (日/周/月/年用电量), 只累加各设备的权威电量计数器,
+        否则同一设备的日表/周表/月表/年表会被重复求和, 今日电量成倍虚高。
+        历史行不做删除, 仅影响本次查询结果, 修复当天立即生效。
+        """
         def _q():
             conn = self._get_conn_sync()
             with conn.cursor() as cur:
                 cur.execute(
-                    "SELECT COALESCE(SUM(energy_kwh),0) AS s FROM device_power_hourly "
-                    "WHERE DATE(hour_start) = CURDATE()"
+                    "SELECT entity_id, MAX(friendly_name) AS friendly_name, "
+                    "       COALESCE(SUM(energy_kwh),0) AS s "
+                    "FROM device_power_hourly "
+                    "WHERE DATE(hour_start) = CURDATE() "
+                    "GROUP BY entity_id"
                 )
-                row = cur.fetchone()
-                return float(row["s"]) if row and row["s"] is not None else 0.0
+                rows = cur.fetchall()
+            total = 0.0
+            for row in rows:
+                if is_derived_energy_entity(row["entity_id"], row["friendly_name"]):
+                    continue
+                if row["s"] is not None:
+                    total += float(row["s"])
+            return total
         return await self.hass.async_add_executor_job(_q)
 
     async def async_current_total_power(self) -> float:
-        """返回当前所有设备实时功率合计 W (取最近 5 分钟内的采样)"""
+        """返回当前所有设备实时功率合计 W (取最近 10 分钟内的采样)
+
+        过滤组件级功率 (CPU/GPU/压缩机), 这些部件读数已被整机功率覆盖,
+        同时求和会重复计量; 查询侧过滤保证无需等待旧采样过期即立刻生效。
+        """
         def _q():
             conn = self._get_conn_sync()
             with conn.cursor() as cur:
                 cur.execute(
-                    "SELECT COALESCE(SUM(latest.power_w),0) AS s FROM ("
-                    "  SELECT r.entity_id, r.power_w FROM device_power_raw r "
+                    "SELECT latest.entity_id, latest.friendly_name, latest.power_w FROM ("
+                    "  SELECT r.entity_id, r.friendly_name, r.power_w FROM device_power_raw r "
                     "  INNER JOIN ("
                     "    SELECT entity_id, MAX(sampled_at) AS mt "
                     "    FROM device_power_raw "
@@ -444,8 +464,13 @@ class UtilityDB:
                     "  ) m ON r.entity_id=m.entity_id AND r.sampled_at=m.mt "
                     ") latest WHERE latest.power_w IS NOT NULL"
                 )
-                row = cur.fetchone()
-                return float(row["s"]) if row and row["s"] is not None else 0.0
+                rows = cur.fetchall()
+            total = 0.0
+            for row in rows:
+                if is_component_power_entity(row["entity_id"], row["friendly_name"]):
+                    continue
+                total += float(row["power_w"])
+            return total
         return await self.hass.async_add_executor_job(_q)
 
     async def async_fetch_last_power_values(

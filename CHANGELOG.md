@@ -1,4 +1,22 @@
-﻿# 打印分析卡片 - 修改记录
+# 打印分析卡片 - 修改记录
+
+## 功耗重复计量过滤（2026-10-28）
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 修复 | `current_power` 虚高（363W → 199W）：PC 的 `PC CPU Package` 77.9W、`PC CPU IA Cores` 73.4W、`PC GPU` 28W 与整机插座 145W 重复累加，且 IA Cores 是 Package 的子集；新风空调 `压缩机功率` 5W 与其 `实时功率` 6W 重复。新增 `is_component_power_entity()`（关键词 cpu/gpu/cores/package/compressor/压缩机），采集与查询双侧过滤 | const.py (`is_component_power_entity` + `POWER_COMPONENT_KEYWORDS`)、coordinator.py#L308、db.py (`async_current_total_power`) |
+| 修复 | `power_today` 成倍膨胀（46.7kWh → 2.43kWh）：同一设备的「日/周/月/年用电量」四张派生表与累计计数器同时求和，PC 组单项就贡献 6.12kWh × 7 条 ≈ 43kWh。新增 `is_derived_energy_entity()`（关键词 daily/weekly/monthly/yearly/today + 日/周/月/年用电量 + ri/zhou/yue/nian_yong_dian），`async_sum_power_today` 改为按 entity 分组后过滤再累加 | const.py (`is_derived_energy_entity` + `ENERGY_DERIVED_KEYWORDS`)、db.py (`async_sum_power_today`) |
+| 优化 | 查询侧同时过滤，历史行不删除，修复当天立即生效，无需等旧采样过期 | db.py |
+| 测试 | 新增 `TestDuplicateMeterFilter` 7 个用例（中文/英文派生表、今日耗电量、权威累计计数器反例、CPU/GPU/压缩机、整机与插座反例），单测 137 个全部通过 | tests/test_utility_tracker.py |
+
+**验证数据（2026-10-28 20:00 重启后）**
+
+| 指标 | 修复前 | 修复后 |
+|------|--------|--------|
+| `sensor.utility_tracker_current_power` | 363.3 W | 199.0 W |
+| `sensor.utility_tracker_power_today` | 46.73 kWh | 2.43 kWh |
+
+`power_today` 低于国网电表今日增量（11.23kWh）属预期：本统计只覆盖有计量插座/计数器的设备，冰箱、照明、空调等未计量负载不计入。
 
 ## 剩余时间播报改为最新实体 + 统一播报规则（2026-10-28）
 
