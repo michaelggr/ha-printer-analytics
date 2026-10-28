@@ -1,5 +1,16 @@
 ﻿# 打印分析卡片 - 修改记录
 
+## 区域停留时长重建（新家）(2026-10-28) - history_stats 替换老房 input_number 累计
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 功能 | 新增 11 个区域停留时长 `history_stats`（客厅/主卧/次卧/北卧/厨房/餐厅/主卫/公卫/公卫干区/南阳台/走廊），`type: time` + `start: "{{ today_at() }}"`，输出小时，每日 0 点自动归零 | sensor.yaml#L143-233 |
+| 功能 | 8 个原生米家人在传感器直接以 `occupancy_status` 的「有人」为统计状态；厨房/公卫干区/走廊因雷达灯只有 `has_someone_duration_p_5_3`（分钟文本）无布尔状态，新增 3 个 `binary_sensor.*_you_ren`（`device_class: occupancy`，派生 `>0` 判定） | templates.yaml#L548-571 |
+| 删除 | 删除 7 个老房 `*_duration` template sensor（living_room/bedroom/kitchen/dining/bathroom/hallway/doorway），其数据源 `input_number.*_duration` 自 2026-09-28 起一直 unavailable | templates.yaml |
+| 重构 | `sensor.longest_stay_area_today` 改为读取 11 个新停留 sensor，输出 `区域 (x.xh)` | templates.yaml |
+| 删除 | 删除自动化 `region_stay_duration_accumulate_v2`（含 7 个 choose 分支的 input_number 累加）；`region_daily_reset_v2` 移除末尾 input_number 重置动作，仅保留 7 个 counter.reset | automations.yaml |
+| 看板 | ui-lovelace.yaml 新增「区域活动」view（path: activity）：停留最久/访问最多汇总卡 + 11 区域停留卡片 + 24h history-graph + 统计说明 | ui-lovelace.yaml#L1484 |
+
 ## 亮灯统计重构（新家）(2026-10-28) - 老房配置清理 + 按区域主灯重建
 
 | 类型 | 内容 | 涉及文件 |
