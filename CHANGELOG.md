@@ -10,6 +10,18 @@
 | 备注 | 9 月历史数据从未采集，卡片当前「上月」显示为「—」；11 月 1 日月度重置后自动填入 10 月真实用量。NAS 月度计量表创建于 10-27，其首次回填仅覆盖 10-27~10-31 | - |
 | 验证 | 两个 YAML 解析通过、BOM 为 0、上传后 MD5 与服务端一致；HA 重启后新传感器为 0.0（非 unknown）；浏览器实测首页「设备用电」分区渲染正常、无错误卡片 | (服务器 + 浏览器) |
 
+## 首页「设备用电」新增空调（本周 / 上月）（2026-10-28）
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 功能 | 首页「设备用电」grid 增加第 3 张「空调」卡片，展示本周与上月用电；分区 subtitle 更新为「NAS · 电脑电源 · 空调 · 本周与上月」 | ui-lovelace.yaml#L301,L330-340 |
+| 功能 | 新增 `sensor.ac_total_energy_kwh`：客厅空调自身累计（`..._rrnh00_power_consumption_p_20_1`）+ 主卧/次卧/北卧 yutai 空调插座累计电量；用 `this.state` 做单调递增保护，避免插座计数器清零使合计下降、被 utility_meter 误判为表计重置而重复累加 | templates.yaml#L861-878 |
+| 功能 | 新增 `sensor.ac_last_month_kwh`：同 NAS/电脑口径，读取 `sensor.ac_monthly_energy` 的 `last_period` 属性 | templates.yaml#L880-885 |
+| 配置 | `utility_meter.yaml` 新增 `ac_weekly_energy` / `ac_monthly_energy`（source 为 `sensor.ac_total_energy_kwh`），并修复上次编辑造成 `prt_int_yearly` 的 `name` 行被挤到文件末尾的错位 | utility_meter.yaml#L126-139 |
+| 备注 | 口径：客厅空调无插座 → 用其自计量；主卧/次卧/北卧 → 按 yutai 空调插座计量；北卧新风空调自带计量不采信、海信空调仅日归零值、次卧 miir 无计量，均未纳入 | - |
+| 备注 | 计量自本次上线开始累计：`sensor.ac_weekly_energy` 需源实体变化后才产出数值（当前合计恒为 82.08 未变化 → 实体 unknown，卡片按 0.00 展示）；「上月」11-01 月度重置后才有值，当前显示「—」 | - |
+| 验证 | 三个 YAML 解析通过、BOM=0、上传后与本地 MD5 一致；HA 重启后 `sensor.ac_total_energy_kwh`=82.08 kWh 与实测一致；历史核对本周客厅空调恒为 82.08、yutai 插座在 0.00~0.01 抖动，本周用电约 0 与卡片 0.00 相符 | (服务器 + API) |
+
 ## 智能家居看板设备覆盖补齐（2026-10-28）
 
 | 类型 | 内容 | 涉及文件 |
