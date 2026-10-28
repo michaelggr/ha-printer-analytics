@@ -22,6 +22,7 @@ from .const import (
     is_derived_energy_entity,
     is_excluded_energy_entity,
     is_excluded_power_entity,
+    sum_energy_deltas,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -347,30 +348,39 @@ class UtilityDB:
     ) -> int:
         """把 [hour_start, hour_end) 内的 raw 数据聚合到 device_power_hourly
 
-        energy_kwh 计算: 优先取该小时内 energy 传感器的「末值 - 初值」;
-        对没有可用累计电量传感器的设备 (见 POWER_INTEGRATION_ENTITIES),
-        按 AVG(power_w) × 采样点数 × 采样间隔 折算成 kWh 兜底
+        energy_kwh 不再用「末值 - 初值」(MAX-MIN): 带电量统计的插座会周期性把
+        累计值清零, 一旦清零落在本小时中间, MAX-MIN 会把这个小时的电量算成 0
+        甚至负数, 电量凭空丢失。改为逐样本累加增量 (见 sum_energy_deltas),
+        并取「本小时之前最后一条采样」作为基线, 保证跨小时边界的那段增量不丢。
+        对没有可用电量计数器的设备 (见 POWER_INTEGRATION_ENTITIES),
+        仍按 AVG(power_w) × 采样点数 × 采样间隔 折算成 kWh 兜底。
         """
-        # 需要功率积分的实体 ID 拼进 SQL (来自常量, 非用户输入)
-        integration_ids = "','".join(sorted(POWER_INTEGRATION_ENTITIES))
-        integration_case = (
-            f"WHEN entity_id IN ('{integration_ids}') "
-            "THEN AVG(power_w) * COUNT(*) * %s / 60 / 1000 "
-            if integration_ids
-            else "WHEN 1=0 THEN NULL "
-        )
-        sql = (
-            "INSERT INTO device_power_hourly "
-            "(entity_id, friendly_name, hour_start, avg_w, max_w, min_w, energy_kwh, sample_count) "
-            "SELECT entity_id, MAX(friendly_name), %s, "
-            " AVG(power_w), MAX(power_w), MIN(power_w), "
-            " CASE WHEN MAX(energy_kwh) IS NOT NULL "
-            "      THEN MAX(energy_kwh) - MIN(energy_kwh) "
-            + integration_case +
-            "      ELSE NULL END, COUNT(*) "
+        stats_sql = (
+            "SELECT entity_id, MAX(friendly_name) AS friendly_name, "
+            "       AVG(power_w) AS avg_w, MAX(power_w) AS max_w, MIN(power_w) AS min_w, "
+            "       COUNT(*) AS sample_count "
             "FROM device_power_raw "
             "WHERE sampled_at >= %s AND sampled_at < %s "
-            "GROUP BY entity_id "
+            "GROUP BY entity_id"
+        )
+        # 本小时内的电量读数 (时间升序), 用于逐样本求增量
+        samples_sql = (
+            "SELECT entity_id, energy_kwh FROM device_power_raw "
+            "WHERE energy_kwh IS NOT NULL AND sampled_at >= %s AND sampled_at < %s "
+            "ORDER BY entity_id, sampled_at"
+        )
+        # 每个实体在本小时之前的最后一条电量读数, 作为增量基线
+        baseline_sql = (
+            "SELECT r.entity_id, r.energy_kwh FROM device_power_raw r "
+            "INNER JOIN ("
+            "  SELECT entity_id, MAX(sampled_at) AS mt FROM device_power_raw "
+            "  WHERE energy_kwh IS NOT NULL AND sampled_at < %s GROUP BY entity_id"
+            ") m ON r.entity_id=m.entity_id AND r.sampled_at=m.mt"
+        )
+        insert_sql = (
+            "INSERT INTO device_power_hourly "
+            "(entity_id, friendly_name, hour_start, avg_w, max_w, min_w, energy_kwh, sample_count) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s) "
             "ON DUPLICATE KEY UPDATE "
             " friendly_name=VALUES(friendly_name), avg_w=VALUES(avg_w), "
             " max_w=VALUES(max_w), min_w=VALUES(min_w), "
@@ -380,9 +390,46 @@ class UtilityDB:
         def _exec():
             conn = self._get_conn_sync()
             with conn.cursor() as cur:
-                return cur.execute(
-                    sql, (hour_start, sample_minutes, hour_start, hour_end)
-                )
+                cur.execute(stats_sql, (hour_start, hour_end))
+                stats_rows = cur.fetchall()
+                cur.execute(samples_sql, (hour_start, hour_end))
+                sample_rows = cur.fetchall()
+                cur.execute(baseline_sql, (hour_start,))
+                baseline_rows = cur.fetchall()
+
+            # 基线 + 本小时读数拼成一条时间序列, 交给纯函数做重置识别累加
+            series: dict[str, list[float]] = {}
+            for row in baseline_rows:
+                series.setdefault(row["entity_id"], []).append(float(row["energy_kwh"]))
+            for row in sample_rows:
+                series.setdefault(row["entity_id"], []).append(float(row["energy_kwh"]))
+            energy_by_entity = {
+                eid: sum_energy_deltas(values) for eid, values in series.items()
+            }
+
+            rows = []
+            for row in stats_rows:
+                eid = row["entity_id"]
+                if eid in energy_by_entity:
+                    energy = round(energy_by_entity[eid], 4)
+                elif eid in POWER_INTEGRATION_ENTITIES:
+                    # 功率积分兜底: 无可用电量计数器 (如取暖器)
+                    avg_w = float(row["avg_w"] or 0)
+                    energy = round(
+                        avg_w * int(row["sample_count"]) * sample_minutes / 60 / 1000, 4
+                    )
+                else:
+                    # 纯功率传感器且不在积分名单: 本小时电量未知
+                    energy = None
+                rows.append((
+                    eid, row["friendly_name"], hour_start,
+                    row["avg_w"], row["max_w"], row["min_w"],
+                    energy, int(row["sample_count"]),
+                ))
+            if not rows:
+                return 0
+            with conn.cursor() as cur:
+                return cur.executemany(insert_sql, rows)
         return await self.hass.async_add_executor_job(_exec)
 
     async def async_aggregate_power_daily(self, day: str) -> int:

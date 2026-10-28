@@ -68,6 +68,39 @@ def is_power_outlier(
     return (new_w - last_w) > jump_abs_w and new_w >= last_w * jump_ratio
 
 
+# 电量计数器重置容差 (kWh)
+# 带电量统计的插座/智能电表会周期性把累计值清零重新计数, 若直接用「末值-初值」
+# 会把这一个小时的电量算成 0 甚至负数; 改为逐样本累加增量后, 需要区分
+# 「真重置」和「显示精度抖动」(如 0.01 kWh 精度的插座在 0.01/0.00 之间抖动)。
+# 回退幅度 <= 该容差视为抖动忽略, 超过才判定为重置。
+ENERGY_RESET_TOLERANCE_KWH = 0.011
+
+
+def sum_energy_deltas(values: list[float]) -> float:
+    """把按时间升序的累计电量读数序列折算成「本窗口耗电量」
+
+    逐样本累加增量, 并对计数器重置做识别:
+    - 正常递增: 累加 (当前 - 上一个)
+    - 回退幅度 <= ENERGY_RESET_TOLERANCE_KWH: 视为显示精度抖动, 忽略该次回退
+    - 回退幅度超过容差: 判定计数器被清零, 按「重置后的读数」计入 (假设从 0 重新计数)
+
+    相比 MAX(末值)-MIN(初值), 这种方式不会因中途重置而丢失整小时电量。
+    """
+    if not values or len(values) < 2:
+        # 只有一个读数(或没有): 无法计算增量
+        return 0.0
+    total = 0.0
+    for prev, cur in zip(values, values[1:]):
+        diff = cur - prev
+        if diff >= 0:
+            total += diff
+        elif diff < -ENERGY_RESET_TOLERANCE_KWH:
+            # 计数器重置: 清零后已累计 cur, 这段增量不能丢
+            total += max(cur, 0.0)
+        # else: 量化抖动, 忽略
+    return total
+
+
 # 派生电量计量关键词: 这类实体是「日/周/月/年用电量」的中间量,
 # 与设备自身的累计电量计数器重复, 同时参与求和会把今日电量放大数倍
 ENERGY_DERIVED_KEYWORDS = (

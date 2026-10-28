@@ -951,6 +951,24 @@ def _integrate_power_kwh(avg_w, sample_count, sample_minutes=5):
     return avg_w * sample_count * sample_minutes / 60 / 1000
 
 
+# 电量计数器重置容差, 与 const.py 保持一致
+_ENERGY_RESET_TOLERANCE_KWH = 0.011
+
+
+def _sum_energy_deltas(values):
+    """逐样本增量累加 + 计数器重置识别 (从 const.py 复制)"""
+    if not values or len(values) < 2:
+        return 0.0
+    total = 0.0
+    for prev, cur in zip(values, values[1:]):
+        diff = cur - prev
+        if diff >= 0:
+            total += diff
+        elif diff < -_ENERGY_RESET_TOLERANCE_KWH:
+            total += max(cur, 0.0)
+    return total
+
+
 class TestPowerIntegrationFallback(unittest.TestCase):
     """测试 giot 单位错误实体排除 + 取暖器功率积分兜底"""
 
@@ -984,6 +1002,44 @@ class TestPowerIntegrationFallback(unittest.TestCase):
     def test_积分公式_与功率量级自洽(self):
         # 取暖器典型 800W, 1 小时 -> 0.8 kWh
         self.assertAlmostEqual(_integrate_power_kwh(800.0, 12, 5), 0.8, places=4)
+
+
+class TestEnergyDeltaAccumulation(unittest.TestCase):
+    """测试电量计数器重置识别 + 逐样本增量累加"""
+
+    def test_正常递增_等于末值减初值(self):
+        # 无重置时, 增量累加应等价于 MAX-MIN
+        self.assertAlmostEqual(_sum_energy_deltas([1.0, 1.2, 1.5, 2.0]), 1.0, places=4)
+
+    def test_中途重置_不丢失整小时电量(self):
+        # 0.30 -> 0.60 后计数器被清零重新计数到 0.20
+        # 正确结果 0.30 + 0.20 = 0.50; MAX-MIN 会算成 0.20 - 0.30 < 0 (归零)
+        self.assertAlmostEqual(_sum_energy_deltas([0.30, 0.60, 0.20]), 0.50, places=4)
+
+    def test_重置后立即有消耗_计入(self):
+        # 清零后下一采样已累计 0.05, 这段增量必须计入; 随后 0.05 -> 0.10 再加 0.05
+        self.assertAlmostEqual(_sum_energy_deltas([5.00, 0.05, 0.10]), 0.10, places=4)
+
+    def test_精度抖动_不判定为重置(self):
+        # 0.01 kWh 分辨率插座在 0.01/0.00 之间抖动, 不应重复累计
+        self.assertAlmostEqual(_sum_energy_deltas([0.01, 0.00, 0.01]), 0.01, places=4)
+
+    def test_抖动后继续增长_累计正确(self):
+        self.assertAlmostEqual(
+            _sum_energy_deltas([0.01, 0.00, 0.01, 0.02, 0.03]), 0.03, places=4
+        )
+
+    def test_单点或空序列_返回零(self):
+        self.assertEqual(_sum_energy_deltas([]), 0.0)
+        self.assertEqual(_sum_energy_deltas([1.5]), 0.0)
+
+    def test_容差内回退_视为抖动(self):
+        # 回退 0.005 kWh, 小于 0.011 容差 -> 不算重置
+        self.assertAlmostEqual(_sum_energy_deltas([1.0, 0.995]), 0.0, places=4)
+
+    def test_超过容差的回退_判定重置并按新值计入(self):
+        # 回退 0.02 kWh, 超过 0.011 容差 -> 判定计数器清零, 按新读数计入
+        self.assertAlmostEqual(_sum_energy_deltas([1.0, 0.98]), 0.98, places=4)
 
 
 if __name__ == "__main__":
