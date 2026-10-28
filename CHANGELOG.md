@@ -1,5 +1,17 @@
 ﻿# 打印分析卡片 - 修改记录
 
+## 能源看板全量 UI 巡检修复 (2026-10-28)
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 修复 | `custom:grafana-ingress-card` 重写：改用 `hass.callWS({type:'supervisor/api', endpoint:'/addons/<slug>/info'})` 拿 `ingress_url` 拼 iframe 地址，替换原先 REST `/api/hassio/ingress_token`（该接口对前端 401，导致深度分析页「配置错误」）；同时修复 `set hass` 先于 `setConfig` 时重复 `attachShadow` 抛 NotSupportedError | www/grafana-ingress-card.js |
+| 修复 | 深度分析 View 卡片高度 `aspect_ratio: 100%` → `140%`，手机上 Grafana 内容不再被压扁 | ui-energy.yaml |
+| 修复 | 删除 3 张 `custom:auto-entities` 卡片（该卡片未安装，全部渲染「配置错误」）：设备功耗页改为静态 `entities` 列表（15 个插座功率 + 3 个累计电量），灯光页改为全屋灯组 `mushroom-light-card` | ui-energy.yaml |
+| 修复 | 灯光页 markdown 模板 `states('light')` 写错（不是实体 ID），改为 `states.light`，此前卡片空白 | ui-energy.yaml |
+| 优化 | 区域主灯 grid 4 列 → 2 列、能源核心 grid 4 列 → 2 列，手机上不再出现 88px 窄格与时长时间截断 | ui-energy.yaml, ui-lovelace.yaml |
+| 优化 | 电信话费整段（1 卡片 + 4 chips）注释隐藏：china_telecom 集成未认证，实体全部 unavailable，页面显示大量「unavailable」；重新登录集成后可恢复 | ui-energy.yaml |
+| 验证 | 390×844 移动端 + 1098 CSS px 桌面宽度全量巡检：能源看板 7 个 view、主页 16 个 view 均 0 张「配置错误」、无横向溢出 | - |
+
 ## 区域停留排行榜（独立 sensor）(2026-10-28)
 
 | 类型 | 内容 | 涉及文件 |

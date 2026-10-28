@@ -1,4 +1,4 @@
-﻿---
+---
 # 能源账单看板 (电费 + 燃气费)
 # 数据源: state_grid (国网) + crcgas (华润燃气) + utility_tracker (MariaDB 统计)
 title: 能源账单
@@ -72,7 +72,7 @@ views:
 
       # ---------- 本月汇总 (自住 vs 出租) ----------
       - type: custom:mushroom-title-card
-        title: 自住 · 东方新天地2-4-1201
+        title: 自住 · 新天地
         icon: mdi:home
         alignment: left
         subtitle: 本月电费/燃气账单
@@ -102,7 +102,7 @@ views:
             icon_color: blue
 
       - type: custom:mushroom-title-card
-        title: 出租 · 东方佳园14-1-401
+        title: 出租 · 佳园
         icon: mdi:key-variant
         alignment: left
         subtitle: 本月电费/燃气账单
@@ -132,48 +132,50 @@ views:
             icon_color: blue
 
       # ---------- 电信话费 (199****7382) ----------
-      - type: custom:mushroom-title-card
-        title: 电信话费
-        icon: mdi:phone
-        alignment: left
-        subtitle: 199****7382 套餐 · 余额 / 流量 / 通话
-      - type: custom:ctm-telecom-card
-        device_id: 88311b83e60b69a0329ea5b95b34bb71
-        title: 电信 199****7382
-        balance_warning_below: 10
-        usage_warning_percent: 80
-        usage_danger_percent: 95
-      # 关键指标 chips
-      - type: custom:mushroom-chips-card
-        chips:
-          - type: template
-            icon: mdi:cash
-            content: >-
-              ¥{{ states('sensor.199_7382_tao_can_xin_xi_199_7382_dian_xin_zhang_hu_yu_e') }}
-            tap_action:
-              action: more-info
-              entity: sensor.199_7382_tao_can_xin_xi_199_7382_dian_xin_zhang_hu_yu_e
-          - type: template
-            icon: mdi:network
-            content: >-
-              流量 {{ states('sensor.199_7382_tao_can_xin_xi_199_7382_liu_liang_shi_yong_lu') }}%
-            tap_action:
-              action: more-info
-              entity: sensor.199_7382_tao_can_xin_xi_199_7382_liu_liang_shi_yong_lu
-          - type: template
-            icon: mdi:phone
-            content: >-
-              通话余 {{ states('sensor.199_7382_tao_can_xin_xi_199_7382_tong_hua_sheng_yu') }}分钟
-            tap_action:
-              action: more-info
-              entity: sensor.199_7382_tao_can_xin_xi_199_7382_tong_hua_sheng_yu
-          - type: template
-            icon: mdi:refresh
-            content: >-
-              {{ states('sensor.199_7382_tao_can_xin_xi_199_7382_shu_ju_geng_xin_shi_jian') | as_datetime | relative_time }}
-            tap_action:
-              action: more-info
-              entity: sensor.199_7382_tao_can_xin_xi_199_7382_shu_ju_geng_xin_shi_jian
+      # 暂时隐藏: china_telecom 集成当前未认证, 相关实体全部 unavailable。
+      # 重新登录集成后可取消以下注释恢复显示。
+      # - type: custom:mushroom-title-card
+      #   title: 电信话费
+      #   icon: mdi:phone
+      #   alignment: left
+      #   subtitle: 199****7382 套餐 · 余额 / 流量 / 通话
+      # - type: custom:ctm-telecom-card
+      #   device_id: 88311b83e60b69a0329ea5b95b34bb71
+      #   title: 电信 199****7382
+      #   balance_warning_below: 10
+      #   usage_warning_percent: 80
+      #   usage_danger_percent: 95
+      # # 关键指标 chips
+      # - type: custom:mushroom-chips-card
+      #   chips:
+      #     - type: template
+      #       icon: mdi:cash
+      #       content: >-
+      #         ¥{{ states('sensor.199_7382_tao_can_xin_xi_199_7382_dian_xin_zhang_hu_yu_e') }}
+      #       tap_action:
+      #         action: more-info
+      #         entity: sensor.199_7382_tao_can_xin_xi_199_7382_dian_xin_zhang_hu_yu_e
+      #     - type: template
+      #       icon: mdi:network
+      #       content: >-
+      #         流量 {{ states('sensor.199_7382_tao_can_xin_xi_199_7382_liu_liang_shi_yong_lu') }}%
+      #       tap_action:
+      #         action: more-info
+      #         entity: sensor.199_7382_tao_can_xin_xi_199_7382_liu_liang_shi_yong_lu
+      #     - type: template
+      #       icon: mdi:phone
+      #       content: >-
+      #         通话余 {{ states('sensor.199_7382_tao_can_xin_xi_199_7382_tong_hua_sheng_yu') }}分钟
+      #       tap_action:
+      #         action: more-info
+      #         entity: sensor.199_7382_tao_can_xin_xi_199_7382_tong_hua_sheng_yu
+      #     - type: template
+      #       icon: mdi:refresh
+      #       content: >-
+      #         {{ states('sensor.199_7382_tao_can_xin_xi_199_7382_shu_ju_geng_xin_shi_jian') | as_datetime | relative_time }}
+      #       tap_action:
+      #         action: more-info
+      #         entity: sensor.199_7382_tao_can_xin_xi_199_7382_shu_ju_geng_xin_shi_jian
 
       # ---------- 近30天用电趋势 ----------
       - type: custom:apexcharts-card
@@ -187,11 +189,11 @@ views:
           end: day
         series:
           - entity: sensor.99_6aefa11d6e8945fca3a9f9c28433cdb7_02_osg_uc_2610271638_002_7061_previous_daily_usage
-            name: 东方佳园14-1-401
+            name: 佳园
             type: column
             color: '#FFB74D'
           - entity: sensor.99_681845e394434cdbb0e9c0538145c306_02_osg_uc_2610271638_002_0065_previous_daily_usage
-            name: 东方新天地2-4-1201
+            name: 新天地
             type: column
             color: '#64B5F6'
 
@@ -207,22 +209,22 @@ views:
         cards:
           - type: custom:mushroom-entity-card
             entity: sensor.99_6aefa11d6e8945fca3a9f9c28433cdb7_02_osg_uc_2610271638_002_7061_current_year_usage
-            name: 本年电量 (东方佳园14-1-401)
+            name: 本年电量 (佳园)
             icon: mdi:counter
             icon_color: green
           - type: custom:mushroom-entity-card
             entity: sensor.99_6aefa11d6e8945fca3a9f9c28433cdb7_02_osg_uc_2610271638_002_7061_current_year_charge
-            name: 本年电费 (东方佳园14-1-401)
+            name: 本年电费 (佳园)
             icon: mdi:cash
             icon_color: green
           - type: custom:mushroom-entity-card
             entity: sensor.99_681845e394434cdbb0e9c0538145c306_02_osg_uc_2610271638_002_0065_current_year_usage
-            name: 本年电量 (东方新天地2-4-1201)
+            name: 本年电量 (新天地)
             icon: mdi:counter
             icon_color: teal
           - type: custom:mushroom-entity-card
             entity: sensor.99_681845e394434cdbb0e9c0538145c306_02_osg_uc_2610271638_002_0065_current_year_charge
-            name: 本年电费 (东方新天地2-4-1201)
+            name: 本年电费 (新天地)
             icon: mdi:cash
             icon_color: teal
 
@@ -283,26 +285,26 @@ views:
         columns: 2
         square: false
         cards:
-          # 东方佳园14-1-401
+          # 佳园
           - type: custom:mushroom-entity-card
             entity: sensor.99_6aefa11d6e8945fca3a9f9c28433cdb7_02_osg_uc_2610271638_002_7061_account_balance
-            name: 东方佳园14-1-401 余额
+            name: 佳园 余额
             icon: mdi:wallet
             icon_color: green
           - type: custom:mushroom-entity-card
             entity: sensor.99_6aefa11d6e8945fca3a9f9c28433cdb7_02_osg_uc_2610271638_002_7061_current_month_usage
-            name: 东方佳园14-1-401 本月用电
+            name: 佳园 本月用电
             icon: mdi:lightning-bolt
             icon_color: amber
-          # 东方新天地2-4-1201
+          # 新天地
           - type: custom:mushroom-entity-card
             entity: sensor.99_681845e394434cdbb0e9c0538145c306_02_osg_uc_2610271638_002_0065_account_balance
-            name: 东方新天地2-4-1201 余额
+            name: 新天地 余额
             icon: mdi:wallet
             icon_color: green
           - type: custom:mushroom-entity-card
             entity: sensor.99_681845e394434cdbb0e9c0538145c306_02_osg_uc_2610271638_002_0065_current_month_usage
-            name: 东方新天地2-4-1201 本月用电
+            name: 新天地 本月用电
             icon: mdi:lightning-bolt
             icon_color: orange
 
@@ -316,14 +318,14 @@ views:
           end: day
         series:
           - entity: sensor.99_6aefa11d6e8945fca3a9f9c28433cdb7_02_osg_uc_2610271638_002_7061_previous_daily_usage
-            name: 东方佳园14-1-401
+            name: 佳园
             type: line
-            smooth: true
+            curve: smooth
             color: '#FFB74D'
           - entity: sensor.99_681845e394434cdbb0e9c0538145c306_02_osg_uc_2610271638_002_0065_previous_daily_usage
-            name: 东方新天地2-4-1201
+            name: 新天地
             type: line
-            smooth: true
+            curve: smooth
             color: '#64B5F6'
 
       # 上月结算
@@ -338,34 +340,20 @@ views:
         cards:
           - type: custom:mushroom-entity-card
             entity: sensor.99_6aefa11d6e8945fca3a9f9c28433cdb7_02_osg_uc_2610271638_002_7061_previous_settled_month_usage
-            name: 东方佳园14-1-401 上月电量
+            name: 佳园 上月电量
             icon: mdi:counter
           - type: custom:mushroom-entity-card
             entity: sensor.99_6aefa11d6e8945fca3a9f9c28433cdb7_02_osg_uc_2610271638_002_7061_previous_settled_month_charge
-            name: 东方佳园14-1-401 上月电费
+            name: 佳园 上月电费
             icon: mdi:cash
           - type: custom:mushroom-entity-card
             entity: sensor.99_681845e394434cdbb0e9c0538145c306_02_osg_uc_2610271638_002_0065_previous_settled_month_usage
-            name: 东方新天地2-4-1201 上月电量
+            name: 新天地 上月电量
             icon: mdi:counter
           - type: custom:mushroom-entity-card
             entity: sensor.99_681845e394434cdbb0e9c0538145c306_02_osg_uc_2610271638_002_0065_previous_settled_month_charge
-            name: 东方新天地2-4-1201 上月电费
+            name: 新天地 上月电费
             icon: mdi:cash
-
-      # 抄表读数
-      - type: grid
-        columns: 2
-        square: false
-        cards:
-          - type: custom:mushroom-entity-card
-            entity: sensor.99_6aefa11d6e8945fca3a9f9c28433cdb7_02_osg_uc_2610271638_002_7061_last_month_meter_reading
-            name: 东方佳园14-1-401 上月抄表
-            icon: mdi:gauge
-          - type: custom:mushroom-entity-card
-            entity: sensor.99_681845e394434cdbb0e9c0538145c306_02_osg_uc_2610271638_002_0065_last_month_meter_reading
-            name: 东方新天地2-4-1201 上月抄表
-            icon: mdi:gauge
 
   # ============================================================
   # View 3: 燃气费详情 (自住 + 出租 分户)
@@ -376,7 +364,7 @@ views:
     cards:
       # ========== 自住 · 东方新天地 ==========
       - type: custom:mushroom-title-card
-        title: 自住 · 东方新天地2-4-1201
+        title: 自住 · 新天地
         icon: mdi:home
         alignment: left
         subtitle: 户号 1040395237
@@ -450,7 +438,7 @@ views:
 
       # ========== 出租 · 东方佳园 ==========
       - type: custom:mushroom-title-card
-        title: 出租 · 东方佳园14-1-401
+        title: 出租 · 佳园
         icon: mdi:key-variant
         alignment: left
         subtitle: 户号 1021540961
@@ -589,7 +577,7 @@ views:
       - type: custom:grafana-ingress-card
         grafana_slug: a0d7b954_grafana
         dashboard_path: d/a67f2s/e883bd-e6ba90-e8b4a6-e58d95-e79b91-e68ea7?kiosk
-        aspect_ratio: 100%
+        aspect_ratio: 140%
 
   # ============================================================
   # View 5: 设备功耗
@@ -631,50 +619,67 @@ views:
           - entity: sensor.utility_tracker_current_power
             name: 总功率
             type: area
-            smooth: true
+            curve: smooth
             color: '#FFB74D'
             stroke_width: 2
             opacity: 0.4
 
-      # ---------- 单设备功耗列表 (device_class=power 的 sensor) ----------
+      # ---------- 单设备功耗列表 ----------
       - type: custom:mushroom-title-card
         title: 单设备实时功率
         icon: mdi:power-plug
         alignment: left
-        subtitle: 自动扫描 device_class=power 的 sensor
-      - type: custom:auto-entities
-        filter:
-          include:
-            - domain: sensor
-              attributes:
-                device_class: power
-        card:
-          type: custom:mushroom-entity-card
-          icon: mdi:power-plug
-        sort:
-          method: state
-          reverse: true
-          numeric: true
+        subtitle: 主要插座与设备 (W)
+      - type: entities
+        title: 插座 / 设备功率
+        state_color: true
+        entities:
+          - entity: sensor.giot_cn_1162942256_v8icm_electric_power_p_4_2
+            name: 电脑电源
+          - entity: sensor.giot_cn_1163256502_v8icm_electric_power_p_4_2
+            name: NAS
+          - entity: sensor.giot_cn_1164778814_v8icm_electric_power_p_4_2
+            name: 小黑奴电源
+          - entity: sensor.yutai_cn_1207439898_fsov8m_electric_power_p_4_2
+            name: 主卧空调插座
+          - entity: sensor.yutai_cn_1207439875_fsov8m_electric_power_p_4_2
+            name: 次卧空调插座
+          - entity: sensor.yutai_cn_1207439820_fsov8m_electric_power_p_4_2
+            name: 北卧空调插座
+          - entity: sensor.giot_cn_1162898415_v8icm_electric_power_p_4_2
+            name: 取暖器
+          - entity: sensor.yutai_cn_1207441149_fsov8m_electric_power_p_4_2
+            name: 热水器下方插座
+          - entity: sensor.yutai_cn_1207441256_fsov8m_electric_power_p_4_2
+            name: 南阳台洗衣机插座
+          - entity: sensor.yutai_cn_1207440211_fsov8m_electric_power_p_4_2
+            name: 厨房左3插座
+          - entity: sensor.yutai_cn_1207443973_fsov8m_electric_power_p_4_2
+            name: 厨房左2插座
+          - entity: sensor.yutai_cn_1207444162_fsov8m_electric_power_p_4_2
+            name: 厨房左1插座
+          - entity: sensor.yutai_cn_1207440199_fsov8m_electric_power_p_4_2
+            name: 微波炉
+          - entity: sensor.yutai_cn_1207441186_fsov8m_electric_power_p_4_2
+            name: 空气炸锅
+          - entity: sensor.yutai_cn_1207443937_fsov8m_electric_power_p_4_2
+            name: 电饼铛
 
-      # ---------- 单设备电量 (device_class=energy) ----------
+      # ---------- 单设备电量 ----------
       - type: custom:mushroom-title-card
         title: 单设备累计电量
         icon: mdi:counter
         alignment: left
-        subtitle: device_class=energy
-      - type: custom:auto-entities
-        filter:
-          include:
-            - domain: sensor
-              attributes:
-                device_class: energy
-        card:
-          type: custom:mushroom-entity-card
-          icon: mdi:counter
-        sort:
-          method: state
-          reverse: true
-          numeric: true
+        subtitle: 设备累计用电 (kWh)
+      - type: entities
+        title: 累计用电
+        entities:
+          - entity: sensor.dian_nao_dian_yuan_lei_ji_yong_dian
+            name: 电脑电源
+          - entity: sensor.naslei_ji_yong_dian
+            name: NAS
+          - entity: sensor.xiao_da_yin_ji_lei_ji_yong_dian
+            name: 小打印机
 
   # ============================================================
   # View 6: 灯光统计（新家 · 按区域主灯）
@@ -700,7 +705,7 @@ views:
             icon_color: amber
           - type: markdown
             content: |
-              ## {{ states('light') | selectattr('state','eq','on') | list | count }} 盏
+              ## {{ states.light | selectattr('state','eq','on') | list | count }} 盏
               当前亮着
       - type: grid
         columns: 2
@@ -724,7 +729,7 @@ views:
         alignment: left
         subtitle: 今日亮灯时长 (小时)
       - type: grid
-        columns: 4
+        columns: 2
         square: false
         cards:
           - type: custom:mushroom-entity-card
@@ -836,17 +841,12 @@ views:
         title: 当前亮着的灯
         icon: mdi:lightbulb-on-outline
         alignment: left
-      - type: custom:auto-entities
-        filter:
-          include:
-            - domain: light
-              state: 'on'
-        card:
-          type: custom:mushroom-light-card
-          show_brightness_control: true
-          show_color_temp_control: true
-        sort:
-          method: friendly_name
+        subtitle: 全屋灯组一键关闭
+      - type: custom:mushroom-light-card
+        entity: light.mijia_cn_group_2111912980119552000_group3_s_2_light
+        name: 全屋灯光
+        show_brightness_control: true
+        use_light_color: true
 
       # ---------- 区域主灯快捷开关 ----------
       - type: custom:mushroom-title-card
