@@ -1,4 +1,14 @@
-# 打印分析卡片 - 修改记录
+﻿# 打印分析卡片 - 修改记录
+
+## CTM电信集成故障修复（2026-10-28）
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 修复 | 18 个实体全部 `unavailable`、配置条目 `not_loaded`，根因是 `manifest.json` 含 UTF-8 BOM（U+FEFF），HA 的 `json.loads()` 解析失败 → 报 `Integration not found`。清除 BOM 后恢复，重启验证 18 实体全部出数、条目回到 `loaded` | custom_components/china_telecom/manifest.json |
+| 修复 | `sensor.py` 同时带 BOM（编辑时被写入），一并清除 | custom_components/china_telecom/sensor.py |
+| 修复 | 每次启动报 `Flow aborted: already_configured`：`async_setup` 未判断条目是否已存在，重复触发 import flow。改为按手机号比对已有条目后跳过 | __init__.py#L23-42 |
+| 说明 | 排查要点：`/api/error_log` 在 HA 2026 已移除，改用 WebSocket `system_log/list` 取日志；`config_entries` 的 flow 命令已迁到 REST（`POST /api/config/config_entries/options/flow`） | (排查方法) |
+| 验证 | 余额 18.54 元、本月消费 69.79 元、积分 1694、流量 100% 已超量 0.13 GB；系统日志无电信相关错误 | (服务器) |
 
 ## 虚拟事件实体全量迁移到新网关（2026-10-28）
 

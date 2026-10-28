@@ -10,7 +10,7 @@ from homeassistant.config_entries import ConfigEntry, SOURCE_IMPORT
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import discovery
 from homeassistant.setup import async_setup_component
-from .const import DOMAIN
+from .const import CONF_PHONENUM, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -23,7 +23,15 @@ CARD_RESOURCE_PREFIXES = (CARD_RESOURCE_URL, LEGACY_CARD_RESOURCE_URL)
 async def async_setup(hass: HomeAssistant, config: dict):
     """Set up the China Telecom component from configuration.yaml."""
     if DOMAIN in config:
+        # 已存在的条目（如通过 UI 或上次导入创建）跳过导入，
+        # 否则每次启动都会触发 already_configured 报错
+        existing = {
+            entry.data.get(CONF_PHONENUM)
+            for entry in hass.config_entries.async_entries(DOMAIN)
+        }
         for entry_config in config[DOMAIN]:
+            if entry_config.get(CONF_PHONENUM) in existing:
+                continue
             hass.async_create_task(
                 hass.config_entries.flow.async_init(
                     DOMAIN,
