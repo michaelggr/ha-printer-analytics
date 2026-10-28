@@ -1,5 +1,15 @@
 # 打印分析卡片 - 修改记录
 
+## 清理大黑奴（P2S）残留模板传感器（2026-10-29）
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 清理 | 7 处合并统计模板（Total Prints / Success Rate / Average Print Duration / Print Duration Distribution / Printer Activity Heatmap 的 state+attributes）移除 `sensor.p2s_p2s_da_yin_li_shi` 历史循环，仅保留 A1 Mini | templates.yaml |
+| 清理 | `Total Online Duration` 删除已不存在的 `sensor.p2s_22e8bj5a2401765_total_usage`，直接取 A1 Mini 值 | templates.yaml |
+| 清理 | 整段删除 `P2S Total Prints`、`P2S Success Rate` 两个模板传感器；确认看板与前端 JS 卡片均无引用 | templates.yaml |
+| 清理 | WS `config/entity_registry/remove` 移除注册表孤儿实体 `sensor.p2s_total_prints_2`、`sensor.p2s_success_rate_2` | (实体注册表) |
+| 验证 | `template.reload` 后合并传感器只统计 A1 Mini（total_prints=1、success_rate=100、total_online_duration=2.7），70 个 Jinja 模板语法全部通过；大黑奴 printer_analytics 条目与历史数据保留未动 | (服务器) |
+
 ## A1 Mini 重新添加后引用修复（2026-10-29）
 
 | 类型 | 内容 | 涉及文件 |
