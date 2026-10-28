@@ -1,5 +1,16 @@
 ﻿# 打印分析卡片 - 修改记录
 
+## 深度分析页 Grafana 401 修复（ingress 会话 cookie）（2026-10-28）
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 修复 | 深度分析页 iframe 一直 `401: Unauthorized`：`grafana-ingress-card` 只从 `addon/info` 取 `ingress_url` 就设 iframe.src，但 Supervisor ingress 用 **cookie** 鉴权（`ingress_session`），iframe 导航无法携带 `Authorization` 头，所以每次都被 HA ingress 拦截（连直接在新标签打开 ingress 地址也是 401） | www/grafana-ingress-card.js#L71-101 |
+| 修复 | 卡片新增 `_ensureIngressSession()`：WS `supervisor/api` → `POST /ingress/session` 拿会话，再写 `document.cookie = ingress_session=...; path=/api/hassio_ingress; SameSite=Lax`，之后才设置 iframe.src | www/grafana-ingress-card.js#L75-91 |
+| 优化 | 会话有有效期，卡片每 5 分钟静默续期 cookie（不重载 iframe，后续请求自动带新 cookie），`disconnectedCallback` 清理定时器防泄漏 | www/grafana-ingress-card.js#L49-69 |
+| 配置 | 资源版本 `/local/grafana-ingress-card.js?v=1.2.0` → `v=1.3.0`（YAML resources 变更需重启 HA 生效）；顺带移除该 JS 的 UTF-8 BOM | configuration.yaml#L53, www/grafana-ingress-card.js |
+| 验证 | 浏览器实测：补 cookie 前后 health 接口 401 → 200；重启后深度分析页 iframe 文档请求 200，Grafana 面板（本月电费/燃气费）正常渲染，无 401 | (服务器 + 浏览器) |
+| 备注 | 同类问题影响所有 addon ingress 页面（MariaDB 等），根因是前端未建立 ingress 会话 cookie；`auth/sign_path` 签名路径对 ingress 无效，只有 `/ingress/session` 可行 | - |
+
 ## 房间视图按设备实际区域重排（2026-10-28）
 
 | 类型 | 内容 | 涉及文件 |
@@ -11,15 +22,18 @@
 | 说明 | 「全屋灯光」分组 `light.mijia_cn_group_2111912980119552000_group3_s_2_light` 区域登记为辅助区域「全屋灯光」，作为全屋总控保留在客厅视图，未迁移 | ui-lovelace.yaml#L302-305 |
 | 验证 | YAML 解析通过、无 BOM；区域核对脚本不一致项 8 → 1（仅剩上述全屋灯光分组）；上传重启后 WS `lovelace/config` 确认各房间卡片就位，`system_log` 无新增 Lovelace 错误 | (服务器) |
 
-## 电量计数器重置识别与逐样本增量累加（2026-10-28）
+## 电量计数器重置识别与量化抖动过滤（2026-10-28）
 
 | 类型 | 内容 | 涉及文件 |
 |------|------|----------|
-| 修复 | 带电量统计的插座/电表会把累计电量周期性清零重计，原 `energy_kwh = MAX - MIN` 算法在计数器小时内重置时会把整小时电量算成 0 或负数，造成电量凭空丢失（实测今日全设备少算 3.33 kWh，小黑奴丢 80%、电脑/NAS 各丢约 16%）。聚合改为逐样本增量累加 | db.py#L345-434 |
-| 功能 | 新增纯函数 `sum_energy_deltas()`：正常递增累加 `cur-prev`；回退 ≤ `ENERGY_RESET_TOLERANCE_KWH(0.011)` 视为显示精度抖动忽略（yutai 插座分辨率 0.01 kWh 会在 0.01/0.00 间抖动，无容差会被误判重置而重复计数）；回退超容差判定为重置，按 `max(cur,0)` 计入 | const.py#L71-101 |
-| 优化 | 聚合时额外取「本小时之前最后一条非空电量采样」作为序列首元素（基线），保证跨小时边界的增量不丢失；功率积分兜底（取暖器）逻辑保持不变 | db.py#L400-420 |
-| 说明 | 计数器重置为真机行为（yutai 系列今日 6~35 次、giot 小黑奴 6 次），已确认不是采样异常；本轮不回补历史小时行，今日已入库的 17:00/18:00 仍为旧口径，从下一个完整小时起按新算法生效 | - |
-| 测试 | 新增 `TestEnergyDeltaAccumulation` 8 个用例（等价 MAX-MIN、中途重置、重置后立即消耗、精度抖动、抖动后继续增长、空/单点、容差内回退、超容差回退），该文件 113 个用例全部通过 | tests/test_utility_tracker.py |
+| 修复 | 带电量统计的插座/电表会把累计电量周期性清零重计，原 `energy_kwh = MAX - MIN` 算法在计数器小时内重置时会把整小时电量算成 0 或负数，造成电量凭空丢失（实测今日全设备少算 3.33 kWh，小黑奴丢 80%、电脑/NAS 各丢约 16%）。聚合改为按「计数周期」结算增量 | db.py#L346-433 |
+| 修复 | 逐样本累加会把低分辨率读数抖动当成新增用电：实测北卧空调插座功率恒 0W，电量在 0/0.01 间规律抖动（今日 35 次回退），逐样本累加让它凭空记了 0.13 kWh/天；主卧空调插座 2W 记 0.15 kWh、南阳台洗衣机插座 1W 记 0.13 kWh（虚增 5~9 倍），6 个插座合计虚增约 0.74 kWh。改为跨窗口「末值 - 基线」口径，抖动不再重复计入 | const.py#L71-130 |
+| 功能 | `sum_energy_deltas(values, prev_reading)` 定稿：①窗口内读数跌幅超 `ENERGY_RESET_TOLERANCE_KWH(0.011)` 且跌到前值一半以下才判清零，计入「清零前那段 + 清零后累计值」；②窗口开始前已清零则只计本窗口累计值；③读数单调不减 → 末值减基线全额计入（保护 0.0001 kWh 级高分辨率电表的微小真实增长，如 5W 设备 0.0003/h）；④存在回退 → 量化抖动，容差内归零 | const.py#L71-130 |
+| 修复 | 容差取 0.011 而非 0.05：0.05 会放过 0.03 级的量化抖动，而 0.011 恰好大于一个 0.01 刻度，同时用「跌到前值一半以下」排除 1.00→0.98 这类小幅回退被误判清零（否则凭空多记 0.98 kWh） | const.py#L71-130 |
+| 修复 | `device_power_daily` 聚合原先直接 `SUM(energy_kwh)` 且不过滤，会把同一台设备的日/周/月/年 8 张镜像表一起累加（电脑日电量被算成 11.08×7 kWh）。改为 Python 侧分组后按 `is_derived_energy_entity`/`is_excluded_energy_entity` 过滤，与 `async_sum_power_today` 同口径 | db.py#L435-496 |
+| 优化 | 小时聚合把「本小时读数序列」与「上一小时末值基线」分开传给纯函数，基线只作参照点、不参与单调性判定；功率积分兜底（取暖器）逻辑保持不变 | db.py#L400-420 |
+| 说明 | 计数器重置与读数抖动均为真机行为，已确认不是采样异常；本轮不回补历史小时行，今日已入库的旧口径行保持原样，从下一个完整小时起生效。低分辨率插座（0.01 kWh）的 <0.01 kWh 真实用电仍无法分辨，属硬件限制 | - |
+| 测试 | `TestEnergyDeltaAccumulation` 扩到 15 个用例（等价 MAX-MIN、跨小时基线递增、中途重置、窗口前已清零、抖动不重复累计、抖动后继续增长、高分辨率微小增长、空/单点/单点带基线、容差内回退、小幅回退不误判清零、真重置、全零序列），该文件 120 个用例全部通过 | tests/test_utility_tracker.py |
 
 ## giot 耗电量单位纠正与功率积分兜底（2026-10-28）
 

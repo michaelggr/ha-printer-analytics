@@ -1,4 +1,4 @@
-﻿/**
+/**
  * grafana-ingress-card.js
  * 在 Lovelace 里直接嵌入 Grafana 面板 (走 HA Supervisor ingress, 无需写死 token, 不会 401)
  *
@@ -10,9 +10,15 @@
  *
  * 原理:
  *   Supervisor ingress 的地址是 /api/hassio_ingress/<token>/ ,
- *   token 由 supervisor/api 的 addon info 接口给出 (ingress_url),
- *   每次页面加载动态获取, 因此不会因为 token 过期而 401。
+ *   token 由 supervisor/api 的 addon info 接口给出 (ingress_url);
+ *   但 ingress 本身用 cookie 鉴权, iframe 无法携带 Authorization 头,
+ *   所以还要通过 supervisor/api 的 /ingress/session 拿会话并写入
+ *   ingress_session cookie, 否则一律 401: Unauthorized。
+ *   会话有有效期, 卡片每 5 分钟静默续期一次。
  */
+
+const INGRESS_COOKIE_PATH = "/api/hassio_ingress";
+const SESSION_RENEW_MS = 5 * 60 * 1000;
 
 class GrafanaIngressCard extends HTMLElement {
   constructor() {
@@ -46,6 +52,51 @@ class GrafanaIngressCard extends HTMLElement {
     if (!this._started && this._config && hass) {
       this._started = true;
       this._refresh();
+      // ingress 会话有有效期, 定时静默续期, 避免用着用着变 401
+      this._renewTimer = window.setInterval(
+        () => this._renewSession(),
+        SESSION_RENEW_MS
+      );
+    }
+  }
+
+  disconnectedCallback() {
+    // 卡片从 DOM 移除时停止续期, 防止定时器泄漏
+    if (this._renewTimer) {
+      window.clearInterval(this._renewTimer);
+      this._renewTimer = null;
+    }
+  }
+
+  /**
+   * 建立 ingress 会话: supervisor/api 拿 session, 再写入 cookie。
+   * iframe 导航无法带 Authorization 头, 只能依赖这个 cookie。
+   */
+  async _ensureIngressSession() {
+    const res = await this._hass.callWS({
+      type: "supervisor/api",
+      endpoint: "/ingress/session",
+      method: "post",
+    });
+    if (!res || !res.session) {
+      throw new Error("未获取到 ingress 会话 (ingress/session 返回空)");
+    }
+    document.cookie =
+      "ingress_session=" +
+      res.session +
+      "; path=" +
+      INGRESS_COOKIE_PATH +
+      "; SameSite=Lax";
+    return res.session;
+  }
+
+  /** 静默续期: 只刷新 cookie, 不重载 iframe */
+  async _renewSession() {
+    if (!this._hass) return;
+    try {
+      await this._ensureIngressSession();
+    } catch (err) {
+      console.warn("[grafana-ingress-card] ingress 会话续期失败:", err);
     }
   }
 
@@ -86,6 +137,9 @@ class GrafanaIngressCard extends HTMLElement {
       });
       const base = info && info.ingress_url;
       if (!base) throw new Error("加载项未开启 ingress 或返回无 ingress_url");
+
+      // 关键: 先建立 ingress 会话并写 cookie, 否则 iframe 请求会被 401 拦截
+      await this._ensureIngressSession();
 
       // Grafana 面板内部路径 (无 kiosk 时补上, 隐藏顶部导航)
       let src = base + path;
