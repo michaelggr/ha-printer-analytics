@@ -9,6 +9,8 @@
 | 功能 | 新增 `sensor.utility_tracker_power_today_by_device` 传感器：state 存设备数量，`devices` 属性存完整 CSV 列表（避开 HA state 255 字符限制） | sensor.py#L279-306 |
 | 优化 | 能源账单面板「单设备累计电量」改为「单设备今日耗电」，用 markdown 模板从 `devices` 属性渲染全部 38 个设备 | ui-energy.yaml#L701-717 |
 | 备注 | 数据来源为 `device_power_hourly` 功率积分，过滤口径与 `power_today` 今日总耗电一致，确保各设备之和等于总耗电 | - |
+| 优化 | `recorder` 排除该实体：`devices` 属性是 38 台设备的长 CSV（821 字符），每次刷新都写历史会持续膨胀 recorder 库却无查询价值；排除后实时状态与看板渲染不受影响 | configuration.yaml#L145-150 |
+| 验证 | HA `check_config` 通过、MD5 与服务端一致；重启后实体 state=38、`devices` 属性 821 字符正常；`/api/history` 近 2 小时仅存重启前 6 条调试记录，重启后的新状态未入库 | (服务器 + API) |
 
 ## 首页新增「设备用电」（本周 / 上月）（2026-10-28）
 
