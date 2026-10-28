@@ -554,6 +554,37 @@ class UtilityDB:
             return total
         return await self.hass.async_add_executor_job(_q)
 
+    async def async_fetch_power_today_by_device(self) -> list[dict[str, Any]]:
+        """今日各设备耗电明细 (设备名/kWh), 按电量降序, 供看板展示
+
+        过滤口径与 async_sum_power_today 一致: 跳过日/周/月/年派生电量表和排除列表,
+        避免同一设备的派生表被重复计入。
+        """
+        def _q():
+            conn = self._get_conn_sync()
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT entity_id, MAX(friendly_name) AS friendly_name, "
+                    "       COALESCE(SUM(energy_kwh),0) AS s "
+                    "FROM device_power_hourly "
+                    "WHERE DATE(hour_start) = CURDATE() "
+                    "GROUP BY entity_id "
+                    "ORDER BY s DESC"
+                )
+                rows = cur.fetchall()
+            result = []
+            for row in rows:
+                if is_derived_energy_entity(row["entity_id"], row["friendly_name"]):
+                    continue
+                if is_excluded_energy_entity(row["entity_id"]):
+                    continue
+                kwh = float(row["s"]) if row["s"] is not None else 0.0
+                # 用 friendly_name 作为展示名, 缺失时回退 entity_id
+                name = row["friendly_name"] or row["entity_id"]
+                result.append({"entity_id": row["entity_id"], "name": name, "kwh": kwh})
+            return result
+        return await self.hass.async_add_executor_job(_q)
+
     async def async_current_total_power(self) -> float:
         """返回当前所有设备实时功率合计 W (取最近 10 分钟内的采样)
 

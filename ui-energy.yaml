@@ -698,21 +698,23 @@ views:
           - entity: sensor.yutai_cn_1207443937_fsov8m_electric_power_p_4_2
             name: 电饼铛
 
-      # ---------- 单设备电量 ----------
+      # ---------- 单设备今日耗电 (数据源: utility_tracker, 从功率积分计算, 最准确) ----------
       - type: custom:mushroom-title-card
-        title: 单设备累计电量
+        title: 单设备今日耗电
         icon: mdi:counter
         alignment: left
-        subtitle: 设备累计用电 (kWh)
-      - type: entities
-        title: 累计用电
-        entities:
-          - entity: sensor.dian_nao_dian_yuan_lei_ji_yong_dian
-            name: 电脑电源
-          - entity: sensor.naslei_ji_yong_dian
-            name: NAS
-          - entity: sensor.xiao_da_yin_ji_lei_ji_yong_dian
-            name: 小打印机
+        subtitle: 按今日耗电降序 · 数据源 utility_tracker (功率积分)
+      - type: markdown
+        content: |
+          {% set raw = state_attr('sensor.utility_tracker_power_today_by_device', 'devices') %}
+          {% set rows = raw.split(',') if raw and raw != '' else [] %}
+          {% for row in rows %}
+          {% set parts = row.split('=') %}
+          {% set name = parts[0] %}
+          {% set kwh = parts[1] if parts|length > 1 else '?' %}
+          **{{ name }}** — {{ kwh }} kWh
+          {% endfor %}
+          {% if not rows %}_暂无数据_{% endif %}
 
   # ============================================================
   # View 6: 灯光统计（新家 · 按区域主灯）

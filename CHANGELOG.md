@@ -1,4 +1,14 @@
-﻿## 打印分析卡片 - 修改记录
+﻿﻿## 打印分析卡片 - 修改记录
+
+## 能源账单面板：单设备今日耗电展示全部设备（2026-10-28）
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 功能 | utility_tracker 新增 `async_fetch_power_today_by_device()` 查询今日各设备耗电明细（按 kWh 降序，过滤派生电量与排除列表） | db.py#L557-586 |
+| 功能 | coordinator 在 stats 中新增 `power_today_by_device` 字段 | coordinator.py#L257-258 |
+| 功能 | 新增 `sensor.utility_tracker_power_today_by_device` 传感器：state 存设备数量，`devices` 属性存完整 CSV 列表（避开 HA state 255 字符限制） | sensor.py#L279-306 |
+| 优化 | 能源账单面板「单设备累计电量」改为「单设备今日耗电」，用 markdown 模板从 `devices` 属性渲染全部 38 个设备 | ui-energy.yaml#L701-717 |
+| 备注 | 数据来源为 `device_power_hourly` 功率积分，过滤口径与 `power_today` 今日总耗电一致，确保各设备之和等于总耗电 | - |
 
 ## 首页新增「设备用电」（本周 / 上月）（2026-10-28）
 

@@ -39,6 +39,8 @@ async def async_setup_entry(
         UtilityTrackerGasMonthRentalSensor(coordinator, entry),
         UtilityTrackerCurrentPowerSensor(coordinator, entry),
         UtilityTrackerPowerTodaySensor(coordinator, entry),
+        # 每设备今日耗电明细 (CSV 格式, 供看板 markdown 渲染)
+        UtilityTrackerPowerTodayByDeviceSensor(coordinator, entry),
         UtilityTrackerLightCountTodaySensor(coordinator, entry),
         UtilityTrackerLightDurationTodaySensor(coordinator, entry),
         UtilityTrackerAreaStayTodaySensor(coordinator, entry),
@@ -272,6 +274,36 @@ class UtilityTrackerPowerTodaySensor(_BaseSensor):
     @property
     def native_value(self):
         return (self.coordinator.data or {}).get("power_today_kwh")
+
+
+class UtilityTrackerPowerTodayByDeviceSensor(_BaseSensor):
+    """今日各设备耗电排行榜 (完整列表存属性, state 存设备数)
+
+    HA state 字符串上限 255 字符, 38 个设备的 CSV 超长会被置 unknown,
+    因此完整列表放在 extra_state_attributes 中供看板 markdown 渲染。
+    """
+
+    _attr_name = "Power Today By Device"
+    _attr_icon = "mdi:power-plug"
+
+    def __init__(self, coordinator, entry):
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_power_today_by_device"
+
+    @property
+    def native_value(self):
+        # state 只存设备数量 (简短), 完整数据见属性 devices
+        data = self.coordinator.data or {}
+        rows = data.get("power_today_by_device") or []
+        return len(rows)
+
+    @property
+    def extra_state_attributes(self):
+        # 完整设备列表: CSV 格式 "name=kwh,name=kwh,..." (属性无 255 字符限制)
+        data = self.coordinator.data or {}
+        rows = data.get("power_today_by_device") or []
+        parts = [f"{r.get('name','?')}={r.get('kwh',0):.3f}" for r in rows]
+        return {"devices": ",".join(parts) if parts else ""}
 
 
 # =====================================================================
