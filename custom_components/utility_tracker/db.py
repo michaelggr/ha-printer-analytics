@@ -407,7 +407,7 @@ class UtilityDB:
                 for table in (
                     "device_power_raw", "device_power_hourly",
                     "device_power_daily", "light_events", "light_daily",
-                    "light_duration_daily",
+                    "light_duration_daily", "area_stay_daily",
                 ):
                     cur.execute(f"DELETE FROM {table}")
                     result[table] = cur.rowcount
@@ -582,6 +582,60 @@ class UtilityDB:
                 )
                 row = cur.fetchone()
                 return int(row["s"]) if row and row["s"] is not None else 0
+        return await self.hass.async_add_executor_job(_q)
+
+    async def async_upsert_area_stays(self, rows: list[dict[str, Any]]) -> int:
+        """批量写入区域每日停留时长 (同一天覆盖更新)
+
+        rows 元素: {entity_id, area_name, period_date, duration_sec}
+        """
+        if not rows:
+            return 0
+
+        sql = (
+            "INSERT INTO area_stay_daily "
+            "(entity_id, area_name, period_date, duration_sec) "
+            "VALUES (%s,%s,%s,%s) "
+            "ON DUPLICATE KEY UPDATE "
+            " area_name=VALUES(area_name), duration_sec=VALUES(duration_sec)"
+        )
+        params = [
+            (r["entity_id"], r["area_name"], r["period_date"], r["duration_sec"])
+            for r in rows
+        ]
+
+        def _exec():
+            conn = self._get_conn_sync()
+            with conn.cursor() as cur:
+                return cur.executemany(sql, params)
+        return await self.hass.async_add_executor_job(_exec)
+
+    async def async_sum_area_stay_today(self) -> int:
+        """返回今日各区域停留秒数合计 (来自 history_stats 快照表)"""
+        def _q():
+            conn = self._get_conn_sync()
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT COALESCE(SUM(duration_sec),0) AS s "
+                    "FROM area_stay_daily WHERE period_date = CURDATE()"
+                )
+                row = cur.fetchone()
+                return int(row["s"]) if row and row["s"] is not None else 0
+        return await self.hass.async_add_executor_job(_q)
+
+    async def async_fetch_area_stays_today(self) -> list[dict[str, Any]]:
+        """返回今日各区域停留明细 (区域名/秒数), 供看板或诊断使用"""
+        def _q():
+            conn = self._get_conn_sync()
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT area_name, duration_sec FROM area_stay_daily "
+                    "WHERE period_date = CURDATE() ORDER BY duration_sec DESC"
+                )
+                return [
+                    {"area_name": r["area_name"], "duration_sec": int(r["duration_sec"])}
+                    for r in cur.fetchall()
+                ]
         return await self.hass.async_add_executor_job(_q)
 
     async def async_delete_utility_records(

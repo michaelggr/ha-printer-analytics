@@ -700,5 +700,41 @@ class TestHoursStateToSeconds(unittest.TestCase):
         self.assertIsNone(_hours_state_to_seconds(-0.5))
 
 
+class TestAreaStayDurationEntities(unittest.TestCase):
+    """测试区域停留时长实体映射 (与 sensor.yaml 的 history_stats 对应)"""
+
+    # 与 const.py AREA_STAY_DURATION_ENTITIES 保持一致
+    AREA_STAY_ENTITIES = {
+        "sensor.ke_ting_ting_liu_shi_chang": "客厅",
+        "sensor.zhu_wo_ting_liu_shi_chang": "主卧",
+        "sensor.ci_wo_ting_liu_shi_chang": "次卧",
+        "sensor.bei_wo_ting_liu_shi_chang": "北卧",
+        "sensor.chu_fang_ting_liu_shi_chang": "厨房",
+        "sensor.can_ting_ting_liu_shi_chang": "餐厅",
+        "sensor.zhu_wei_ting_liu_shi_chang": "主卫",
+        "sensor.gong_wei_ting_liu_shi_chang": "公卫",
+        "sensor.gong_wei_gan_qu_ting_liu_shi_chang": "公卫干区",
+        "sensor.nan_yang_tai_ting_liu_shi_chang": "南阳台",
+        "sensor.bei_yang_tai_ting_liu_shi_chang": "北阳台",
+        "sensor.zou_lang_ting_liu_shi_chang": "走廊",
+    }
+
+    def test_覆盖12个区域(self):
+        self.assertEqual(len(self.AREA_STAY_ENTITIES), 12)
+
+    def test_区域名不重复(self):
+        # 区域名会作为 area_name 写库, 重复会导致不同区域互相覆盖
+        names = list(self.AREA_STAY_ENTITIES.values())
+        self.assertEqual(len(names), len(set(names)))
+
+    def test_实体ID不重复(self):
+        ids = list(self.AREA_STAY_ENTITIES.keys())
+        self.assertEqual(len(ids), len(set(ids)))
+
+    def test_全部为sensor域(self):
+        for eid in self.AREA_STAY_ENTITIES:
+            self.assertTrue(eid.startswith("sensor."), eid)
+
+
 if __name__ == "__main__":
     unittest.main()

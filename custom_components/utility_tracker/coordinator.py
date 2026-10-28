@@ -28,6 +28,7 @@ from .const import (
     DEFAULT_RAW_RETENTION_DAYS,
     DEFAULT_SYNC_INTERVAL_HOURS,
     DOMAIN,
+    AREA_STAY_DURATION_ENTITIES,
     GRANULARITY_DAY,
     GRANULARITY_MONTH,
     LIGHT_ACTION_OFF,
@@ -121,6 +122,7 @@ class UtilityTrackerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "power_samples": 0,
             "light_events": 0,
             "light_durations": 0,
+            "area_stays": 0,
         }
         try:
             # HA 容器运行在 UTC,需显式转成本地时区;
@@ -164,6 +166,8 @@ class UtilityTrackerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 stats["light_events"] = await self._collect_light_stats(now)
                 # 区域主灯每日时长入库 (history_stats 快照, 权威时长来源)
                 stats["light_durations"] = await self._collect_light_durations(now)
+                # 区域每日停留时长入库 (同灯光方案, 数据源换成「有人」统计)
+                stats["area_stays"] = await self._collect_area_stays(now)
 
             # ---- 低频任务: 电费/燃气 (按 sync_interval 节流) ----
             utility_due = (
@@ -221,6 +225,10 @@ class UtilityTrackerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 # 亮灯时长来自 history_stats 快照表 (与区域灯实体一致)
                 stats["light_today_seconds"] = (
                     await self.db.async_sum_light_duration_today()
+                )
+                # 今日各区域停留时长合计 (同样读快照表, 而非直接读实体)
+                stats["area_stay_today_seconds"] = (
+                    await self.db.async_sum_area_stay_today()
                 )
 
             self.last_sync = now
@@ -355,6 +363,34 @@ class UtilityTrackerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return 0
         await self.db.async_upsert_light_durations(rows)
         _LOGGER.debug("区域主灯时长入库: %d 条", len(rows))
+        return len(rows)
+
+    async def _collect_area_stays(self, now: datetime) -> int:
+        """把 12 个区域停留时长的今日快照写入 area_stay_daily
+
+        与灯光时长完全同一套机制: 每次采样覆盖写「今天」这一行,
+        当天最终值即最后一次采样值; history_stats 从 recorder 历史累计,
+        所以重启/漏采样都不会丢历史, 也不需要额外的累加定时器
+        """
+        today = now.date().isoformat()
+        rows: list[dict[str, Any]] = []
+        for entity_id, area in AREA_STAY_DURATION_ENTITIES.items():
+            state = self.hass.states.get(entity_id)
+            if state is None:
+                continue
+            seconds = hours_state_to_seconds(state.state)
+            if seconds is None:
+                continue
+            rows.append({
+                "entity_id": entity_id,
+                "area_name": area,
+                "period_date": today,
+                "duration_sec": seconds,
+            })
+        if not rows:
+            return 0
+        await self.db.async_upsert_area_stays(rows)
+        _LOGGER.debug("区域停留时长入库: %d 条", len(rows))
         return len(rows)
 
     # =====================================================================

@@ -1,5 +1,17 @@
 # 打印分析卡片 - 修改记录
 
+## 区域停留时长统计入库（新家）(2026-10-28) - 复用灯光时长方案
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 功能 | 新增 `area_stay_daily` 表：12 个区域 history_stats 今日停留时长每 5 分钟快照写入，`entity_id + period_date` 唯一键覆盖更新，跨零点自动结算，历史永久保留 | schemas.sql |
+| 功能 | 新增 `AREA_STAY_DURATION_ENTITIES` 常量（12 个区域停留时长实体 → 区域名） | const.py |
+| 功能 | 新增 `async_upsert_area_stays` / `async_sum_area_stay_today` / `async_fetch_area_stays_today`，并把新表纳入 `purge_device_data` | db.py |
+| 功能 | 新增 `_collect_area_stays`，复用 `hours_state_to_seconds` 小时转秒；`stats["area_stay_today_seconds"]` 读库聚合 | coordinator.py |
+| 功能 | 新增 `sensor.utility_tracker_area_stay_duration_today`（今日 12 区域停留合计，单位 h） | sensor.py |
+| 看板 | 区域活动汇总区改为 2 列：停留最久 + 今日停留合计（读库）；说明补充入库口径与「合计可超 24h」提示 | ui-lovelace.yaml#L1516 |
+| 测试 | 新增 4 个用例（12 区域全覆盖 / 区域名不重复 / 实体 ID 不重复 / 均为 sensor 域），总计 74 个用例通过 | tests/test_utility_tracker.py |
+
 ## 老房自动化与统计数据清理 (2026-10-28)
 
 | 类型 | 内容 | 涉及文件 |

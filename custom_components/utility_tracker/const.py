@@ -66,6 +66,25 @@ LIGHT_AREA_DURATION_ENTITIES: dict[str, str] = {
 }
 
 
+# 12 个区域停留时长 -> 区域名
+# 实体来自 sensor.yaml 中 platform: history_stats 的「区域停留时长」,
+# 值是「今日该区域累计有人小时数」, 每日 0 点归零; 与灯光时长同样每 5 分钟快照入库
+AREA_STAY_DURATION_ENTITIES: dict[str, str] = {
+    "sensor.ke_ting_ting_liu_shi_chang": "客厅",
+    "sensor.zhu_wo_ting_liu_shi_chang": "主卧",
+    "sensor.ci_wo_ting_liu_shi_chang": "次卧",
+    "sensor.bei_wo_ting_liu_shi_chang": "北卧",
+    "sensor.chu_fang_ting_liu_shi_chang": "厨房",
+    "sensor.can_ting_ting_liu_shi_chang": "餐厅",
+    "sensor.zhu_wei_ting_liu_shi_chang": "主卫",
+    "sensor.gong_wei_ting_liu_shi_chang": "公卫",
+    "sensor.gong_wei_gan_qu_ting_liu_shi_chang": "公卫干区",
+    "sensor.nan_yang_tai_ting_liu_shi_chang": "南阳台",
+    "sensor.bei_yang_tai_ting_liu_shi_chang": "北阳台",
+    "sensor.zou_lang_ting_liu_shi_chang": "走廊",
+}
+
+
 def is_light_entity(entity_id: str, friendly_name: str | None) -> bool:
     """判断是否为灯光实体: light.* 全收; switch.* 仅收灯光类"""
     if entity_id.startswith("light."):

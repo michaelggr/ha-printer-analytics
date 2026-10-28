@@ -149,3 +149,19 @@ CREATE TABLE IF NOT EXISTS light_daily (
   KEY idx_entity_date (entity_id, period_date),
   KEY idx_date (period_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='灯光日聚合';
+
+-- 表 9: 区域每日停留时长
+-- 数据来源: sensor.yaml 的 12 个 history_stats 区域停留时长实体,
+-- 每 5 分钟快照今日累计小时数 -> 秒, 同一天覆盖更新, 永久保留历史;
+-- 与灯光时长(表 8)结构一致, 仅数据源换成「有人/无人」统计
+CREATE TABLE IF NOT EXISTS area_stay_daily (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  entity_id VARCHAR(128) NOT NULL COMMENT 'history_stats 传感器实体 ID',
+  area_name VARCHAR(32) NOT NULL COMMENT '区域名',
+  period_date DATE NOT NULL,
+  duration_sec INT NOT NULL DEFAULT 0 COMMENT '当日累计停留时长(秒)',
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uniq_entity_day (entity_id, period_date),
+  KEY idx_area_date (area_name, period_date),
+  KEY idx_date (period_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='区域每日停留时长(history_stats)';

@@ -41,6 +41,7 @@ async def async_setup_entry(
         UtilityTrackerPowerTodaySensor(coordinator, entry),
         UtilityTrackerLightCountTodaySensor(coordinator, entry),
         UtilityTrackerLightDurationTodaySensor(coordinator, entry),
+        UtilityTrackerAreaStayTodaySensor(coordinator, entry),
     ])
 
 
@@ -306,4 +307,24 @@ class UtilityTrackerLightDurationTodaySensor(_BaseSensor):
     def native_value(self):
         sec = (self.coordinator.data or {}).get("light_today_seconds") or 0
         # 秒转小时,保留 2 位小数
+        return round(sec / 3600.0, 2)
+
+
+class UtilityTrackerAreaStayTodaySensor(_BaseSensor):
+    """今日各区域停留时长合计 (秒 -> 小时, 读 area_stay_daily 快照表)"""
+
+    _attr_name = "Area Stay Duration Today"
+    _attr_icon = "mdi:home-clock"
+    _attr_device_class = SensorDeviceClass.DURATION
+    _attr_native_unit_of_measurement = "h"
+    _attr_state_class = SensorStateClass.TOTAL
+
+    def __init__(self, coordinator, entry):
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_area_stay_today"
+
+    @property
+    def native_value(self):
+        sec = (self.coordinator.data or {}).get("area_stay_today_seconds") or 0
+        # 12 个区域分别累计, 合计会大于 24h, 属正常现象
         return round(sec / 3600.0, 2)
