@@ -1,5 +1,20 @@
 ﻿# 打印分析卡片 - 修改记录
 
+## 亮灯统计重构（新家）(2026-10-28) - 老房配置清理 + 按区域主灯重建
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 重构 | 亮灯时长统计从老房机制（input_number 累计 + 30 秒 time_pattern 累加 + template 换算）改为 `history_stats` 原生平台，13 个区域各 1 盏主灯，`start: "{{ today_at() }}"` / `type: time`，每日 0 点自动归零 | sensor.yaml |
+| 删除 | 删除 65 个老房亮灯 template sensor（客厅吸顶灯/沙发灯/卧室灯/灯带/厨房/餐厅/卫生间/浴霸/走廊主灯/走廊卫生间/门口筒灯 的 today/week/month 及累计时长等），templates.yaml 1495 行 → 908 行 | templates.yaml |
+| 功能 | `light_today_total_hours` 汇总实体改为 13 个新区域主灯 id 列表求和（新增南阳台/北阳台/公卫干区，`阳台灯` 更名 `南阳台灯`） | templates.yaml#L889 |
+| 删除 | 删除 12 个老房亮灯自动化（11 个 input_number 累计 + 每日归零），automations.yaml 38 → 26 条 | automations.yaml |
+| 删除 | input_number.yaml 清空（老房 11 个 `light_*_daily_duration` 全部废弃） | input_number.yaml |
+| 删除 | utility_meter.yaml 删除 60 个老房灯具周期 meter（source 已被删除会报错），保留并重建 4 个新家汇总 meter（weekly/monthly/yearly/all_time） | utility_meter.yaml |
+| 功能 | groups.yaml `all_lights` 组改为 13 盏新家主灯 | groups.yaml |
+| 看板 | ui-energy.yaml 新增「灯光」view（path: lights）：今日汇总 / 13 区域主灯 / 24h history-graph / 当前亮灯 auto-entities / 区域主灯快捷开关 | ui-energy.yaml#L638 |
+| 看板 | 删除独立看板 ui-old-lights.yaml 及 configuration.yaml 中的 old-lights dashboard 定义；首页 chips 跳转改指向 `/energy-bills/lights` | configuration.yaml, ui-lovelace.yaml |
+| 数据 | 通过 websocket `recorder/clear_statistics` 清理老房 45 个统计 ID，并 `utility_meter.reset` 归零 4 个汇总 meter（重置前残留 43.51h） | (HA 部署) |
+
 ## Utility Tracker v0.3.0 (2026-10-28) - 分户显示 + 退款单据
 
 | 类型 | 内容 | 涉及文件 |
