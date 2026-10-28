@@ -1,4 +1,21 @@
-# 打印分析卡片 - 修改记录
+﻿# 打印分析卡片 - 修改记录
+
+## utility_tracker v0.3.0 分户 + 燃气退款单据 (2026-10-28)
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 功能 | utility_records 加 `bill_no VARCHAR(64)` 列，UNIQUE KEY 扩展为 5 元组 (type,account,gran,date,bill_no)，支持同月多单据（正常账单 + 退款负数单） | schemas.sql |
+| 功能 | 燃气账单保留原始正负号（移除 `_abs_or_none`），退款为负数、正常为正数；同 period_date 多 applicationNo 独立入库 | coordinator.py#L_backfill_gas_history |
+| 功能 | `async_sum_month_charge` 改按「行数>0」而非「合计>0」判断，负数净额不再误回落到日记录分支 | db.py |
+| 功能 | 新增幂等迁移 `async_migrate_bill_no`（information_schema 查表列）和 `async_migrate_light_brightness`（TINYINT→SMALLINT 修复亮度越界崩溃） | db.py |
+| 修复 | brightness TINYINT(127) 无法存 HA 亮度 0-255，某灯亮度 >127 时 SQL DataError 导致整个 coordinator 崩溃 → 改 SMALLINT + 幂等迁移 | db.py |
+| 修复 | 旧唯一 KEY 缺 bill_no 导致燃气同月多单据互相覆盖 → 扩展 5 元组 | schemas.sql |
+| 修复 | 退款符号被 `_abs_or_none` 取反成欠费金额 → 移除该函数，保留原始符号 | coordinator.py |
+| 修复 | `async_sum_month_charge` `if monthly > 0` 错落空，负数净额误回落日记录分支 → 改按行数判断 | db.py |
+| 修复 | `last_gas_discovery` 永远非空导致 retry 逻辑失效 → 加 `last_gas_accounts` 独立判断 | coordinator.py |
+| 优化 | 移除 `_collect_gas` 里的 live 传感器月账单写入（无 applicationNo 会重复计），全部走历史回填 | coordinator.py |
+| 看板 | ui-energy.yaml 燃气费页新增「出租 · 缴费记录」4 卡片组（最近缴费时间/金额/年度次数/月均用气） | ui-energy.yaml |
+| 测试 | 70 个旧单测 + 43 个新边界测试 = 113 全部通过；新用例覆盖 bill_no 去重/文件名过滤/SQL 字段顺序/负数净额/discover 边界/迁移幂等/重试逻辑 | tests/test_utility_tracker.py + test_utility_tracker_edge.py |
 
 ## 北阳台纳入停留统计（新家）(2026-10-28) - PIR 移动 + 10 分钟超时派生有人
 
