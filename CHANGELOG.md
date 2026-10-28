@@ -1,5 +1,26 @@
 ﻿# 打印分析卡片 - 修改记录
 
+## Grafana 内网直连打通 + 区域停留热力图 (2026-10-28)
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 配置 | Grafana addon (`a0d7b954_grafana`) 增加宿主机端口映射 `80/tcp → 3000`：此前 `network: {"80/tcp": null}` 导致 `192.168.0.130:3000` 拒绝连接。经 HA WebSocket `supervisor/api` 调 `POST /addons/{slug}/options` 设置，并重启 addon 生效（配置持久化，HAOS 重启后保留） | （服务器 Supervisor 配置） |
+| 功能 | 能源看板新增 **「区域停留热力图 (日期 × 区域)」** Heatmap panel：Y 轴 12 个区域名、X 轴日期、色深=当日累计停留小时数，数据源 `area_stay_daily`。panel id 11，gridPos `{h:11,w:24,x:0,y:28}` | Grafana 看板 uid `a67f2s` |
+| 文档 | 记录 Grafana 完整访问方式与踩坑：`/api/hassio/*` REST 对 Long-Lived Token 一律 401，但 WS `supervisor/api` 可用；API 路径必须带 `/api/hassio_ingress/{token}/` 前缀；ingress_token 在 addon 重启后会变 | .trae/rules/project_rules.md |
+
+**热力图 SQL**
+
+```sql
+SELECT period_date AS time, area_name AS metric,
+       ROUND(SUM(duration_sec) / 3600, 2) AS value
+FROM area_stay_daily
+WHERE period_date >= DATE($__timeFrom()) AND period_date <= DATE($__timeTo())
+GROUP BY period_date, area_name
+ORDER BY period_date ASC
+```
+
+**已知限制**：`area_stay_daily` 目前只有 1 天数据，热力图仅 1 列色块；随每日快照积累会自动填充出趋势。
+
 ## 能源看板全量 UI 巡检修复 (2026-10-28)
 
 | 类型 | 内容 | 涉及文件 |
