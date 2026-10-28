@@ -134,7 +134,11 @@ def sum_energy_deltas(
 # 与设备自身的累计电量计数器重复, 同时参与求和会把今日电量放大数倍
 ENERGY_DERIVED_KEYWORDS = (
     "daily", "weekly", "monthly", "yearly", "today",
+    # 上周期派生 (上月/上周/昨日等), 与累计计数器重复
+    "last_day", "last_week", "last_month", "last_year",
+    "yesterday",
     "日用电量", "周用电量", "月用电量", "年用电量", "今日耗电量",
+    "昨日", "上周", "上月", "去年",
     "ri_yong_dian", "zhou_yong_dian", "yue_yong_dian", "nian_yong_dian",
 )
 

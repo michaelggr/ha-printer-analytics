@@ -549,6 +549,10 @@ class UtilityDB:
                     continue
                 if is_excluded_energy_entity(row["entity_id"]):
                     continue
+                # 历史遗留: 组件级功率 (CPU/GPU/压缩机) 早期未在入库阶段过滤,
+                # 查询时补过滤, 与 async_current_total_power 口径一致
+                if is_component_power_entity(row["entity_id"], row["friendly_name"]):
+                    continue
                 if row["s"] is not None:
                     total += float(row["s"])
             return total
@@ -578,10 +582,61 @@ class UtilityDB:
                     continue
                 if is_excluded_energy_entity(row["entity_id"]):
                     continue
+                if is_component_power_entity(row["entity_id"], row["friendly_name"]):
+                    continue
                 kwh = float(row["s"]) if row["s"] is not None else 0.0
+                # 隐藏今日耗电为 0 的设备 (与 power_periods_by_device 口径一致)
+                if kwh <= 0:
+                    continue
                 # 用 friendly_name 作为展示名, 缺失时回退 entity_id
                 name = row["friendly_name"] or row["entity_id"]
                 result.append({"entity_id": row["entity_id"], "name": name, "kwh": kwh})
+            return result
+        return await self.hass.async_add_executor_job(_q)
+
+    async def async_fetch_power_periods_by_device(self) -> list[dict[str, Any]]:
+        """各设备多周期耗电明细 (今日/昨日/本周/本月/累计), 按累计降序
+
+        单条 SQL 用 CASE WHEN 一次聚合出 5 个周期, 避免 5 次查询。
+        过滤口径与 async_sum_power_today 一致, 跳过派生电量与排除列表。
+        """
+        def _q():
+            conn = self._get_conn_sync()
+            with conn.cursor() as cur:
+                # YEARWEEK(x, 1) 以周一为一周起点, 与习惯一致
+                cur.execute(
+                    "SELECT entity_id, MAX(friendly_name) AS friendly_name, "
+                    "       COALESCE(SUM(CASE WHEN DATE(hour_start) = CURDATE() THEN energy_kwh END),0) AS today_kwh, "
+                    "       COALESCE(SUM(CASE WHEN DATE(hour_start) = CURDATE() - INTERVAL 1 DAY THEN energy_kwh END),0) AS yesterday_kwh, "
+                    "       COALESCE(SUM(CASE WHEN YEARWEEK(hour_start, 1) = YEARWEEK(CURDATE(), 1) THEN energy_kwh END),0) AS week_kwh, "
+                    "       COALESCE(SUM(CASE WHEN YEAR(hour_start) = YEAR(CURDATE()) AND MONTH(hour_start) = MONTH(CURDATE()) THEN energy_kwh END),0) AS month_kwh, "
+                    "       COALESCE(SUM(energy_kwh),0) AS total_kwh "
+                    "FROM device_power_hourly "
+                    "GROUP BY entity_id "
+                    "ORDER BY total_kwh DESC"
+                )
+                rows = cur.fetchall()
+            result = []
+            for row in rows:
+                if is_derived_energy_entity(row["entity_id"], row["friendly_name"]):
+                    continue
+                if is_excluded_energy_entity(row["entity_id"]):
+                    continue
+                if is_component_power_entity(row["entity_id"], row["friendly_name"]):
+                    continue
+                total = round(float(row["total_kwh"] or 0), 3)
+                # 隐藏累计为 0 的设备 (从未产生能量记录, 通常是数据采集异常的功率实体)
+                if total <= 0:
+                    continue
+                result.append({
+                    "entity_id": row["entity_id"],
+                    "name": row["friendly_name"] or row["entity_id"],
+                    "today": round(float(row["today_kwh"] or 0), 3),
+                    "yesterday": round(float(row["yesterday_kwh"] or 0), 3),
+                    "week": round(float(row["week_kwh"] or 0), 3),
+                    "month": round(float(row["month_kwh"] or 0), 3),
+                    "total": total,
+                })
             return result
         return await self.hass.async_add_executor_job(_q)
 
