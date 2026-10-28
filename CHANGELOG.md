@@ -1,4 +1,4 @@
-## 打印分析卡片 - 修改记录
+﻿## 打印分析卡片 - 修改记录
 
 ## 智能家居看板设备覆盖补齐（2026-10-28）
 
@@ -11,6 +11,8 @@
 | 功能 | 餐厅补餐厅开关 4 键、暖菜板、电饭煲与破壁机状态/剩余时间；厨房补洗碗机开关/状态/剩余、烟雾报警、7 个智能插座 | ui-lovelace.yaml |
 | 功能 | 客厅补 Apple TV 媒体播放器+遥控、客厅路由器上下行与 IP；阳台补南阳台开关 4 键、灭蚊灯、北阳台光照与电量、洗衣机插座；门口补 3 个开关按键与门口通风扇；卫生间补公卫门磁、干区水浸状态与报警开关；室外补季节、雨水布防模式与电量状态 | ui-lovelace.yaml |
 | 验证 | 用设备注册表全量比对（338 个设备 / 8 个看板）后复核：有区域的可控设备已全部出现在「我的智能家居」；本地 YAML 解析通过、0 个不存在的实体引用、上传后 MD5 与服务端一致；HA 重启后浏览器实测 弱电箱 / 打印机空间 两页渲染正常、无配置错误提示 | (服务器 + 浏览器) |
+| 功能 | 弱电箱「电源」分区补齐 giot 智能插座（设备名 nas）主开关 `switch.giot_cn_1163256502_v8icm_on_p_2_1` 与功率/电压/电流三读数，分区卡片由 1 张扩展到 5 张；至此弱电箱 4 个物理设备（Ups0、中枢网关、giot nas 插座、yutai nas 电源）全部覆盖 | ui-lovelace.yaml#L2247-2281 |
+| 备注 | 未加入的仅剩诊断/事件类实体：`sensor.ups0_status_data`(OL，与 ups0_status 重复)、`sensor.*hub1_dhcp_server_mac_adress`、网关 event/notify/text、`sensor.giot_*_power_consumption_p_4_1`(单位标为 mWh 有误)、国家电网 `last_month_meter_reading`(unknown) | - |
 | 备注 | 原文件备份为 `ui-lovelace.yaml.bak`；YAML 模式看板需重启 HA 生效；a1mini 实体当前 `unavailable` 属设备离线，非配置问题 | ui-lovelace.yaml.bak |
 
 ## 全局维持 Supervisor ingress 会话（修复所有加载项 Web UI 401）（2026-10-28）
