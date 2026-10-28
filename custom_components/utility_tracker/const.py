@@ -46,6 +46,26 @@ LIGHT_SWITCH_ID_KEYWORDS = ("light", "lamp")
 LIGHT_SWITCH_NAME_KEYWORDS = ("灯", "light", "lamp")
 
 
+# 13 个区域主灯 -> 区域名
+# 实体来自 sensor.yaml 中 platform: history_stats 的「区域灯亮灯时长」,
+# 其值即「今日该灯累计亮灯小时数」,每日 0 点归零,是入库时长的权威来源
+LIGHT_AREA_DURATION_ENTITIES: dict[str, str] = {
+    "sensor.ke_ting_deng_liang_deng_shi_chang": "客厅",
+    "sensor.zhu_wo_deng_liang_deng_shi_chang": "主卧",
+    "sensor.ci_wo_deng_liang_deng_shi_chang": "次卧",
+    "sensor.bei_wo_deng_liang_deng_shi_chang": "北卧",
+    "sensor.chu_fang_deng_liang_deng_shi_chang": "厨房",
+    "sensor.can_ting_deng_liang_deng_shi_chang": "餐厅",
+    "sensor.zhu_wei_deng_liang_deng_shi_chang": "主卫",
+    "sensor.gong_wei_deng_liang_deng_shi_chang": "公卫",
+    "sensor.nan_yang_tai_deng_liang_deng_shi_chang": "南阳台",
+    "sensor.bei_yang_tai_deng_liang_deng_shi_chang": "北阳台",
+    "sensor.zou_lang_deng_liang_deng_shi_chang": "走廊",
+    "sensor.men_kou_deng_liang_deng_shi_chang": "门口",
+    "sensor.gong_wei_gan_qu_deng_liang_deng_shi_chang": "公卫干区",
+}
+
+
 def is_light_entity(entity_id: str, friendly_name: str | None) -> bool:
     """判断是否为灯光实体: light.* 全收; switch.* 仅收灯光类"""
     if entity_id.startswith("light."):

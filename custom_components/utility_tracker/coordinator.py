@@ -32,6 +32,7 @@ from .const import (
     GRANULARITY_MONTH,
     LIGHT_ACTION_OFF,
     LIGHT_ACTION_ON,
+    LIGHT_AREA_DURATION_ENTITIES,
     POWER_DEVICE_CLASSES,
     SOURCE_CRCGAS,
     SOURCE_STATE_GRID,
@@ -42,6 +43,25 @@ from .const import (
 from .db import UtilityDB
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def hours_state_to_seconds(value: str | float | None) -> int | None:
+    """把 history_stats 输出的「小时」值转成秒
+
+    无效值 (None / unknown / unavailable / 非数字 / 负数) 返回 None,
+    由调用方跳过,避免把脏数据写进数据库
+    """
+    if value is None:
+        return None
+    if isinstance(value, str) and value in ("unknown", "unavailable", ""):
+        return None
+    try:
+        hours = float(value)
+    except (TypeError, ValueError):
+        return None
+    if hours < 0:
+        return None
+    return int(round(hours * 3600))
 
 
 class UtilityTrackerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
@@ -100,6 +120,7 @@ class UtilityTrackerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "gas_snapshots": 0,
             "power_samples": 0,
             "light_events": 0,
+            "light_durations": 0,
         }
         try:
             # HA 容器运行在 UTC,需显式转成本地时区;
@@ -141,6 +162,8 @@ class UtilityTrackerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 stats["power_samples"] = await self._collect_device_power(now)
             if self.enable_light_stats:
                 stats["light_events"] = await self._collect_light_stats(now)
+                # 区域主灯每日时长入库 (history_stats 快照, 权威时长来源)
+                stats["light_durations"] = await self._collect_light_durations(now)
 
             # ---- 低频任务: 电费/燃气 (按 sync_interval 节流) ----
             utility_due = (
@@ -192,9 +215,13 @@ class UtilityTrackerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 stats["power_current_w"] = await self.db.async_current_total_power()
                 stats["power_today_kwh"] = await self.db.async_sum_power_today()
             if self.enable_light_stats:
-                on_count, on_sec = await self.db.async_sum_light_today()
+                # 开灯次数来自事件流表 light_daily
+                on_count, _ = await self.db.async_sum_light_today()
                 stats["light_today_count"] = on_count
-                stats["light_today_seconds"] = on_sec
+                # 亮灯时长来自 history_stats 快照表 (与区域灯实体一致)
+                stats["light_today_seconds"] = (
+                    await self.db.async_sum_light_duration_today()
+                )
 
             self.last_sync = now
             self.last_error = None
@@ -301,6 +328,34 @@ class UtilityTrackerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 rebuild()
 
         return len(events)
+
+    async def _collect_light_durations(self, now: datetime) -> int:
+        """把 13 个区域主灯 history_stats 的今日时长快照写入 light_duration_daily
+
+        与设备功耗同样思路: 每次采样覆盖写「今天」这一行,
+        所以重启/漏采样都不会丢历史, 当天最终值即最后一次采样值;
+        history_stats 本身从 recorder 历史累计, 不依赖本集成的开关事件流
+        """
+        today = now.date().isoformat()
+        rows: list[dict[str, Any]] = []
+        for entity_id, area in LIGHT_AREA_DURATION_ENTITIES.items():
+            state = self.hass.states.get(entity_id)
+            if state is None:
+                continue
+            seconds = hours_state_to_seconds(state.state)
+            if seconds is None:
+                continue
+            rows.append({
+                "entity_id": entity_id,
+                "area_name": area,
+                "period_date": today,
+                "duration_sec": seconds,
+            })
+        if not rows:
+            return 0
+        await self.db.async_upsert_light_durations(rows)
+        _LOGGER.debug("区域主灯时长入库: %d 条", len(rows))
+        return len(rows)
 
     # =====================================================================
     # 电费 (state_grid)

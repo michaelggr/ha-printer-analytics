@@ -1,4 +1,4 @@
-﻿"""Utility Tracker 单元测试
+"""Utility Tracker 单元测试
 
 测试纯函数和工具逻辑,不依赖 HA 运行环境。
 """
@@ -654,6 +654,50 @@ class TestIsLightEntity(unittest.TestCase):
 
     def test_None名称_不报错(self):
         self.assertFalse(_is_light_entity("switch.plug", None))
+
+
+def _hours_state_to_seconds(value):
+    """history_stats 小时数 -> 秒 (从 coordinator.py 复制)"""
+    if value is None:
+        return None
+    if isinstance(value, str) and value in ("unknown", "unavailable", ""):
+        return None
+    try:
+        hours = float(value)
+    except (TypeError, ValueError):
+        return None
+    if hours < 0:
+        return None
+    return int(round(hours * 3600))
+
+
+class TestHoursStateToSeconds(unittest.TestCase):
+    """测试区域主灯时长快照入库前的单位换算"""
+
+    def test_正常小时转秒(self):
+        self.assertEqual(_hours_state_to_seconds("1"), 3600)
+        self.assertEqual(_hours_state_to_seconds("0.5"), 1800)
+        self.assertEqual(_hours_state_to_seconds(2.25), 8100)
+
+    def test_浮点精度_四舍五入到秒(self):
+        # history_stats 常见输出为带小数的浮点字符串
+        self.assertEqual(_hours_state_to_seconds("5.85937786579132"), 21094)
+        self.assertEqual(_hours_state_to_seconds("0.0083618379301495"), 30)
+
+    def test_零值_正常(self):
+        self.assertEqual(_hours_state_to_seconds("0"), 0)
+        self.assertEqual(_hours_state_to_seconds("0.0"), 0)
+
+    def test_无效状态_返回None(self):
+        self.assertIsNone(_hours_state_to_seconds(None))
+        self.assertIsNone(_hours_state_to_seconds("unknown"))
+        self.assertIsNone(_hours_state_to_seconds("unavailable"))
+        self.assertIsNone(_hours_state_to_seconds(""))
+        self.assertIsNone(_hours_state_to_seconds("abc"))
+
+    def test_负数_返回None(self):
+        self.assertIsNone(_hours_state_to_seconds("-1"))
+        self.assertIsNone(_hours_state_to_seconds(-0.5))
 
 
 if __name__ == "__main__":

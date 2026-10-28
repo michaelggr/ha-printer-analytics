@@ -167,6 +167,30 @@ class UtilityDB:
                 )
         await self.hass.async_add_executor_job(_exec)
 
+    async def async_migrate_light_brightness(self) -> None:
+        """v2 迁移: light_events.brightness TINYINT→SMALLINT
+
+        背景: HA brightness 范围 0-255, TINYINT 最大 127,写入越界时整个 coordinator 崩溃。
+        幂等: 已改为 SMALLINT 则跳过。
+        """
+        def _exec():
+            conn = self._get_conn_sync()
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT DATA_TYPE FROM information_schema.COLUMNS "
+                    "WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='light_events' "
+                    "AND COLUMN_NAME='brightness'"
+                )
+                row = cur.fetchone()
+                if row and row["DATA_TYPE"].lower() in ("smallint", "int"):
+                    return
+                _LOGGER.warning("迁移 light_events: brightness TINYINT→SMALLINT")
+                cur.execute(
+                    "ALTER TABLE light_events MODIFY COLUMN brightness SMALLINT NULL "
+                    "COMMENT '亮度 0-255 (开灯时)'"
+                )
+        await self.hass.async_add_executor_job(_exec)
+
     # ---------- 记录写入 ----------
 
     @staticmethod
@@ -383,6 +407,7 @@ class UtilityDB:
                 for table in (
                     "device_power_raw", "device_power_hourly",
                     "device_power_daily", "light_events", "light_daily",
+                    "light_duration_daily",
                 ):
                     cur.execute(f"DELETE FROM {table}")
                     result[table] = cur.rowcount
@@ -518,6 +543,45 @@ class UtilityDB:
                 if not row:
                     return 0, 0
                 return int(row["c"]), int(row["s"])
+        return await self.hass.async_add_executor_job(_q)
+
+    async def async_upsert_light_durations(self, rows: list[dict[str, Any]]) -> int:
+        """批量写入区域主灯每日亮灯时长 (同上一天覆盖更新)
+
+        rows 元素: {entity_id, area_name, period_date, duration_sec}
+        """
+        if not rows:
+            return 0
+
+        sql = (
+            "INSERT INTO light_duration_daily "
+            "(entity_id, area_name, period_date, duration_sec) "
+            "VALUES (%s,%s,%s,%s) "
+            "ON DUPLICATE KEY UPDATE "
+            " area_name=VALUES(area_name), duration_sec=VALUES(duration_sec)"
+        )
+        params = [
+            (r["entity_id"], r["area_name"], r["period_date"], r["duration_sec"])
+            for r in rows
+        ]
+
+        def _exec():
+            conn = self._get_conn_sync()
+            with conn.cursor() as cur:
+                return cur.executemany(sql, params)
+        return await self.hass.async_add_executor_job(_exec)
+
+    async def async_sum_light_duration_today(self) -> int:
+        """返回今日 13 个区域主灯亮灯秒数合计 (来自 history_stats 快照表)"""
+        def _q():
+            conn = self._get_conn_sync()
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT COALESCE(SUM(duration_sec),0) AS s "
+                    "FROM light_duration_daily WHERE period_date = CURDATE()"
+                )
+                row = cur.fetchone()
+                return int(row["s"]) if row and row["s"] is not None else 0
         return await self.hass.async_add_executor_job(_q)
 
     async def async_delete_utility_records(

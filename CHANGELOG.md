@@ -1,4 +1,17 @@
-﻿# 打印分析卡片 - 修改记录
+# 打印分析卡片 - 修改记录
+
+## 灯光统计重构入库（新家）(2026-10-28) - history_stats 每日时长写入 MariaDB
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 功能 | 新增表 `light_duration_daily`（entity_id + period_date 唯一，area_name / duration_sec / updated_at），长期保留区域主灯每日亮灯时长 | schemas.sql#表8 |
+| 功能 | 新增 `async_upsert_light_durations` / `async_sum_light_duration_today`，同一天覆盖更新，SUM 取今日总时长 | db.py |
+| 功能 | 每 5 分钟采样 13 个区域主灯 `history_stats` 今日小时数（`hours_state_to_seconds` 转秒）写入 DB；`Longest/统计` 口径统一 | coordinator.py |
+| 重构 | `sensor.utility_tracker_light_duration_today` 改由新表汇总（与区域灯实体合计一致，今日 12.28h），开关次数仍取事件流表 `light_daily` | coordinator.py |
+| 清理 | 删除 61 个老房 UI 模板配置条目（45 个「xx灯周/月/年亮灯时长h」、7 个「xx灯今日亮灯时长」、7 个「xx停留时长」、2 个旧汇总） | 服务器 .storage |
+| 修复 | 清理 14 个孤儿模板实体与 2 个孤儿自动化注册项，并把 3 个被挤成 `_2` 的停留时长实体改回基础 ID（客厅/厨房/餐厅） | 服务器实体注册表 |
+| 测试 | 新增 TestHoursStateToSeconds 5 个用例（正常/浮点精度/零值/无效状态/负数），utility_tracker 单测 70 个全部通过 | tests/test_utility_tracker.py |
+| 看板 | 灯光视图末尾新增「统计口径」markdown，说明 history_stats 与 DB 双轨口径 | ui-energy.yaml#L825 |
 
 ## 区域停留时长重建（新家）(2026-10-28) - history_stats 替换老房 input_number 累计
 
@@ -40,6 +53,8 @@
 | 数据 | 一次性清理 v2 (.storage 标记): 删未知 account_id 脏记录 + 两户全部旧 gas 月记录,按新规则重建 (total_records 141→161) | coordinator.py `_async_update_data` |
 | 测试 | TestGasBillMapping 更新: 退款保留负号 / 同月多单据按 bill_no 区分且净额 -47.46 / bill_no 缺失 auto- 序号兜底; 新增 TestMultiAccountSplit 4 用例; 总数 65 个 | tests/test_utility_tracker.py |
 | 看板 | ui-energy.yaml 概览/电费/燃气费页分户卡片 (自住 vs 出租分开显示,不加总) | ui-energy.yaml |
+| 看板 | 燃气费页新增「出租 · 缴费记录」卡片组 (最近缴费时间/金额/年度次数/月均用气) | ui-energy.yaml |
+| 修复 | light_events.brightness TINYINT(最大 127)→SMALLINT(HA 亮度范围 0-255),写越界时整个 coordinator 崩溃导致全部 utility_tracker 实体 unavailable; 新增幂等迁移 `async_migrate_light_brightness` 启动时自动检查列类型 | schemas.sql, db.py `async_migrate_light_brightness`, __init__.py |
 
 ## crcgas 华润燃气 v2.0.0 (2026-10-28) - 多户化重构
 

@@ -107,13 +107,34 @@ CREATE TABLE IF NOT EXISTS light_events (
   friendly_name VARCHAR(128) NULL,
   event_time DATETIME NOT NULL COMMENT '事件时间',
   action ENUM('on','off') NOT NULL COMMENT '动作',
-  brightness TINYINT NULL COMMENT '亮度 0-255 (开灯时)',
+  brightness SMALLINT NULL COMMENT '亮度 0-255 (开灯时, TINYINT 不够存 255)',
   color_temp SMALLINT NULL COMMENT '色温 mired',
   KEY idx_entity_time (entity_id, event_time),
   KEY idx_time (event_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='灯光开关事件';
 
--- 表 7: 灯光日聚合 (永久保留)
+-- =====================================================================
+-- 区域主灯每日亮灯时长 (history_stats 快照, 永久保留)
+-- =====================================================================
+
+-- 表 8: 区域主灯每日亮灯时长
+-- 数据来源: sensor.yaml 的 13 个 history_stats 区域主灯实体,
+-- 每 5 分钟快照今日累计小时数 -> 秒, 同一天覆盖更新;
+-- 与表 7 light_daily(事件流, 记录开关次数/亮度) 分工:
+--   本表是「亮灯时长」的权威来源, 表 7 负责「开关次数/首次开灯/最后关灯」
+CREATE TABLE IF NOT EXISTS light_duration_daily (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  entity_id VARCHAR(128) NOT NULL COMMENT 'history_stats 传感器实体 ID',
+  area_name VARCHAR(32) NOT NULL COMMENT '区域名',
+  period_date DATE NOT NULL,
+  duration_sec INT NOT NULL DEFAULT 0 COMMENT '当日累计亮灯时长(秒)',
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uniq_entity_day (entity_id, period_date),
+  KEY idx_area_date (area_name, period_date),
+  KEY idx_date (period_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='区域主灯每日亮灯时长(history_stats)';
+
+-- 表 7: 灯光日聚合 (事件流: 开关次数/首次开灯/最后关灯/平均亮度, 永久保留)
 CREATE TABLE IF NOT EXISTS light_daily (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   entity_id VARCHAR(128) NOT NULL,
