@@ -1,4 +1,14 @@
-# 打印分析卡片 - 修改记录
+﻿# 打印分析卡片 - 修改记录
+
+## 区域停留排行榜（独立 sensor）(2026-10-28)
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 功能 | 新增 `async_fetch_area_stays_month` (本月 1 日至今按区域分组明细) | db.py |
+| 功能 | coordinator 新增 `area_stay_week_ranking` / `area_stay_month_ranking` 聚合明细 | coordinator.py |
+| 功能 | 新增 Ranking sensor `sensor.utility_tracker_area_stay_week_ranking` / `sensor.utility_tracker_area_stay_month_ranking`，state 为短 CSV 格式（`区域名=X.Xh`），避开 HA entity state 长度上限 | sensor.py |
+| 看板 | View 6「区域停留」新增 **区域停留排行榜** 卡片（周/月各一个 markdown card，jinja2 split 解析 CSV） | ui-energy.yaml |
+| 备注 | **踩坑**：HA entity native_value 有长度上限（~500 chars），`json.dumps()` 完整 JSON 会被截断导致 state=unknown，改用 CSV 短格式 (~180 chars) 解决 | sensor.py |
 
 ## 区域停留周/月聚合 + 能源账单看板 (2026-10-28)
 

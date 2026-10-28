@@ -44,6 +44,9 @@ async def async_setup_entry(
         UtilityTrackerAreaStayTodaySensor(coordinator, entry),
         UtilityTrackerAreaStayWeekSensor(coordinator, entry),
         UtilityTrackerAreaStayMonthSensor(coordinator, entry),
+        # 区域排行榜 JSON sensor (state 为 JSON 字符串, Lovelace 里 from_json 解析)
+        UtilityTrackerAreaStayWeekRankingSensor(coordinator, entry),
+        UtilityTrackerAreaStayMonthRankingSensor(coordinator, entry),
     ])
 
 
@@ -368,3 +371,47 @@ class UtilityTrackerAreaStayMonthSensor(_BaseSensor):
     def native_value(self):
         sec = (self.coordinator.data or {}).get("area_stay_month_seconds") or 0
         return round(sec / 3600.0, 2)
+
+
+class UtilityTrackerAreaStayWeekRankingSensor(_BaseSensor):
+    """近 7 日区域停留排行榜 (JSON string, 供看板渲染)"""
+
+    _attr_name = "Area Stay Week Ranking"
+    _attr_icon = "mdi:podium"
+
+    def __init__(self, coordinator, entry):
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_area_stay_week_ranking"
+
+    @property
+    def native_value(self):
+        import json as _json
+        data = self.coordinator.data or {}
+        rank = data.get("area_stay_week_ranking") or []
+        # 短格式: area1=H:MM,area2=H:MM,... (每区域 ~15 字符, 12 区域 ~180 字符)
+        parts = []
+        for r in rank:
+            h = r.get("duration_sec", 0) / 3600.0
+            parts.append(f"{r.get('area_name','?')}={h:.1f}h")
+        return ",".join(parts) if parts else "empty"
+
+
+class UtilityTrackerAreaStayMonthRankingSensor(_BaseSensor):
+    """本月区域停留排行榜 (短 CSV 格式, 供看板渲染)"""
+
+    _attr_name = "Area Stay Month Ranking"
+    _attr_icon = "mdi:podium"
+
+    def __init__(self, coordinator, entry):
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_area_stay_month_ranking"
+
+    @property
+    def native_value(self):
+        data = self.coordinator.data or {}
+        rank = data.get("area_stay_month_ranking") or []
+        parts = []
+        for r in rank:
+            h = r.get("duration_sec", 0) / 3600.0
+            parts.append(f"{r.get('area_name','?')}={h:.1f}h")
+        return ",".join(parts) if parts else "empty"

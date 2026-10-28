@@ -683,6 +683,23 @@ class UtilityDB:
                 ]
         return await self.hass.async_add_executor_job(_q)
 
+    async def async_fetch_area_stays_month(self) -> list[dict[str, Any]]:
+        """本月 1 日至今 各区域停留合计 (区域名/秒数), 供看板排行榜"""
+        def _q():
+            conn = self._get_conn_sync()
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT area_name, SUM(duration_sec) AS total_sec "
+                    "FROM area_stay_daily "
+                    "WHERE period_date >= DATE_SUB(CURDATE(), INTERVAL DAY(CURDATE())-1 DAY) "
+                    "GROUP BY area_name ORDER BY total_sec DESC"
+                )
+                return [
+                    {"area_name": r["area_name"], "duration_sec": int(r["total_sec"])}
+                    for r in cur.fetchall()
+                ]
+        return await self.hass.async_add_executor_job(_q)
+
     async def async_delete_utility_records(
         self, utility_type: str, account_id: str, granularity: str | None = None
     ) -> int:

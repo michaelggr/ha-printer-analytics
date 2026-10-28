@@ -1,0 +1,1070 @@
+﻿---
+# 能源账单看板 (电费 + 燃气费)
+# 数据源: state_grid (国网) + crcgas (华润燃气) + utility_tracker (MariaDB 统计)
+title: 能源账单
+views:
+  # ============================================================
+  # View 1: 概览
+  # ============================================================
+  - title: 概览
+    icon: mdi:view-dashboard
+    path: overview
+    cards:
+      # ---------- 顶部问候 ----------
+      - type: custom:mushroom-template-card
+        primary: 能源账单
+        secondary: >-
+          {% set elec_m = states('sensor.utility_tracker_electricity_this_month_main') | float(0) %}
+          {% set elec_r = states('sensor.utility_tracker_electricity_this_month_rental') | float(0) %}
+          {% set gas_m = states('sensor.utility_tracker_gas_this_month_main') | float(0) %}
+          {% set gas_r = states('sensor.utility_tracker_gas_this_month_rental') | float(0) %}
+          自住 · 电费 ¥{{ '%.2f' | format(elec_m) }} / 燃气费 ¥{{ '%.2f' | format(gas_m) }}
+          出租 · 电费 ¥{{ '%.2f' | format(elec_r) }} / 燃气费 ¥{{ '%.2f' | format(gas_r) }}
+        icon: mdi:cash-multiple
+        icon_color: green
+        multiline_secondary: true
+
+      # ---------- 关键指标 chips ----------
+      - type: custom:mushroom-chips-card
+        chips:
+          - type: template
+            icon: mdi:flash
+            content: >-
+              自¥{{ states('sensor.99_681845e394434cdbb0e9c0538145c306_02_osg_uc_2610271638_002_0065_account_balance') }}
+            tap_action:
+              action: more-info
+              entity: sensor.99_681845e394434cdbb0e9c0538145c306_02_osg_uc_2610271638_002_0065_account_balance
+          - type: template
+            icon: mdi:flash-outline
+            content: >-
+              租¥{{ states('sensor.99_6aefa11d6e8945fca3a9f9c28433cdb7_02_osg_uc_2610271638_002_7061_account_balance') }}
+            tap_action:
+              action: more-info
+              entity: sensor.99_6aefa11d6e8945fca3a9f9c28433cdb7_02_osg_uc_2610271638_002_7061_account_balance
+          - type: template
+            icon: mdi:fire
+            content: >-
+              自¥{{ states('sensor.hua_run_ran_qi_ran_qi_zhang_hu_yu_e') }}
+            tap_action:
+              action: more-info
+              entity: sensor.hua_run_ran_qi_ran_qi_zhang_hu_yu_e
+          - type: template
+            icon: mdi:fire-circle
+            content: >-
+              租¥{{ states('sensor.hua_run_ran_qi_1021540961_ran_qi_zhang_hu_yu_e_fu_xin') }}
+            tap_action:
+              action: more-info
+              entity: sensor.hua_run_ran_qi_1021540961_ran_qi_zhang_hu_yu_e_fu_xin
+          - type: template
+            icon: mdi:database
+            content: >-
+              {{ states('sensor.utility_tracker_total_records') }} 条
+            tap_action:
+              action: more-info
+              entity: sensor.utility_tracker_total_records
+          - type: template
+            icon: mdi:sync
+            content: >-
+              {{ states('sensor.utility_tracker_db_status') }}
+            tap_action:
+              action: more-info
+              entity: sensor.utility_tracker_db_status
+
+      # ---------- 本月汇总 (自住 vs 出租) ----------
+      - type: custom:mushroom-title-card
+        title: 自住 · 东方新天地2-4-1201
+        icon: mdi:home
+        alignment: left
+        subtitle: 本月电费/燃气账单
+      - type: grid
+        columns: 2
+        square: false
+        cards:
+          - type: custom:mushroom-entity-card
+            entity: sensor.99_681845e394434cdbb0e9c0538145c306_02_osg_uc_2610271638_002_0065_current_month_usage
+            name: 本月用电
+            icon: mdi:lightning-bolt
+            icon_color: orange
+          - type: custom:mushroom-entity-card
+            entity: sensor.hua_run_ran_qi_ben_qi_yong_qi_liang
+            name: 本月用气
+            icon: mdi:fire
+            icon_color: red
+          - type: custom:mushroom-entity-card
+            entity: sensor.utility_tracker_electricity_this_month_main
+            name: 本月电费
+            icon: mdi:cash
+            icon_color: amber
+          - type: custom:mushroom-entity-card
+            entity: sensor.hua_run_ran_qi_zhang_dan_jin_e
+            name: 本期燃气账单
+            icon: mdi:receipt
+            icon_color: blue
+
+      - type: custom:mushroom-title-card
+        title: 出租 · 东方佳园14-1-401
+        icon: mdi:key-variant
+        alignment: left
+        subtitle: 本月电费/燃气账单
+      - type: grid
+        columns: 2
+        square: false
+        cards:
+          - type: custom:mushroom-entity-card
+            entity: sensor.99_6aefa11d6e8945fca3a9f9c28433cdb7_02_osg_uc_2610271638_002_7061_current_month_usage
+            name: 本月用电
+            icon: mdi:lightning-bolt
+            icon_color: amber
+          - type: custom:mushroom-entity-card
+            entity: sensor.hua_run_ran_qi_1021540961_ben_qi_yong_qi_liang_fu_xin
+            name: 本月用气
+            icon: mdi:fire
+            icon_color: red
+          - type: custom:mushroom-entity-card
+            entity: sensor.utility_tracker_electricity_this_month_rental
+            name: 本月电费
+            icon: mdi:cash
+            icon_color: amber
+          - type: custom:mushroom-entity-card
+            entity: sensor.hua_run_ran_qi_1021540961_zhang_dan_jin_e_fu_xin
+            name: 本期燃气账单
+            icon: mdi:receipt
+            icon_color: blue
+
+      # ---------- 电信话费 (199****7382) ----------
+      - type: custom:mushroom-title-card
+        title: 电信话费
+        icon: mdi:phone
+        alignment: left
+        subtitle: 199****7382 套餐 · 余额 / 流量 / 通话
+      - type: custom:ctm-telecom-card
+        device_id: 88311b83e60b69a0329ea5b95b34bb71
+        title: 电信 199****7382
+        balance_warning_below: 10
+        usage_warning_percent: 80
+        usage_danger_percent: 95
+      # 关键指标 chips
+      - type: custom:mushroom-chips-card
+        chips:
+          - type: template
+            icon: mdi:cash
+            content: >-
+              ¥{{ states('sensor.199_7382_tao_can_xin_xi_199_7382_dian_xin_zhang_hu_yu_e') }}
+            tap_action:
+              action: more-info
+              entity: sensor.199_7382_tao_can_xin_xi_199_7382_dian_xin_zhang_hu_yu_e
+          - type: template
+            icon: mdi:network
+            content: >-
+              流量 {{ states('sensor.199_7382_tao_can_xin_xi_199_7382_liu_liang_shi_yong_lu') }}%
+            tap_action:
+              action: more-info
+              entity: sensor.199_7382_tao_can_xin_xi_199_7382_liu_liang_shi_yong_lu
+          - type: template
+            icon: mdi:phone
+            content: >-
+              通话余 {{ states('sensor.199_7382_tao_can_xin_xi_199_7382_tong_hua_sheng_yu') }}分钟
+            tap_action:
+              action: more-info
+              entity: sensor.199_7382_tao_can_xin_xi_199_7382_tong_hua_sheng_yu
+          - type: template
+            icon: mdi:refresh
+            content: >-
+              {{ states('sensor.199_7382_tao_can_xin_xi_199_7382_shu_ju_geng_xin_shi_jian') | as_datetime | relative_time }}
+            tap_action:
+              action: more-info
+              entity: sensor.199_7382_tao_can_xin_xi_199_7382_shu_ju_geng_xin_shi_jian
+
+      # ---------- 近30天用电趋势 ----------
+      - type: custom:apexcharts-card
+        header:
+          show: true
+          title: 近30天每日用电 (含峰谷)
+          show_states: true
+          colorize_states: true
+        graph_span: 30d
+        span:
+          end: day
+        series:
+          - entity: sensor.99_6aefa11d6e8945fca3a9f9c28433cdb7_02_osg_uc_2610271638_002_7061_previous_daily_usage
+            name: 东方佳园14-1-401
+            type: column
+            color: '#FFB74D'
+          - entity: sensor.99_681845e394434cdbb0e9c0538145c306_02_osg_uc_2610271638_002_0065_previous_daily_usage
+            name: 东方新天地2-4-1201
+            type: column
+            color: '#64B5F6'
+
+      # ---------- 本年累计 ----------
+      - type: custom:mushroom-title-card
+        title: 本年累计电费
+        subtitle: 两户年度电量与费用
+        icon: mdi:counter
+        alignment: left
+      - type: grid
+        columns: 2
+        square: false
+        cards:
+          - type: custom:mushroom-entity-card
+            entity: sensor.99_6aefa11d6e8945fca3a9f9c28433cdb7_02_osg_uc_2610271638_002_7061_current_year_usage
+            name: 本年电量 (东方佳园14-1-401)
+            icon: mdi:counter
+            icon_color: green
+          - type: custom:mushroom-entity-card
+            entity: sensor.99_6aefa11d6e8945fca3a9f9c28433cdb7_02_osg_uc_2610271638_002_7061_current_year_charge
+            name: 本年电费 (东方佳园14-1-401)
+            icon: mdi:cash
+            icon_color: green
+          - type: custom:mushroom-entity-card
+            entity: sensor.99_681845e394434cdbb0e9c0538145c306_02_osg_uc_2610271638_002_0065_current_year_usage
+            name: 本年电量 (东方新天地2-4-1201)
+            icon: mdi:counter
+            icon_color: teal
+          - type: custom:mushroom-entity-card
+            entity: sensor.99_681845e394434cdbb0e9c0538145c306_02_osg_uc_2610271638_002_0065_current_year_charge
+            name: 本年电费 (东方新天地2-4-1201)
+            icon: mdi:cash
+            icon_color: teal
+
+      # ---------- 燃气阶梯 ----------
+      - type: custom:mushroom-title-card
+        title: 燃气阶梯
+        icon: mdi:stairs
+        alignment: left
+        subtitle: 三阶梯用量与价格
+      - type: grid
+        columns: 3
+        square: false
+        cards:
+          - type: custom:mushroom-entity-card
+            entity: sensor.hua_run_ran_qi_ben_qi_yi_jie_ti_yong_qi_liang
+            name: 一阶梯用量
+            icon: mdi:stairs
+            icon_color: green
+          - type: custom:mushroom-entity-card
+            entity: sensor.hua_run_ran_qi_ben_qi_er_jie_ti_yong_qi_liang
+            name: 二阶梯用量
+            icon: mdi:stairs
+            icon_color: amber
+          - type: custom:mushroom-entity-card
+            entity: sensor.hua_run_ran_qi_ben_qi_san_jie_ti_yong_qi_liang
+            name: 三阶梯用量
+            icon: mdi:stairs
+            icon_color: red
+          - type: custom:mushroom-entity-card
+            entity: sensor.hua_run_ran_qi_yi_jie_ti_qi_jie
+            name: 一阶梯价
+            icon: mdi:currency-cny
+            icon_color: green
+          - type: custom:mushroom-entity-card
+            entity: sensor.hua_run_ran_qi_er_jie_ti_qi_jie
+            name: 二阶梯价
+            icon: mdi:currency-cny
+            icon_color: amber
+          - type: custom:mushroom-entity-card
+            entity: sensor.hua_run_ran_qi_san_jie_ti_qi_jie
+            name: 三阶梯价
+            icon: mdi:currency-cny
+            icon_color: red
+
+  # ============================================================
+  # View 2: 电费详情
+  # ============================================================
+  - title: 电费
+    icon: mdi:flash
+    path: electricity
+    cards:
+      - type: custom:mushroom-title-card
+        title: 电费账户
+        icon: mdi:wallet
+        alignment: left
+        subtitle: 两个户号的余额与本月用电
+      - type: grid
+        columns: 2
+        square: false
+        cards:
+          # 东方佳园14-1-401
+          - type: custom:mushroom-entity-card
+            entity: sensor.99_6aefa11d6e8945fca3a9f9c28433cdb7_02_osg_uc_2610271638_002_7061_account_balance
+            name: 东方佳园14-1-401 余额
+            icon: mdi:wallet
+            icon_color: green
+          - type: custom:mushroom-entity-card
+            entity: sensor.99_6aefa11d6e8945fca3a9f9c28433cdb7_02_osg_uc_2610271638_002_7061_current_month_usage
+            name: 东方佳园14-1-401 本月用电
+            icon: mdi:lightning-bolt
+            icon_color: amber
+          # 东方新天地2-4-1201
+          - type: custom:mushroom-entity-card
+            entity: sensor.99_681845e394434cdbb0e9c0538145c306_02_osg_uc_2610271638_002_0065_account_balance
+            name: 东方新天地2-4-1201 余额
+            icon: mdi:wallet
+            icon_color: green
+          - type: custom:mushroom-entity-card
+            entity: sensor.99_681845e394434cdbb0e9c0538145c306_02_osg_uc_2610271638_002_0065_current_month_usage
+            name: 东方新天地2-4-1201 本月用电
+            icon: mdi:lightning-bolt
+            icon_color: orange
+
+      # 近30天日用量对比
+      - type: custom:apexcharts-card
+        header:
+          show: true
+          title: 近30天日用量对比
+        graph_span: 30d
+        span:
+          end: day
+        series:
+          - entity: sensor.99_6aefa11d6e8945fca3a9f9c28433cdb7_02_osg_uc_2610271638_002_7061_previous_daily_usage
+            name: 东方佳园14-1-401
+            type: line
+            smooth: true
+            color: '#FFB74D'
+          - entity: sensor.99_681845e394434cdbb0e9c0538145c306_02_osg_uc_2610271638_002_0065_previous_daily_usage
+            name: 东方新天地2-4-1201
+            type: line
+            smooth: true
+            color: '#64B5F6'
+
+      # 上月结算
+      - type: custom:mushroom-title-card
+        title: 上一结算月
+        subtitle: 上月电量与费用
+        icon: mdi:calendar-arrow-left
+        alignment: left
+      - type: grid
+        columns: 2
+        square: false
+        cards:
+          - type: custom:mushroom-entity-card
+            entity: sensor.99_6aefa11d6e8945fca3a9f9c28433cdb7_02_osg_uc_2610271638_002_7061_previous_settled_month_usage
+            name: 东方佳园14-1-401 上月电量
+            icon: mdi:counter
+          - type: custom:mushroom-entity-card
+            entity: sensor.99_6aefa11d6e8945fca3a9f9c28433cdb7_02_osg_uc_2610271638_002_7061_previous_settled_month_charge
+            name: 东方佳园14-1-401 上月电费
+            icon: mdi:cash
+          - type: custom:mushroom-entity-card
+            entity: sensor.99_681845e394434cdbb0e9c0538145c306_02_osg_uc_2610271638_002_0065_previous_settled_month_usage
+            name: 东方新天地2-4-1201 上月电量
+            icon: mdi:counter
+          - type: custom:mushroom-entity-card
+            entity: sensor.99_681845e394434cdbb0e9c0538145c306_02_osg_uc_2610271638_002_0065_previous_settled_month_charge
+            name: 东方新天地2-4-1201 上月电费
+            icon: mdi:cash
+
+      # 抄表读数
+      - type: grid
+        columns: 2
+        square: false
+        cards:
+          - type: custom:mushroom-entity-card
+            entity: sensor.99_6aefa11d6e8945fca3a9f9c28433cdb7_02_osg_uc_2610271638_002_7061_last_month_meter_reading
+            name: 东方佳园14-1-401 上月抄表
+            icon: mdi:gauge
+          - type: custom:mushroom-entity-card
+            entity: sensor.99_681845e394434cdbb0e9c0538145c306_02_osg_uc_2610271638_002_0065_last_month_meter_reading
+            name: 东方新天地2-4-1201 上月抄表
+            icon: mdi:gauge
+
+  # ============================================================
+  # View 3: 燃气费详情 (自住 + 出租 分户)
+  # ============================================================
+  - title: 燃气费
+    icon: mdi:fire
+    path: gas
+    cards:
+      # ========== 自住 · 东方新天地 ==========
+      - type: custom:mushroom-title-card
+        title: 自住 · 东方新天地2-4-1201
+        icon: mdi:home
+        alignment: left
+        subtitle: 户号 1040395237
+      - type: grid
+        columns: 2
+        square: false
+        cards:
+          - type: custom:mushroom-entity-card
+            entity: sensor.hua_run_ran_qi_ran_qi_zhang_hu_yu_e
+            name: 账户余额
+            icon: mdi:wallet
+            icon_color: green
+          - type: custom:mushroom-entity-card
+            entity: sensor.hua_run_ran_qi_qian_fei_jin_e
+            name: 欠费金额
+            icon: mdi:cash-clock
+            icon_color: red
+          - type: custom:mushroom-entity-card
+            entity: sensor.hua_run_ran_qi_lei_ji_ran_qi_fei_yong
+            name: 累计费用
+            icon: mdi:cash-multiple
+            icon_color: blue
+          - type: custom:mushroom-entity-card
+            entity: sensor.hua_run_ran_qi_wei_yue_jin
+            name: 违约金
+            icon: mdi:alert-circle
+            icon_color: orange
+          - type: custom:mushroom-entity-card
+            entity: sensor.hua_run_ran_qi_zhang_dan_yue_fen
+            name: 账单月份
+            icon: mdi:calendar-month
+          - type: custom:mushroom-entity-card
+            entity: sensor.hua_run_ran_qi_zhang_dan_jin_e
+            name: 账单金额
+            icon: mdi:receipt
+            icon_color: blue
+          - type: custom:mushroom-entity-card
+            entity: sensor.hua_run_ran_qi_ben_qi_yong_qi_liang
+            name: 本期用气量
+            icon: mdi:fire
+            icon_color: red
+          - type: custom:mushroom-entity-card
+            entity: sensor.hua_run_ran_qi_ben_qi_biao_du_shu
+            name: 本期表读数
+            icon: mdi:gauge
+
+      - type: custom:mushroom-title-card
+        title: 自住 · 阶梯剩余
+        subtitle: 一阶/二阶/三阶剩余用量
+        icon: mdi:stairs-down
+        alignment: left
+      - type: grid
+        columns: 3
+        square: false
+        cards:
+          - type: custom:mushroom-entity-card
+            entity: sensor.hua_run_ran_qi_yi_jie_ti_sheng_yu_qi_liang
+            name: 一阶剩余
+            icon: mdi:stairs
+            icon_color: green
+          - type: custom:mushroom-entity-card
+            entity: sensor.hua_run_ran_qi_er_jie_ti_sheng_yu_qi_liang
+            name: 二阶剩余
+            icon: mdi:stairs
+            icon_color: amber
+          - type: custom:mushroom-entity-card
+            entity: sensor.hua_run_ran_qi_san_jie_ti_sheng_yu_qi_liang
+            name: 三阶剩余
+            icon: mdi:stairs
+            icon_color: red
+
+      # ========== 出租 · 东方佳园 ==========
+      - type: custom:mushroom-title-card
+        title: 出租 · 东方佳园14-1-401
+        icon: mdi:key-variant
+        alignment: left
+        subtitle: 户号 1021540961
+      - type: grid
+        columns: 2
+        square: false
+        cards:
+          - type: custom:mushroom-entity-card
+            entity: sensor.hua_run_ran_qi_1021540961_ran_qi_zhang_hu_yu_e_fu_xin
+            name: 账户余额
+            icon: mdi:wallet
+            icon_color: green
+          - type: custom:mushroom-entity-card
+            entity: sensor.hua_run_ran_qi_1021540961_qian_fei_jin_e_fu_xin
+            name: 欠费金额
+            icon: mdi:cash-clock
+            icon_color: red
+          - type: custom:mushroom-entity-card
+            entity: sensor.hua_run_ran_qi_1021540961_lei_ji_ran_qi_fei_yong_fu_xin
+            name: 累计费用
+            icon: mdi:cash-multiple
+            icon_color: blue
+          - type: custom:mushroom-entity-card
+            entity: sensor.hua_run_ran_qi_1021540961_wei_yue_jin_fu_xin
+            name: 违约金
+            icon: mdi:alert-circle
+            icon_color: orange
+          - type: custom:mushroom-entity-card
+            entity: sensor.hua_run_ran_qi_1021540961_zhang_dan_yue_fen_fu_xin
+            name: 账单月份
+            icon: mdi:calendar-month
+          - type: custom:mushroom-entity-card
+            entity: sensor.hua_run_ran_qi_1021540961_zhang_dan_jin_e_fu_xin
+            name: 账单金额
+            icon: mdi:receipt
+            icon_color: blue
+          - type: custom:mushroom-entity-card
+            entity: sensor.hua_run_ran_qi_1021540961_ben_qi_yong_qi_liang_fu_xin
+            name: 本期用气量
+            icon: mdi:fire
+            icon_color: red
+          - type: custom:mushroom-entity-card
+            entity: sensor.hua_run_ran_qi_1021540961_ben_qi_biao_du_shu_fu_xin
+            name: 本期表读数
+            icon: mdi:gauge
+
+      - type: custom:mushroom-title-card
+        title: 出租 · 阶梯剩余
+        subtitle: 一阶/二阶/三阶剩余用量
+        icon: mdi:stairs-down
+        alignment: left
+      - type: grid
+        columns: 3
+        square: false
+        cards:
+          - type: custom:mushroom-entity-card
+            entity: sensor.hua_run_ran_qi_1021540961_yi_jie_ti_sheng_yu_qi_liang_fu_xin
+            name: 一阶剩余
+            icon: mdi:stairs
+            icon_color: green
+          - type: custom:mushroom-entity-card
+            entity: sensor.hua_run_ran_qi_1021540961_er_jie_ti_sheng_yu_qi_liang_fu_xin
+            name: 二阶剩余
+            icon: mdi:stairs
+            icon_color: amber
+          - type: custom:mushroom-entity-card
+            entity: sensor.hua_run_ran_qi_1021540961_san_jie_ti_sheng_yu_qi_liang_fu_xin
+            name: 三阶剩余
+            icon: mdi:stairs
+            icon_color: red
+
+      # ========== 缴费记录 (主户) ==========
+      - type: custom:mushroom-title-card
+        title: 自住 · 缴费记录
+        subtitle: 最近缴费时间/金额/年度次数
+        icon: mdi:history
+        alignment: left
+      - type: grid
+        columns: 2
+        square: false
+        cards:
+          - type: custom:mushroom-entity-card
+            entity: sensor.hua_run_ran_qi_zui_jin_jiao_fei_shi_jian
+            name: 最近缴费时间
+            icon: mdi:calendar-clock
+          - type: custom:mushroom-entity-card
+            entity: sensor.hua_run_ran_qi_zui_jin_jiao_fei_jin_e
+            name: 最近缴费金额
+            icon: mdi:cash
+            icon_color: green
+          - type: custom:mushroom-entity-card
+            entity: sensor.hua_run_ran_qi_nian_du_jiao_fei_ci_shu
+            name: 年度缴费次数
+            icon: mdi:counter
+          - type: custom:mushroom-entity-card
+            entity: sensor.hua_run_ran_qi_nian_du_yue_jun_yong_qi_liang
+            name: 年度月均用气
+            icon: mdi:chart-line
+
+      # ========== 缴费记录 (副户) ==========
+      - type: custom:mushroom-title-card
+        title: 出租 · 缴费记录
+        subtitle: 最近缴费时间/金额/年度次数
+        icon: mdi:history
+        alignment: left
+      - type: grid
+        columns: 2
+        square: false
+        cards:
+          - type: custom:mushroom-entity-card
+            entity: sensor.hua_run_ran_qi_1021540961_zui_jin_jiao_fei_shi_jian_fu_xin
+            name: 最近缴费时间
+            icon: mdi:calendar-clock
+          - type: custom:mushroom-entity-card
+            entity: sensor.hua_run_ran_qi_1021540961_zui_jin_jiao_fei_jin_e_fu_xin
+            name: 最近缴费金额
+            icon: mdi:cash
+            icon_color: green
+          - type: custom:mushroom-entity-card
+            entity: sensor.hua_run_ran_qi_1021540961_nian_du_jiao_fei_ci_shu_fu_xin
+            name: 年度缴费次数
+            icon: mdi:counter
+          - type: custom:mushroom-entity-card
+            entity: sensor.hua_run_ran_qi_1021540961_nian_du_yue_jun_yong_qi_liang_fu_xin
+            name: 年度月均用气
+            icon: mdi:chart-line
+
+  # ============================================================
+  # View 4: 深度分析 (Grafana 看板)
+  # ============================================================
+  - title: 深度分析
+    icon: mdi:chart-box
+    path: grafana
+    cards:
+      # 动态拿 ingress token, 不会因 token 过期 401
+      - type: custom:grafana-ingress-card
+        grafana_slug: a0d7b954_grafana
+        dashboard_path: d/a67f2s/e883bd-e6ba90-e8b4a6-e58d95-e79b91-e68ea7?kiosk
+        aspect_ratio: 100%
+
+  # ============================================================
+  # View 5: 设备功耗
+  # ============================================================
+  - title: 设备功耗
+    icon: mdi:lightning-bolt-circle
+    path: device-power
+    cards:
+      # ---------- 顶部汇总 ----------
+      - type: custom:mushroom-title-card
+        title: 设备功耗概览
+        icon: mdi:lightning-bolt-circle
+        alignment: left
+        subtitle: 实时功率 · 今日耗电 · 数据源 utility_tracker (5 分钟采样)
+      - type: grid
+        columns: 2
+        square: false
+        cards:
+          - type: custom:mushroom-entity-card
+            entity: sensor.utility_tracker_current_power
+            name: 当前总功率
+            icon: mdi:lightning-bolt-circle
+            icon_color: amber
+          - type: custom:mushroom-entity-card
+            entity: sensor.utility_tracker_power_today
+            name: 今日耗电合计
+            icon: mdi:counter
+            icon_color: green
+
+      # ---------- 实时功率曲线 (近 24 小时) ----------
+      - type: custom:apexcharts-card
+        header:
+          show: true
+          title: 实时功率曲线 (近 24 小时)
+          show_states: true
+          colorize_states: true
+        graph_span: 24h
+        series:
+          - entity: sensor.utility_tracker_current_power
+            name: 总功率
+            type: area
+            smooth: true
+            color: '#FFB74D'
+            stroke_width: 2
+            opacity: 0.4
+
+      # ---------- 单设备功耗列表 (device_class=power 的 sensor) ----------
+      - type: custom:mushroom-title-card
+        title: 单设备实时功率
+        icon: mdi:power-plug
+        alignment: left
+        subtitle: 自动扫描 device_class=power 的 sensor
+      - type: custom:auto-entities
+        filter:
+          include:
+            - domain: sensor
+              attributes:
+                device_class: power
+        card:
+          type: custom:mushroom-entity-card
+          icon: mdi:power-plug
+        sort:
+          method: state
+          reverse: true
+          numeric: true
+
+      # ---------- 单设备电量 (device_class=energy) ----------
+      - type: custom:mushroom-title-card
+        title: 单设备累计电量
+        icon: mdi:counter
+        alignment: left
+        subtitle: device_class=energy
+      - type: custom:auto-entities
+        filter:
+          include:
+            - domain: sensor
+              attributes:
+                device_class: energy
+        card:
+          type: custom:mushroom-entity-card
+          icon: mdi:counter
+        sort:
+          method: state
+          reverse: true
+          numeric: true
+
+  # ============================================================
+  # View 6: 灯光统计（新家 · 按区域主灯）
+  # ============================================================
+  - title: 灯光
+    icon: mdi:lightbulb-on
+    path: lights
+    cards:
+      # ---------- 顶部汇总 ----------
+      - type: custom:mushroom-title-card
+        title: 全屋灯光
+        icon: mdi:lightbulb-on
+        alignment: left
+        subtitle: 13 个区域主灯 · 今日亮灯时长
+      - type: grid
+        columns: 2
+        square: false
+        cards:
+          - type: custom:mushroom-entity-card
+            entity: sensor.light_today_total_hours
+            name: 今日全屋亮灯
+            icon: mdi:lightbulb-group-on
+            icon_color: amber
+          - type: markdown
+            content: |
+              ## {{ states('light') | selectattr('state','eq','on') | list | count }} 盏
+              当前亮着
+      - type: grid
+        columns: 2
+        square: false
+        cards:
+          - type: custom:mushroom-entity-card
+            entity: sensor.utility_tracker_light_count_today
+            name: 今日开灯次数
+            icon: mdi:counter
+            icon_color: blue
+          - type: custom:mushroom-entity-card
+            entity: sensor.utility_tracker_light_duration_today
+            name: 今日开灯总时长
+            icon: mdi:timer-outline
+            icon_color: teal
+
+      # ---------- 各区域主灯今日亮灯时长 ----------
+      - type: custom:mushroom-title-card
+        title: 各区域主灯
+        icon: mdi:ceiling-light-multiple
+        alignment: left
+        subtitle: 今日亮灯时长 (小时)
+      - type: grid
+        columns: 4
+        square: false
+        cards:
+          - type: custom:mushroom-entity-card
+            entity: sensor.ke_ting_deng_liang_deng_shi_chang
+            name: 客厅
+            icon: mdi:ceiling-light
+            icon_color: amber
+          - type: custom:mushroom-entity-card
+            entity: sensor.zhu_wo_deng_liang_deng_shi_chang
+            name: 主卧
+            icon: mdi:bed
+            icon_color: amber
+          - type: custom:mushroom-entity-card
+            entity: sensor.ci_wo_deng_liang_deng_shi_chang
+            name: 次卧
+            icon: mdi:bed-outline
+            icon_color: amber
+          - type: custom:mushroom-entity-card
+            entity: sensor.bei_wo_deng_liang_deng_shi_chang
+            name: 北卧
+            icon: mdi:bed-empty
+            icon_color: amber
+          - type: custom:mushroom-entity-card
+            entity: sensor.chu_fang_deng_liang_deng_shi_chang
+            name: 厨房
+            icon: mdi:stove
+            icon_color: orange
+          - type: custom:mushroom-entity-card
+            entity: sensor.can_ting_deng_liang_deng_shi_chang
+            name: 餐厅
+            icon: mdi:table-chair
+            icon_color: orange
+          - type: custom:mushroom-entity-card
+            entity: sensor.zhu_wei_deng_liang_deng_shi_chang
+            name: 主卫
+            icon: mdi:shower
+            icon_color: cyan
+          - type: custom:mushroom-entity-card
+            entity: sensor.gong_wei_deng_liang_deng_shi_chang
+            name: 公卫
+            icon: mdi:toilet
+            icon_color: cyan
+          - type: custom:mushroom-entity-card
+            entity: sensor.gong_wei_gan_qu_deng_liang_deng_shi_chang
+            name: 公卫干区
+            icon: mdi:mirror
+            icon_color: cyan
+          - type: custom:mushroom-entity-card
+            entity: sensor.nan_yang_tai_deng_liang_deng_shi_chang
+            name: 南阳台
+            icon: mdi:balcony
+            icon_color: green
+          - type: custom:mushroom-entity-card
+            entity: sensor.bei_yang_tai_deng_liang_deng_shi_chang
+            name: 北阳台
+            icon: mdi:balcony
+            icon_color: green
+          - type: custom:mushroom-entity-card
+            entity: sensor.zou_lang_deng_liang_deng_shi_chang
+            name: 走廊
+            icon: mdi:track-light
+            icon_color: purple
+          - type: custom:mushroom-entity-card
+            entity: sensor.men_kou_deng_liang_deng_shi_chang
+            name: 门口
+            icon: mdi:door
+            icon_color: purple
+
+      # ---------- 24 小时亮灯趋势 ----------
+      - type: custom:mushroom-title-card
+        title: 24 小时趋势
+        icon: mdi:chart-timeline
+        alignment: left
+        subtitle: 各灯累计亮灯时长增长曲线
+      - type: history-graph
+        title: 各区域主灯 24h 亮灯趋势
+        hours_to_show: 24
+        refresh_interval: 60
+        entities:
+          - entity: sensor.ke_ting_deng_liang_deng_shi_chang
+            name: 客厅
+          - entity: sensor.zhu_wo_deng_liang_deng_shi_chang
+            name: 主卧
+          - entity: sensor.ci_wo_deng_liang_deng_shi_chang
+            name: 次卧
+          - entity: sensor.bei_wo_deng_liang_deng_shi_chang
+            name: 北卧
+          - entity: sensor.chu_fang_deng_liang_deng_shi_chang
+            name: 厨房
+          - entity: sensor.can_ting_deng_liang_deng_shi_chang
+            name: 餐厅
+          - entity: sensor.zhu_wei_deng_liang_deng_shi_chang
+            name: 主卫
+          - entity: sensor.gong_wei_deng_liang_deng_shi_chang
+            name: 公卫
+          - entity: sensor.gong_wei_gan_qu_deng_liang_deng_shi_chang
+            name: 公卫干区
+          - entity: sensor.nan_yang_tai_deng_liang_deng_shi_chang
+            name: 南阳台
+          - entity: sensor.bei_yang_tai_deng_liang_deng_shi_chang
+            name: 北阳台
+          - entity: sensor.zou_lang_deng_liang_deng_shi_chang
+            name: 走廊
+          - entity: sensor.men_kou_deng_liang_deng_shi_chang
+            name: 门口
+
+      # ---------- 当前开着的灯 ----------
+      - type: custom:mushroom-title-card
+        title: 当前亮着的灯
+        icon: mdi:lightbulb-on-outline
+        alignment: left
+      - type: custom:auto-entities
+        filter:
+          include:
+            - domain: light
+              state: 'on'
+        card:
+          type: custom:mushroom-light-card
+          show_brightness_control: true
+          show_color_temp_control: true
+        sort:
+          method: friendly_name
+
+      # ---------- 区域主灯快捷开关 ----------
+      - type: custom:mushroom-title-card
+        title: 区域主灯
+        icon: mdi:light-switch
+        alignment: left
+        subtitle: 点击快速开关
+      - type: entities
+        title: 所有灯组
+        show_header_toggle: true
+        entities:
+          - group.all_lights
+          - light.jdjz_cn_2108814194_e1l96_s_2_light
+          - light.jdjz_cn_2108816722_e1prow_s_2_light
+          - light.jdjz_cn_2108877860_e1prow_s_2_light
+          - light.jdjz_cn_2108877683_e1prow_s_2_light
+          - light.xiaomi_cn_828318305_ym2d_s_4_light
+          - light.yeelink_cn_1208093606_mbulb3_s_2
+          - light.xiaomi_cn_945142061_v2_s_2_light
+          - light.giot_cn_2007888923_v1ibhw_s_2_light
+          - light.linp_cn_2104679000_ld6bcw_s_2_light
+          - light.wiing_cn_1186897456_dmsswd_s_2_light
+          - light.cxw_cn_1121467468_wyv02_s_2_light
+          - light.mijia_cn_group_2080592637245546496_group3_s_2_light
+          - light.yeelink_cn_1208037418_mbulb3_s_2
+
+      # ---------- 入库说明 ----------
+      - type: markdown
+        content: |
+          **统计口径**
+          - 上方各区域「亮灯时长」来自 `history_stats`，每日 0 点自动归零
+          - 每 5 分钟把今日累计时长快照写入 MariaDB `light_duration_daily`（按区域+日期唯一），长期保留
+          - 开关次数仍由事件流表 `light_daily` 记录，两者互补
+          - 总时长 = {{ states('sensor.utility_tracker_light_duration_today') }} h（数据库口径，与实体合计一致）
+
+  # ============================================================
+  # View 6: 区域停留
+  # ============================================================
+  - title: 区域停留
+    icon: mdi:home-clock
+    path: area-stay
+    cards:
+      # ---------- 汇总 ----------
+      - type: custom:mushroom-title-card
+        title: 区域停留时长
+        icon: mdi:home-clock
+        alignment: left
+        subtitle: 数据源 utility_tracker · 5 分钟快照 · 入库 area_stay_daily
+      - type: grid
+        columns: 3
+        square: false
+        cards:
+          - type: custom:mushroom-entity-card
+            entity: sensor.utility_tracker_area_stay_duration_today
+            name: 今日
+            icon: mdi:calendar-today
+            icon_color: purple
+          - type: custom:mushroom-entity-card
+            entity: sensor.utility_tracker_area_stay_duration_week
+            name: 近 7 日
+            icon: mdi:calendar-week
+            icon_color: blue
+          - type: custom:mushroom-entity-card
+            entity: sensor.utility_tracker_area_stay_duration_month
+            name: 本月
+            icon: mdi:calendar-month
+            icon_color: green
+
+      # ---------- 各区域今日停留 ----------
+      - type: custom:mushroom-title-card
+        title: 各区域今日停留
+        icon: mdi:map-marker-radius
+        alignment: left
+        subtitle: 单位 h · history_stats 每日 0 点归零
+      - type: grid
+        columns: 3
+        square: false
+        cards:
+          - type: custom:mushroom-entity-card
+            entity: sensor.ke_ting_ting_liu_shi_chang
+            name: 客厅
+            icon: mdi:sofa
+            icon_color: blue
+          - type: custom:mushroom-entity-card
+            entity: sensor.zhu_wo_ting_liu_shi_chang
+            name: 主卧
+            icon: mdi:bed-king
+            icon_color: purple
+          - type: custom:mushroom-entity-card
+            entity: sensor.ci_wo_ting_liu_shi_chang
+            name: 次卧
+            icon: mdi:bed
+            icon_color: indigo
+          - type: custom:mushroom-entity-card
+            entity: sensor.bei_wo_ting_liu_shi_chang
+            name: 北卧
+            icon: mdi:bed-outline
+            icon_color: teal
+          - type: custom:mushroom-entity-card
+            entity: sensor.chu_fang_ting_liu_shi_chang
+            name: 厨房
+            icon: mdi:stove
+            icon_color: orange
+          - type: custom:mushroom-entity-card
+            entity: sensor.can_ting_ting_liu_shi_chang
+            name: 餐厅
+            icon: mdi:silverware-fork-knife
+            icon_color: deep-orange
+          - type: custom:mushroom-entity-card
+            entity: sensor.zhu_wei_ting_liu_shi_chang
+            name: 主卫
+            icon: mdi:toilet
+            icon_color: cyan
+          - type: custom:mushroom-entity-card
+            entity: sensor.gong_wei_ting_liu_shi_chang
+            name: 公卫
+            icon: mdi:toilet-outline
+            icon_color: light-cyan
+          - type: custom:mushroom-entity-card
+            entity: sensor.gong_wei_gan_qu_ting_liu_shi_chang
+            name: 公卫干区
+            icon: mdi:shower-head
+            icon_color: sky
+          - type: custom:mushroom-entity-card
+            entity: sensor.nan_yang_tai_ting_liu_shi_chang
+            name: 南阳台
+            icon: mdi:balcony
+            icon_color: green
+          - type: custom:mushroom-entity-card
+            entity: sensor.bei_yang_tai_ting_liu_shi_chang
+            name: 北阳台
+            icon: mdi:balcony-outline
+            icon_color: light-green
+          - type: custom:mushroom-entity-card
+            entity: sensor.zou_lang_ting_liu_shi_chang
+            name: 走廊
+            icon: mdi:corridor
+            icon_color: grey
+
+      # ---------- 区域停留排行榜（按本周/本月合计排序，读 DB 快照表） ----------
+      - type: custom:mushroom-title-card
+        title: 区域停留排行榜
+        icon: mdi:podium-gold
+        alignment: left
+        subtitle: 数据源 area_stay_daily · 按区域合计秒数降序
+      - type: grid
+        columns: 2
+        square: false
+        cards:
+          - type: markdown
+            content: |
+              ### 近 7 日排行榜 (h)
+              {% set raw = states('sensor.utility_tracker_area_stay_week_ranking') %}
+              {% set rows = raw.split(',') if raw != 'unknown' and raw != 'empty' else [] %}
+              {% for row in rows %}
+              {% set ns = namespace() %}
+              {% set parts = row.split('=') %}
+              {% set name = parts[0] %}
+              {% set h = parts[1] if parts|length > 1 else '?' %}
+              **{{ loop.index }}. {{ name }}** — {{ h }}
+              {% endfor %}
+              {% if not rows %}_暂无数据（需要至少 1 天入库记录）_{% endif %}
+          - type: markdown
+            content: |
+              ### 本月 1 日至今排行榜 (h)
+              {% set raw = states('sensor.utility_tracker_area_stay_month_ranking') %}
+              {% set rows = raw.split(',') if raw != 'unknown' and raw != 'empty' else [] %}
+              {% for row in rows %}
+              {% set parts = row.split('=') %}
+              {% set name = parts[0] %}
+              {% set h = parts[1] if parts|length > 1 else '?' %}
+              **{{ loop.index }}. {{ name }}** — {{ h }}
+              {% endfor %}
+              {% if not rows %}_暂无数据（需要至少 1 天入库记录）_{% endif %}
+
+      # ---------- 24 小时趋势 ----------
+      - type: custom:mushroom-title-card
+        title: 24 小时趋势
+        icon: mdi:chart-timeline
+        alignment: left
+        subtitle: 各区域累计停留时长增长曲线
+      - type: history-graph
+        title: 各区域停留 24h 趋势
+        hours_to_show: 24
+        refresh_interval: 60
+        entities:
+          - entity: sensor.ke_ting_ting_liu_shi_chang
+            name: 客厅
+          - entity: sensor.zhu_wo_ting_liu_shi_chang
+            name: 主卧
+          - entity: sensor.ci_wo_ting_liu_shi_chang
+            name: 次卧
+          - entity: sensor.bei_wo_ting_liu_shi_chang
+            name: 北卧
+          - entity: sensor.chu_fang_ting_liu_shi_chang
+            name: 厨房
+          - entity: sensor.can_ting_ting_liu_shi_chang
+            name: 餐厅
+          - entity: sensor.zhu_wei_ting_liu_shi_chang
+            name: 主卫
+          - entity: sensor.gong_wei_ting_liu_shi_chang
+            name: 公卫
+          - entity: sensor.gong_wei_gan_qu_ting_liu_shi_chang
+            name: 公卫干区
+          - entity: sensor.nan_yang_tai_ting_liu_shi_chang
+            name: 南阳台
+          - entity: sensor.bei_yang_tai_ting_liu_shi_chang
+            name: 北阳台
+          - entity: sensor.zou_lang_ting_liu_shi_chang
+            name: 走廊
+
+      # ---------- 入库说明 ----------
+      - type: markdown
+        content: |
+          **统计口径**
+          - 今日：12 个区域 `history_stats` 的今日累计值，每 5 分钟快照写入 MariaDB `area_stay_daily`（`entity_id + period_date` 唯一键覆盖更新，跨零点自动结算，历史永久保留）
+          - 近 7 日：`area_stay_daily` 近 7 天（含今日）合计；本月：本月 1 日至今合计
+          - 合计会大于 24h：12 个区域分别计时，人在多区域停留会被分别计入，属正常
+          - 北阳台由 PIR「有人移动」事件派生，10 分钟无新移动回落无人，统计略偏保守
+          - 厨房 / 公卫干区 / 走廊 由雷达灯「有人持续时长 > 0」派生
+          - 主卫 / 公卫 使用人体感应器原生「有人」状态

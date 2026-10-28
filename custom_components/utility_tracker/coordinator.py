@@ -236,6 +236,9 @@ class UtilityTrackerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 stats["area_stay_month_seconds"] = (
                     await self.db.async_sum_area_stay_month()
                 )
+                # 区域排行榜 (供看板 Ranking sensor 用, 按停留秒数降序)
+                stats["area_stay_week_ranking"] = await self.db.async_fetch_area_stays_week()
+                stats["area_stay_month_ranking"] = await self.db.async_fetch_area_stays_month()
 
             self.last_sync = now
             self.last_error = None
