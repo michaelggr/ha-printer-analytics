@@ -14,12 +14,19 @@ views:
       - type: custom:mushroom-template-card
         primary: 能源账单
         secondary: >-
-          {% set elec_m = states('sensor.utility_tracker_electricity_this_month_main') | float(0) %}
-          {% set elec_r = states('sensor.utility_tracker_electricity_this_month_rental') | float(0) %}
+          {# 本月电费 = 本月实时用电量 × 上月结算单价（当月账单未出时也能反映最新用电） #}
+          {% set m_u = states('sensor.99_681845e394434cdbb0e9c0538145c306_02_osg_uc_2610271638_002_0065_current_month_usage') | float(0) %}
+          {% set m_lu = states('sensor.99_681845e394434cdbb0e9c0538145c306_02_osg_uc_2610271638_002_0065_previous_settled_month_usage') | float(0) %}
+          {% set m_lc = states('sensor.99_681845e394434cdbb0e9c0538145c306_02_osg_uc_2610271638_002_0065_previous_settled_month_charge') | float(0) %}
+          {% set m_p = (m_lc / m_lu) if m_lu > 0 else 0.558 %}
+          {% set r_u = states('sensor.99_6aefa11d6e8945fca3a9f9c28433cdb7_02_osg_uc_2610271638_002_7061_current_month_usage') | float(0) %}
+          {% set r_lu = states('sensor.99_6aefa11d6e8945fca3a9f9c28433cdb7_02_osg_uc_2610271638_002_7061_previous_settled_month_usage') | float(0) %}
+          {% set r_lc = states('sensor.99_6aefa11d6e8945fca3a9f9c28433cdb7_02_osg_uc_2610271638_002_7061_previous_settled_month_charge') | float(0) %}
+          {% set r_p = (r_lc / r_lu) if r_lu > 0 else 0.608 %}
           {% set gas_m = states('sensor.utility_tracker_gas_this_month_main') | float(0) %}
           {% set gas_r = states('sensor.utility_tracker_gas_this_month_rental') | float(0) %}
-          自住 · 电费 ¥{{ '%.2f' | format(elec_m) }} / 燃气费 ¥{{ '%.2f' | format(gas_m) }}
-          出租 · 电费 ¥{{ '%.2f' | format(elec_r) }} / 燃气费 ¥{{ '%.2f' | format(gas_r) }}
+          自住 · 电费 ≈¥{{ '%.2f' | format(m_u * m_p) }} / 燃气费 ¥{{ '%.2f' | format(gas_m) }}
+          出租 · 电费 ≈¥{{ '%.2f' | format(r_u * r_p) }} / 燃气费 ¥{{ '%.2f' | format(gas_r) }}
         icon: mdi:cash-multiple
         icon_color: green
         multiline_secondary: true
@@ -90,11 +97,25 @@ views:
             name: 本月用气
             icon: mdi:fire
             icon_color: red
-          - type: custom:mushroom-entity-card
-            entity: sensor.utility_tracker_electricity_this_month_main
-            name: 本月电费
+          # 本月电费（估算）= 本月实时用电量 × 上月结算单价，当月账单未出时也能反映最新数据
+          - type: custom:mushroom-template-card
+            primary: >-
+              {% set u = states('sensor.99_681845e394434cdbb0e9c0538145c306_02_osg_uc_2610271638_002_0065_current_month_usage') | float(0) %}
+              {% set lu = states('sensor.99_681845e394434cdbb0e9c0538145c306_02_osg_uc_2610271638_002_0065_previous_settled_month_usage') | float(0) %}
+              {% set lc = states('sensor.99_681845e394434cdbb0e9c0538145c306_02_osg_uc_2610271638_002_0065_previous_settled_month_charge') | float(0) %}
+              {% set p = (lc / lu) if lu > 0 else 0.558 %}
+              ¥{{ '%.2f' | format(u * p) }}
+            secondary: >-
+              {% set u = states('sensor.99_681845e394434cdbb0e9c0538145c306_02_osg_uc_2610271638_002_0065_current_month_usage') | float(0) %}
+              {% set lu = states('sensor.99_681845e394434cdbb0e9c0538145c306_02_osg_uc_2610271638_002_0065_previous_settled_month_usage') | float(0) %}
+              {% set lc = states('sensor.99_681845e394434cdbb0e9c0538145c306_02_osg_uc_2610271638_002_0065_previous_settled_month_charge') | float(0) %}
+              {% set p = (lc / lu) if lu > 0 else 0.558 %}
+              本月 {{ u }} 度 × ¥{{ '%.3f' | format(p) }}/度
             icon: mdi:cash
             icon_color: amber
+            entity: sensor.99_681845e394434cdbb0e9c0538145c306_02_osg_uc_2610271638_002_0065_current_month_usage
+            tap_action:
+              action: more-info
           - type: custom:mushroom-entity-card
             entity: sensor.hua_run_ran_qi_zhang_dan_jin_e
             name: 本期燃气账单
@@ -120,11 +141,25 @@ views:
             name: 本月用气
             icon: mdi:fire
             icon_color: red
-          - type: custom:mushroom-entity-card
-            entity: sensor.utility_tracker_electricity_this_month_rental
-            name: 本月电费
+          # 本月电费（估算）= 本月实时用电量 × 上月结算单价
+          - type: custom:mushroom-template-card
+            primary: >-
+              {% set u = states('sensor.99_6aefa11d6e8945fca3a9f9c28433cdb7_02_osg_uc_2610271638_002_7061_current_month_usage') | float(0) %}
+              {% set lu = states('sensor.99_6aefa11d6e8945fca3a9f9c28433cdb7_02_osg_uc_2610271638_002_7061_previous_settled_month_usage') | float(0) %}
+              {% set lc = states('sensor.99_6aefa11d6e8945fca3a9f9c28433cdb7_02_osg_uc_2610271638_002_7061_previous_settled_month_charge') | float(0) %}
+              {% set p = (lc / lu) if lu > 0 else 0.608 %}
+              ¥{{ '%.2f' | format(u * p) }}
+            secondary: >-
+              {% set u = states('sensor.99_6aefa11d6e8945fca3a9f9c28433cdb7_02_osg_uc_2610271638_002_7061_current_month_usage') | float(0) %}
+              {% set lu = states('sensor.99_6aefa11d6e8945fca3a9f9c28433cdb7_02_osg_uc_2610271638_002_7061_previous_settled_month_usage') | float(0) %}
+              {% set lc = states('sensor.99_6aefa11d6e8945fca3a9f9c28433cdb7_02_osg_uc_2610271638_002_7061_previous_settled_month_charge') | float(0) %}
+              {% set p = (lc / lu) if lu > 0 else 0.608 %}
+              本月 {{ u }} 度 × ¥{{ '%.3f' | format(p) }}/度
             icon: mdi:cash
             icon_color: amber
+            entity: sensor.99_6aefa11d6e8945fca3a9f9c28433cdb7_02_osg_uc_2610271638_002_7061_current_month_usage
+            tap_action:
+              action: more-info
           - type: custom:mushroom-entity-card
             entity: sensor.hua_run_ran_qi_1021540961_zhang_dan_jin_e_fu_xin
             name: 本期燃气账单
@@ -132,50 +167,48 @@ views:
             icon_color: blue
 
       # ---------- 电信话费 (199****7382) ----------
-      # 暂时隐藏: china_telecom 集成当前未认证, 相关实体全部 unavailable。
-      # 重新登录集成后可取消以下注释恢复显示。
-      # - type: custom:mushroom-title-card
-      #   title: 电信话费
-      #   icon: mdi:phone
-      #   alignment: left
-      #   subtitle: 199****7382 套餐 · 余额 / 流量 / 通话
-      # - type: custom:ctm-telecom-card
-      #   device_id: 88311b83e60b69a0329ea5b95b34bb71
-      #   title: 电信 199****7382
-      #   balance_warning_below: 10
-      #   usage_warning_percent: 80
-      #   usage_danger_percent: 95
-      # # 关键指标 chips
-      # - type: custom:mushroom-chips-card
-      #   chips:
-      #     - type: template
-      #       icon: mdi:cash
-      #       content: >-
-      #         ¥{{ states('sensor.199_7382_tao_can_xin_xi_199_7382_dian_xin_zhang_hu_yu_e') }}
-      #       tap_action:
-      #         action: more-info
-      #         entity: sensor.199_7382_tao_can_xin_xi_199_7382_dian_xin_zhang_hu_yu_e
-      #     - type: template
-      #       icon: mdi:network
-      #       content: >-
-      #         流量 {{ states('sensor.199_7382_tao_can_xin_xi_199_7382_liu_liang_shi_yong_lu') }}%
-      #       tap_action:
-      #         action: more-info
-      #         entity: sensor.199_7382_tao_can_xin_xi_199_7382_liu_liang_shi_yong_lu
-      #     - type: template
-      #       icon: mdi:phone
-      #       content: >-
-      #         通话余 {{ states('sensor.199_7382_tao_can_xin_xi_199_7382_tong_hua_sheng_yu') }}分钟
-      #       tap_action:
-      #         action: more-info
-      #         entity: sensor.199_7382_tao_can_xin_xi_199_7382_tong_hua_sheng_yu
-      #     - type: template
-      #       icon: mdi:refresh
-      #       content: >-
-      #         {{ states('sensor.199_7382_tao_can_xin_xi_199_7382_shu_ju_geng_xin_shi_jian') | as_datetime | relative_time }}
-      #       tap_action:
-      #         action: more-info
-      #         entity: sensor.199_7382_tao_can_xin_xi_199_7382_shu_ju_geng_xin_shi_jian
+      - type: custom:mushroom-title-card
+        title: 电信话费
+        icon: mdi:phone
+        alignment: left
+        subtitle: 199****7382 套餐 · 余额 / 流量 / 通话
+      - type: custom:ctm-telecom-card
+        device_id: 88311b83e60b69a0329ea5b95b34bb71
+        title: 电信 199****7382
+        balance_warning_below: 10
+        usage_warning_percent: 80
+        usage_danger_percent: 95
+      # 关键指标 chips
+      - type: custom:mushroom-chips-card
+        chips:
+          - type: template
+            icon: mdi:cash
+            content: >-
+              ¥{{ states('sensor.199_7382_tao_can_xin_xi_199_7382_dian_xin_zhang_hu_yu_e') }}
+            tap_action:
+              action: more-info
+              entity: sensor.199_7382_tao_can_xin_xi_199_7382_dian_xin_zhang_hu_yu_e
+          - type: template
+            icon: mdi:network
+            content: >-
+              流量 {{ states('sensor.199_7382_tao_can_xin_xi_199_7382_liu_liang_shi_yong_lu') }}%
+            tap_action:
+              action: more-info
+              entity: sensor.199_7382_tao_can_xin_xi_199_7382_liu_liang_shi_yong_lu
+          - type: template
+            icon: mdi:phone
+            content: >-
+              通话余 {{ states('sensor.199_7382_tao_can_xin_xi_199_7382_tong_hua_sheng_yu') }}分钟
+            tap_action:
+              action: more-info
+              entity: sensor.199_7382_tao_can_xin_xi_199_7382_tong_hua_sheng_yu
+          - type: template
+            icon: mdi:refresh
+            content: >-
+              {{ states('sensor.199_7382_tao_can_xin_xi_199_7382_shu_ju_geng_xin_shi_jian') | as_datetime | relative_time }}
+            tap_action:
+              action: more-info
+              entity: sensor.199_7382_tao_can_xin_xi_199_7382_shu_ju_geng_xin_shi_jian
 
       # ---------- 近30天用电趋势 ----------
       - type: custom:apexcharts-card
