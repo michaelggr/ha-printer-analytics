@@ -1,4 +1,15 @@
-# 打印分析卡片 - 修改记录
+﻿# 打印分析卡片 - 修改记录
+
+## 房间视图按设备实际区域重排（2026-10-28）
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 修复 | 客厅：移出「夕阳灯」`light.zbmesh_cn_2169826771_wy0a02_s_2_light`（区域=走廊）、「电子围栏」`sensor.ainice_cn_919824629_bt_occupancy_status_p_2_1`（走廊）、扫地机器人 `vacuum.xiaomi_cn_1215291301_qv41cn` 及电量（公卫干区）；扫地机移出后客厅「设备」分区为空，整段移除 | ui-lovelace.yaml#L296-330 |
+| 修复 | 厨房「养生壶温度」`sensor.xiaomi_cn_2033456684_p1v2_temperature_p_2_11`（区域=餐厅）迁到餐厅视图；餐厅「电风扇」`fan.jipin_cn_2033277764_011_s_2_fan`（区域=北卧）迁到北卧视图 | ui-lovelace.yaml#L620-690 |
+| 修复 | 走廊「总水阀」`cover.linp_cn_2079478044_ec1db_s_2_curtain`（区域=公卫干区）迁到卫生间公卫分区；走廊补入夕阳灯、电子围栏 | ui-lovelace.yaml#L745-825,L975-995 |
+| 功能 | 按区域补卡片：北卧新增「新风空调」`climate.bei_wo_xin_feng_kong_diao`（同设备 `climate.212305751221743_climate` 为 unavailable 重复实体，未收录）、电风扇；主卧顶部新增「海信空调」`climate.hai_xin_kong_diao_climate` | ui-lovelace.yaml#L335-340,L525-540 |
+| 说明 | 「全屋灯光」分组 `light.mijia_cn_group_2111912980119552000_group3_s_2_light` 区域登记为辅助区域「全屋灯光」，作为全屋总控保留在客厅视图，未迁移 | ui-lovelace.yaml#L302-305 |
+| 验证 | YAML 解析通过、无 BOM；区域核对脚本不一致项 8 → 1（仅剩上述全屋灯光分组）；上传重启后 WS `lovelace/config` 确认各房间卡片就位，`system_log` 无新增 Lovelace 错误 | (服务器) |
 
 ## 电量计数器重置识别与逐样本增量累加（2026-10-28）
 
