@@ -1,5 +1,14 @@
 ﻿# 打印分析卡片 - 修改记录
 
+## Grafana 动态 ingress + CTM 卡片前端注册修复 (2026-10-28)
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 修复 | 深度分析 view `iframe` 写死 ingress token 导致 401 Unauthorized（token per-user 动态变化，过期即失效）→ 改用 `custom:grafana-ingress-card`，每次加载时通过 `/api/hassio/ingress_token?addon=<slug>` 动态拿当前用户的有效 token 再拼接 iframe URL | ui-energy.yaml#L554 + www/grafana-ingress-card.js |
+| 修复 | china_telecom 组件 manifest.json 缺 `frontend_url_path` 声明，HA 不挂载 www/ 目录 → `/china_telecom/ctm-telecom-card.js` 永远 404 → 导致能源账单概览页顶部 CTM 电信卡片加载失败 | custom_components/china_telecom/manifest.json + configuration.yaml resources 段 |
+| 新增 | www/grafana-ingress-card.js（约 110 行 custom card）：setConfig 校验 grafana_slug + dashboard_path，set hass 时 REST fetch `/api/hassio/ingress_token` 拿 token，动态拼 iframe src，error 时显示友好错误信息 | www/grafana-ingress-card.js |
+| 优化 | lovelace.resources 段新增 `/local/grafana-ingress-card.js?v=1.0.0` 注册 | configuration.yaml |
+
 ## utility_tracker v0.3.0 分户 + 燃气退款单据 (2026-10-28)
 
 | 类型 | 内容 | 涉及文件 |
