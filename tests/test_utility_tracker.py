@@ -895,5 +895,44 @@ class TestDuplicateMeterFilter(unittest.TestCase):
         self.assertFalse(_is_component_power_entity("sensor.yutai_cn_1207439875_fsov8m_electric_power_p_4_2", "次卧空调插座 功耗参数 电功率"))
 
 
+# ---- 自带计量不准的整机 (从 const.py 复制) ----
+EXCLUDED_POWER_ENTITIES = frozenset({
+    "sensor.bei_wo_xin_feng_kong_diao_real_time_power",
+})
+EXCLUDED_ENERGY_ENTITIES = frozenset({
+    "sensor.bei_wo_xin_feng_kong_diao_total_energy_consumption",
+    "sensor.bei_wo_xin_feng_kong_diao_current_energy_consumption",
+})
+
+
+def _is_excluded_power_entity(entity_id):
+    return entity_id in EXCLUDED_POWER_ENTITIES
+
+
+def _is_excluded_energy_entity(entity_id):
+    return entity_id in EXCLUDED_ENERGY_ENTITIES
+
+
+class TestExcludedDeviceMeter(unittest.TestCase):
+    """测试自带计量不准的整机 (新风空调) 被排除, 改由空调插座计量"""
+
+    def test_新风空调自带功率_被排除(self):
+        self.assertTrue(_is_excluded_power_entity("sensor.bei_wo_xin_feng_kong_diao_real_time_power"))
+
+    def test_新风空调自带电量_被排除(self):
+        self.assertTrue(_is_excluded_energy_entity("sensor.bei_wo_xin_feng_kong_diao_total_energy_consumption"))
+        # 当前能源消耗不是累计计数器, 也要排除
+        self.assertTrue(_is_excluded_energy_entity("sensor.bei_wo_xin_feng_kong_diao_current_energy_consumption"))
+
+    def test_北卧空调插座_保留(self):
+        # 排除自带读数后, 该空调的用电完全由插座计量
+        self.assertFalse(_is_excluded_power_entity("sensor.yutai_cn_1207439820_fsov8m_electric_power_p_4_2"))
+        self.assertFalse(_is_excluded_energy_entity("sensor.yutai_cn_1207439820_fsov8m_power_consumption_p_4_1"))
+
+    def test_其他设备不受影响(self):
+        self.assertFalse(_is_excluded_power_entity("sensor.giot_cn_1162942256_v8icm_electric_power_p_4_2"))
+        self.assertFalse(_is_excluded_energy_entity("sensor.naslei_ji_yong_dian"))
+
+
 if __name__ == "__main__":
     unittest.main()

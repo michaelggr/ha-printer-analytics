@@ -95,6 +95,30 @@ def is_component_power_entity(entity_id: str, friendly_name: str | None) -> bool
     """判断是否为组件级功率实体 (CPU/GPU/压缩机), True 表示应排除"""
     return _match_keywords(entity_id, friendly_name, POWER_COMPONENT_KEYWORDS)
 
+
+# 自带计量不准的整机实体: 改由对应的空调插座计量
+# 新风空调自带「实时功率 6W / 耗电量」与北卧空调插座读数不一致 (插座 0W),
+# 两套数据并存会重复计量, 按实际用电以插座为准, 显式排除自带读数
+EXCLUDED_POWER_ENTITIES = frozenset({
+    "sensor.bei_wo_xin_feng_kong_diao_real_time_power",
+})
+EXCLUDED_ENERGY_ENTITIES = frozenset({
+    # 累计电量: 与插座耗电量重复计算
+    "sensor.bei_wo_xin_feng_kong_diao_total_energy_consumption",
+    # 当前能源消耗: 非累计计数器, MAX-MIN 求增量无意义
+    "sensor.bei_wo_xin_feng_kong_diao_current_energy_consumption",
+})
+
+
+def is_excluded_power_entity(entity_id: str) -> bool:
+    """整机自带功率不准、改用插座计量的实体"""
+    return entity_id in EXCLUDED_POWER_ENTITIES
+
+
+def is_excluded_energy_entity(entity_id: str) -> bool:
+    """整机自带电量不准、改用插座计量的实体"""
+    return entity_id in EXCLUDED_ENERGY_ENTITIES
+
 # 灯光动作
 LIGHT_ACTION_ON = "on"
 LIGHT_ACTION_OFF = "off"

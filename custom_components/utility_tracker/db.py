@@ -16,7 +16,12 @@ from pymysql.cursors import DictCursor
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
-from .const import is_component_power_entity, is_derived_energy_entity
+from .const import (
+    is_component_power_entity,
+    is_derived_energy_entity,
+    is_excluded_energy_entity,
+    is_excluded_power_entity,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -439,6 +444,8 @@ class UtilityDB:
             for row in rows:
                 if is_derived_energy_entity(row["entity_id"], row["friendly_name"]):
                     continue
+                if is_excluded_energy_entity(row["entity_id"]):
+                    continue
                 if row["s"] is not None:
                     total += float(row["s"])
             return total
@@ -468,6 +475,8 @@ class UtilityDB:
             total = 0.0
             for row in rows:
                 if is_component_power_entity(row["entity_id"], row["friendly_name"]):
+                    continue
+                if is_excluded_power_entity(row["entity_id"]):
                     continue
                 total += float(row["power_w"])
             return total

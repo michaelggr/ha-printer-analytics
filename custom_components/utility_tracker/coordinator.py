@@ -42,6 +42,8 @@ from .const import (
     UTILITY_TYPE_GAS,
     is_component_power_entity,
     is_derived_energy_entity,
+    is_excluded_energy_entity,
+    is_excluded_power_entity,
     is_light_entity,
     is_power_outlier,
 )
@@ -307,10 +309,15 @@ class UtilityTrackerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 continue
             fname = state.attributes.get("friendly_name")
             # 组件级功率 (CPU/GPU/压缩机) 与整机功率重复, 派生电量 (日/周/月/年) 与累计计数器重复,
-            # 同时入库会让 current_power 与 power_today 成倍虚高, 采集阶段直接跳过
-            if dc == "power" and is_component_power_entity(eid, fname):
+            # 同时入库会让 current_power 与 power_today 成倍虚高, 采集阶段直接跳过;
+            # 自带计量不准的整机 (如新风空调) 按插座为准, 一并排除自带读数
+            if dc == "power" and (
+                is_component_power_entity(eid, fname) or is_excluded_power_entity(eid)
+            ):
                 continue
-            if dc == "energy" and is_derived_energy_entity(eid, fname):
+            if dc == "energy" and (
+                is_derived_energy_entity(eid, fname) or is_excluded_energy_entity(eid)
+            ):
                 continue
             # 跳过不可用状态,但保留 state 字符串便于排查
             val = _state_float(state)

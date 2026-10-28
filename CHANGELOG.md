@@ -1,10 +1,20 @@
-﻿# 打印分析卡片 - 修改记录
+# 打印分析卡片 - 修改记录
 
 ## 虚拟事件实体全量迁移到新网关（2026-10-28）
 
 | 类型 | 内容 | 涉及文件 |
 |------|------|----------|
 | 修复 | 中枢网关设备 ID 变更（`1175403807` → `1184711570`），批量替换 `automations.yaml` 中全部 10 处旧引用：`[系统] 中枢网关虚拟事件播报`、电视切台/音响音量等 9 条虚拟事件自动化、炒面检测蓝图的 `xiaomi_gateway_virtual_event` 输入 | automations.yaml#L8,24,44,64,81,89,109,124,139,154,454 |
+
+## 新风空调改用插座计量（2026-10-28）
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 修复 | 新风空调自带计量不准（自带实时功率 6W，实际插座为 0W），改用北卧空调插座 `sensor.yutai_cn_1207439820_fsov8m_*` 的功率与耗电量作为唯一来源；新增 `EXCLUDED_POWER_ENTITIES` / `EXCLUDED_ENERGY_ENTITIES` 显式排除名单与 `is_excluded_power_entity()` / `is_excluded_energy_entity()`，采集与查询双侧排除 `bei_wo_xin_feng_kong_diao_real_time_power`、`total_energy_consumption`、`current_energy_consumption` | const.py、coordinator.py#L314、db.py |
+| 说明 | 「当前能源消耗」并非累计计数器，MAX-MIN 求增量本身无意义，一并排除 | const.py |
+| 测试 | 新增 `TestExcludedDeviceMeter` 4 个用例（自带功率/电量被排除、北卧插座保留、其他设备不受影响），单测 141 个全部通过 | tests/test_utility_tracker.py |
+
+**验证（重启后）**：`current_power` 184.0 W（raw 合计 190W 已扣除新风空调 6W），`power_today` 2.3634 kWh（扣除自带 0.07kWh），18 实体可用，`db_status=ok`。
 
 ## 功耗重复计量过滤（2026-10-28）
 
