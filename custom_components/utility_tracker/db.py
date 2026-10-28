@@ -447,6 +447,35 @@ class UtilityDB:
                 return float(row["s"]) if row and row["s"] is not None else 0.0
         return await self.hass.async_add_executor_job(_q)
 
+    async def async_fetch_last_power_values(
+        self, lookback_hours: int = 24
+    ) -> dict[str, float]:
+        """取每个实体在回溯窗口内最近一条非空 power_w, 供入库前跳变过滤
+
+        返回 {entity_id: power_w}; 无历史采样的实体不出现在字典中
+        """
+        def _q():
+            conn = self._get_conn_sync()
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT r.entity_id, r.power_w FROM device_power_raw r "
+                    "INNER JOIN ("
+                    "  SELECT entity_id, MAX(sampled_at) AS mt "
+                    "  FROM device_power_raw "
+                    "  WHERE power_w IS NOT NULL "
+                    "  AND sampled_at >= DATE_SUB(NOW(), INTERVAL %s HOUR) "
+                    "  GROUP BY entity_id"
+                    " ) m ON r.entity_id=m.entity_id AND r.sampled_at=m.mt",
+                    (lookback_hours,),
+                )
+                rows = cur.fetchall()
+            return {
+                row["entity_id"]: float(row["power_w"])
+                for row in rows
+                if row["power_w"] is not None
+            }
+        return await self.hass.async_add_executor_job(_q)
+
     # =====================================================================
     # 灯光事件 + 日聚合
     # =====================================================================

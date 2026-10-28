@@ -736,5 +736,55 @@ class TestAreaStayDurationEntities(unittest.TestCase):
             self.assertTrue(eid.startswith("sensor."), eid)
 
 
+def _is_power_outlier(last_w, new_w):
+    """判断功率采样是否异常 (从 const.py is_power_outlier 复制, 使用默认阈值)"""
+    max_w, jump_abs_w, jump_ratio = 10000.0, 3000.0, 10.0
+    if new_w is None:
+        return False
+    if new_w < 0 or new_w > max_w:
+        return True
+    if last_w is None or last_w <= 0:
+        return False
+    return (new_w - last_w) > jump_abs_w and new_w >= last_w * jump_ratio
+
+
+class TestPowerOutlierFilter(unittest.TestCase):
+    """测试功耗入库前的异常值过滤 (13kW 尖峰这类脏采样)"""
+
+    def test_超过绝对上限_判为异常(self):
+        self.assertTrue(_is_power_outlier(363.0, 13000.0))
+        self.assertTrue(_is_power_outlier(None, 12000.0))
+        # 恰好等于上限不算超限异常 (上次值 1500W, 也不满足 10 倍跳变)
+        self.assertFalse(_is_power_outlier(1500.0, 10000.0))
+
+    def test_负功率_判为异常(self):
+        self.assertTrue(_is_power_outlier(363.0, -1.0))
+
+    def test_无值_不判为异常(self):
+        # None 由调用方按跳过处理, 交给聚合侧的 NULL 语义
+        self.assertFalse(_is_power_outlier(363.0, None))
+
+    def test_无历史_只做绝对上限判断(self):
+        # 首次采样/重启后无上次值, 不能靠跳变判定, 只能靠上限
+        self.assertFalse(_is_power_outlier(None, 2000.0))
+        self.assertTrue(_is_power_outlier(None, 20000.0))
+
+    def test_小功率倍数放大_不误杀(self):
+        # 5W 待机 -> 80W 倍率 16x, 但增量仅 75W < 3000W, 属于真实变化
+        self.assertFalse(_is_power_outlier(5.0, 80.0))
+
+    def test_中等功率跳变_判为异常(self):
+        # 500W -> 6000W: 倍率 12x 且增量 5500W, 未超上限但明显是脏采样
+        self.assertTrue(_is_power_outlier(500.0, 6000.0))
+
+    def test_零值启动_不误杀(self):
+        # 上次为 0 (刚上电) 时不做跳变判定, 允许真实启动功率入库
+        self.assertFalse(_is_power_outlier(0.0, 6000.0))
+
+    def test_正常波动_不判为异常(self):
+        self.assertFalse(_is_power_outlier(363.0, 386.0))
+        self.assertFalse(_is_power_outlier(1500.0, 2200.0))
+
+
 if __name__ == "__main__":
     unittest.main()

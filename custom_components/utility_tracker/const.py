@@ -36,6 +36,37 @@ GRANULARITY_MONTH = "month"
 # 设备功耗 device_class 过滤
 POWER_DEVICE_CLASSES = ("power", "energy")
 
+# 功耗异常值过滤阈值
+POWER_MAX_W = 10000.0        # 单设备功率绝对上限 (W), 超过视为异常采样
+POWER_JUMP_ABS_W = 3000.0    # 跳变判定: 最小绝对增量 (W)
+POWER_JUMP_RATIO = 10.0      # 跳变判定: 新值 / 上次有效值 的倍数阈值
+POWER_LAST_LOOKBACK_HOURS = 24  # 读取上次有效值的回溯窗口 (小时)
+
+
+def is_power_outlier(
+    last_w: float | None,
+    new_w: float | None,
+    max_w: float = POWER_MAX_W,
+    jump_abs_w: float = POWER_JUMP_ABS_W,
+    jump_ratio: float = POWER_JUMP_RATIO,
+) -> bool:
+    """判断单次功率采样是否为异常值 (True 表示应丢弃该采样)
+
+    规则:
+    1. 无值 (None) 不判定为异常, 交给调用方按跳过处理
+    2. 超过绝对上限 max_w 或为负数 -> 异常 (家用单设备不可能出现)
+    3. 与上次有效值比较, 同时满足「倍数 >= jump_ratio」且「增量 > jump_abs_w」-> 异常
+       两个条件同时成立才判定, 避免小功率设备 (5W 待机 -> 80W) 因倍数放大被误杀;
+       上次值 <= 0 (首次采样/设备刚上电) 时不做跳变判定, 避免把真实启动功率误杀
+    """
+    if new_w is None:
+        return False
+    if new_w < 0 or new_w > max_w:
+        return True
+    if last_w is None or last_w <= 0:
+        return False
+    return (new_w - last_w) > jump_abs_w and new_w >= last_w * jump_ratio
+
 # 灯光动作
 LIGHT_ACTION_ON = "on"
 LIGHT_ACTION_OFF = "off"

@@ -35,11 +35,13 @@ from .const import (
     LIGHT_ACTION_ON,
     LIGHT_AREA_DURATION_ENTITIES,
     POWER_DEVICE_CLASSES,
+    POWER_LAST_LOOKBACK_HOURS,
     SOURCE_CRCGAS,
     SOURCE_STATE_GRID,
     UTILITY_TYPE_ELECTRICITY,
     UTILITY_TYPE_GAS,
     is_light_entity,
+    is_power_outlier,
 )
 from .db import UtilityDB
 
@@ -289,6 +291,33 @@ class UtilityTrackerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "state": state.state,
             }
             samples.append(sample)
+
+        # ---- 异常值过滤 ----
+        # 先取各实体上一次有效功率用于跳变判定; 首次运行无历史时只做绝对上限判断
+        # 被判定为异常的采样仍保留 state 字符串便于排查, 只把 power_w 置空
+        # (AVG/MAX/MIN 聚合与 current_power 都基于 power_w, NULL 行会被自然忽略)
+        if samples:
+            last_values = await self.db.async_fetch_last_power_values(
+                POWER_LAST_LOOKBACK_HOURS
+            )
+            filtered = 0
+            for sample in samples:
+                new_w = sample["power_w"]
+                if new_w is None:
+                    continue  # energy 传感器或不可用状态, 无需过滤
+                last_w = last_values.get(sample["entity_id"])
+                if not is_power_outlier(last_w, new_w):
+                    continue
+                filtered += 1
+                _LOGGER.warning(
+                    "功耗异常值已过滤: %s 本次 %.1fW, 上次 %s",
+                    sample["entity_id"],
+                    new_w,
+                    f"{last_w:.1f}W" if last_w is not None else "无记录",
+                )
+                sample["power_w"] = None
+            if filtered:
+                _LOGGER.info("功耗采样: 过滤异常值 %d/%d 条", filtered, len(samples))
 
         if samples:
             await self.db.async_insert_device_power_raw(samples)
