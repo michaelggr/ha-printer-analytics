@@ -1,5 +1,14 @@
 # 打印分析卡片 - 修改记录
 
+## 南阳台/餐厅「人在」设备同步更新（2026-10-30）
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 修复 | 餐厅感应改用原南阳台设备 `sensor.linp_cn_blt_3_1phrruppo4c01_es5b_occupancy_status_p_2_1078`（设备已改名「餐厅感应」），替换已从系统中移除的旧餐厅设备 `qkjnnln4cg04`（该实体已 404）；涉及两条打印播报自动化的 `you_ren_can_ting`、餐厅停留时长 history_stats、餐厅视图感应卡片 | automations.yaml#L55,L141；sensor.yaml#L189；ui-lovelace.yaml#L1098 |
+| 修复 | 南阳台感应改用新增设备 `sensor.linp_cn_blt_3_1qn11787h0802_es4b_occupancy_status_p_2_1078`；涉及 `you_ren_nan_yang_tai`（播报分发与音量 80% 判断）、南阳台停留时长 history_stats、南阳台视图感应卡片、首页「阳台」导航卡片 | automations.yaml#L56,L142；sensor.yaml#L221；ui-lovelace.yaml#L128,L1363 |
+| 验证 | 三个 YAML 解析通过、BOM=0、上传后与本地 MD5 一致；HA 重启后两条打印播报自动化均为 on，南阳台/餐厅停留时长传感器正常（0.0），新老感应实体状态均正常 | (服务器 + API) |
+| 备注 | HA 中「餐厅感应」设备的区域标签仍挂在「南阳台」区域，建议在 UI「设备」页把该设备改到「餐厅」区域，否则南阳台视图的设备列表会继续显示它 | - |
+
 ## 打印暂停通知并入完成/错误通知自动化（2026-10-30）
 
 | 类型 | 内容 | 涉及文件 |
