@@ -1,5 +1,12 @@
 # 打印分析卡片 - 修改记录
 
+## 新增打印完成发虚拟事件自动化（2026-10-30）
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 功能 | 新增 `[打印] 小黑奴打印完成发虚拟事件`（id `xiaoheinu_print_done_virtual_event`）：`print_status` 从 running/pause → finish 时，通过新中枢网关 `notify.xiaomi_cn_1184711570_hub1_emit_virtual_event_a_4_1` 发虚拟事件「小黑奴打印完成」，供米家 App 侧联动 | automations.yaml#L206-L225 |
+| 验证 | 手动触发实测：事件实体 `event.xiaomi_cn_1184711570_hub1_virtual_event_e_4_1` 成功收到「事件名称=小黑奴打印完成」 | (服务器) |
+
 ## 播报自动化补充北卧区域检测（2026-10-30）
 
 | 类型 | 内容 | 涉及文件 |
