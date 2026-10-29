@@ -256,6 +256,8 @@ class UtilityTrackerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 stats["power_today_kwh"] = await self.db.async_sum_power_today()
                 # 每设备今日电量明细 (供看板「单设备今日耗电」展示)
                 stats["power_today_by_device"] = await self.db.async_fetch_power_today_by_device()
+                # 每设备多周期电量明细 (今日/昨日/本周/本月/累计, 供看板表格展示)
+                stats["power_periods_by_device"] = await self.db.async_fetch_power_periods_by_device()
             if self.enable_light_stats:
                 # 开灯次数来自事件流表 light_daily
                 on_count, _ = await self.db.async_sum_light_today()

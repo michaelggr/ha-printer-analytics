@@ -592,7 +592,8 @@ class UtilityDB:
                 name = row["friendly_name"] or row["entity_id"]
                 result.append({"entity_id": row["entity_id"], "name": name, "kwh": kwh})
             return result
-        return await self.hass.async_add_executor_job(_q)
+        rows = await self.hass.async_add_executor_job(_q)
+        return self._dedupe_by_device(rows, sort_key="kwh")
 
     async def async_fetch_power_periods_by_device(self) -> list[dict[str, Any]]:
         """各设备多周期耗电明细 (今日/昨日/本周/本月/累计), 按累计降序
@@ -635,7 +636,103 @@ class UtilityDB:
                     "total": round(float(row["total_kwh"] or 0), 3),
                 })
             return result
-        return await self.hass.async_add_executor_job(_q)
+        rows = await self.hass.async_add_executor_job(_q)
+        # 按 device_id 去重: 同设备同时存在 energy 类 (_power_consumption_p_4_1) 与
+        # power 类 (_electric_power_p_4_2) 实体时, 优先保留 energy 类, 避免重复计量
+        return self._dedupe_by_device(rows, sort_key="total")
+
+    def _dedupe_by_device(self, rows: list[dict[str, Any]], sort_key: str) -> list[dict[str, Any]]:
+        """按设备分组去重, 同设备优先保留 energy 类实体
+
+        统一用 friendly_name 剥掉通用后缀 (如 " 功耗参数 电功率"、"累计用电") 得到设备名,
+        同设备名的实体归为一组. 这样能正确处理:
+        - giot 原生实体 "电脑电源 功耗参数 电功率" (有 device_id)
+        - helper 实体 "电脑电源累计用电" (无 device_id, WebSocket API 不允许改)
+        它们设备名都是 "电脑电源", 应合并为一行, 优先保留 helper 的 energy 数据.
+        """
+        import re
+        # 米家设备 entity_id 设备段正则 (giot/yutai/mibx5/xiaomi 等)
+        DEVICE_PATTERN = re.compile(
+            r"^((?:giot|yutai|mibx5|xiaomi|zhimi|yeelink|lumi|xiaobo|viomi|roborock|dreame|deerma|chuangmi|qmi|zimi|midns|leshow)_cn_\d+_[a-z0-9]+)"
+        )
+        energy_keywords = ("power_consumption", "total_energy", "lei_ji_yong_dian", "_kwh")
+        # friendly_name 通用后缀 (中文), 剥掉后剩下的就是设备名
+        cn_suffixes = (
+            " 功耗参数 耗电量", " 功耗参数 电功率", " 功耗参数 电压", " 功耗参数 电流",
+            " 实时功率", " 当前功率", " 洗衣机 耗电量",
+            "累计用电", " 累计用电", " 功率", " 功耗",
+        )
+        # entity_id 形式的 friendly_name (用户未改名时): 剥 entity_id 后缀提取设备段
+        eid_suffixes = (
+            "_power_consumption_kwh", "_power_consumption_p_4_1",
+            "_electric_power_p_4_2", "_total_energy_kwh", "_lei_ji_yong_dian",
+        )
+
+        def _has_cn(s: str) -> bool:
+            return any("\u4e00" <= c <= "\u9fff" for c in s)
+
+        def _strip_cn(name: str) -> str:
+            """剥中文通用后缀, 返回设备名 (小写)"""
+            for s in cn_suffixes:
+                if name.endswith(s):
+                    return name[: -len(s)].strip().lower()
+            return name.strip().lower()
+
+        def _strip_eid(name: str) -> str:
+            """剥 entity_id 形式的英文后缀, 返回设备段 (小写)"""
+            n = name.lower()
+            for s in eid_suffixes:
+                if n.endswith(s):
+                    return n[: -len(s)]
+            return n
+
+        # 第一遍: 有米家设备段的实体直接归 did 桶, 同时注册 friendly_name → did 桥梁
+        did_to_rows: dict[str, list[dict]] = {}
+        name_to_did: dict[str, str] = {}
+        orphans: list[dict] = []  # 无设备段的实体 (helper / 无米家段)
+
+        for r in rows:
+            eid = (r.get("entity_id") or "").lower().removeprefix("sensor.")
+            name = (r.get("name") or "").strip()
+            m = DEVICE_PATTERN.match(eid)
+            if m:
+                did = m.group(1)
+                did_to_rows.setdefault(did, []).append(r)
+                # 注册 friendly_name 剥出的中文名 → did 的桥梁, 供 helper 反查
+                if name and _has_cn(name):
+                    name_key = _strip_cn(name)
+                    if name_key:
+                        name_to_did.setdefault(name_key, did)
+            else:
+                orphans.append(r)
+
+        # 第二遍: 处理 orphan, 用 friendly_name 剥出的 key 反查 did
+        for r in orphans:
+            name = (r.get("name") or "").strip()
+            eid = (r.get("entity_id") or "").lower().removeprefix("sensor.")
+            if name and _has_cn(name):
+                name_key = _strip_cn(name)
+            elif name:
+                name_key = _strip_eid(name)
+            else:
+                name_key = _strip_eid(eid)
+
+            did = name_to_did.get(name_key)
+            if did:
+                did_to_rows.setdefault(did, []).append(r)
+            else:
+                # 无匹配的原生实体, 独立成组
+                did_to_rows[f"orphan:{name_key}"] = [r]
+
+        # 同组内: 优先 energy 类, 取 sort_key 最大的一条
+        result: list[dict] = []
+        for key, items in did_to_rows.items():
+            energy_items = [i for i in items if any(k in i["entity_id"] for k in energy_keywords)]
+            pool = energy_items if energy_items else items
+            result.append(max(pool, key=lambda x: x.get(sort_key) or 0))
+
+        result.sort(key=lambda x: x.get(sort_key) or 0, reverse=True)
+        return result
 
     async def async_current_total_power(self) -> float:
         """返回当前所有设备实时功率合计 W (取最近 10 分钟内的采样)

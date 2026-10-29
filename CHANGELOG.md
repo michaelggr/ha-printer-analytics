@@ -1,5 +1,14 @@
 # 打印分析卡片 - 修改记录
 
+## 设备功耗详情去重（2026-10-30）
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 修复 | `_dedupe_by_device` 重写为「双键策略」：主键用 entity_id 中的米家设备段（`giot_cn_XXX_YYY` 正则提取），桥梁用原生实体 friendly_name 剥中文后缀得到的设备名注册到 `name_to_did` 映射，供无设备段的 helper 反查合并 | custom_components/utility_tracker/db.py#L653-L735 |
+| 修复 | 通过 WS `config/entity_registry/update` 把 helper `sensor.giot_cn_1164778814_v8icm_power_consumption_kwh` 的 friendly_name 从 entity_id 形式改为「小黑奴电源累计用电」，便于阅读 | (实体注册表) |
+| 验证 | 设备数 22 → 20；小黑奴电源（helper total=6.813 + 原生 total=0）合并；NAS（helper "NAS累计用电" total=1.131 + 原生 "nas 功耗参数 电功率" total=0）合并 | (API 查询) |
+| 备注 | 数据表 `device_power_hourly` 历史行的 friendly_name 仍是旧值，新采样会写入新名；`MAX(friendly_name)` 取字典序最大，新行写入后中文名优先于 entity_id 形式旧名 | - |
+
 ## 南阳台/餐厅「人在」设备同步更新（2026-10-30）
 
 | 类型 | 内容 | 涉及文件 |

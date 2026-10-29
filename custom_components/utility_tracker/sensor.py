@@ -41,6 +41,7 @@ async def async_setup_entry(
         UtilityTrackerPowerTodaySensor(coordinator, entry),
         # 每设备今日耗电明细 (CSV 格式, 供看板 markdown 渲染)
         UtilityTrackerPowerTodayByDeviceSensor(coordinator, entry),
+        UtilityTrackerPowerPeriodsByDeviceSensor(coordinator, entry),
         UtilityTrackerLightCountTodaySensor(coordinator, entry),
         UtilityTrackerLightDurationTodaySensor(coordinator, entry),
         UtilityTrackerAreaStayTodaySensor(coordinator, entry),
@@ -304,6 +305,35 @@ class UtilityTrackerPowerTodayByDeviceSensor(_BaseSensor):
         rows = data.get("power_today_by_device") or []
         parts = [f"{r.get('name','?')}={r.get('kwh',0):.3f}" for r in rows]
         return {"devices": ",".join(parts) if parts else ""}
+
+
+class UtilityTrackerPowerPeriodsByDeviceSensor(_BaseSensor):
+    """各设备多周期耗电明细 (今日/昨日/本周/本月/累计), 供看板表格渲染
+
+    state 存设备数量 (简短), 完整明细放 devices 属性 (list of dict),
+    看板 markdown 用 state_attr() 取出后逐行渲染成表格。
+    """
+
+    _attr_name = "Power Periods By Device"
+    _attr_icon = "mdi:table"
+
+    def __init__(self, coordinator, entry):
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_power_periods_by_device"
+
+    @property
+    def native_value(self):
+        data = self.coordinator.data or {}
+        rows = data.get("power_periods_by_device") or []
+        return len(rows)
+
+    @property
+    def extra_state_attributes(self):
+        # devices 直接为 list[dict], HA attribute 支持嵌套结构,
+        # 比 CSV 更直观, Jinja 模板可直接 .name/.today 等访问
+        data = self.coordinator.data or {}
+        rows = data.get("power_periods_by_device") or []
+        return {"devices": rows}
 
 
 # =====================================================================
