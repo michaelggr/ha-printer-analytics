@@ -1,5 +1,13 @@
 # 打印分析卡片 - 修改记录
 
+## 修复炒面检测自动化 repairs 报错（2026-11-01）
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 修复 | HA repairs 中报 error：`shell_command.obico_detect` 服务不存在（2026-10-28 创建）。根因：`shell_command.yaml` 与 `input_number.yaml` 中炒面检测相关定义丢失。恢复 `shell_command.obico_detect` 服务定义、12 个 `input_number.bambu_lab_p1_spaghetti_detection_*` 统计实体，上传 `obico_detect.py` 脚本，重启 HA 后检测验证正常（累计运行 259 帧） | shell_command.yaml, input_number.yaml, scripts/obico_detect.py |
+| 修复 | 服务恢复后 repairs issue 未自动消除（打印机 offline，自动化每次触发在检测前 stop，走不到服务调用验证）。通过 `repairs/ignore_issue` WS 命令忽略该历史 issue，前端不再显示 | (服务器) |
+| 验证 | trace 确认自动化正常触发；临时设 print_status=running 后定时触发成功调用 `shell_command.obico_detect`（stop 于取图失败属预期，摄像头随打印机 offline） | (服务器) |
+
 ## 打印中排气加每分钟轮询兜底（2026-11-01）
 
 | 类型 | 内容 | 涉及文件 |
