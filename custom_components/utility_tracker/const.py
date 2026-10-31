@@ -180,6 +180,9 @@ EXCLUDED_ENERGY_ENTITIES = frozenset({
     "sensor.giot_cn_1164778814_v8icm_power_consumption_p_4_1",  # 小黑奴电源
     # 取暖器: 无可用累计电量, 改由功率积分兜底 (见 POWER_INTEGRATION_ENTITIES)
     "sensor.giot_cn_1162898415_v8icm_power_consumption_p_4_1",
+    # 小打印机 helper (integration 积分器): 与米家原生 giot_cn_1164778814_v8icm_power_consumption_kwh
+    # 重复计量同一台打印机, 米家原生单位正确且数据更完整, 隐藏 helper
+    "sensor.xiao_da_yin_ji_lei_ji_yong_dian",
 })
 
 

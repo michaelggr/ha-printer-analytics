@@ -39,6 +39,13 @@
 | 修复 | 剩余时间播报、完成/错误通知两条自动化的有人检测漏了北卧——人在北卧时 6 区域全无人导致播报静默丢弃。新增 `you_ren_bei_wo` 变量与第三 choose 分支：北卧有人 → 北卧家庭屏（`media_player.xiaomi_cn_865973730_x4b`）音量 50% 播报 | automations.yaml |
 | 验证 | 40 个 Jinja 模板语法通过；reload 后服务器回读两条自动化均含北卧分支；经 trace 确认 10-30 03:28 未播报原因为 choose 全分支未命中（漏北卧所致，非故障） | (服务器) |
 
+## 隐藏小黑奴打印机重复的 helper 计量（2026-11-01）
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 修复 | 把 helper `sensor.xiao_da_yin_ji_lei_ji_yong_dian`（HA integration 积分器）加入 `EXCLUDED_ENERGY_ENTITIES`，与米家原生 `giot_cn_1164778814_v8icm_power_consumption_kwh` 重复计量同一台打印机；米家原生单位正确且数据更完整（本周 12.12 vs 1.46），保留原生隐藏 helper | custom_components/utility_tracker/const.py#L183-L185 |
+| 验证 | 设备数 20 → 19；小黑奴电源累计用电（米家原生）total=18.123 居首 | (API 查询) |
+
 ## 设备功耗详情去重（2026-10-30）
 
 | 类型 | 内容 | 涉及文件 |
