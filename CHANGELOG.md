@@ -7,6 +7,8 @@
 | 修复 | 小黑奴（giot 1164778814）的「耗电量」kwh 模板计数器在 0~2 kWh 间反复归零后重爬，增量差分把重爬段当成新增电量，10/29-31 日报 6.409/5.108/6.202 kWh，而 150 W 上限对应的 24h 物理天花板仅 3.6 kWh，虚高约 6 倍。将该模板实体加入 `EXCLUDED_ENERGY_ENTITIES`，并把 `..._electric_power_p_4_2` 加入 `POWER_INTEGRATION_ENTITIES`，改按 AVG(power)×采样覆盖时长积分（10 月真实约 2.5 kWh） | custom_components/utility_tracker/const.py#L180-L201 |
 | 修复 | 同步更新测试副本：原「小黑奴 kwh 实体保留」用例改为排除断言，新增「小黑奴 power 实体走积分」用例，122 个用例全部通过 | tests/test_utility_tracker.py#L902-L1015 |
 | 配置 | 删除 `utility_meter.yaml` 中 v1 遗留的 NAS 日/周/月用电量（源为 giot `p_4_1`，单位错标 mWh 且已在 utility_tracker 中全局排除），看板未引用，避免错误量纲实体继续产生 | utility_meter.yaml#L49 |
+| 修复 | 「小黑奴电源累计用电」模板不再读归零计数器，改引用 integration 积分器 `sensor.xiao_da_yin_ji_lei_ji_yong_dian`，显示值从 0.001 修正为 2.2429 kWh（与功率积分口径一致），`template.reload` 验证通过 | templates.yaml#L11-L21 |
+| 数据 | 修正 MariaDB `device_power_daily` 中小黑奴 10/29-31 的虚高日值：6.409/5.108/6.202 → 0.7078/0.5855/0.9464 kWh（按功率积分重算），同时把归零计数器的错误日值置空；原值已备份至临时目录 | (MariaDB utility_bills) |
 
 ## 修复炒面检测自动化 repairs 报错（2026-11-01）
 
