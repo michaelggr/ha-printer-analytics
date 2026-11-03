@@ -178,10 +178,15 @@ EXCLUDED_ENERGY_ENTITIES = frozenset({
     "sensor.giot_cn_1162942256_v8icm_power_consumption_p_4_1",  # 电脑电源
     "sensor.giot_cn_1163256502_v8icm_power_consumption_p_4_1",  # NAS
     "sensor.giot_cn_1164778814_v8icm_power_consumption_p_4_1",  # 小黑奴电源
+    # 小黑奴「耗电量」模板 (p_4_1/1000): 计数器在 0~2 kWh 间反复归零后重爬,
+    # 增量差分会把重爬段当成新增电量, 日电量虚高约 6 倍
+    # (10/29-31 报 6.409/5.108/6.202 kWh, 而 150W 上限的物理天花板仅 3.6 kWh/24h)
+    # 改为由功率实体积分计量 (见 POWER_INTEGRATION_ENTITIES)
+    "sensor.giot_cn_1164778814_v8icm_power_consumption_kwh",
     # 取暖器: 无可用累计电量, 改由功率积分兜底 (见 POWER_INTEGRATION_ENTITIES)
     "sensor.giot_cn_1162898415_v8icm_power_consumption_p_4_1",
-    # 小打印机 helper (integration 积分器): 与米家原生 giot_cn_1164778814_v8icm_power_consumption_kwh
-    # 重复计量同一台打印机, 米家原生单位正确且数据更完整, 隐藏 helper
+    # 小打印机 helper (integration 积分器): 与 utility_tracker 自身按 AVG(power)×采样时长的
+    # 积分口径重复, 同一台打印机会被计两次, 故排除 (米家原生计数器已因归零不可用, 见上)
     "sensor.xiao_da_yin_ji_lei_ji_yong_dian",
 })
 
@@ -191,6 +196,9 @@ EXCLUDED_ENERGY_ENTITIES = frozenset({
 # 聚合时按 energy_kwh = AVG(power_w) × 采样覆盖小时数 估算
 POWER_INTEGRATION_ENTITIES = frozenset({
     "sensor.giot_cn_1162898415_v8icm_electric_power_p_4_2",
+    # 小黑奴: 累计电量计数器反复归零不可用 (见 EXCLUDED_ENERGY_ENTITIES),
+    # 改按功率积分, 上限 150W -> 24h 最多 3.6 kWh, 与物理量级自洽
+    "sensor.giot_cn_1164778814_v8icm_electric_power_p_4_2",
 })
 
 

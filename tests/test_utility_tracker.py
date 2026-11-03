@@ -905,11 +905,17 @@ EXCLUDED_ENERGY_ENTITIES = frozenset({
     "sensor.giot_cn_1162942256_v8icm_power_consumption_p_4_1",
     "sensor.giot_cn_1163256502_v8icm_power_consumption_p_4_1",
     "sensor.giot_cn_1164778814_v8icm_power_consumption_p_4_1",
+    # 小黑奴 kwh 模板: 计数器反复归零重爬, 差分会虚增约 6 倍
+    "sensor.giot_cn_1164778814_v8icm_power_consumption_kwh",
     "sensor.giot_cn_1162898415_v8icm_power_consumption_p_4_1",
+    # 小打印机 integration helper: 与 utility_tracker 自身的功率积分口径重复
+    "sensor.xiao_da_yin_ji_lei_ji_yong_dian",
 })
 
 POWER_INTEGRATION_ENTITIES = frozenset({
     "sensor.giot_cn_1162898415_v8icm_electric_power_p_4_2",
+    # 小黑奴: 累计电量不可用, 改功率积分
+    "sensor.giot_cn_1164778814_v8icm_electric_power_p_4_2",
 })
 
 
@@ -995,9 +1001,14 @@ class TestPowerIntegrationFallback(unittest.TestCase):
             eid = f"sensor.giot_cn_{dev}_v8icm_power_consumption_p_4_1"
             self.assertTrue(_is_excluded_energy_entity(eid), eid)
 
-    def test_小黑奴真正的kwh实体_保留(self):
-        # 该实体单位就是 kWh, 且数值与 mWh 版相差 1000 倍, 是唯一正确来源
-        self.assertFalse(_is_excluded_energy_entity("sensor.giot_cn_1164778814_v8icm_power_consumption_kwh"))
+    def test_小黑奴kwh实体_因计数器归零被排除(self):
+        # 该实体数值在 0~2 kWh 间反复归零后重爬, 差分会把重爬段当新增电量,
+        # 日电量虚高约 6 倍 (150W 上限的物理天花板仅 3.6 kWh/24h), 故排除
+        self.assertTrue(_is_excluded_energy_entity("sensor.giot_cn_1164778814_v8icm_power_consumption_kwh"))
+
+    def test_小黑奴power实体_走积分兜底(self):
+        # 累计电量不可用后, 改按 AVG(power) × 采样覆盖时长积分
+        self.assertTrue(_is_power_integration_entity("sensor.giot_cn_1164778814_v8icm_electric_power_p_4_2"))
 
     def test_取暖器power实体_走积分兜底(self):
         self.assertTrue(_is_power_integration_entity("sensor.giot_cn_1162898415_v8icm_electric_power_p_4_2"))
