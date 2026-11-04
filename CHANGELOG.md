@@ -1,5 +1,11 @@
 # 打印分析卡片 - 修改记录
 
+## 「自动化」面板改为 auto-entities 实时同步（2026-11-05）
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 功能 | 安装 auto-entities 卡片（thomasloven/lovelace-auto-entities master，97 KB），上传至 `www/community/auto-entities/` 并在 `configuration.yaml` lovelace resources 注册（WS `lovelace/resources/create` 在本机 YAML 模式下为 unknown_command，故走 YAML）。「自动化」面板 4 个分组（打印/北卧/系统/其他）改用 `custom:auto-entities` + friendly_name 前缀过滤，自动化新增/删除/改名/启停自动同步。重启 HA 后验证资源已注册、面板 4 分组在位 | configuration.yaml#L62-L64, (服务器 .storage/lovelace.dashboard_unknown) |
+
 ## 重建「自动化」侧边栏仪表板（2026-11-05）
 
 | 类型 | 内容 | 涉及文件 |
