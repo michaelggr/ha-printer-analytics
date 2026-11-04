@@ -1,5 +1,11 @@
 # 打印分析卡片 - 修改记录
 
+## 修复自动化面板 auto-entities 不显示（2026-11-05）
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 修复 | 浏览器 SW 把 JS 裸 URL 的旧 404 缓存住，资源 URL 加 `?v=1.13.0` 强制重新加载；auto-entities 正则必须包在 `/.../` 中、`sort.method` 合法值为 `name`（非 friendly_name）；`tile` 卡片不吃 entities 列表（报"Specify an entity"），改用 `card_param: cards` + `grid` + filter `options.type: tile` 组合。浏览器实测：0 错误卡片、10 个自动化 tile 全部渲染 | configuration.yaml#L62-L65, (服务器 .storage/lovelace.dashboard_unknown) |
+
 ## 「自动化」面板改为 auto-entities 实时同步（2026-11-05）
 
 | 类型 | 内容 | 涉及文件 |
