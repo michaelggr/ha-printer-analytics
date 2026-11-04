@@ -1,5 +1,11 @@
 # 打印分析卡片 - 修改记录
 
+## 重建「自动化」侧边栏仪表板（2026-11-05）
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 修复 | 侧边栏「自动化」仪表板（storage 模式，url_path `dashboard-unknown`）自 2026-04 起未更新，24 个 tile 卡片引用的实体（`da_yin_cuo_wu_tong_zhi_2`、`liang_deng_*_2` 等）均已重命名/删除。通过 WS `lovelace/config/save` 重建为 sections 布局：总览 heading + 按 `[打印]`/`[北卧]`/`[系统与其他]` 分组，共 10 个当前真实自动化（9 启用 / 1 停用），回读验证无缺失无多余。侧边栏条目补设 `mdi:robot` 图标。原配置备份至 `backups/lovelace.dashboard_unknown.bak_20261105` | (服务器 .storage/lovelace.dashboard_unknown) |
+
 ## 修复小黑奴电量虚高与 v1 遗留计量（2026-11-03）
 
 | 类型 | 内容 | 涉及文件 |
