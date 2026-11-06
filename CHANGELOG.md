@@ -1,5 +1,12 @@
 # 打印分析卡片 - 修改记录
 
+## 修复 HA 重启后打印播报误触发（2026-11-07）
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 修复 | `[打印] 打印机完成/错误通知`、`[打印] 打印机剩余时间播报` 新增防重启条件 `trigger.from_state is not none and trigger.from_state.state not in ['unavailable','unknown']`：HA 重启后 print_status / 虚拟事件实体从 unavailable 恢复上次状态时会匹配 `to: finish` 等触发器，导致重启后重播报一次，现统一拦截（from_state 为 None 的首次写入同样拦截） | automations.yaml#L26-L28, #L129-L131 |
+| 备注 | 其余打印自动化不受影响：`xiaoheinu_exhaust_fan` / `xiaoheinu_print_done_virtual_event` / `xiaoheinu_chamber_light_off` 本就有 `from: [running, pause]` 限制，`xiaoheinu_exhaust_printing` 以实时状态为条件；已 reload 并 API 回读确认两条自动化条件生效 | — |
+
 ## 设备盘点补充：安全/防潮/红外空调/天气（2026-11-06）
 
 | 类型 | 内容 | 涉及文件 |
