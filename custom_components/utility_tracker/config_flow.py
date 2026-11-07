@@ -12,6 +12,11 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.exceptions import HomeAssistantError
 
 from .const import (
+    CONF_AWAY_EVENT_ENTITY,
+    CONF_AWAY_HOME_NAMES,
+    CONF_AWAY_OUT_NAMES,
+    CONF_AWAY_SHORT_MINUTES,
+    CONF_ENABLE_AWAY_STATS,
     CONF_ENABLE_DEVICE_POWER,
     CONF_ENABLE_ELECTRICITY,
     CONF_ENABLE_GAS,
@@ -24,6 +29,8 @@ from .const import (
     CONF_POWER_SAMPLE_MINUTES,
     CONF_RAW_RETENTION_DAYS,
     CONF_SYNC_INTERVAL_HOURS,
+    DEFAULT_AWAY_EVENT_ENTITY,
+    DEFAULT_AWAY_SHORT_MINUTES,
     DEFAULT_MARIADB_DATABASE,
     DEFAULT_MARIADB_HOST,
     DEFAULT_MARIADB_PORT,
@@ -99,6 +106,15 @@ class UtilityTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             ),
             vol.Required(CONF_RAW_RETENTION_DAYS, default=DEFAULT_RAW_RETENTION_DAYS): vol.All(
                 vol.Coerce(int), vol.Range(min=1, max=365)
+            ),
+            # ---- 出门统计 ----
+            vol.Required(CONF_ENABLE_AWAY_STATS, default=True): bool,
+            vol.Required(CONF_AWAY_EVENT_ENTITY, default=DEFAULT_AWAY_EVENT_ENTITY): str,
+            # 出门/回家场景名: 逗号分隔, 支持多个别名 (中枢网关虚拟事件「事件名称」)
+            vol.Optional(CONF_AWAY_OUT_NAMES, default="场景-出门"): str,
+            vol.Optional(CONF_AWAY_HOME_NAMES, default="场景-回家"): str,
+            vol.Required(CONF_AWAY_SHORT_MINUTES, default=DEFAULT_AWAY_SHORT_MINUTES): vol.All(
+                vol.Coerce(int), vol.Range(min=0, max=120)
             ),
         })
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)

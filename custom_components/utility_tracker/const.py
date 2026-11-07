@@ -12,9 +12,16 @@ CONF_ENABLE_ELECTRICITY = "enable_electricity"
 CONF_ENABLE_GAS = "enable_gas"
 CONF_ENABLE_DEVICE_POWER = "enable_device_power"
 CONF_ENABLE_LIGHT_STATS = "enable_light_stats"
+CONF_ENABLE_AWAY_STATS = "enable_away_stats"
 CONF_SYNC_INTERVAL_HOURS = "sync_interval_hours"
 CONF_POWER_SAMPLE_MINUTES = "power_sample_minutes"
 CONF_RAW_RETENTION_DAYS = "raw_retention_days"
+
+# 出门统计
+CONF_AWAY_EVENT_ENTITY = "away_event_entity"
+CONF_AWAY_OUT_NAMES = "away_out_names"
+CONF_AWAY_HOME_NAMES = "away_home_names"
+CONF_AWAY_SHORT_MINUTES = "away_short_minutes"
 
 # 默认值
 DEFAULT_MARIADB_HOST = "core-mariadb"
@@ -24,6 +31,10 @@ DEFAULT_MARIADB_DATABASE = "utility_bills"
 DEFAULT_SYNC_INTERVAL_HOURS = 1
 DEFAULT_POWER_SAMPLE_MINUTES = 5
 DEFAULT_RAW_RETENTION_DAYS = 30
+DEFAULT_AWAY_EVENT_ENTITY = "event.xiaomi_cn_1184711570_hub1_virtual_event_e_4_1"
+DEFAULT_AWAY_OUT_NAMES = ("场景-出门",)
+DEFAULT_AWAY_HOME_NAMES = ("场景-回家",)
+DEFAULT_AWAY_SHORT_MINUTES = 10
 
 # 工具类型
 UTILITY_TYPE_ELECTRICITY = "electricity"

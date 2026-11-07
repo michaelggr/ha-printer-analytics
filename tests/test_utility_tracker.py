@@ -1108,5 +1108,202 @@ class TestEnergyDeltaAccumulation(unittest.TestCase):
         self.assertEqual(_sum_energy_deltas([0, 0, 0, 0, 0, 0]), 0.0)
 
 
+# =====================================================================
+# 出门统计 (away.py 纯函数)
+# =====================================================================
+
+# away.py 不依赖 HA, 可直接 importlib 加载
+import importlib.util as _ilu
+_away_spec = _ilu.spec_from_file_location(
+    "utility_tracker_away",
+    r"g:\dev\ha\ha\custom_components\utility_tracker\away.py",
+)
+_away = _ilu.module_from_spec(_away_spec)
+_away_spec.loader.exec_module(_away)
+
+from datetime import datetime as _dt, timedelta as _td
+
+
+def _ev(hour, minute, etype, day_offset=0, month=None, day=None):
+    """构造事件: 默认当天, 可用 day_offset 或精确 month/day 覆盖"""
+    base = _dt(2026, 11, 8, 0, 0)  # 周日
+    if month is not None and day is not None:
+        base = base.replace(month=month, day=day)
+    base = base + _td(days=day_offset)
+    return {
+        "event_time": base.replace(hour=hour, minute=minute),
+        "event_type": etype,
+    }
+
+
+class TestAwayPairTrips(unittest.TestCase):
+    """pair_trips 事件配对"""
+
+    def test_简单一出一进(self):
+        events = [_ev(8, 0, "away"), _ev(18, 0, "home")]
+        trips = _away.pair_trips(events, _dt(2026, 11, 8, 20, 0))
+        self.assertEqual(len(trips), 1)
+        self.assertEqual(trips[0]["duration_sec"], 10 * 3600)
+        self.assertIsNotNone(trips[0]["end"])
+
+    def test_重复away_保留最早(self):
+        # 网关重复上报 away: 第二次应被忽略, 时长从第一次算
+        events = [_ev(8, 0, "away"), _ev(9, 0, "away"), _ev(18, 0, "home")]
+        trips = _away.pair_trips(events, _dt(2026, 11, 8, 20, 0))
+        self.assertEqual(len(trips), 1)
+        self.assertEqual(trips[0]["duration_sec"], 10 * 3600)
+
+    def test_孤立home_被忽略(self):
+        events = [_ev(18, 0, "home")]
+        trips = _away.pair_trips(events, _dt(2026, 11, 8, 20, 0))
+        self.assertEqual(len(trips), 0)
+
+    def test_未闭合行程_end为None_时长按now(self):
+        events = [_ev(8, 0, "away")]
+        trips = _away.pair_trips(events, _dt(2026, 11, 8, 12, 0))
+        self.assertEqual(len(trips), 1)
+        self.assertIsNone(trips[0]["end"])
+        self.assertEqual(trips[0]["duration_sec"], 4 * 3600)
+
+    def test_乱序_home早于away_丢弃(self):
+        events = [_ev(18, 0, "away"), _ev(8, 0, "home")]
+        trips = _away.pair_trips(events, _dt(2026, 11, 8, 20, 0))
+        # home 时间 < away 时间, 段被丢弃, 但 away 未闭合 -> 留下未闭合行程
+        self.assertEqual(len(trips), 1)
+        self.assertIsNone(trips[0]["end"])
+
+
+class TestAwaySplitByDay(unittest.TestCase):
+    """split_trip_by_day 跨零点切分"""
+
+    def test_同天不切分(self):
+        start = _dt(2026, 11, 8, 10, 0)
+        end = _dt(2026, 11, 8, 12, 0)
+        result = _away.split_trip_by_day(start, end)
+        self.assertEqual(result, [(start.date(), 7200)])
+
+    def test_跨零点切两天(self):
+        start = _dt(2026, 11, 5, 23, 0)
+        end = _dt(2026, 11, 6, 1, 0)
+        result = _away.split_trip_by_day(start, end)
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0][1], 3600)
+        self.assertEqual(result[1][1], 3600)
+
+    def test_跨多天(self):
+        start = _dt(2026, 11, 5, 12, 0)
+        end = _dt(2026, 11, 7, 12, 0)
+        result = _away.split_trip_by_day(start, end)
+        self.assertEqual(len(result), 3)
+        # 12h + 24h + 12h
+        self.assertEqual(sum(s for _, s in result), 48 * 3600)
+
+    def test_end早于start_返回空(self):
+        start = _dt(2026, 11, 8, 12, 0)
+        end = _dt(2026, 11, 8, 10, 0)
+        self.assertEqual(_away.split_trip_by_day(start, end), [])
+
+
+class TestAwayComputeStats(unittest.TestCase):
+    """compute_away_stats 周期聚合"""
+
+    NOW = _dt(2026, 11, 8, 20, 0)  # 周日 20:00
+
+    def test_空事件(self):
+        stats = _away.compute_away_stats([], self.NOW)
+        self.assertEqual(stats["today_count"], 0)
+        self.assertEqual(stats["week_count"], 0)
+        self.assertEqual(stats["is_away"], False)
+
+    def test_今日一次有效出门(self):
+        events = [_ev(10, 0, "away"), _ev(12, 0, "home")]
+        stats = _away.compute_away_stats(events, self.NOW, short_minutes=10)
+        self.assertEqual(stats["today_count"], 1)
+        self.assertEqual(stats["week_count"], 1)
+        self.assertEqual(stats["month_count"], 1)
+        self.assertEqual(stats["today_sec"], 7200)
+        self.assertEqual(stats["is_away"], False)
+
+    def test_短途不计入次数_但计入时长(self):
+        # 5 分钟快递 -> 不计数, 时长照算
+        events = [_ev(10, 0, "away"), _ev(10, 5, "home")]
+        stats = _away.compute_away_stats(events, self.NOW, short_minutes=10)
+        self.assertEqual(stats["today_count"], 0)
+        self.assertEqual(stats["today_sec"], 300)
+
+    def test_跨零点行程_时长按天归位(self):
+        # 周六 23:00 -> 周日 01:00 (本周跨天)
+        events = [_ev(23, 0, "away", day_offset=-1), _ev(1, 0, "home")]
+        stats = _away.compute_away_stats(events, self.NOW, short_minutes=10)
+        # 次数归起始日(周六), 也属本周
+        self.assertEqual(stats["week_count"], 1)
+        # 时长: 周六 1h + 周日 1h, 都在本周
+        self.assertEqual(stats["week_sec"], 7200)
+        # 今日(周日)只有 1h
+        self.assertEqual(stats["today_sec"], 3600)
+
+    def test_进行中行程_is_away为真(self):
+        events = [_ev(10, 0, "away")]
+        stats = _away.compute_away_stats(events, self.NOW, short_minutes=10)
+        self.assertEqual(stats["is_away"], True)
+        self.assertEqual(stats["current_duration_sec"], 10 * 3600)
+
+    def test_月度边界_上月行程不计入本月(self):
+        # 10-31 出门 2h -> 不计入 11 月次数
+        events = [_ev(10, 0, "away", month=10, day=31), _ev(12, 0, "home", month=10, day=31)]
+        stats = _away.compute_away_stats(events, self.NOW, short_minutes=10)
+        self.assertEqual(stats["month_count"], 0)
+        # 但计入今年
+        self.assertEqual(stats["year_count"], 1)
+
+
+class TestAwayMonthlyBreakdown(unittest.TestCase):
+    """monthly_breakdown 近 12 个月汇总"""
+
+    NOW = _dt(2026, 11, 8, 20, 0)
+
+    def test_空事件_返回12个月全零(self):
+        result = _away.monthly_breakdown([], self.NOW, months=12)
+        self.assertEqual(len(result), 12)
+        # 升序, 最后一项是当月
+        self.assertEqual(result[-1]["ym"], "2026-11")
+        self.assertEqual(result[0]["ym"], "2025-12")
+        for m in result:
+            self.assertEqual(m["count"], 0)
+            self.assertEqual(m["duration_sec"], 0)
+
+    def test_当月有一次出门(self):
+        events = [_ev(10, 0, "away"), _ev(12, 0, "home")]
+        result = _away.monthly_breakdown(events, self.NOW, months=12, short_minutes=10)
+        cur = result[-1]
+        self.assertEqual(cur["count"], 1)
+        self.assertEqual(cur["duration_sec"], 7200)
+
+    def test_短途不计数_但计入时长(self):
+        events = [_ev(10, 0, "away"), _ev(10, 5, "home")]
+        result = _away.monthly_breakdown(events, self.NOW, months=12, short_minutes=10)
+        cur = result[-1]
+        self.assertEqual(cur["count"], 0)
+        self.assertEqual(cur["duration_sec"], 300)
+
+    def test_跨月行程_时长归月正确(self):
+        # 10-31 23:00 -> 11-01 01:00
+        start = _dt(2026, 10, 31, 23, 0)
+        end = _dt(2026, 11, 1, 1, 0)
+        events = [
+            {"event_time": start, "event_type": "away"},
+            {"event_time": end, "event_type": "home"},
+        ]
+        result = _away.monthly_breakdown(events, self.NOW, months=12, short_minutes=10)
+        oct_bucket = next(m for m in result if m["ym"] == "2026-10")
+        nov_bucket = result[-1]
+        # 次数归起始月 (10 月)
+        self.assertEqual(oct_bucket["count"], 1)
+        self.assertEqual(nov_bucket["count"], 0)
+        # 时长: 10 月 1h + 11 月 1h
+        self.assertEqual(oct_bucket["duration_sec"], 3600)
+        self.assertEqual(nov_bucket["duration_sec"], 3600)
+
+
 if __name__ == "__main__":
     unittest.main()

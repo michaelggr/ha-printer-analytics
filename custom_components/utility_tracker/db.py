@@ -1150,3 +1150,59 @@ class UtilityDB:
                 row = cur.fetchone()
                 return float(row["s"]) if row and row["s"] is not None else 0.0
         return await self.hass.async_add_executor_job(_q)
+
+    # =====================================================================
+    # 出门/回家事件
+    # =====================================================================
+
+    async def async_insert_away_events(self, events: list[dict[str, Any]]) -> int:
+        """批量写入出门/回家事件，忽略同秒重复 (唯一键)
+
+        events 元素: {entity_id, event_name, event_type, event_time}
+        """
+        if not events:
+            return 0
+        sql = (
+            "INSERT IGNORE INTO away_events "
+            "(entity_id, event_name, event_type, event_time) "
+            "VALUES (%s,%s,%s,%s)"
+        )
+        params = [
+            (
+                e.get("entity_id"),
+                e.get("event_name"),
+                e.get("event_type"),
+                e.get("event_time"),
+            )
+            for e in events
+        ]
+
+        def _exec():
+            conn = self._get_conn_sync()
+            with conn.cursor() as cur:
+                n = cur.executemany(sql, params)
+            conn.commit()
+            return n
+        return await self.hass.async_add_executor_job(_exec)
+
+    async def async_fetch_away_events_since(self, since: str) -> list[dict[str, Any]]:
+        """拉取 since (YYYY-MM-DD) 起的所有出门/回家事件，按时间升序
+
+        返回: [{"event_time": datetime, "event_type": "away"|"home", "event_name": str}, ...]
+        """
+        def _q():
+            conn = self._get_conn_sync()
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT event_time, event_type, event_name "
+                    "FROM away_events WHERE event_time >= %s "
+                    "ORDER BY event_time ASC",
+                    (since,),
+                )
+                return [
+                    {"event_time": r["event_time"], "event_type": r["event_type"],
+                     "event_name": r["event_name"]}
+                    for r in cur.fetchall()
+                ]
+        return await self.hass.async_add_executor_job(_q)
+

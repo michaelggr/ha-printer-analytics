@@ -1,5 +1,21 @@
 # 打印分析卡片 - 修改记录
 
+## v2.5.0 出门统计 (2026-11-08)
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 功能 | utility_tracker 新增「出门统计」子模块：监听中枢网关虚拟事件 `event.xiaomi_cn_1184711570_hub1_virtual_event_e_4_1`，按属性「事件名称」匹配「场景-出门/场景-回家」，配对成行程并聚合次数/时长 | custom_components/utility_tracker/ |
+| 功能 | 新增 away.py 纯函数模块：pair_trips 配对、split_trip_by_day 跨零点切分、compute_away_stats 周期聚合、monthly_breakdown 近 12 月汇总 | custom_components/utility_tracker/away.py |
+| 功能 | schemas.sql 新增表 12 `away_events`（UNIQUE(entity_id,event_type,event_time) 幂等） | custom_components/utility_tracker/schemas.sql |
+| 功能 | db.py 新增 async_insert_away_events / async_fetch_away_events_since | custom_components/utility_tracker/db.py |
+| 功能 | coordinator.py 新增 _collect_away_stats + queue_away_event 实时状态 + _normalize_names 兼容字符串/tuple | custom_components/utility_tracker/coordinator.py |
+| 功能 | sensor.py 新增 12 个出门 sensor：状态/上次出门/当前时长/4 周期次数/4 周期时长/月度汇总 | custom_components/utility_tracker/sensor.py |
+| 功能 | config_flow.py 新增 5 个出门配置项（开关/事件实体/出门名/回家名/短途阈值） | custom_components/utility_tracker/config_flow.py |
+| 功能 | __init__.py 注册中枢网关虚拟事件 listener，匹配后入队 | custom_components/utility_tracker/__init__.py |
+| 功能 | ui-lovelace.yaml 首页「能源核心」上方新增出门卡片：状态+本周次数/时长+最近出门时间 | ui-lovelace.yaml |
+| 测试 | tests/test_utility_tracker.py 新增 TestAwayPairTrips/TestAwaySplitByDay/TestAwayComputeStats/TestAwayMonthlyBreakdown 共 19 个用例 | tests/test_utility_tracker.py |
+| 修复 | pair_trips 乱序 home 事件会错误清除 open_start，改为忽略该事件 | custom_components/utility_tracker/away.py |
+
 ## 修复 HA 重启后打印播报误触发（2026-11-07）
 
 | 类型 | 内容 | 涉及文件 |

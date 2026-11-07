@@ -182,3 +182,18 @@ CREATE TABLE IF NOT EXISTS area_stay_hourly (
   KEY idx_area_hour (area_name, period_hour),
   KEY idx_date (period_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='区域分时段停留时长(小时粒度)';
+
+-- 表 12: 出门/回家事件
+-- 来源: 中枢网关虚拟事件 event.xiaomi_cn_..._virtual_event_e_4_1
+-- 事件名称匹配 -> event_type (away / home)
+CREATE TABLE IF NOT EXISTS away_events (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  entity_id VARCHAR(128) NOT NULL COMMENT '虚拟事件实体 ID',
+  event_name VARCHAR(64) NOT NULL COMMENT '虚拟事件名称 (场景-出门 / 场景-回家)',
+  event_type VARCHAR(8) NOT NULL COMMENT 'away=出门 home=回家',
+  event_time DATETIME NOT NULL COMMENT '事件发生时间(本地)',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uniq_event (entity_id, event_type, event_time),
+  KEY idx_time (event_time),
+  KEY idx_type_time (event_type, event_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='出门/回家事件';

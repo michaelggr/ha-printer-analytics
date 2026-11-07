@@ -12,12 +12,15 @@ from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.util import dt as dt_util
 
 from .const import (
+    CONF_AWAY_EVENT_ENTITY,
+    CONF_ENABLE_AWAY_STATS,
     CONF_ENABLE_LIGHT_STATS,
     CONF_MARIADB_DATABASE,
     CONF_MARIADB_HOST,
     CONF_MARIADB_PASSWORD,
     CONF_MARIADB_PORT,
     CONF_MARIADB_USER,
+    DEFAULT_AWAY_EVENT_ENTITY,
     DOMAIN,
     LIGHT_ACTION_OFF,
     LIGHT_ACTION_ON,
@@ -26,6 +29,7 @@ from .const import (
     SERVICE_SYNC_NOW,
     is_light_entity,
 )
+from .away import AWAY, HOME
 from .coordinator import UtilityTrackerCoordinator
 from .db import UtilityDB
 
@@ -127,6 +131,42 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             _rebuild_light_subscription
         )
 
+    # 注册中枢网关虚拟事件 listener,把「场景-出门/回家」入 coordinator 队列
+    if entry.data.get(CONF_ENABLE_AWAY_STATS, True):
+        away_entity = entry.data.get(CONF_AWAY_EVENT_ENTITY, DEFAULT_AWAY_EVENT_ENTITY)
+
+        def _away_event_changed(event: Event[EventStateChangedData]) -> None:
+            """虚拟事件实体 state 变化 -> 读 attributes.事件名称 匹配出门/回家
+
+            小米中枢网关虚拟事件: 每次触发时 state 刷新为当前时间戳,
+            attributes["事件名称"] 才是场景名; 同一场景连按会只更新 state
+            """
+            new_state = event.data.get("new_state")
+            if new_state is None:
+                return
+            name = new_state.attributes.get("事件名称")
+            if not name:
+                return
+            if name in coordinator.away_out_names:
+                etype = AWAY
+            elif name in coordinator.away_home_names:
+                etype = HOME
+            else:
+                return
+            coordinator.queue_away_event({
+                "entity_id": event.data.get("entity_id", away_entity),
+                "event_name": name,
+                "event_type": etype,
+                "event_time": dt_util.now().replace(tzinfo=None),
+            })
+            _LOGGER.info("出门事件入队: %s -> %s", name, etype)
+
+        store = hass.data[DOMAIN][entry.entry_id]
+        store["away_unsub"] = async_track_state_change_event(
+            hass, [away_entity], _away_event_changed
+        )
+        _LOGGER.info("出门事件 listener 已订阅: %s", away_entity)
+
     # 注册服务
     async def handle_sync_now(call: ServiceCall) -> None:
         _LOGGER.info("手动触发同步")
@@ -169,6 +209,13 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             if unsub:
                 try:
                     unsub()
+                except Exception:
+                    pass
+            # 移除出门事件 listener
+            away_unsub = data.get("away_unsub")
+            if away_unsub:
+                try:
+                    away_unsub()
                 except Exception:
                     pass
             db: UtilityDB = data.get("db")

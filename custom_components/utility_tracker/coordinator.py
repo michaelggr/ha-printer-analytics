@@ -17,6 +17,11 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
 from .const import (
+    CONF_AWAY_EVENT_ENTITY,
+    CONF_AWAY_HOME_NAMES,
+    CONF_AWAY_OUT_NAMES,
+    CONF_AWAY_SHORT_MINUTES,
+    CONF_ENABLE_AWAY_STATS,
     CONF_ENABLE_DEVICE_POWER,
     CONF_ENABLE_ELECTRICITY,
     CONF_ENABLE_GAS,
@@ -24,6 +29,10 @@ from .const import (
     CONF_POWER_SAMPLE_MINUTES,
     CONF_RAW_RETENTION_DAYS,
     CONF_SYNC_INTERVAL_HOURS,
+    DEFAULT_AWAY_EVENT_ENTITY,
+    DEFAULT_AWAY_HOME_NAMES,
+    DEFAULT_AWAY_OUT_NAMES,
+    DEFAULT_AWAY_SHORT_MINUTES,
     DEFAULT_POWER_SAMPLE_MINUTES,
     DEFAULT_RAW_RETENTION_DAYS,
     DEFAULT_SYNC_INTERVAL_HOURS,
@@ -48,6 +57,7 @@ from .const import (
     is_power_outlier,
 )
 from .db import UtilityDB
+from .away import compute_away_stats, monthly_breakdown, AWAY, HOME
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -98,6 +108,25 @@ def diff_area_stay_seconds(
     return deltas
 
 
+def _normalize_names(raw: Any, default: tuple[str, ...]) -> tuple[str, ...]:
+    """把 config_flow 的逗号分隔字符串 / 代码常量 tuple 统一成 tuple[str, ...]
+
+    - None / 空字符串 -> default
+    - 字符串: 按逗号/中文逗号分隔, strip 后过滤空项
+    - 列表/元组: 直接转 tuple
+    """
+    if raw is None:
+        return tuple(default)
+    if isinstance(raw, str):
+        parts = [p.strip() for p in raw.replace("，", ",").split(",")]
+        names = tuple(p for p in parts if p)
+        return names or tuple(default)
+    if isinstance(raw, (list, tuple)):
+        names = tuple(str(p).strip() for p in raw if str(p).strip())
+        return names or tuple(default)
+    return tuple(default)
+
+
 class UtilityTrackerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     """数据聚合协调器"""
 
@@ -108,6 +137,27 @@ class UtilityTrackerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.enable_gas = entry.data.get(CONF_ENABLE_GAS, True)
         self.enable_device_power = entry.data.get(CONF_ENABLE_DEVICE_POWER, True)
         self.enable_light_stats = entry.data.get(CONF_ENABLE_LIGHT_STATS, True)
+        self.enable_away_stats = entry.data.get(CONF_ENABLE_AWAY_STATS, True)
+        # 出门事件: 中枢网关虚拟事件实体 + 匹配的事件名称
+        self.away_event_entity = entry.data.get(
+            CONF_AWAY_EVENT_ENTITY, DEFAULT_AWAY_EVENT_ENTITY
+        )
+        # 场景名兼容两种来源: config_flow 字符串 (逗号分隔) / 代码 DEFAULT tuple
+        self.away_out_names = _normalize_names(
+            entry.data.get(CONF_AWAY_OUT_NAMES), DEFAULT_AWAY_OUT_NAMES
+        )
+        self.away_home_names = _normalize_names(
+            entry.data.get(CONF_AWAY_HOME_NAMES), DEFAULT_AWAY_HOME_NAMES
+        )
+        self.away_short_minutes = max(0, int(entry.data.get(
+            CONF_AWAY_SHORT_MINUTES, DEFAULT_AWAY_SHORT_MINUTES
+        )))
+        # 实时状态 (listener 直接更新, 不等 DB 落库)
+        self.away_active = False
+        self.away_since: datetime | None = None
+        self.away_last_out: datetime | None = None
+        # 出门事件队列: 由 listener 填充, coordinator 定期写库
+        self.away_event_queue: list[dict] = []
         hours = int(entry.data.get(CONF_SYNC_INTERVAL_HOURS, DEFAULT_SYNC_INTERVAL_HOURS))
         self.sync_interval = timedelta(hours=max(1, min(hours, 24)))
         self.power_sample_minutes = max(1, int(entry.data.get(
@@ -142,6 +192,23 @@ class UtilityTrackerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def queue_light_event(self, event: dict) -> None:
         """由 __init__.py 的 state listener 调用,灯光开关事件入队"""
         self.light_event_queue.append(event)
+
+    def queue_away_event(self, event: dict) -> None:
+        """由 __init__.py 的 state listener 调用, 出门/回家事件入队
+
+        event: {"entity_id", "event_name", "event_type", "event_time"}
+        同时更新内存中的实时状态 (供 binary_sensor 立即响应)
+        """
+        self.away_event_queue.append(event)
+        now = event.get("event_time") or dt_util.now().replace(tzinfo=None)
+        if event["event_type"] == AWAY:
+            if not self.away_active:
+                self.away_active = True
+                self.away_since = now
+            self.away_last_out = now
+        elif event["event_type"] == HOME:
+            self.away_active = False
+            self.away_since = None
 
     async def _async_update_data(self) -> dict[str, Any]:
         """主更新入口
@@ -279,6 +346,11 @@ class UtilityTrackerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 # 区域排行榜 (供看板 Ranking sensor 用, 按停留秒数降序)
                 stats["area_stay_week_ranking"] = await self.db.async_fetch_area_stays_week()
                 stats["area_stay_month_ranking"] = await self.db.async_fetch_area_stays_month()
+
+            # ---- 出门统计 (先落库本次队列, 再回查近 13 个月事件流做聚合) ----
+            if self.enable_away_stats:
+                away_stats = await self._collect_away_stats(now)
+                stats.update(away_stats)
 
             self.last_sync = now
             self.last_error = None
@@ -514,6 +586,69 @@ class UtilityTrackerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "区域停留时长入库: 日 %d 条 / 小时增量 %d 条", len(rows), len(hourly_rows)
         )
         return len(rows)
+
+    # =====================================================================
+    # 出门统计 (中枢网关虚拟事件 → 行程配对 → 周期聚合)
+    # =====================================================================
+
+    async def _collect_away_stats(self, now: datetime) -> dict[str, Any]:
+        """出门事件落库 + 周期聚合
+
+        流程:
+        1) 把 listener 累积的 away_event_queue 批量写入 away_events 表 (INSERT IGNORE)
+        2) 回查近 13 个月全部事件 (月度汇总需要覆盖近 12 个自然月)
+        3) 调纯函数 compute_away_stats / monthly_breakdown 算次数与时长
+        4) 实时状态 (is_away / since) 优先用内存值, 启动后第一次回查时用 DB 数据兜底
+        """
+        # 1) 落库队列中的事件
+        if self.away_event_queue:
+            pending, self.away_event_queue = self.away_event_queue, []
+            try:
+                await self.db.async_insert_away_events(pending)
+            except Exception as e:
+                # 失败放回队列, 下个周期重试
+                self.away_event_queue = pending + self.away_event_queue
+                _LOGGER.warning("出门事件落库失败: %s", e)
+
+        # 2) 回查近 13 个月事件 (月度汇总要看到上一个完整自然月)
+        first_of_month = now.date().replace(day=1)
+        # 往前推 12 个月 (含当月共 13 个 bucket)
+        y, m = first_of_month.year, first_of_month.month - 12
+        while m <= 0:
+            m += 12
+            y -= 1
+        since = f"{y:04d}-{m:02d}-01"
+        events = await self.db.async_fetch_away_events_since(since)
+
+        # 3) 纯函数聚合
+        agg = compute_away_stats(events, now, short_minutes=self.away_short_minutes)
+        monthly = monthly_breakdown(events, now, months=12,
+                                    short_minutes=self.away_short_minutes)
+
+        # 4) 实时状态: listener 未触发前用 DB 计算结果兜底
+        is_away = self.away_active or agg["is_away"]
+        current_since = self.away_since or agg["current_since"]
+        current_sec = (
+            int((now - current_since).total_seconds())
+            if is_away and current_since else 0
+        )
+
+        return {
+            "away_is_away": is_away,
+            "away_since": current_since,
+            "away_last_out": self.away_last_out or agg["last_out"],
+            "away_last_home": agg["last_home"],
+            "away_current_sec": current_sec,
+            "away_count_today": agg["today_count"],
+            "away_count_week": agg["week_count"],
+            "away_count_month": agg["month_count"],
+            "away_count_year": agg["year_count"],
+            "away_sec_today": agg["today_sec"],
+            "away_sec_week": agg["week_sec"],
+            "away_sec_month": agg["month_sec"],
+            "away_sec_year": agg["year_sec"],
+            "away_monthly": monthly,
+        }
 
     # =====================================================================
     # 电费 (state_grid)

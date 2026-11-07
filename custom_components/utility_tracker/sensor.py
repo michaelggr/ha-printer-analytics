@@ -50,6 +50,19 @@ async def async_setup_entry(
         # 区域排行榜 JSON sensor (state 为 JSON 字符串, Lovelace 里 from_json 解析)
         UtilityTrackerAreaStayWeekRankingSensor(coordinator, entry),
         UtilityTrackerAreaStayMonthRankingSensor(coordinator, entry),
+        # 出门统计
+        UtilityTrackerAwayStatusSensor(coordinator, entry),
+        UtilityTrackerAwayLastOutSensor(coordinator, entry),
+        UtilityTrackerAwayCurrentDurationSensor(coordinator, entry),
+        UtilityTrackerAwayCountTodaySensor(coordinator, entry),
+        UtilityTrackerAwayCountWeekSensor(coordinator, entry),
+        UtilityTrackerAwayCountMonthSensor(coordinator, entry),
+        UtilityTrackerAwayCountYearSensor(coordinator, entry),
+        UtilityTrackerAwayDurationTodaySensor(coordinator, entry),
+        UtilityTrackerAwayDurationWeekSensor(coordinator, entry),
+        UtilityTrackerAwayDurationMonthSensor(coordinator, entry),
+        UtilityTrackerAwayDurationYearSensor(coordinator, entry),
+        UtilityTrackerAwayMonthlySensor(coordinator, entry),
     ])
 
 
@@ -477,3 +490,208 @@ class UtilityTrackerAreaStayMonthRankingSensor(_BaseSensor):
             h = r.get("duration_sec", 0) / 3600.0
             parts.append(f"{r.get('area_name','?')}={h:.1f}h")
         return ",".join(parts) if parts else "empty"
+
+
+# =====================================================================
+# 出门统计 sensor
+# =====================================================================
+
+
+def _sec_to_hours(value) -> float:
+    """秒 -> 小时 (保留 2 位小数), None/非法值返回 0"""
+    try:
+        return round(float(value or 0) / 3600.0, 2)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+class UtilityTrackerAwayStatusSensor(_BaseSensor):
+    """当前是否在外 (state: 在外/在家), 属性带当前出门起点与已累计秒数"""
+
+    _attr_name = "Away Status"
+    _attr_icon = "mdi:walk"
+
+    def __init__(self, coordinator, entry):
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_away_status"
+
+    @property
+    def native_value(self):
+        is_away = (self.coordinator.data or {}).get("away_is_away")
+        return "在外" if is_away else "在家"
+
+    @property
+    def icon(self):
+        is_away = (self.coordinator.data or {}).get("away_is_away")
+        return "mdi:walk" if is_away else "mdi:home"
+
+    @property
+    def extra_state_attributes(self):
+        data = self.coordinator.data or {}
+        since = data.get("away_since")
+        last_out = data.get("away_last_out")
+        last_home = data.get("away_last_home")
+        return {
+            "away_since": since.isoformat() if since else None,
+            "current_duration_sec": data.get("away_current_sec") or 0,
+            "last_out": last_out.isoformat() if last_out else None,
+            "last_home": last_home.isoformat() if last_home else None,
+        }
+
+
+class UtilityTrackerAwayLastOutSensor(_BaseSensor):
+    """最近一次出门时间"""
+
+    _attr_name = "Away Last Out"
+    _attr_icon = "mdi:exit-run"
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+
+    def __init__(self, coordinator, entry):
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_away_last_out"
+
+    @property
+    def native_value(self):
+        ts = (self.coordinator.data or {}).get("away_last_out")
+        if ts is None:
+            return None
+        # TIMESTAMP device class 要求 tz-aware
+        if ts.tzinfo is None:
+            from homeassistant.util.dt import get_default_time_zone
+            return ts.replace(tzinfo=get_default_time_zone())
+        return ts
+
+
+class UtilityTrackerAwayCurrentDurationSensor(_BaseSensor):
+    """当前已出门时长 (分钟; 在家时为 0)"""
+
+    _attr_name = "Away Current Duration"
+    _attr_icon = "mdi:timer-outline"
+    _attr_device_class = SensorDeviceClass.DURATION
+    _attr_native_unit_of_measurement = "min"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, coordinator, entry):
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_away_current_duration"
+
+    @property
+    def native_value(self):
+        sec = (self.coordinator.data or {}).get("away_current_sec") or 0
+        return round(sec / 60.0, 1)
+
+
+class _AwayCountBaseSensor(_BaseSensor):
+    """出门次数 sensor 基类 (有效次数, 已排除短途)"""
+
+    _attr_icon = "mdi:counter"
+    _attr_state_class = SensorStateClass.TOTAL
+    _attr_native_unit_of_measurement = "次"
+    _data_key: str = ""
+    _uid_suffix: str = ""
+
+    def __init__(self, coordinator, entry):
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_{self._uid_suffix}"
+
+    @property
+    def native_value(self):
+        return (self.coordinator.data or {}).get(self._data_key) or 0
+
+
+class UtilityTrackerAwayCountTodaySensor(_AwayCountBaseSensor):
+    _attr_name = "Away Count Today"
+    _data_key = "away_count_today"
+    _uid_suffix = "away_count_today"
+
+
+class UtilityTrackerAwayCountWeekSensor(_AwayCountBaseSensor):
+    _attr_name = "Away Count Week"
+    _data_key = "away_count_week"
+    _uid_suffix = "away_count_week"
+
+
+class UtilityTrackerAwayCountMonthSensor(_AwayCountBaseSensor):
+    _attr_name = "Away Count Month"
+    _data_key = "away_count_month"
+    _uid_suffix = "away_count_month"
+
+
+class UtilityTrackerAwayCountYearSensor(_AwayCountBaseSensor):
+    _attr_name = "Away Count Year"
+    _data_key = "away_count_year"
+    _uid_suffix = "away_count_year"
+
+
+class _AwayDurationBaseSensor(_BaseSensor):
+    """出门时长 sensor 基类 (秒 -> 小时, 含短途与进行中行程)"""
+
+    _attr_icon = "mdi:clock-outline"
+    _attr_device_class = SensorDeviceClass.DURATION
+    _attr_native_unit_of_measurement = "h"
+    _attr_state_class = SensorStateClass.TOTAL
+    _data_key: str = ""
+    _uid_suffix: str = ""
+
+    def __init__(self, coordinator, entry):
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_{self._uid_suffix}"
+
+    @property
+    def native_value(self):
+        return _sec_to_hours((self.coordinator.data or {}).get(self._data_key))
+
+
+class UtilityTrackerAwayDurationTodaySensor(_AwayDurationBaseSensor):
+    _attr_name = "Away Duration Today"
+    _data_key = "away_sec_today"
+    _uid_suffix = "away_duration_today"
+
+
+class UtilityTrackerAwayDurationWeekSensor(_AwayDurationBaseSensor):
+    _attr_name = "Away Duration Week"
+    _data_key = "away_sec_week"
+    _uid_suffix = "away_duration_week"
+
+
+class UtilityTrackerAwayDurationMonthSensor(_AwayDurationBaseSensor):
+    _attr_name = "Away Duration Month"
+    _data_key = "away_sec_month"
+    _uid_suffix = "away_duration_month"
+
+
+class UtilityTrackerAwayDurationYearSensor(_AwayDurationBaseSensor):
+    _attr_name = "Away Duration Year"
+    _data_key = "away_sec_year"
+    _uid_suffix = "away_duration_year"
+
+
+class UtilityTrackerAwayMonthlySensor(_BaseSensor):
+    """近 12 个月出门月度汇总 (state 存月份数, 完整数组在 attributes.monthly)"""
+
+    _attr_name = "Away Monthly"
+    _attr_icon = "mdi:chart-bar"
+
+    def __init__(self, coordinator, entry):
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_away_monthly"
+
+    @property
+    def native_value(self):
+        monthly = (self.coordinator.data or {}).get("away_monthly") or []
+        return len(monthly)
+
+    @property
+    def extra_state_attributes(self):
+        monthly = (self.coordinator.data or {}).get("away_monthly") or []
+        # 时长转小时, 看板图表直接用
+        return {
+            "monthly": [
+                {
+                    "ym": m.get("ym"),
+                    "count": m.get("count", 0),
+                    "duration_h": _sec_to_hours(m.get("duration_sec")),
+                }
+                for m in monthly
+            ]
+        }
