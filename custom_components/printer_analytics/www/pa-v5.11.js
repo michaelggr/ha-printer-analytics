@@ -52,6 +52,10 @@ class PrinterAnalyticsCard extends HTMLElement {
     this._imageRefreshTimer = null;     // image类型摄像头自动刷新定时器
     this._wsHistoryData = null;         // WebSocket 返回的筛选+分页数据
     this._wsLoading = false;            // WS 请求中标记
+    this._statsRecords = null;          // 全量历史记录（含已删除打印机，用于统计分析）
+    this._statsSerials = [];            // 全量扫描到的序列号
+    this._statsNameMap = {};            // 序列号 → 打印机名（在线）
+    this._statsRequested = false;       // 全量查询是否已发起
     this._bambuStatus = { logged_in: false, phone: '', last_sync: null, last_sync_count: 0 };
     this._bambuSyncing = false;
     this._bambuLoginModal = null;
@@ -72,6 +76,11 @@ class PrinterAnalyticsCard extends HTMLElement {
       if (!this._bambuStatusChecked) {
         this._bambuStatusChecked = true;
         this._checkBambuStatus();
+      }
+      // 首次加载时拉取全量历史（含已删除打印机），供统计分析使用
+      if (!this._statsRequested && this._mode !== 'history') {
+        this._statsRequested = true;
+        this._loadStatsRecordsViaWS();
       }
       if (this._renderDebounce) {
         clearTimeout(this._renderDebounce);
@@ -467,30 +476,110 @@ class PrinterAnalyticsCard extends HTMLElement {
 
   /**
    * 获取指定打印机的历史记录（支持"全部"聚合）
+   * 实体存在的打印机读实体；已删除打印机从全量历史数据中按序列号过滤
    */
   _getHistoryForPrinter(printerName) {
     const printers = this._getPrintersConfig();
     if (printerName === '全部') {
+      // 优先使用 WS 全量数据（包含已删除打印机的记录）
+      if (Array.isArray(this._statsRecords) && this._statsRecords.length > 0) {
+        return this._statsRecords;
+      }
       return this._getAllMergedRecords();
     }
-    // 支持序列号(名称)格式或纯名称格式
-    const p = printers.find(x => {
-      if (x.printer_name === printerName) return true;
-      // 检查是否是 "序列号(名称)" 格式
-      const match = printerName.match(/^(.+)\((.+)\)$/);
-      if (match && x.printer_name === match[2]) return true;
-      return false;
-    });
-    if (!p || !p.entities.print_history) return [];
-    const entity = this._hass?.states[p.entities.print_history];
-    const records = entity?.attributes?.history || [];
-    // 标记打印机名和序列号
-    const serial = entity?.attributes?.printer_serial || '';
-    records.forEach(r => {
-      r._printer_name = p.printer_name;
-      r._printer_serial = serial || r.printer_serial || '';
-    });
-    return records;
+    // 解析 "序列号(名称)" 或纯名称
+    let name = printerName;
+    let serialHint = '';
+    const m = printerName.match(/^(.+)\((.+)\)$/);
+    if (m) {
+      serialHint = (m[1] || '').toUpperCase();
+      name = m[2];
+    }
+    const p = printers.find(x => x.printer_name === name);
+    if (p && p.entities?.print_history) {
+      const entity = this._hass?.states[p.entities.print_history];
+      if (entity) {
+        const records = entity.attributes?.history || [];
+        const serial = entity.attributes?.printer_serial || '';
+        records.forEach(r => {
+          r._printer_name = p.printer_name;
+          r._printer_serial = serial || r.printer_serial || '';
+        });
+        return records;
+      }
+    }
+    // 已删除打印机：从全量历史数据中按序列号/名称过滤
+    const statsRecords = Array.isArray(this._statsRecords) ? this._statsRecords : [];
+    if (statsRecords.length === 0) return [];
+    let targetSerial = serialHint;
+    if (!targetSerial) {
+      const del = this._getDeletedPrinterSerials().find(d => d.name === name);
+      targetSerial = (del?.serial || '').toUpperCase();
+    }
+    return statsRecords
+      .filter(r => {
+        const s = (r._printer_serial || r.printer_serial || r._source_serial || '').toUpperCase();
+        if (targetSerial) return s === targetSerial;
+        return (r._printer_name || '') === name;
+      })
+      .map(r => ({ ...r, _printer_name: name }));
+  }
+
+  /**
+   * 识别配置中已删除的打印机，并把它们与历史扫描到的序列号对应起来
+   * 规则：配置条目存在但实体已消失 → 视为已删除；
+   *       未在线打印机占用的历史序列号按其数量顺序分配给这些条目
+   */
+  _getDeletedPrinterSerials() {
+    const printers = this._getPrintersConfig();
+    const knownSerials = new Set();
+    const deletedNames = [];
+    for (const p of printers) {
+      const hid = p.entities?.print_history;
+      const entity = hid ? this._hass?.states[hid] : null;
+      if (entity) {
+        const s = (entity.attributes?.printer_serial || '').toUpperCase();
+        if (s) knownSerials.add(s);
+      } else if (hid) {
+        deletedNames.push(p.printer_name);
+      }
+    }
+    const allSerials = (this._statsSerials?.length ? this._statsSerials : (this._wsHistoryData?.allSerials || []))
+      .map(s => String(s || '').toUpperCase())
+      .filter(s => s && !knownSerials.has(s));
+    const result = [];
+    for (let i = 0; i < deletedNames.length; i++) {
+      result.push({ name: deletedNames[i], serial: allSerials[i] || '' });
+    }
+    // 配置中没有对应名称的剩余序列号
+    for (let i = deletedNames.length; i < allSerials.length; i++) {
+      result.push({ name: '', serial: allSerials[i] });
+    }
+    return result;
+  }
+
+  /**
+   * 通过 WebSocket 拉取全量历史记录（无筛选，含已删除打印机）
+   * 用于统计分析页面，保证打印机删除后历史数据仍可统计
+   */
+  async _loadStatsRecordsViaWS() {
+    if (!this._hass) return;
+    try {
+      const result = await this._hass.callWS({
+        type: 'printer_analytics/query_all_history',
+        filters: {},
+        page: 1,
+        page_size: 100000,
+      });
+      if (result?.records) {
+        this._statsRecords = result.records;
+        this._statsSerials = result.filter_options?.all_serials || [];
+        this._statsNameMap = result.filter_options?.serial_name_map || {};
+        this.updateData();
+      }
+    } catch (e) {
+      console.warn('[Stats] 全量历史查询失败，回退实体数据:', e);
+    }
   }
 
   /**
@@ -575,13 +664,14 @@ class PrinterAnalyticsCard extends HTMLElement {
     if (printers.length <= 1) return '';
     // 使用序列号作为唯一标识，显示格式：序列号(名称)
     const entryIds = this._getAllEntryIds();
+    const deletedMap = this._getDeletedPrinterSerials();  // 已删除打印机 → 历史序列号
     const options = ['全部'];
-    const serialMap = {};  // serial → 显示名
     for (const p of printers) {
       const info = entryIds.find(e => e.printerName === p.printer_name);
-      const serial = info?.printerSerial || '';
+      // 在线打印机用实体序列号，已删除打印机用历史扫描出的序列号
+      const serial = info?.printerSerial
+        || (deletedMap.find(d => d.name === p.printer_name)?.serial || '');
       const label = serial ? `${serial}(${p.printer_name})` : p.printer_name;
-      serialMap[label] = serial || p.printer_name;
       options.push(label);
     }
     const buttons = options.map(name => {
@@ -4943,8 +5033,18 @@ class PrinterAnalyticsCard extends HTMLElement {
   }
 
   _renderRealtimeMonitor() {
-    const printers = this._getPrintersConfig();
+    // 过滤掉已从集成中删除的打印机：其 print_history 实体在 HA 中已不存在
+    // 统计分析、全部历史的数据逻辑不受影响，仅监控面板隐藏
+    const printers = this._getPrintersConfig().filter(p => {
+      const hid = p.entities?.print_history;
+      return hid && !!this._hass?.states[hid];
+    });
     let html = `<div class="section-header"><div class="section-title"><span class="section-icon">📡</span><span>实时监控面板</span></div></div>`;
+
+    // 没有任何可用打印机时给出空状态提示
+    if (printers.length === 0) {
+      return html + `<div class="realtime-panel" style="margin-bottom:12px;padding:16px;text-align:center;color:var(--text-muted);font-size:12px;">🖨️ 未检测到在线打印机</div>`;
+    }
 
     // 只显示当前选择的打印机
     const selectedPrinterName = this._selectedPrinter;
@@ -6474,21 +6574,26 @@ class PrinterAnalyticsCard extends HTMLElement {
     // 用 Set 去重（大写序列号）
     const seenSerials = new Set();
     const printerOptionList = [];
-    // 先添加在线打印机
+    // 先添加在线打印机（实体存在的），已删除的不再单独成项，避免与序列号项重复
     for (const p of printers) {
       const info = entryIds.find(e => e.printerName === p.printer_name);
-      const serial = info?.printerSerial || '';
+      if (!info) continue;
+      const serial = info.printerSerial || '';
       const value = serial || p.printer_name;
       const label = serial ? `${serial}(${p.printer_name})` : p.printer_name;
       if (serial) seenSerials.add(serial.toUpperCase());
       printerOptionList.push({ value, label });
     }
+    // 已删除打印机名称，按顺序分配给未在线占用的历史序列号
+    const deletedNames = this._getDeletedPrinterSerials()
+      .filter(d => d.name && d.serial)
+      .map(d => d.name);
     // 再添加全局查询中发现但不在在线列表中的序列号（已删除打印机）
     for (const serial of wsSerials) {
       const upperSerial = (serial || '').toUpperCase();
       if (!upperSerial || seenSerials.has(upperSerial)) continue;
       seenSerials.add(upperSerial);
-      const name = wsNameMap[upperSerial] || '';
+      const name = wsNameMap[upperSerial] || deletedNames.shift() || '';
       const value = serial;
       const label = name ? `${serial}(${name})` : serial;
       printerOptionList.push({ value, label });
