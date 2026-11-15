@@ -30,6 +30,9 @@ views:
         icon: mdi:cash-multiple
         icon_color: green
         multiline_secondary: true
+        double_tap_action:
+          action: navigate
+          navigation_path: /energy-bills/calculation
 
       # ---------- 关键指标 chips ----------
       - type: custom:mushroom-chips-card
@@ -634,11 +637,17 @@ views:
             name: 当前总功率
             icon: mdi:lightning-bolt-circle
             icon_color: amber
+            double_tap_action:
+              action: navigate
+              navigation_path: /energy-bills/calculation
           - type: custom:mushroom-entity-card
             entity: sensor.utility_tracker_power_today
             name: 今日耗电合计
             icon: mdi:counter
             icon_color: green
+            double_tap_action:
+              action: navigate
+              navigation_path: /energy-bills/calculation
 
       # ---------- 实时功率曲线 (近 24 小时) ----------
       - type: custom:apexcharts-card
@@ -892,11 +901,17 @@ views:
             name: 今日开灯次数
             icon: mdi:counter
             icon_color: blue
+            double_tap_action:
+              action: navigate
+              navigation_path: /energy-bills/calculation
           - type: custom:mushroom-entity-card
             entity: sensor.utility_tracker_light_duration_today
             name: 今日开灯总时长
             icon: mdi:timer-outline
             icon_color: teal
+            double_tap_action:
+              action: navigate
+              navigation_path: /energy-bills/calculation
 
       # ---------- 各区域主灯今日亮灯时长 ----------
       - type: custom:mushroom-title-card
@@ -1080,16 +1095,25 @@ views:
             name: 今日
             icon: mdi:calendar-today
             icon_color: purple
+            double_tap_action:
+              action: navigate
+              navigation_path: /energy-bills/calculation
           - type: custom:mushroom-entity-card
             entity: sensor.utility_tracker_area_stay_duration_week
             name: 近 7 日
             icon: mdi:calendar-week
             icon_color: blue
+            double_tap_action:
+              action: navigate
+              navigation_path: /energy-bills/calculation
           - type: custom:mushroom-entity-card
             entity: sensor.utility_tracker_area_stay_duration_month
             name: 本月
             icon: mdi:calendar-month
             icon_color: green
+            double_tap_action:
+              action: navigate
+              navigation_path: /energy-bills/calculation
 
       # ---------- 各区域今日停留 ----------
       - type: custom:mushroom-title-card
@@ -1244,3 +1268,213 @@ views:
           - 北阳台由 PIR「有人移动」事件派生，10 分钟无新移动回落无人，统计略偏保守
           - 厨房 / 公卫干区 / 走廊 由雷达灯「有人持续时长 > 0」派生
           - 主卫 / 公卫 使用人体感应器原生「有人」状态
+
+  # ============================================================
+  # View 8: 计算方法 (各统计数据的来源与公式说明)
+  # ============================================================
+  - title: 计算方法
+    icon: mdi:book-open-variant
+    path: calculation
+    cards:
+      - type: custom:mushroom-title-card
+        title: 计算方法说明
+        subtitle: 各统计数据的来源、公式与过滤规则
+        icon: mdi:book-open-variant
+        alignment: left
+
+      # ---------- 概览卡片 ----------
+      - type: markdown
+        content: |
+          ## 概览页 · 顶部账单预估
+
+          卡片「能源账单」副标题的电费/燃气费估算：
+
+          ```
+          自住本月电费 ≈ 本月用电量 × 上月结算单价
+          上月结算单价 = 上月结算金额 ÷ 上月结算用电量
+          出租本月电费 ≈ 本月用电量 × 上月结算单价 (出租户)
+
+          自住本月燃气费 = utility_tracker_gas_this_month_main
+          出租本月燃气费 = utility_tracker_gas_this_month_rental
+          ```
+
+          - 兜底单价：自住 0.558 元/kWh，出租 0.608 元/kWh（上月结算数据缺失时）
+          - 数据源：state_grid (国网) + crcgas (华润燃气) 实体
+
+      # ---------- 电费 / 燃气费 ----------
+      - type: markdown
+        content: |
+          ## 电费 / 燃气费 · 账单数据
+
+          数据源：state_grid（国网）和 crcgas（华润燃气）集成直读账单。
+
+          | 卡片 | 来源 |
+          |------|------|
+          | 本月用电量 | `current_month_usage`（国网 App 同步） |
+          | 上月结算用量/金额 | `previous_settled_month_usage/charge` |
+          | 账户余额 | `account_balance` |
+          | 历史日用电 | `previous_daily_usage` |
+          | 本年度用量/金额 | `current_year_usage/charge` |
+
+          utility_tracker 每月把以上账单数据 upsert 到 MariaDB `utility_records` 表
+          （唯一键：`utility_type + account_id + granularity + period_date + bill_no`），
+          长期历史永久保留。
+
+      # ---------- 月度账单汇总 ----------
+      - type: markdown
+        content: |
+          ## 月度账单汇总（utility_tracker）
+
+          数据库聚合（每 5 分钟刷新）：
+
+          ```sql
+          SELECT SUM(charge) FROM utility_records
+          WHERE utility_type = 'electricity' | 'gas'
+            AND YEAR(period_date) = 当前年
+            AND MONTH(period_date) = 当前月
+            AND account_id = '...'  -- 0065/7061 (电) 或 1040395237/1021540961 (气)
+          ```
+
+          对应实体：
+          - `utility_tracker_electricity_this_month` / `..._main` / `..._rental`
+          - `utility_tracker_gas_this_month` / `..._main` / `..._rental`
+
+      # ---------- 设备功耗 ----------
+      - type: markdown
+        content: |
+          ## 设备功耗 · 实时/今日/多周期
+
+          **当前总功率** (`utility_tracker_current_power`)
+          ```sql
+          SELECT SUM(power_w) FROM device_power_raw
+          WHERE ts >= NOW() - INTERVAL 5 MINUTE
+          ```
+
+          **今日总耗电** (`utility_tracker_power_today`)
+          ```sql
+          SELECT SUM(energy_kwh) FROM device_power_hourly
+          WHERE hour_start >= CURDATE()
+          ```
+
+          **设备功耗详情表** (`utility_tracker_power_periods_by_device`)
+
+          单 SQL 一次查 5 个周期（CASE WHEN 条件聚合）：
+          - 今日：`SUM(energy_kwh) WHERE hour_start >= CURDATE()`
+          - 昨日：`SUM WHERE hour_start >= CURDATE()-1 AND < CURDATE()`
+          - 本周：`SUM WHERE YEARWEEK(hour_start, 1) = YEARWEEK(CURDATE(), 1)`
+          - 本月：`SUM WHERE hour_start >= DATE_FORMAT(CURDATE(), '%Y-%m-01')`
+          - 累计：`SUM(energy_kwh)`（不过滤时间）
+
+          **过滤规则**（Python 层）：
+          - 排除 `is_component_power_entity`（CPU/GPU/IA_Cores 等子部件）
+          - 排除 `is_derived_energy_entity`（`daily/weekly/monthly/...` 派生实体）
+          - 排除 `is_excluded_energy_entity`（白名单/黑名单）
+
+          **去重规则**（`_dedupe_by_device`）：
+          - 主键：正则从 entity_id 提取米家设备段（`giot_cn_XXX_YYY`）
+          - 桥梁：原生实体 friendly_name 剥中文后缀（"X 功耗参数 电功率"→"X"）注册到 `name_to_did`，供 helper（无设备段）反查合并
+          - 同设备多实体保留 energy 类（`power_consumption/total_energy/_kwh`），取 sort_key 最大的一条
+
+      # ---------- 家庭合计 ----------
+      - type: markdown
+        content: |
+          ## 家庭合计（template sensor）
+
+          定义于 `templates.yaml`，4 个核心设备（电脑/NAS/取暖器/打印机）累计相加：
+
+          ```
+          home_daily_total_v2 =
+            computer_daily_energy_v2
+            + nas_int_daily
+            + heater_daily_energy_v2
+            + prt_int_daily
+
+          home_weekly_total_v2  = 同 4 个设备的 _weekly  相加
+          home_monthly_total_v2 = 同 4 个设备的 _monthly 相加
+          home_yearly_total_v2  = 同 4 个设备的 _yearly  相加
+
+          home_daily_cost_v2   = home_daily_total_v2   × 0.6 元/kWh
+          home_monthly_cost_v2 = home_monthly_total_v2 × 0.6 元/kWh
+          home_yearly_cost_v2  = home_yearly_total_v2  × 0.6 元/kWh
+
+          zong_shi_shi_gong_lu_4 = total_power_v2 (实时总功率)
+
+          li_shi_zong_gong_hao =
+            dian_nao_dian_yuan_lei_ji_yong_dian_total
+            + naslei_ji_yong_dian_total
+            + xiao_da_yin_ji_lei_ji_yong_dian_total
+            + heater_total_kwh_v2
+          ```
+
+          注：单价 0.6 元/kWh 是平均估算价，非分时电价精确值。
+
+      # ---------- 灯光统计 ----------
+      - type: markdown
+        content: |
+          ## 灯光统计
+
+          **今日开灯次数** (`utility_tracker_light_count_today`)
+          ```sql
+          SELECT COUNT(*) FROM light_events
+          WHERE action = 'on' AND ts >= CURDATE()
+          ```
+
+          **今日亮灯时长** (`utility_tracker_light_duration_today`)
+          ```sql
+          SELECT SUM(duration_s) FROM light_hourly
+          WHERE hour_start >= CURDATE()
+          ```
+
+          **数据来源**：HA `state` 事件监听器（light 域 on/off），事件入队后
+          coordinator 每 5 分钟批量落库到 `light_events`，跨零点自动结算到
+          `light_hourly`（小时聚合）。
+
+          **history_stats 区域灯亮时长** (`sensor.*_deng_liang_deng_shi_chang`)：
+          HA 内置 history_stats 集成，统计每个区域主灯实体为 `on` 的累计时长，
+          每 5 分钟快照写入 `light_daily` 表（长期历史）。
+
+      # ---------- 区域停留 ----------
+      - type: markdown
+        content: |
+          ## 区域停留时长
+
+          对应实体：
+          - `utility_tracker_area_stay_duration_today/week/month`
+
+          ```sql
+          SELECT SUM(stay_s) FROM area_stay_hourly
+          WHERE hour_start >= CURDATE()         -- 今日
+             OR hour_start >= CURDATE() - 7d    -- 近 7 日
+             OR hour_start >= 本月 1 日           -- 本月
+          ```
+
+          **数据来源**：12 个区域的 `history_stats`（`type: time`）实体，统计
+          「人在」传感器（PIR / 雷达 / 人体感应器）为 `on` 的累计秒数。
+
+          **入库**：每 5 分钟把当前累计值与上次基线做差，差值累加到当前小时桶
+          `area_stay_hourly`（跨零点自动结算，跨日基线重置）。
+
+          **区域映射**：
+          - 北阳台：PIR 移动事件派生，10 分钟无新移动回落无人
+          - 厨房/公卫干区/走廊：雷达灯「有人持续时长 > 0」派生
+          - 主卫/公卫：人体感应器原生「有人」状态
+
+          **注意**：12 个区域分别计时，多区域同时有人会被分别计入，因此合计
+          可能 > 实际经过时长，属正常。
+
+      # ---------- 入库与刷新周期 ----------
+      - type: markdown
+        content: |
+          ## 入库与刷新周期
+
+          | 数据 | 采样/聚合周期 | 存储 |
+          |------|--------------|------|
+          | 设备功率 | 5 分钟原始 + 1 小时聚合 | `device_power_raw` (7d) + `device_power_hourly` (永久) |
+          | 灯光开关事件 | 实时入队, 5 分钟批量落库 | `light_events` |
+          | 灯光时长 | 5 分钟快照, 跨零点结算 | `light_daily` |
+          | 区域停留 | 5 分钟基线差值 | `area_stay_hourly` |
+          | 电费/燃气账单 | 1 小时同步 | `utility_records` |
+
+          - HA 容器运行在 UTC，coordinator 显式转本地时区
+          - 所有时间以 naive datetime 写入，与 MariaDB `NOW()/CURDATE()` 对齐
+          - `device_power_raw` 超 7 天自动清理（保留 `device_power_hourly` 长期历史）
