@@ -1,5 +1,16 @@
 # 打印分析卡片 - 修改记录
 
+## v2.6.0 出门统计 Grafana 报表 (2026-11-17)
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 功能 | 新建 Grafana 看板「出门统计报表」(uid `away-report`)：本周/本月/今年 6 个指标 + 近 30 天、近 12 月次数与时长趋势 + 最近 200 条行程明细 | grafana/away-report.json |
+| 功能 | 看板 SQL 直接查询 `away_events`，在 SQL 内复刻配对逻辑（折叠重复事件、忽略孤立回家、未闭合按当前时间），口径与 HA 传感器一致；时长按自然日切分归属，周从周一起算 | grafana/away-report.json |
+| 功能 | ui-lovelace.yaml 新增「出门报表」视图 `away-report`，用 grafana-ingress-card 内嵌看板（动态 ingress token，不写死） | ui-lovelace.yaml |
+| 功能 | 首页出门卡片点击改为跳转 `/lovelace/away-report`，长按仍看实体详情 | ui-lovelace.yaml |
+| 文档 | 新增设计文档 | docs/superpowers/specs/2026-11-16-away-grafana-report-design.md |
+| 测试 | 看板 11 个面板查询全部通过；6 项指标与 HA 传感器逐项比对一致（本周 1 次/0.74h、本月 5 次/39.66h、今年 5 次/39.66h）；Lovelace YAML 与 BOM 校验通过 | - |
+
 ## v2.5.0 出门统计 (2026-11-08)
 
 | 类型 | 内容 | 涉及文件 |

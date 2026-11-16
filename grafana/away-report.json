@@ -1,0 +1,594 @@
+{
+  "uid": "away-report",
+  "title": "出门统计报表",
+  "tags": [
+    "出行",
+    "utility_tracker"
+  ],
+  "timezone": "Asia/Shanghai",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5m",
+  "editable": true,
+  "time": {
+    "from": "now-30d",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "1m",
+      "5m",
+      "15m",
+      "1h"
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "本周出门次数",
+      "datasource": {
+        "type": "mysql",
+        "uid": "eg2ic4pjjzk74e"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawSql": "\nWITH ordered AS (\n  SELECT id, event_type, event_time,\n         LAG(event_type) OVER (ORDER BY event_time, id) AS prev_type\n  FROM away_events\n), filtered AS (\n  SELECT id, event_type, event_time,\n         SUM(CASE WHEN event_type='away' THEN 1 ELSE 0 END)\n           OVER (ORDER BY event_time, id ROWS UNBOUNDED PRECEDING) AS trip_no\n  FROM ordered\n  WHERE prev_type IS NULL OR prev_type <> event_type\n), trips AS (\n  SELECT trip_no,\n         MIN(CASE WHEN event_type='away' THEN event_time END) AS start_time,\n         MAX(CASE WHEN event_type='home' THEN event_time END) AS end_time\n  FROM filtered WHERE trip_no > 0 GROUP BY trip_no\n), t AS (\n  SELECT trip_no, start_time, end_time,\n         TIMESTAMPDIFF(SECOND, start_time, COALESCE(end_time, NOW())) AS duration_sec\n  FROM trips\n)\nSELECT COALESCE(SUM(CASE WHEN start_time >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY) AND duration_sec >= 600 THEN 1 ELSE 0 END), 0) AS value FROM t"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "次",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "本周出门时长",
+      "datasource": {
+        "type": "mysql",
+        "uid": "eg2ic4pjjzk74e"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawSql": "\nWITH ordered AS (\n  SELECT id, event_type, event_time,\n         LAG(event_type) OVER (ORDER BY event_time, id) AS prev_type\n  FROM away_events\n), filtered AS (\n  SELECT id, event_type, event_time,\n         SUM(CASE WHEN event_type='away' THEN 1 ELSE 0 END)\n           OVER (ORDER BY event_time, id ROWS UNBOUNDED PRECEDING) AS trip_no\n  FROM ordered\n  WHERE prev_type IS NULL OR prev_type <> event_type\n), trips AS (\n  SELECT trip_no,\n         MIN(CASE WHEN event_type='away' THEN event_time END) AS start_time,\n         MAX(CASE WHEN event_type='home' THEN event_time END) AS end_time\n  FROM filtered WHERE trip_no > 0 GROUP BY trip_no\n), t AS (\n  SELECT trip_no, start_time, end_time,\n         TIMESTAMPDIFF(SECOND, start_time, COALESCE(end_time, NOW())) AS duration_sec\n  FROM trips\n)\nSELECT ROUND(COALESCE(SUM(GREATEST(0, TIMESTAMPDIFF(SECOND, GREATEST(start_time, DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)), COALESCE(end_time, NOW())))), 0) / 3600, 2) AS value FROM t"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "h",
+          "decimals": 1,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "本月出门次数",
+      "datasource": {
+        "type": "mysql",
+        "uid": "eg2ic4pjjzk74e"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawSql": "\nWITH ordered AS (\n  SELECT id, event_type, event_time,\n         LAG(event_type) OVER (ORDER BY event_time, id) AS prev_type\n  FROM away_events\n), filtered AS (\n  SELECT id, event_type, event_time,\n         SUM(CASE WHEN event_type='away' THEN 1 ELSE 0 END)\n           OVER (ORDER BY event_time, id ROWS UNBOUNDED PRECEDING) AS trip_no\n  FROM ordered\n  WHERE prev_type IS NULL OR prev_type <> event_type\n), trips AS (\n  SELECT trip_no,\n         MIN(CASE WHEN event_type='away' THEN event_time END) AS start_time,\n         MAX(CASE WHEN event_type='home' THEN event_time END) AS end_time\n  FROM filtered WHERE trip_no > 0 GROUP BY trip_no\n), t AS (\n  SELECT trip_no, start_time, end_time,\n         TIMESTAMPDIFF(SECOND, start_time, COALESCE(end_time, NOW())) AS duration_sec\n  FROM trips\n)\nSELECT COALESCE(SUM(CASE WHEN start_time >= DATE_FORMAT(CURDATE(),'%Y-%m-01') AND duration_sec >= 600 THEN 1 ELSE 0 END), 0) AS value FROM t"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "次",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "本月出门时长",
+      "datasource": {
+        "type": "mysql",
+        "uid": "eg2ic4pjjzk74e"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawSql": "\nWITH ordered AS (\n  SELECT id, event_type, event_time,\n         LAG(event_type) OVER (ORDER BY event_time, id) AS prev_type\n  FROM away_events\n), filtered AS (\n  SELECT id, event_type, event_time,\n         SUM(CASE WHEN event_type='away' THEN 1 ELSE 0 END)\n           OVER (ORDER BY event_time, id ROWS UNBOUNDED PRECEDING) AS trip_no\n  FROM ordered\n  WHERE prev_type IS NULL OR prev_type <> event_type\n), trips AS (\n  SELECT trip_no,\n         MIN(CASE WHEN event_type='away' THEN event_time END) AS start_time,\n         MAX(CASE WHEN event_type='home' THEN event_time END) AS end_time\n  FROM filtered WHERE trip_no > 0 GROUP BY trip_no\n), t AS (\n  SELECT trip_no, start_time, end_time,\n         TIMESTAMPDIFF(SECOND, start_time, COALESCE(end_time, NOW())) AS duration_sec\n  FROM trips\n)\nSELECT ROUND(COALESCE(SUM(GREATEST(0, TIMESTAMPDIFF(SECOND, GREATEST(start_time, DATE_FORMAT(CURDATE(),'%Y-%m-01')), COALESCE(end_time, NOW())))), 0) / 3600, 2) AS value FROM t"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "h",
+          "decimals": 1,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "今年出门次数",
+      "datasource": {
+        "type": "mysql",
+        "uid": "eg2ic4pjjzk74e"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawSql": "\nWITH ordered AS (\n  SELECT id, event_type, event_time,\n         LAG(event_type) OVER (ORDER BY event_time, id) AS prev_type\n  FROM away_events\n), filtered AS (\n  SELECT id, event_type, event_time,\n         SUM(CASE WHEN event_type='away' THEN 1 ELSE 0 END)\n           OVER (ORDER BY event_time, id ROWS UNBOUNDED PRECEDING) AS trip_no\n  FROM ordered\n  WHERE prev_type IS NULL OR prev_type <> event_type\n), trips AS (\n  SELECT trip_no,\n         MIN(CASE WHEN event_type='away' THEN event_time END) AS start_time,\n         MAX(CASE WHEN event_type='home' THEN event_time END) AS end_time\n  FROM filtered WHERE trip_no > 0 GROUP BY trip_no\n), t AS (\n  SELECT trip_no, start_time, end_time,\n         TIMESTAMPDIFF(SECOND, start_time, COALESCE(end_time, NOW())) AS duration_sec\n  FROM trips\n)\nSELECT COALESCE(SUM(CASE WHEN start_time >= MAKEDATE(YEAR(CURDATE()),1) AND duration_sec >= 600 THEN 1 ELSE 0 END), 0) AS value FROM t"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "次",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "今年出门时长",
+      "datasource": {
+        "type": "mysql",
+        "uid": "eg2ic4pjjzk74e"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawSql": "\nWITH ordered AS (\n  SELECT id, event_type, event_time,\n         LAG(event_type) OVER (ORDER BY event_time, id) AS prev_type\n  FROM away_events\n), filtered AS (\n  SELECT id, event_type, event_time,\n         SUM(CASE WHEN event_type='away' THEN 1 ELSE 0 END)\n           OVER (ORDER BY event_time, id ROWS UNBOUNDED PRECEDING) AS trip_no\n  FROM ordered\n  WHERE prev_type IS NULL OR prev_type <> event_type\n), trips AS (\n  SELECT trip_no,\n         MIN(CASE WHEN event_type='away' THEN event_time END) AS start_time,\n         MAX(CASE WHEN event_type='home' THEN event_time END) AS end_time\n  FROM filtered WHERE trip_no > 0 GROUP BY trip_no\n), t AS (\n  SELECT trip_no, start_time, end_time,\n         TIMESTAMPDIFF(SECOND, start_time, COALESCE(end_time, NOW())) AS duration_sec\n  FROM trips\n)\nSELECT ROUND(COALESCE(SUM(GREATEST(0, TIMESTAMPDIFF(SECOND, GREATEST(start_time, MAKEDATE(YEAR(CURDATE()),1)), COALESCE(end_time, NOW())))), 0) / 3600, 2) AS value FROM t"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "h",
+          "decimals": 1,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "近 30 天每日次数",
+      "datasource": {
+        "type": "mysql",
+        "uid": "eg2ic4pjjzk74e"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "time_series",
+          "rawSql": "WITH RECURSIVE days AS (  SELECT DATE_SUB(CURDATE(), INTERVAL 29 DAY) AS d  UNION ALL SELECT DATE_ADD(d, INTERVAL 1 DAY) FROM days WHERE d < CURDATE()), ordered AS (  SELECT id, event_type, event_time,         LAG(event_type) OVER (ORDER BY event_time, id) AS prev_type  FROM away_events), filtered AS (  SELECT id, event_type, event_time,         SUM(CASE WHEN event_type='away' THEN 1 ELSE 0 END)           OVER (ORDER BY event_time, id ROWS UNBOUNDED PRECEDING) AS trip_no  FROM ordered WHERE prev_type IS NULL OR prev_type <> event_type), trips AS (  SELECT trip_no,         MIN(CASE WHEN event_type='away' THEN event_time END) AS start_time,         MAX(CASE WHEN event_type='home' THEN event_time END) AS end_time  FROM filtered WHERE trip_no > 0 GROUP BY trip_no), t AS (  SELECT trip_no, start_time, end_time,         TIMESTAMPDIFF(SECOND, start_time, COALESCE(end_time, NOW())) AS duration_sec  FROM trips) SELECT CONVERT_TZ(days.d, '+08:00', '+00:00') AS time, (SELECT COUNT(*) FROM t WHERE DATE(t.start_time) = days.d AND t.duration_sec >= 600) AS `有效次数`, ROUND((SELECT COALESCE(SUM(GREATEST(0, TIMESTAMPDIFF(SECOND,   GREATEST(t.start_time, days.d),   LEAST(COALESCE(t.end_time, NOW()), DATE_ADD(days.d, INTERVAL 1 DAY))))), 0)   FROM t) / 3600, 2) AS `出门时长(h)` FROM days ORDER BY days.d",
+          "timeColumn": "time"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "次",
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 2,
+            "fillOpacity": 30,
+            "barAlignment": 0,
+            "showPoints": "never",
+            "spanNulls": false
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "近 12 个月每月次数",
+      "datasource": {
+        "type": "mysql",
+        "uid": "eg2ic4pjjzk74e"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "time_series",
+          "rawSql": "WITH RECURSIVE months AS (  SELECT DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 11 MONTH), '%Y-%m-01') AS m  UNION ALL SELECT DATE_ADD(m, INTERVAL 1 MONTH) FROM months  WHERE m < DATE_FORMAT(CURDATE(), '%Y-%m-01')), ordered AS (  SELECT id, event_type, event_time,         LAG(event_type) OVER (ORDER BY event_time, id) AS prev_type  FROM away_events), filtered AS (  SELECT id, event_type, event_time,         SUM(CASE WHEN event_type='away' THEN 1 ELSE 0 END)           OVER (ORDER BY event_time, id ROWS UNBOUNDED PRECEDING) AS trip_no  FROM ordered WHERE prev_type IS NULL OR prev_type <> event_type), trips AS (  SELECT trip_no,         MIN(CASE WHEN event_type='away' THEN event_time END) AS start_time,         MAX(CASE WHEN event_type='home' THEN event_time END) AS end_time  FROM filtered WHERE trip_no > 0 GROUP BY trip_no), t AS (  SELECT trip_no, start_time, end_time,         TIMESTAMPDIFF(SECOND, start_time, COALESCE(end_time, NOW())) AS duration_sec  FROM trips) SELECT CONVERT_TZ(months.m, '+08:00', '+00:00') AS time, (SELECT COUNT(*) FROM t WHERE t.start_time >= months.m   AND t.start_time < DATE_ADD(months.m, INTERVAL 1 MONTH)   AND t.duration_sec >= 600) AS `有效次数`, ROUND((SELECT COALESCE(SUM(GREATEST(0, TIMESTAMPDIFF(SECOND,   GREATEST(t.start_time, months.m),   LEAST(COALESCE(t.end_time, NOW()), DATE_ADD(months.m, INTERVAL 1 MONTH))))), 0)   FROM t) / 3600, 2) AS `出门时长(h)` FROM months ORDER BY months.m",
+          "timeColumn": "time"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "次",
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 2,
+            "fillOpacity": 30,
+            "barAlignment": 0,
+            "showPoints": "never",
+            "spanNulls": false
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "近 30 天每日时长",
+      "datasource": {
+        "type": "mysql",
+        "uid": "eg2ic4pjjzk74e"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 13
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "time_series",
+          "rawSql": "WITH RECURSIVE days AS (  SELECT DATE_SUB(CURDATE(), INTERVAL 29 DAY) AS d  UNION ALL SELECT DATE_ADD(d, INTERVAL 1 DAY) FROM days WHERE d < CURDATE()), ordered AS (  SELECT id, event_type, event_time,         LAG(event_type) OVER (ORDER BY event_time, id) AS prev_type  FROM away_events), filtered AS (  SELECT id, event_type, event_time,         SUM(CASE WHEN event_type='away' THEN 1 ELSE 0 END)           OVER (ORDER BY event_time, id ROWS UNBOUNDED PRECEDING) AS trip_no  FROM ordered WHERE prev_type IS NULL OR prev_type <> event_type), trips AS (  SELECT trip_no,         MIN(CASE WHEN event_type='away' THEN event_time END) AS start_time,         MAX(CASE WHEN event_type='home' THEN event_time END) AS end_time  FROM filtered WHERE trip_no > 0 GROUP BY trip_no), t AS (  SELECT trip_no, start_time, end_time,         TIMESTAMPDIFF(SECOND, start_time, COALESCE(end_time, NOW())) AS duration_sec  FROM trips) SELECT CONVERT_TZ(days.d, '+08:00', '+00:00') AS time, (SELECT COUNT(*) FROM t WHERE DATE(t.start_time) = days.d AND t.duration_sec >= 600) AS `有效次数`, ROUND((SELECT COALESCE(SUM(GREATEST(0, TIMESTAMPDIFF(SECOND,   GREATEST(t.start_time, days.d),   LEAST(COALESCE(t.end_time, NOW()), DATE_ADD(days.d, INTERVAL 1 DAY))))), 0)   FROM t) / 3600, 2) AS `出门时长(h)` FROM days ORDER BY days.d",
+          "timeColumn": "time"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "h",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "barAlignment": 0,
+            "showPoints": "never",
+            "spanNulls": false
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "近 12 个月每月时长",
+      "datasource": {
+        "type": "mysql",
+        "uid": "eg2ic4pjjzk74e"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 13
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "time_series",
+          "rawSql": "WITH RECURSIVE months AS (  SELECT DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 11 MONTH), '%Y-%m-01') AS m  UNION ALL SELECT DATE_ADD(m, INTERVAL 1 MONTH) FROM months  WHERE m < DATE_FORMAT(CURDATE(), '%Y-%m-01')), ordered AS (  SELECT id, event_type, event_time,         LAG(event_type) OVER (ORDER BY event_time, id) AS prev_type  FROM away_events), filtered AS (  SELECT id, event_type, event_time,         SUM(CASE WHEN event_type='away' THEN 1 ELSE 0 END)           OVER (ORDER BY event_time, id ROWS UNBOUNDED PRECEDING) AS trip_no  FROM ordered WHERE prev_type IS NULL OR prev_type <> event_type), trips AS (  SELECT trip_no,         MIN(CASE WHEN event_type='away' THEN event_time END) AS start_time,         MAX(CASE WHEN event_type='home' THEN event_time END) AS end_time  FROM filtered WHERE trip_no > 0 GROUP BY trip_no), t AS (  SELECT trip_no, start_time, end_time,         TIMESTAMPDIFF(SECOND, start_time, COALESCE(end_time, NOW())) AS duration_sec  FROM trips) SELECT CONVERT_TZ(months.m, '+08:00', '+00:00') AS time, (SELECT COUNT(*) FROM t WHERE t.start_time >= months.m   AND t.start_time < DATE_ADD(months.m, INTERVAL 1 MONTH)   AND t.duration_sec >= 600) AS `有效次数`, ROUND((SELECT COALESCE(SUM(GREATEST(0, TIMESTAMPDIFF(SECOND,   GREATEST(t.start_time, months.m),   LEAST(COALESCE(t.end_time, NOW()), DATE_ADD(months.m, INTERVAL 1 MONTH))))), 0)   FROM t) / 3600, 2) AS `出门时长(h)` FROM months ORDER BY months.m",
+          "timeColumn": "time"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "h",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "barAlignment": 0,
+            "showPoints": "never",
+            "spanNulls": false
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 11,
+      "type": "table",
+      "title": "行程明细（最近 200 条）",
+      "datasource": {
+        "type": "mysql",
+        "uid": "eg2ic4pjjzk74e"
+      },
+      "gridPos": {
+        "h": 11,
+        "w": 24,
+        "x": 0,
+        "y": 22
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawSql": "\nWITH ordered AS (\n  SELECT id, event_type, event_time,\n         LAG(event_type) OVER (ORDER BY event_time, id) AS prev_type\n  FROM away_events\n), filtered AS (\n  SELECT id, event_type, event_time,\n         SUM(CASE WHEN event_type='away' THEN 1 ELSE 0 END)\n           OVER (ORDER BY event_time, id ROWS UNBOUNDED PRECEDING) AS trip_no\n  FROM ordered\n  WHERE prev_type IS NULL OR prev_type <> event_type\n), trips AS (\n  SELECT trip_no,\n         MIN(CASE WHEN event_type='away' THEN event_time END) AS start_time,\n         MAX(CASE WHEN event_type='home' THEN event_time END) AS end_time\n  FROM filtered WHERE trip_no > 0 GROUP BY trip_no\n), t AS (\n  SELECT trip_no, start_time, end_time,\n         TIMESTAMPDIFF(SECOND, start_time, COALESCE(end_time, NOW())) AS duration_sec\n  FROM trips\n)\nSELECT DATE_FORMAT(start_time, '%Y-%m-%d %H:%i') AS `出门时间`, IFNULL(DATE_FORMAT(end_time, '%Y-%m-%d %H:%i'), '-') AS `回家时间`, ROUND(duration_sec / 3600, 2) AS `时长(h)`, CASE WHEN duration_sec < 600 THEN '是' ELSE '' END AS `短途`, CASE WHEN end_time IS NULL THEN '进行中' ELSE '' END AS `状态` FROM t ORDER BY start_time DESC LIMIT 200"
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true,
+            "inspect": false
+          }
+        },
+        "overrides": []
+      }
+    }
+  ]
+}
