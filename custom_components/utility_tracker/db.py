@@ -582,6 +582,9 @@ class UtilityDB:
                     continue
                 if is_excluded_energy_entity(row["entity_id"]):
                     continue
+                # 自带计量不准的整机功率实体 (如新风空调实时功率) 不进入电量明细
+                if is_excluded_power_entity(row["entity_id"]):
+                    continue
                 if is_component_power_entity(row["entity_id"], row["friendly_name"]):
                     continue
                 kwh = float(row["s"]) if row["s"] is not None else 0.0
@@ -622,6 +625,9 @@ class UtilityDB:
                 if is_derived_energy_entity(row["entity_id"], row["friendly_name"]):
                     continue
                 if is_excluded_energy_entity(row["entity_id"]):
+                    continue
+                # 自带计量不准的整机功率实体 (如新风空调实时功率) 不进入电量明细
+                if is_excluded_power_entity(row["entity_id"]):
                     continue
                 if is_component_power_entity(row["entity_id"], row["friendly_name"]):
                     continue

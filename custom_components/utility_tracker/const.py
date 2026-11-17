@@ -199,6 +199,9 @@ EXCLUDED_ENERGY_ENTITIES = frozenset({
     # 小打印机 helper (integration 积分器): 与 utility_tracker 自身按 AVG(power)×采样时长的
     # 积分口径重复, 同一台打印机会被计两次, 故排除 (米家原生计数器已因归零不可用, 见上)
     "sensor.xiao_da_yin_ji_lei_ji_yong_dian",
+    # 空调合计 (客厅自计量 + 主卧/次卧/北卧 yutai 插座): 与 4 个空调插座明细重复计量,
+    # 详情表按插座逐台展示, 合计由首页「空调」卡片另行展示
+    "sensor.ac_total_energy_kwh",
 })
 
 

@@ -1,5 +1,14 @@
 # 打印分析卡片 - 修改记录
 
+## v2.6.2 设备功耗详情去重与中文化 (2026-11-18)
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 修复 | `sensor.ac_total_energy_kwh`（空调合计 = 客厅自计量 + 主卧/次卧/北卧插座）与 4 个空调插座明细重复计量，加入 `EXCLUDED_ENERGY_ENTITIES` 排除 | const.py#L201-L205 |
+| 修复 | 查询层补上 `is_excluded_power_entity` 检查。`sensor.bei_wo_xin_feng_kong_diao_real_time_power` 早已在 `EXCLUDED_POWER_ENTITIES` 中，但因查询层只检查 energy 列表而漏过，仍出现在电量详情表 | db.py#L583-L587, L629-L633 |
+| 优化 | `sensor.ac_total_energy_kwh` friendly_name 改为「空调累计用电」（通过 entity_registry 覆盖，重启保留） | (registry) |
+| 验证 | 详情表设备数 19 → 17，空调仅保留 4 个插座明细；17 行全部中文名，英文名 0 个 | - |
+
 ## v2.6.1 修复电脑电源本周用电暴增至 100+ kWh (2026-11-18)
 
 | 类型 | 内容 | 涉及文件 |
