@@ -1,5 +1,13 @@
 # 打印分析卡片 - 修改记录
 
+## v2.6.1 修复电脑电源本周用电暴增至 100+ kWh (2026-11-18)
+
+| 类型 | 内容 | 涉及文件 |
+|------|------|----------|
+| 修复 | utility_meter 源从 UI 模板 helper `*_lei_ji_yong_dian_kwh` 改为 integration helper `*_lei_ji_yong_dian`（`state_class=total`，回退不重复累加）。根因：模板重算瞬间返回 0，utility_meter 误判电表重置，把 51 kWh 累计值重复加两次，共虚增 102 kWh | utility_meter.yaml |
+| 修复 | 重置所有受影响的电脑电源 / 取暖器 utility_meter（日/周/月/年），last_reset=2026-11-17 02:07 |
+| 验证 | 电脑电源本周 103.24 → 0.60 kWh，近 6 小时平滑增长无跳变；取暖器本周同步修正为 0.79 kWh；DB 口径本周 1.705 kWh 正常 | - |
+
 ## v2.6.0 出门统计 Grafana 报表 (2026-11-17)
 
 | 类型 | 内容 | 涉及文件 |
